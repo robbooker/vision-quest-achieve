@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { InterviewMode } from './InterviewMode';
 import { GoalProposalDialog } from './GoalProposalDialog';
 import { toast } from 'sonner';
+import ReactMarkdown from 'react-markdown';
 import type { ExtractedGoal } from '@/hooks/useGoalInterview';
 import type { ChatMessage } from '@/types/chat';
 import { format } from 'date-fns';
@@ -40,7 +41,13 @@ function ChatMessageBubble({ message }: { message: ChatMessage }) {
             : 'bg-muted text-foreground'
         )}
       >
-        <p className="whitespace-pre-wrap">{message.content}</p>
+        {isUser ? (
+          <p className="whitespace-pre-wrap">{message.content}</p>
+        ) : (
+          <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-2 prose-strong:text-foreground prose-headings:text-foreground prose-li:my-0.5">
+            <ReactMarkdown>{message.content}</ReactMarkdown>
+          </div>
+        )}
       </div>
     </div>
   );

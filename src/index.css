@@ -130,6 +130,90 @@
     --chiclet-dark: 0 0% 12%;
     --chiclet-shadow: 0 0% 8%;
   }
+
+  /* Bloomberg Terminal Theme */
+  .terminal {
+    /* Pure black background */
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+
+    /* Terminal panel - dark with grid borders */
+    --card: 0 0% 0%;
+    --card-foreground: 0 0% 100%;
+
+    --popover: 0 0% 0%;
+    --popover-foreground: 0 0% 100%;
+
+    /* Primary: Terminal orange #FFA028 */
+    --primary: 34 100% 58%;
+    --primary-foreground: 0 0% 0%;
+
+    /* Secondary: Grid border color #333333 */
+    --secondary: 0 0% 20%;
+    --secondary-foreground: 0 0% 100%;
+
+    /* Muted: Subdued elements */
+    --muted: 0 0% 13%;
+    --muted-foreground: 0 0% 60%;
+
+    /* Accent: Electric blue #0068FF */
+    --accent: 216 100% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Destructive: Terminal red #FF433D */
+    --destructive: 2 100% 62%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders: High contrast grid #333333 */
+    --border: 0 0% 20%;
+    --input: 0 0% 13%;
+    --ring: 34 100% 58%;
+
+    /* Square corners for terminal */
+    --radius: 0px;
+
+    /* Sidebar: Command bar red/amber */
+    --sidebar-background: 0 100% 25%;
+    --sidebar-foreground: 32 95% 54%;
+    --sidebar-primary: 34 100% 58%;
+    --sidebar-primary-foreground: 0 0% 0%;
+    --sidebar-accent: 0 100% 20%;
+    --sidebar-accent-foreground: 32 95% 54%;
+    --sidebar-border: 0 0% 0%;
+    --sidebar-ring: 34 100% 58%;
+
+    /* Chart colors - Bloomberg palette */
+    --chart-1: 34 100% 58%;   /* Terminal orange #FFA028 */
+    --chart-2: 165 91% 63%;   /* Terminal green #4AF6C3 */
+    --chart-3: 216 100% 50%;  /* Electric blue #0068FF */
+    --chart-4: 2 100% 62%;    /* Terminal red #FF433D */
+    --chart-5: 0 0% 40%;      /* Grey */
+
+    /* Terminal-specific tokens */
+    --index-card-bg: 0 0% 0%;
+    --index-card-lines: 0 0% 20%;
+    --index-card-margin: 34 100% 58%;
+    --nixie-bg: 0 0% 0%;
+    --nixie-glow: 34 100% 58%;
+    --nixie-glow-alt: 165 91% 63%;
+    --chiclet-light: 0 0% 13%;
+    --chiclet-dark: 0 0% 7%;
+    --chiclet-shadow: 0 0% 0%;
+
+    /* Terminal-specific colors */
+    --terminal-orange: 34 100% 58%;
+    --terminal-green: 165 91% 63%;
+    --terminal-red: 2 100% 62%;
+    --terminal-blue: 216 100% 50%;
+    --command-bar-bg: 0 100% 25%;
+    --command-bar-text: 32 95% 54%;
+  }
+
+  .terminal body,
+  .terminal html {
+    font-family: 'Space Mono', monospace !important;
+    font-size: 13px;
+  }
 }
 
 @layer base {
@@ -143,12 +227,38 @@
     font-weight: 400;
   }
 
+  /* Terminal theme global styles */
+  .terminal {
+    font-family: 'Space Mono', monospace !important;
+    font-size: 13px;
+    letter-spacing: 0;
+  }
+
+  .terminal * {
+    border-radius: 0 !important;
+  }
+
+  .terminal h1, 
+  .terminal h2, 
+  .terminal h3, 
+  .terminal h4, 
+  .terminal h5, 
+  .terminal h6 {
+    font-family: 'Space Mono', monospace !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
   body {
     @apply bg-background text-foreground;
     /* Film grain texture overlay */
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
     background-blend-mode: overlay;
     background-size: 200px 200px;
+  }
+
+  .terminal body {
+    background-image: none;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -301,4 +411,61 @@
     font-family: 'IBM Plex Mono', monospace;
     letter-spacing: 0.1em;
   }
+
+  /* Terminal-specific utilities */
+  .terminal-positive {
+    color: hsl(165 91% 63%);
+    text-shadow: 0 0 5px hsl(165 91% 63% / 0.5);
+  }
+
+  .terminal-negative {
+    color: hsl(2 100% 62%);
+  }
+
+  .terminal-orange {
+    color: hsl(34 100% 58%);
+    text-shadow: 0 0 5px hsl(34 100% 58% / 0.5);
+  }
+
+  .terminal-blue {
+    color: hsl(216 100% 50%);
+  }
+}
+
+/* Bloomberg Terminal Panel */
+.terminal-panel {
+  background-color: hsl(0 0% 0%);
+  border: 1px solid hsl(0 0% 20%);
+  font-family: 'Space Mono', monospace;
+  color: hsl(0 0% 100%);
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Terminal table with dashed borders */
+.terminal table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.terminal table th,
+.terminal table td {
+  border: 1px dashed hsl(0 0% 20%);
+  padding: 2px 4px;
+}
+
+/* Terminal cards without shadows */
+.terminal .goal-card,
+.terminal .retro-card {
+  background-color: hsl(0 0% 0%);
+  background-image: none;
+  border: 1px solid hsl(0 0% 20%);
+  box-shadow: none;
+  border-left-width: 1px;
+}
+
+.terminal .retro-card:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: hsl(34 100% 58%);
 }

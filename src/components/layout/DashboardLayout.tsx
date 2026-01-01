@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useTerminalMode } from '@/hooks/useTerminalMode';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -28,6 +29,7 @@ const navItems = [
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, signOut } = useAuth();
+  const { isTerminal, labels } = useTerminalMode();
   const location = useLocation();
 
   const userInitials = user?.email
@@ -40,16 +42,34 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                       'User';
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className={cn("min-h-screen bg-background", isTerminal && "font-mono text-[13px]")}>
+      {/* Terminal Command Bar */}
+      {isTerminal && (
+        <div className="bg-[hsl(0,100%,25%)] text-[hsl(32,95%,54%)] px-4 py-1 text-xs font-bold border-b-2 border-background flex items-center justify-between">
+          <span>{labels.search}</span>
+          <span className="text-[hsl(0,0%,60%)]">12WY TERMINAL</span>
+        </div>
+      )}
+
       {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className={cn(
+        "sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60",
+        isTerminal && "border-[hsl(0,0%,20%)]"
+      )}>
         <div className="container flex h-14 items-center justify-between">
           <div className="flex items-center gap-6">
             <Link to="/dashboard" className="flex items-center gap-2">
-              <span className="text-xl font-logo text-foreground">12WY</span>
-              <span className="text-sm font-logo text-muted-foreground hidden sm:inline">
-                12-Week Year
+              <span className={cn(
+                "text-xl font-logo text-foreground",
+                isTerminal && "text-[hsl(34,100%,58%)] font-mono"
+              )}>
+                {isTerminal ? '12WY <GO>' : '12WY'}
               </span>
+              {!isTerminal && (
+                <span className="text-sm font-logo text-muted-foreground hidden sm:inline">
+                  12-Week Year
+                </span>
+              )}
             </Link>
 
             {/* Navigation */}
@@ -64,11 +84,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                       size="sm"
                       className={cn(
                         'gap-2',
-                        isActive && 'bg-secondary'
+                        isActive && 'bg-secondary',
+                        isTerminal && isActive && 'text-[hsl(216,100%,50%)]',
+                        isTerminal && !isActive && 'text-[hsl(216,100%,50%)] hover:text-[hsl(216,100%,60%)]'
                       )}
                     >
                       <Icon className="h-4 w-4" />
-                      {item.label}
+                      {item.label.toUpperCase()}
                     </Button>
                   </Link>
                 );
@@ -81,17 +103,22 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-                  <Avatar className="h-9 w-9">
+                <Button variant="ghost" className={cn(
+                  "relative h-9 w-9",
+                  isTerminal ? "rounded-none" : "rounded-full"
+                )}>
+                  <Avatar className={cn("h-9 w-9", isTerminal && "rounded-none")}>
                     <AvatarImage 
                       src={user?.user_metadata?.avatar_url} 
                       alt={displayName} 
                     />
-                    <AvatarFallback>{userInitials}</AvatarFallback>
+                    <AvatarFallback className={isTerminal ? "rounded-none" : ""}>
+                      {userInitials}
+                    </AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuContent align="end" className={cn("w-56", isTerminal && "rounded-none")}>
                 <DropdownMenuLabel>
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">{displayName}</p>
@@ -122,7 +149,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
 
         {/* Mobile Navigation */}
-        <div className="md:hidden border-t">
+        <div className={cn("md:hidden border-t", isTerminal && "border-[hsl(0,0%,20%)]")}>
           <nav className="container flex items-center justify-around py-2">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -134,11 +161,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     size="sm"
                     className={cn(
                       'flex-col gap-1 h-auto py-2',
-                      isActive && 'text-primary'
+                      isActive && 'text-primary',
+                      isTerminal && 'text-[hsl(216,100%,50%)]'
                     )}
                   >
                     <Icon className="h-5 w-5" />
-                    <span className="text-xs">{item.label}</span>
+                    <span className="text-xs">{item.label.toUpperCase()}</span>
                   </Button>
                 </Link>
               );
@@ -148,7 +176,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </header>
 
       {/* Main content */}
-      <main className="container py-6">
+      <main className={cn("container py-6", isTerminal && "border-x border-[hsl(0,0%,20%)]")}>
         {children}
       </main>
     </div>

@@ -3,6 +3,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Edit, Trash2 } from 'lucide-react';
+import { useTerminalMode } from '@/hooks/useTerminalMode';
+import { cn } from '@/lib/utils';
 
 interface TacticCardProps {
   tactic: Tactic;
@@ -17,14 +19,23 @@ const frequencyLabels: Record<string, string> = {
   specific_weeks: 'Specific Weeks',
 };
 
+const terminalFrequencyLabels: Record<string, string> = {
+  daily: 'D',
+  weekly: 'W',
+  specific_weeks: 'SW',
+};
+
 export function TacticCard({ tactic, onToggle, onEdit, onDelete }: TacticCardProps) {
   const dueWeeks = tactic.due_weeks as number[] | null;
+  const { isTerminal, labels } = useTerminalMode();
 
   return (
     <div
-      className={`flex items-center gap-3 p-3 rounded-lg border ${
-        tactic.is_active ? 'bg-card' : 'bg-muted/50 opacity-60'
-      }`}
+      className={cn(
+        "flex items-center gap-3 p-3 border",
+        tactic.is_active ? 'bg-card' : 'bg-muted/50 opacity-60',
+        isTerminal ? 'rounded-none border-dashed' : 'rounded-lg'
+      )}
     >
       <Switch
         checked={tactic.is_active}
@@ -33,19 +44,26 @@ export function TacticCard({ tactic, onToggle, onEdit, onDelete }: TacticCardPro
       />
 
       <div className="flex-1 min-w-0">
-        <p className={`font-medium truncate ${!tactic.is_active && 'line-through'}`}>
+        <p className={cn(
+          "font-medium truncate",
+          !tactic.is_active && 'line-through',
+          isTerminal && tactic.is_active && 'terminal-positive'
+        )}>
           {tactic.title}
         </p>
         <div className="flex items-center gap-2 mt-1 flex-wrap">
-          <Badge variant="secondary" className="text-xs">
-            {frequencyLabels[tactic.frequency] || tactic.frequency}
+          <Badge variant="secondary" className={cn("text-xs", isTerminal && "rounded-none")}>
+            {isTerminal 
+              ? terminalFrequencyLabels[tactic.frequency] || tactic.frequency.toUpperCase()
+              : frequencyLabels[tactic.frequency] || tactic.frequency
+            }
           </Badge>
-          <span className="text-xs text-muted-foreground">
-            {tactic.target_count}x / {tactic.frequency === 'daily' ? 'day' : 'week'}
+          <span className={cn("text-xs text-muted-foreground", isTerminal && "terminal-orange")}>
+            {tactic.target_count}x / {tactic.frequency === 'daily' ? 'D' : 'W'}
           </span>
           {dueWeeks && dueWeeks.length > 0 && (
             <span className="text-xs text-muted-foreground">
-              (Weeks: {dueWeeks.join(', ')})
+              {isTerminal ? `[W${dueWeeks.join(',')}]` : `(Weeks: ${dueWeeks.join(', ')})`}
             </span>
           )}
         </div>

@@ -5,8 +5,10 @@ import { GoalCard } from '@/components/dashboard/GoalCard';
 import { EmptyState } from '@/components/dashboard/EmptyState';
 import { CreateCycleDialog } from '@/components/dashboard/CreateCycleDialog';
 import { CreateGoalDialog } from '@/components/dashboard/CreateGoalDialog';
+import { MilestonePlannerDialog } from '@/components/dashboard/MilestonePlannerDialog';
+import { WeekView } from '@/components/dashboard/WeekView';
 import { useCycles } from '@/hooks/useCycles';
-import { useGoals } from '@/hooks/useGoals';
+import { useGoals, Goal } from '@/hooks/useGoals';
 import { Button } from '@/components/ui/button';
 import { Plus, ChevronDown } from 'lucide-react';
 import {
@@ -21,6 +23,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function Dashboard() {
   const [createCycleOpen, setCreateCycleOpen] = useState(false);
   const [createGoalOpen, setCreateGoalOpen] = useState(false);
+  const [milestonePlannerGoal, setMilestonePlannerGoal] = useState<Goal | null>(null);
   
   const { cycles, isLoading: cyclesLoading, getActiveCycle, getCurrentWeekNumber } = useCycles();
   const activeCycle = getActiveCycle();
@@ -43,6 +46,10 @@ export default function Dashboard() {
         variant: 'destructive',
       });
     }
+  };
+
+  const handlePlanMilestones = (goal: Goal) => {
+    setMilestonePlannerGoal(goal);
   };
 
   if (cyclesLoading) {
@@ -124,7 +131,7 @@ export default function Dashboard() {
                   <ChevronDown className="ml-2 h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent>
+              <DropdownMenuContent className="bg-popover">
                 {cycles.map((cycle) => (
                   <DropdownMenuItem key={cycle.id}>
                     {cycle.name}
@@ -170,6 +177,7 @@ export default function Dashboard() {
                   goal={goal}
                   index={index}
                   onDelete={handleDeleteGoal}
+                  onPlanMilestones={handlePlanMilestones}
                 />
               ))}
               
@@ -189,14 +197,13 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Placeholder for future sections */}
+        {/* Week view and execution score */}
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-lg border bg-card p-4">
-            <h3 className="font-medium text-foreground mb-2">This Week</h3>
-            <p className="text-sm text-muted-foreground">
-              Tasks and milestones for Week {currentWeek} will appear here.
-            </p>
-          </div>
+          <WeekView 
+            cycle={activeCycle} 
+            goals={goals} 
+            currentWeek={currentWeek} 
+          />
           <div className="rounded-lg border bg-card p-4">
             <h3 className="font-medium text-foreground mb-2">Execution Score</h3>
             <p className="text-sm text-muted-foreground">
@@ -213,6 +220,13 @@ export default function Dashboard() {
           onOpenChange={setCreateGoalOpen}
           cycleId={activeCycle.id}
           existingGoalsCount={goals.length}
+        />
+      )}
+      {milestonePlannerGoal && (
+        <MilestonePlannerDialog
+          open={!!milestonePlannerGoal}
+          onOpenChange={(open) => !open && setMilestonePlannerGoal(null)}
+          goal={milestonePlannerGoal}
         />
       )}
     </DashboardLayout>

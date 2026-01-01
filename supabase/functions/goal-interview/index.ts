@@ -121,6 +121,7 @@ serve(async (req) => {
         ...messages
       ],
       max_tokens: 500,
+      stream: true,
     };
 
     // Add tool if we're in a phase where extraction might be needed
@@ -146,57 +147,106 @@ serve(async (req) => {
       throw new Error(`AI API error: ${response.status}`);
     }
 
-    const data = await response.json();
-    const choice = data.choices?.[0];
-
-    if (!choice) {
-      throw new Error('No response from AI');
-    }
-
-    let responseContent = choice.message?.content || '';
-    let extractedGoal = null;
+    // Stream the response
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+    
+    let fullContent = '';
+    let extractedGoal: Record<string, unknown> | null = null;
+    let toolCallArgs = '';
     let nextPhase = phase;
 
-    // Check for tool calls
-    if (choice.message?.tool_calls?.length > 0) {
-      const toolCall = choice.message.tool_calls[0];
-      if (toolCall.function?.name === 'extract_goal_data') {
+    const stream = new ReadableStream({
+      async start(controller) {
+        const reader = response.body?.getReader();
+        if (!reader) {
+          controller.close();
+          return;
+        }
+
         try {
-          extractedGoal = JSON.parse(toolCall.function.arguments);
-          nextPhase = 'complete';
-          console.log('Extracted goal data:', extractedGoal);
-        } catch (e) {
-          console.error('Failed to parse goal data:', e);
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const data = line.slice(6);
+                if (data === '[DONE]') continue;
+
+                try {
+                  const parsed = JSON.parse(data);
+                  const delta = parsed.choices?.[0]?.delta;
+
+                  if (delta?.content) {
+                    fullContent += delta.content;
+                    // Send content delta
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'content', delta: delta.content })}\n\n`));
+                  }
+
+                  // Handle tool calls
+                  if (delta?.tool_calls?.[0]?.function?.arguments) {
+                    toolCallArgs += delta.tool_calls[0].function.arguments;
+                  }
+                } catch (e) {
+                  // Skip unparseable chunks
+                }
+              }
+            }
+          }
+
+          // Process tool call if present
+          if (toolCallArgs) {
+            try {
+              extractedGoal = JSON.parse(toolCallArgs);
+              nextPhase = 'complete';
+              console.log('Extracted goal data:', extractedGoal);
+            } catch (e) {
+              console.error('Failed to parse goal data:', e);
+            }
+          }
+
+          // Determine next phase based on content analysis
+          if (!extractedGoal) {
+            const lowerContent = fullContent.toLowerCase();
+            if (phase === 'vision' && (lowerContent.includes('measure') || lowerContent.includes('target') || lowerContent.includes('number'))) {
+              nextPhase = 'metrics';
+            } else if (phase === 'metrics' && (lowerContent.includes('why') || lowerContent.includes('matter') || lowerContent.includes('motivation'))) {
+              nextPhase = 'motivation';
+            } else if (phase === 'motivation' && (lowerContent.includes('milestone') || lowerContent.includes('checkpoint') || lowerContent.includes('week'))) {
+              nextPhase = 'milestones';
+            } else if (phase === 'milestones' && (lowerContent.includes('tactic') || lowerContent.includes('action') || lowerContent.includes('do each'))) {
+              nextPhase = 'tactics';
+            } else if (phase === 'tactics' && (lowerContent.includes('set this up') || lowerContent.includes('create') || lowerContent.includes('ready'))) {
+              nextPhase = 'complete';
+            }
+          }
+
+          // Send final metadata
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
+            type: 'done', 
+            phase: nextPhase, 
+            extractedGoal 
+          })}\n\n`));
+          
+          controller.close();
+        } catch (error) {
+          console.error('Stream error:', error);
+          controller.error(error);
         }
       }
-    }
+    });
 
-    // Determine next phase based on content analysis
-    if (!extractedGoal) {
-      const lowerContent = responseContent.toLowerCase();
-      if (phase === 'vision' && (lowerContent.includes('measure') || lowerContent.includes('target') || lowerContent.includes('number'))) {
-        nextPhase = 'metrics';
-      } else if (phase === 'metrics' && (lowerContent.includes('why') || lowerContent.includes('matter') || lowerContent.includes('motivation'))) {
-        nextPhase = 'motivation';
-      } else if (phase === 'motivation' && (lowerContent.includes('milestone') || lowerContent.includes('checkpoint') || lowerContent.includes('week'))) {
-        nextPhase = 'milestones';
-      } else if (phase === 'milestones' && (lowerContent.includes('tactic') || lowerContent.includes('action') || lowerContent.includes('do each'))) {
-        nextPhase = 'tactics';
-      } else if (phase === 'tactics' && (lowerContent.includes('set this up') || lowerContent.includes('create') || lowerContent.includes('ready'))) {
-        nextPhase = 'complete';
-      }
-    }
-
-    return new Response(
-      JSON.stringify({
-        content: responseContent,
-        phase: nextPhase,
-        extractedGoal,
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    return new Response(stream, {
+      headers: { 
+        ...corsHeaders, 
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+      },
+    });
   } catch (error: unknown) {
     console.error('Error in goal-interview function:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';

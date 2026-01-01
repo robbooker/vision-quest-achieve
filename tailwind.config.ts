@@ -14,9 +14,9 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Space Grotesk', 'Work Sans', 'Helvetica Neue', 'sans-serif'],
-        heading: ['Archivo Black', 'Space Grotesk', 'sans-serif'],
-        mono: ['Courier Prime', 'Courier New', 'monospace'],
+        sans: ['IBM Plex Sans', 'sans-serif'],
+        heading: ['IBM Plex Sans Condensed', 'IBM Plex Sans', 'sans-serif'],
+        mono: ['IBM Plex Mono', 'monospace'],
         logo: ['Amarante', 'cursive'],
       },
       fontWeight: {

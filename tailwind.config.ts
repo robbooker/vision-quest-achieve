@@ -14,11 +14,16 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Helvetica Neue', 'Helvetica', 'Arial', 'sans-serif'],
+        sans: ['Space Grotesk', 'Work Sans', 'Helvetica Neue', 'sans-serif'],
+        heading: ['Archivo Black', 'Space Grotesk', 'sans-serif'],
         mono: ['Courier Prime', 'Courier New', 'monospace'],
       },
+      fontWeight: {
+        normal: '500',
+      },
       letterSpacing: {
-        'tight': '-0.02em',
+        'tight': '-0.04em',
+        'pressed': '-0.04em',
         'wide': '0.05em',
         'nixie': '0.3em',
       },

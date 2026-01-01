@@ -71,20 +71,33 @@ export function useGoalInterview(options: UseGoalInterviewOptions = {}): UseGoal
     onChunk: (content: string) => void
   ): Promise<{ fullContent: string; newPhase?: InterviewPhase; extractedGoal?: ExtractedGoal }> => {
     const reader = response.body?.getReader();
-    if (!reader) throw new Error('No response body');
+    if (!reader) {
+      console.error('No response body reader');
+      throw new Error('No response body');
+    }
 
     const decoder = new TextDecoder();
     let fullContent = '';
     let newPhase: InterviewPhase | undefined;
     let goalData: ExtractedGoal | undefined;
+    let buffer = '';
+
+    console.log('Starting to process stream...');
 
     try {
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          console.log('Stream done, total content length:', fullContent.length);
+          break;
+        }
 
         const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
+        buffer += chunk;
+        
+        // Process complete lines
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
 
         for (const line of lines) {
           if (line.startsWith('data: ')) {
@@ -98,11 +111,12 @@ export function useGoalInterview(options: UseGoalInterviewOptions = {}): UseGoal
                 fullContent += parsed.delta;
                 onChunk(fullContent);
               } else if (parsed.type === 'done') {
+                console.log('Received done event, phase:', parsed.phase);
                 newPhase = parsed.phase;
                 goalData = parsed.extractedGoal;
               }
-            } catch {
-              // Skip unparseable chunks
+            } catch (e) {
+              console.log('Skipping unparseable chunk:', line.substring(0, 50));
             }
           }
         }
@@ -111,6 +125,7 @@ export function useGoalInterview(options: UseGoalInterviewOptions = {}): UseGoal
       reader.releaseLock();
     }
 
+    console.log('Stream processing complete, content:', fullContent.substring(0, 100));
     return { fullContent, newPhase, extractedGoal: goalData };
   }, []);
 
@@ -124,6 +139,7 @@ export function useGoalInterview(options: UseGoalInterviewOptions = {}): UseGoal
     abortControllerRef.current = new AbortController();
 
     try {
+      console.log('Starting interview, calling goal-interview function...');
       const response = await fetch(`${SUPABASE_URL}/functions/v1/goal-interview`, {
         method: 'POST',
         headers: {
@@ -139,8 +155,12 @@ export function useGoalInterview(options: UseGoalInterviewOptions = {}): UseGoal
         signal: abortControllerRef.current.signal,
       });
 
+      console.log('Response status:', response.status, 'ok:', response.ok);
+
       if (!response.ok) {
-        throw new Error(`Request failed: ${response.status}`);
+        const errorText = await response.text();
+        console.error('Response error:', errorText);
+        throw new Error(`Request failed: ${response.status} - ${errorText}`);
       }
 
       // Add empty assistant message that will be updated

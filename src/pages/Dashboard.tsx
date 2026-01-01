@@ -7,10 +7,16 @@ import { CreateCycleDialog } from '@/components/dashboard/CreateCycleDialog';
 import { CreateGoalDialog } from '@/components/dashboard/CreateGoalDialog';
 import { MilestonePlannerDialog } from '@/components/dashboard/MilestonePlannerDialog';
 import { WeekView } from '@/components/dashboard/WeekView';
+import { WeeklyReviewDialog, ReplanDialog } from '@/components/dashboard/WeeklyReviewDialog';
 import { useCycles } from '@/hooks/useCycles';
 import { useGoals, Goal } from '@/hooks/useGoals';
+import { useTaskInstances } from '@/hooks/useTaskInstances';
+import { useWeekReviews } from '@/hooks/useWeekReviews';
 import { Button } from '@/components/ui/button';
-import { Plus, ChevronDown } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { Plus, ChevronDown, TrendingUp, ClipboardCheck, RefreshCw } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,11 +31,16 @@ export default function Dashboard() {
   const [createGoalOpen, setCreateGoalOpen] = useState(false);
   const [milestonePlannerGoal, setMilestonePlannerGoal] = useState<Goal | null>(null);
   
+  const [weeklyReviewOpen, setWeeklyReviewOpen] = useState(false);
+  const [replanOpen, setReplanOpen] = useState(false);
+  
   const { cycles, isLoading: cyclesLoading, getActiveCycle, getCurrentWeekNumber } = useCycles();
   const activeCycle = getActiveCycle();
   const currentWeek = activeCycle ? getCurrentWeekNumber(activeCycle) : 0;
   
   const { goals, isLoading: goalsLoading, deleteGoal } = useGoals(activeCycle?.id);
+  const { tasks, getWeekStats } = useTaskInstances(activeCycle?.id);
+  const weekStats = activeCycle ? getWeekStats(tasks, currentWeek) : { completed: 0, total: 0, percentage: 0 };
   const { toast } = useToast();
 
   const handleDeleteGoal = async (goalId: string) => {
@@ -204,12 +215,36 @@ export default function Dashboard() {
             goals={goals} 
             currentWeek={currentWeek} 
           />
-          <div className="rounded-lg border bg-card p-4">
-            <h3 className="font-medium text-foreground mb-2">Execution Score</h3>
-            <p className="text-sm text-muted-foreground">
-              Your weekly execution metrics will appear here.
-            </p>
-          </div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                Execution Score
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="text-3xl font-bold text-foreground">
+                  {weekStats.percentage}%
+                </div>
+                <div className="flex-1">
+                  <Progress value={weekStats.percentage} className="h-2" />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {weekStats.completed}/{weekStats.total} tasks
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="flex-1" onClick={() => setWeeklyReviewOpen(true)}>
+                  <ClipboardCheck className="h-4 w-4 mr-1" />
+                  Weekly Review
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setReplanOpen(true)}>
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
@@ -227,6 +262,24 @@ export default function Dashboard() {
           open={!!milestonePlannerGoal}
           onOpenChange={(open) => !open && setMilestonePlannerGoal(null)}
           goal={milestonePlannerGoal}
+        />
+      )}
+      {activeCycle && (
+        <WeeklyReviewDialog
+          open={weeklyReviewOpen}
+          onOpenChange={setWeeklyReviewOpen}
+          cycle={activeCycle}
+          currentWeek={currentWeek}
+          goals={goals}
+        />
+      )}
+      {activeCycle && (
+        <ReplanDialog
+          open={replanOpen}
+          onOpenChange={setReplanOpen}
+          cycle={activeCycle}
+          currentWeek={currentWeek}
+          goals={goals}
         />
       )}
     </DashboardLayout>

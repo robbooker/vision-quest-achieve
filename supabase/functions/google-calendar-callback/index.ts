@@ -7,21 +7,23 @@ Deno.serve(async (req) => {
     const stateParam = url.searchParams.get("state");
     const error = url.searchParams.get("error");
 
+    // Helper function to redirect
+    const redirect = (location: string) => {
+      return new Response(null, {
+        status: 302,
+        headers: { "Location": location },
+      });
+    };
+
     // Handle OAuth errors
     if (error) {
       console.error("OAuth error:", error);
-      return new Response(
-        `<html><body><script>window.location.href = "/?calendar_error=${encodeURIComponent(error)}";</script></body></html>`,
-        { status: 200, headers: { "Content-Type": "text/html" } }
-      );
+      return redirect(`/?calendar_error=${encodeURIComponent(error)}`);
     }
 
     if (!code || !stateParam) {
       console.error("Missing code or state parameter");
-      return new Response(
-        `<html><body><script>window.location.href = "/?calendar_error=missing_params";</script></body></html>`,
-        { status: 200, headers: { "Content-Type": "text/html" } }
-      );
+      return redirect("/?calendar_error=missing_params");
     }
 
     // Parse the state to get user ID and redirect URI
@@ -30,10 +32,7 @@ Deno.serve(async (req) => {
       state = JSON.parse(decodeURIComponent(stateParam));
     } catch (e) {
       console.error("Failed to parse state:", e);
-      return new Response(
-        `<html><body><script>window.location.href = "/?calendar_error=invalid_state";</script></body></html>`,
-        { status: 200, headers: { "Content-Type": "text/html" } }
-      );
+      return redirect("/?calendar_error=invalid_state");
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -59,10 +58,7 @@ Deno.serve(async (req) => {
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.text();
       console.error("Token exchange failed:", errorData);
-      return new Response(
-        `<html><body><script>window.location.href = "${state.redirectUri}?calendar_error=token_exchange_failed";</script></body></html>`,
-        { status: 200, headers: { "Content-Type": "text/html" } }
-      );
+      return redirect(`${state.redirectUri}?calendar_error=token_exchange_failed`);
     }
 
     const tokens = await tokenResponse.json();
@@ -86,24 +82,23 @@ Deno.serve(async (req) => {
 
     if (upsertError) {
       console.error("Failed to store tokens:", upsertError);
-      return new Response(
-        `<html><body><script>window.location.href = "${state.redirectUri}?calendar_error=storage_failed";</script></body></html>`,
-        { status: 200, headers: { "Content-Type": "text/html" } }
-      );
+      return redirect(`${state.redirectUri}?calendar_error=storage_failed`);
     }
 
     console.log("Tokens stored successfully for user:", state.userId);
 
     // Redirect back to the app with success
-    return new Response(
-      `<html><body><script>window.location.href = "${state.redirectUri}?calendar_connected=true";</script></body></html>`,
-      { status: 200, headers: { "Content-Type": "text/html" } }
-    );
+    return redirect(`${state.redirectUri}?calendar_connected=true`);
   } catch (error) {
     console.error("Error in google-calendar-callback:", error);
-    return new Response(
-      `<html><body><script>window.location.href = "/?calendar_error=internal_error";</script></body></html>`,
-      { status: 200, headers: { "Content-Type": "text/html" } }
-    );
+    return redirect("/?calendar_error=internal_error");
   }
 });
+
+// Helper function for error redirects (used in catch block)
+function redirect(location: string) {
+  return new Response(null, {
+    status: 302,
+    headers: { "Location": location },
+  });
+}

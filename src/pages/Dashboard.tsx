@@ -291,12 +291,14 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-4">
-                <div className="text-3xl font-bold text-foreground">
+                <div className="nixie-display text-3xl font-bold">
                   {weekStats.percentage}%
                 </div>
                 <div className="flex-1">
-                  <Progress value={weekStats.percentage} className="h-2" />
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <div className="nixie-progress h-3">
+                    <div className="nixie-progress-bar" style={{ width: `${weekStats.percentage}%` }} />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1 uppercase tracking-wide">
                     {weekStats.completed}/{weekStats.total} tasks
                   </p>
                 </div>

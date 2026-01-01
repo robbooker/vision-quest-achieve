@@ -70,6 +70,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    // Navigation will be handled by the auth state change listener
+    // and the ProtectedRoute component
   };
 
   return (

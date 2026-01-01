@@ -1,24 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import webpush from "https://esm.sh/web-push@3.6.7";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-// Base64URL encode helper
-function base64UrlToUint8Array(base64Url: string): Uint8Array {
-  const padding = "=".repeat((4 - (base64Url.length % 4)) % 4);
-  const base64 = (base64Url + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const rawData = atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}
-
-// Helper to send notifications - we'll use a simpler approach without VAPID signing in the initial version
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -74,47 +61,47 @@ serve(async (req) => {
       });
     }
 
+    // Configure VAPID details for web-push library
+    webpush.setVapidDetails(
+      `mailto:${vapidEmail}`,
+      vapidPublicKey,
+      vapidPrivateKey
+    );
+
     const payload = JSON.stringify({ title, body, url: url || "/" });
     let sentCount = 0;
     const errors: string[] = [];
 
     for (const sub of subscriptions) {
       try {
-        const endpoint = new URL(sub.endpoint);
-        const audience = `${endpoint.protocol}//${endpoint.host}`;
-
-        // For web push, we use a simpler approach with fetch
-        const response = await fetch(sub.endpoint, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/octet-stream",
-            "Content-Encoding": "aes128gcm",
-            "TTL": "86400",
-            "Urgency": "high",
+        const pushSubscription = {
+          endpoint: sub.endpoint,
+          keys: {
+            p256dh: sub.p256dh_key,
+            auth: sub.auth_key,
           },
-          body: payload,
-        });
+        };
 
-        if (response.ok || response.status === 201) {
-          sentCount++;
-          console.log("[send-push] Notification sent to:", sub.endpoint.substring(0, 50));
-        } else {
-          const errorText = await response.text();
-          console.error("[send-push] Failed to send:", response.status, errorText);
-          errors.push(`${response.status}: ${errorText}`);
-
-          // Remove invalid subscription
-          if (response.status === 404 || response.status === 410) {
-            await supabase
-              .from("push_subscriptions")
-              .delete()
-              .eq("id", sub.id);
-            console.log("[send-push] Removed invalid subscription:", sub.id);
-          }
-        }
+        // Send push notification with proper encryption and VAPID signing
+        await webpush.sendNotification(pushSubscription, payload);
+        
+        sentCount++;
+        console.log("[send-push] Notification sent to:", sub.endpoint.substring(0, 50));
       } catch (error) {
-        console.error("[send-push] Error sending to subscription:", error);
-        errors.push(error instanceof Error ? error.message : "Unknown error");
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        const statusCode = (error as { statusCode?: number }).statusCode;
+        
+        console.error("[send-push] Error sending to subscription:", errorMessage);
+        errors.push(errorMessage);
+
+        // Remove invalid subscription
+        if (statusCode === 404 || statusCode === 410) {
+          await supabase
+            .from("push_subscriptions")
+            .delete()
+            .eq("id", sub.id);
+          console.log("[send-push] Removed invalid subscription:", sub.id);
+        }
       }
     }
 

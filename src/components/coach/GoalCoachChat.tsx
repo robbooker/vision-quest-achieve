@@ -437,13 +437,13 @@ export function GoalCoachChat({ cycleId }: GoalCoachChatProps) {
                         </div>
                         <div className="space-y-2">
                           <p className="text-xs text-muted-foreground text-center">Quick starts:</p>
-                          <div className="grid grid-cols-2 gap-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {quickPrompts.map((prompt) => (
                               <Button 
                                 key={prompt} 
                                 variant="outline" 
                                 size="sm" 
-                                className="text-xs justify-start h-auto py-3 px-4" 
+                                className="text-xs justify-start h-auto py-3 px-4 whitespace-normal text-left" 
                                 onClick={() => sendMessage(prompt)} 
                                 disabled={isStreaming}
                               >

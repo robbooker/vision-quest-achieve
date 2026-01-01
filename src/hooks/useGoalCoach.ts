@@ -2,11 +2,9 @@ import { useState, useCallback, useMemo } from 'react';
 import { useGoals } from './useGoals';
 import { useCycles } from './useCycles';
 import { useVision } from './useVision';
+import type { ChatMessage } from '@/types/chat';
 
-export interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-}
+export type { ChatMessage };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/goal-coach`;
 

@@ -163,20 +163,24 @@ export function useGoalInterview(options: UseGoalInterviewOptions = {}): UseGoal
         throw new Error(`Request failed: ${response.status} - ${errorText}`);
       }
 
-      // Add empty assistant message that will be updated
-      setMessages([{ role: 'assistant', content: '' }]);
-
+      let streamedContent = '';
+      
       const { fullContent, newPhase } = await processStream(response, (content) => {
+        streamedContent = content;
+        // Use functional update to avoid stale state
         setMessages([{ role: 'assistant', content }]);
       });
 
-      setMessages([{ role: 'assistant', content: fullContent }]);
+      // Final update with complete content
+      setMessages([{ role: 'assistant', content: fullContent || streamedContent }]);
       if (newPhase) setPhase(newPhase);
       
-      return fullContent;
+      console.log('Interview started, first message content length:', (fullContent || streamedContent).length);
+      return fullContent || streamedContent;
     } catch (e) {
       if (e instanceof Error && e.name === 'AbortError') return;
       const errorMsg = e instanceof Error ? e.message : 'Failed to start interview';
+      console.error('startInterview error:', errorMsg);
       setError(errorMsg);
       throw e;
     } finally {

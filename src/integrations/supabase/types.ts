@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           content: string
           context_goal_id: string | null
+          conversation_id: string | null
           created_at: string
           id: string
           role: string
@@ -26,6 +27,7 @@ export type Database = {
         Insert: {
           content: string
           context_goal_id?: string | null
+          conversation_id?: string | null
           created_at?: string
           id?: string
           role: string
@@ -34,6 +36,7 @@ export type Database = {
         Update: {
           content?: string
           context_goal_id?: string | null
+          conversation_id?: string | null
           created_at?: string
           id?: string
           role?: string
@@ -47,7 +50,38 @@ export type Database = {
             referencedRelation: "goals"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "chat_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      conversations: {
+        Row: {
+          created_at: string
+          id: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       cycles: {
         Row: {

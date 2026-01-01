@@ -1,5 +1,4 @@
-import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useCallback, useRef } from 'react';
 import { useVision } from './useVision';
 import { useGoals } from './useGoals';
 
@@ -38,11 +37,14 @@ interface UseGoalInterviewReturn {
   isLoading: boolean;
   error: string | null;
   extractedGoal: ExtractedGoal | null;
-  startInterview: () => Promise<void>;
+  startInterview: () => Promise<string | void>;
   sendMessage: (text: string) => Promise<string>;
   reset: () => void;
   isComplete: boolean;
 }
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 export function useGoalInterview(options: UseGoalInterviewOptions = {}): UseGoalInterviewReturn {
   const { cycleId, onGoalExtracted } = options;
@@ -52,6 +54,7 @@ export function useGoalInterview(options: UseGoalInterviewOptions = {}): UseGoal
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [extractedGoal, setExtractedGoal] = useState<ExtractedGoal | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const { vision } = useVision();
   const { goals } = useGoals(cycleId);
@@ -63,6 +66,54 @@ export function useGoalInterview(options: UseGoalInterviewOptions = {}): UseGoal
     };
   }, [vision, goals]);
 
+  const processStream = useCallback(async (
+    response: Response,
+    onChunk: (content: string) => void
+  ): Promise<{ fullContent: string; newPhase?: InterviewPhase; extractedGoal?: ExtractedGoal }> => {
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('No response body');
+
+    const decoder = new TextDecoder();
+    let fullContent = '';
+    let newPhase: InterviewPhase | undefined;
+    let goalData: ExtractedGoal | undefined;
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') continue;
+
+            try {
+              const parsed = JSON.parse(data);
+              
+              if (parsed.type === 'content' && parsed.delta) {
+                fullContent += parsed.delta;
+                onChunk(fullContent);
+              } else if (parsed.type === 'done') {
+                newPhase = parsed.phase;
+                goalData = parsed.extractedGoal;
+              }
+            } catch {
+              // Skip unparseable chunks
+            }
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+
+    return { fullContent, newPhase, extractedGoal: goalData };
+  }, []);
+
   const startInterview = useCallback(async () => {
     setMessages([]);
     setPhase('vision');
@@ -70,35 +121,48 @@ export function useGoalInterview(options: UseGoalInterviewOptions = {}): UseGoal
     setExtractedGoal(null);
     setIsLoading(true);
 
+    abortControllerRef.current = new AbortController();
+
     try {
-      const response = await supabase.functions.invoke('goal-interview', {
-        body: {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/goal-interview`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'apikey': SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({
           messages: [{ role: 'user', content: 'I want to create a new goal for my 12 Week Year cycle.' }],
           context: buildContext(),
           phase: 'vision',
-        },
+        }),
+        signal: abortControllerRef.current.signal,
       });
 
-      if (response.error) {
-        throw new Error(response.error.message);
+      if (!response.ok) {
+        throw new Error(`Request failed: ${response.status}`);
       }
 
-      const { content, phase: newPhase } = response.data;
+      // Add empty assistant message that will be updated
+      setMessages([{ role: 'assistant', content: '' }]);
 
-      setMessages([
-        { role: 'assistant', content },
-      ]);
-      setPhase(newPhase || 'vision');
+      const { fullContent, newPhase } = await processStream(response, (content) => {
+        setMessages([{ role: 'assistant', content }]);
+      });
+
+      setMessages([{ role: 'assistant', content: fullContent }]);
+      if (newPhase) setPhase(newPhase);
       
-      return content;
+      return fullContent;
     } catch (e) {
+      if (e instanceof Error && e.name === 'AbortError') return;
       const errorMsg = e instanceof Error ? e.message : 'Failed to start interview';
       setError(errorMsg);
       throw e;
     } finally {
       setIsLoading(false);
     }
-  }, [buildContext]);
+  }, [buildContext, processStream]);
 
   const sendMessage = useCallback(async (text: string): Promise<string> => {
     if (!text.trim()) return '';
@@ -109,23 +173,36 @@ export function useGoalInterview(options: UseGoalInterviewOptions = {}): UseGoal
     setIsLoading(true);
     setError(null);
 
+    abortControllerRef.current = new AbortController();
+
     try {
-      const response = await supabase.functions.invoke('goal-interview', {
-        body: {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/goal-interview`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'apikey': SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({
           messages: updatedMessages.map(m => ({ role: m.role, content: m.content })),
           context: buildContext(),
           phase,
-        },
+        }),
+        signal: abortControllerRef.current.signal,
       });
 
-      if (response.error) {
-        throw new Error(response.error.message);
+      if (!response.ok) {
+        throw new Error(`Request failed: ${response.status}`);
       }
 
-      const { content, phase: newPhase, extractedGoal: goalData } = response.data;
+      // Add empty assistant message that will be updated
+      setMessages([...updatedMessages, { role: 'assistant', content: '' }]);
 
-      const assistantMessage: InterviewMessage = { role: 'assistant', content };
-      setMessages([...updatedMessages, assistantMessage]);
+      const { fullContent, newPhase, extractedGoal: goalData } = await processStream(response, (content) => {
+        setMessages([...updatedMessages, { role: 'assistant', content }]);
+      });
+
+      setMessages([...updatedMessages, { role: 'assistant', content: fullContent }]);
       
       if (newPhase) {
         setPhase(newPhase);
@@ -138,8 +215,9 @@ export function useGoalInterview(options: UseGoalInterviewOptions = {}): UseGoal
         }
       }
 
-      return content;
+      return fullContent;
     } catch (e) {
+      if (e instanceof Error && e.name === 'AbortError') return '';
       const errorMsg = e instanceof Error ? e.message : 'Failed to send message';
       setError(errorMsg);
       // Remove the user message if the request failed
@@ -148,9 +226,12 @@ export function useGoalInterview(options: UseGoalInterviewOptions = {}): UseGoal
     } finally {
       setIsLoading(false);
     }
-  }, [messages, phase, buildContext, onGoalExtracted]);
+  }, [messages, phase, buildContext, onGoalExtracted, processStream]);
 
   const reset = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
     setMessages([]);
     setPhase('vision');
     setError(null);

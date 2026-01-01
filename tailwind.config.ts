@@ -17,6 +17,7 @@ export default {
         sans: ['Space Grotesk', 'Work Sans', 'Helvetica Neue', 'sans-serif'],
         heading: ['Archivo Black', 'Space Grotesk', 'sans-serif'],
         mono: ['Courier Prime', 'Courier New', 'monospace'],
+        logo: ['Amarante', 'cursive'],
       },
       fontWeight: {
         normal: '500',

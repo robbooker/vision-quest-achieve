@@ -118,7 +118,7 @@ export default function Auth() {
       <div className="hidden lg:flex lg:w-1/2 bg-primary/5 items-center justify-center p-12">
         <div className="max-w-md space-y-8">
           <div className="space-y-2">
-            <h1 className="text-4xl font-bold text-foreground">12-Week Year</h1>
+            <h1 className="text-4xl font-logo text-foreground">12-Week Year</h1>
             <p className="text-xl text-muted-foreground">
               Achieve more in 12 weeks than others do in 12 months.
             </p>

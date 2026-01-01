@@ -46,8 +46,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="container flex h-14 items-center justify-between">
           <div className="flex items-center gap-6">
             <Link to="/dashboard" className="flex items-center gap-2">
-              <span className="text-xl font-bold text-foreground">12WY</span>
-              <span className="text-sm text-muted-foreground hidden sm:inline">
+              <span className="text-xl font-logo text-foreground">12WY</span>
+              <span className="text-sm font-logo text-muted-foreground hidden sm:inline">
                 12-Week Year
               </span>
             </Link>

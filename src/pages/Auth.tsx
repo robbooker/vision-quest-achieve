@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Calendar, Target, TrendingUp } from 'lucide-react';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { z } from 'zod';
 
 const authSchema = z.object({
@@ -113,7 +114,11 @@ export default function Auth() {
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen relative">
+      {/* Theme Toggle - top right */}
+      <div className="absolute top-4 right-4 z-10">
+        <ThemeToggle />
+      </div>
       {/* Left side - Branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-primary/5 items-center justify-center p-12">
         <div className="max-w-md space-y-8">

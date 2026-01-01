@@ -16,13 +16,23 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Plus, ChevronDown, TrendingUp, ClipboardCheck, RefreshCw } from 'lucide-react';
+import { Plus, ChevronDown, TrendingUp, ClipboardCheck, RefreshCw, Archive, Trash2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -33,8 +43,10 @@ export default function Dashboard() {
   
   const [weeklyReviewOpen, setWeeklyReviewOpen] = useState(false);
   const [replanOpen, setReplanOpen] = useState(false);
+  const [deleteCycleId, setDeleteCycleId] = useState<string | null>(null);
+  const [archiveCycleId, setArchiveCycleId] = useState<string | null>(null);
   
-  const { cycles, isLoading: cyclesLoading, getActiveCycle, getCurrentWeekNumber } = useCycles();
+  const { cycles, isLoading: cyclesLoading, getActiveCycle, getCurrentWeekNumber, deleteCycle, archiveCycle } = useCycles();
   const activeCycle = getActiveCycle();
   const currentWeek = activeCycle ? getCurrentWeekNumber(activeCycle) : 0;
   
@@ -61,6 +73,28 @@ export default function Dashboard() {
 
   const handlePlanMilestones = (goal: Goal) => {
     setMilestonePlannerGoal(goal);
+  };
+
+  const handleDeleteCycle = async () => {
+    if (!deleteCycleId) return;
+    try {
+      await deleteCycle.mutateAsync(deleteCycleId);
+      toast({ title: 'Cycle deleted', description: 'The cycle and all its data have been removed.' });
+      setDeleteCycleId(null);
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to delete cycle', variant: 'destructive' });
+    }
+  };
+
+  const handleArchiveCycle = async () => {
+    if (!archiveCycleId) return;
+    try {
+      await archiveCycle.mutateAsync(archiveCycleId);
+      toast({ title: 'Cycle archived', description: 'The cycle has been archived.' });
+      setArchiveCycleId(null);
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to archive cycle', variant: 'destructive' });
+    }
   };
 
   if (cyclesLoading) {
@@ -110,15 +144,40 @@ export default function Dashboard() {
             {cycles.map((cycle) => (
               <div
                 key={cycle.id}
-                className="rounded-lg border bg-card p-4 space-y-2"
+                className="rounded-lg border bg-card p-4 space-y-3"
               >
                 <h3 className="font-semibold">{cycle.name}</h3>
                 <p className="text-sm text-muted-foreground">
                   {cycle.start_date} – {cycle.end_date}
                 </p>
-                <span className="inline-block text-xs bg-muted px-2 py-1 rounded">
-                  {cycle.status}
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="inline-block text-xs bg-muted px-2 py-1 rounded">
+                    {cycle.status}
+                  </span>
+                  <div className="flex gap-1">
+                    {cycle.status === 'completed' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setArchiveCycleId(cycle.id)}
+                        title="Archive cycle"
+                      >
+                        <Archive className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {cycle.status === 'planning' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDeleteCycleId(cycle.id)}
+                        className="text-destructive hover:text-destructive"
+                        title="Delete cycle"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </div>
             ))}
           </div>
@@ -282,6 +341,42 @@ export default function Dashboard() {
           goals={goals}
         />
       )}
+
+      {/* Delete Cycle Confirmation */}
+      <AlertDialog open={!!deleteCycleId} onOpenChange={(open) => !open && setDeleteCycleId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Cycle</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this cycle? This will permanently remove all goals, milestones, and tasks associated with it.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteCycle} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Archive Cycle Confirmation */}
+      <AlertDialog open={!!archiveCycleId} onOpenChange={(open) => !open && setArchiveCycleId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive Cycle</AlertDialogTitle>
+            <AlertDialogDescription>
+              Archive this cycle? It will be hidden from your main view but can be restored later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleArchiveCycle}>
+              Archive
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }

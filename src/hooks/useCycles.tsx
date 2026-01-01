@@ -10,6 +10,7 @@ export interface Cycle {
   start_date: string;
   end_date: string;
   status: 'planning' | 'active' | 'review' | 'completed';
+  archived: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -29,6 +30,7 @@ export function useCycles() {
       const { data, error } = await supabase
         .from('cycles')
         .select('*')
+        .eq('archived', false)
         .order('start_date', { ascending: false });
 
       if (error) throw error;
@@ -93,6 +95,23 @@ export function useCycles() {
     },
   });
 
+  const archiveCycle = useMutation({
+    mutationFn: async (id: string) => {
+      const { data, error } = await supabase
+        .from('cycles')
+        .update({ archived: true })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as Cycle;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cycles', user?.id] });
+    },
+  });
+
   // Helper to get current week number for a cycle
   const getCurrentWeekNumber = (cycle: Cycle): number => {
     const today = startOfDay(new Date());
@@ -141,6 +160,7 @@ export function useCycles() {
     createCycle,
     updateCycleStatus,
     deleteCycle,
+    archiveCycle,
     getCurrentWeekNumber,
     getActiveCycle,
   };

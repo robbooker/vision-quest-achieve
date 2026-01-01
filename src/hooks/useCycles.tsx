@@ -43,11 +43,8 @@ export function useCycles() {
     mutationFn: async (input: CreateCycleInput) => {
       const startDate = startOfDay(new Date(input.start_date));
       const endDate = addWeeks(startDate, 12);
-      const today = startOfDay(new Date());
       
-      // Auto-set to 'active' if start date is today or in the past
-      const status = startDate <= today ? 'active' : 'planning';
-      
+      // Always set to 'active' so users can immediately start planning
       const { data, error } = await supabase
         .from('cycles')
         .insert({
@@ -55,7 +52,7 @@ export function useCycles() {
           start_date: input.start_date,
           end_date: endDate.toISOString().split('T')[0],
           user_id: user!.id,
-          status,
+          status: 'active',
         })
         .select()
         .single();

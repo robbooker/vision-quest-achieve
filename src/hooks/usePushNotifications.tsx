@@ -88,14 +88,16 @@ export function usePushNotifications() {
       const registration = await navigator.serviceWorker.register('/sw.js');
       await navigator.serviceWorker.ready;
 
-      // Get VAPID public key from environment
-      const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+      // Get VAPID public key from edge function
+      const { data: vapidData, error: vapidError } = await supabase.functions.invoke('get-vapid-key');
       
-      if (!vapidPublicKey) {
-        console.error('VAPID public key not configured');
+      if (vapidError || !vapidData?.publicKey) {
+        console.error('Failed to get VAPID public key:', vapidError);
         setState(prev => ({ ...prev, isLoading: false }));
         return false;
       }
+
+      const vapidPublicKey = vapidData.publicKey;
 
       // Convert VAPID key to Uint8Array
       const urlBase64ToUint8Array = (base64String: string) => {

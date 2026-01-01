@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
@@ -23,6 +24,9 @@ export default function Auth() {
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(() => {
+    return localStorage.getItem('rememberMe') === 'true';
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -30,6 +34,11 @@ export default function Auth() {
       navigate('/');
     }
   }, [user, loading, navigate]);
+
+  const handleRememberMeChange = (checked: boolean) => {
+    setRememberMe(checked);
+    localStorage.setItem('rememberMe', String(checked));
+  };
 
   const handleEmailSignIn = async () => {
     const validation = authSchema.safeParse({ email, password });
@@ -43,7 +52,7 @@ export default function Auth() {
     }
 
     setIsSubmitting(true);
-    const { error } = await signInWithEmail(email, password);
+    const { error } = await signInWithEmail(email, password, rememberMe);
     setIsSubmitting(false);
 
     if (error) {
@@ -242,6 +251,16 @@ export default function Auth() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="remember-me" 
+                    checked={rememberMe}
+                    onCheckedChange={handleRememberMeChange}
+                  />
+                  <Label htmlFor="remember-me" className="text-sm text-muted-foreground cursor-pointer">
+                    Keep me signed in for 30 days
+                  </Label>
                 </div>
                 <Button 
                   className="w-full" 

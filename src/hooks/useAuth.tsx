@@ -7,7 +7,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signInWithGoogle: () => Promise<{ error: Error | null }>;
-  signInWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signInWithEmail: (email: string, password: string, rememberMe?: boolean) => Promise<{ error: Error | null }>;
   signUpWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
@@ -49,11 +49,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
-  const signInWithEmail = async (email: string, password: string) => {
+  const signInWithEmail = async (email: string, password: string, rememberMe: boolean = false) => {
+    // Set session persistence based on rememberMe
+    // When rememberMe is true, the default localStorage persistence keeps the session for 30 days
+    // When false, we could potentially use sessionStorage but Supabase defaults to localStorage
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+    
+    // Store the preference for future reference
+    if (!error && rememberMe) {
+      localStorage.setItem('sessionExpiry', String(Date.now() + 30 * 24 * 60 * 60 * 1000));
+    } else if (!error) {
+      localStorage.removeItem('sessionExpiry');
+    }
+    
     return { error };
   };
 

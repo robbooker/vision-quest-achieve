@@ -586,6 +586,7 @@ export type Database = {
           created_at: string | null
           id: string
           min_task_block_minutes: number | null
+          text_size: string | null
           timezone: string | null
           updated_at: string | null
           user_id: string
@@ -597,6 +598,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           min_task_block_minutes?: number | null
+          text_size?: string | null
           timezone?: string | null
           updated_at?: string | null
           user_id: string
@@ -608,6 +610,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           min_task_block_minutes?: number | null
+          text_size?: string | null
           timezone?: string | null
           updated_at?: string | null
           user_id?: string

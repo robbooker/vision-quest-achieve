@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -20,6 +21,17 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+// Apply saved text size on app load
+function TextSizeInitializer() {
+  useEffect(() => {
+    const savedSize = localStorage.getItem('textSize');
+    if (savedSize && ['small', 'medium', 'large'].includes(savedSize)) {
+      document.documentElement.classList.add(`text-size-${savedSize}`);
+    }
+  }, []);
+  return null;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider 
@@ -32,6 +44,7 @@ const App = () => (
         <TerminalModeProvider>
           <GlobalChatProvider>
           <TooltipProvider>
+            <TextSizeInitializer />
             <Toaster />
             <Sonner />
             <BrowserRouter>

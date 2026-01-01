@@ -1,5 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&display=swap');
+/* IBM Plex fonts loaded via index.html */
 
 @tailwind base;
 @tailwind components;
@@ -139,9 +138,9 @@
   }
 
   html {
-    font-family: 'Space Grotesk', 'Work Sans', 'Helvetica Neue', sans-serif;
-    letter-spacing: -0.04em;
-    font-weight: 500;
+    font-family: 'IBM Plex Sans', sans-serif;
+    letter-spacing: -0.02em;
+    font-weight: 400;
   }
 
   body {
@@ -153,9 +152,9 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Archivo Black', 'Space Grotesk', sans-serif;
-    font-weight: 400;
-    letter-spacing: -0.04em;
+    font-family: 'IBM Plex Sans Condensed', 'IBM Plex Sans', sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.02em;
     color: hsl(var(--foreground));
   }
 }
@@ -201,7 +200,7 @@
   .nixie-display {
     background-color: hsl(var(--nixie-bg));
     color: hsl(var(--nixie-glow));
-    font-family: 'Courier Prime', 'Courier New', monospace;
+    font-family: 'IBM Plex Mono', monospace;
     text-shadow: 
       0 0 10px hsl(var(--nixie-glow)),
       0 0 20px hsl(var(--nixie-glow)),
@@ -217,7 +216,7 @@
   .nixie-display-alt {
     background-color: hsl(var(--nixie-bg));
     color: hsl(var(--nixie-glow-alt));
-    font-family: 'Courier Prime', 'Courier New', monospace;
+    font-family: 'IBM Plex Mono', monospace;
     text-shadow: 
       0 0 10px hsl(var(--nixie-glow-alt)),
       0 0 20px hsl(var(--nixie-glow-alt)),
@@ -258,7 +257,7 @@
     border: 3px solid hsl(0 0% 20%);
     border-radius: 8px;
     padding: 20px;
-    font-family: 'Courier Prime', 'Courier New', monospace;
+    font-family: 'IBM Plex Mono', monospace;
     color: hsl(80 100% 50%);
     text-shadow: 0 0 5px hsl(80 100% 50%);
     box-shadow: 
@@ -299,7 +298,7 @@
 
   /* Typewriter text effect */
   .typewriter {
-    font-family: 'Courier Prime', 'Courier New', monospace;
+    font-family: 'IBM Plex Mono', monospace;
     letter-spacing: 0.1em;
   }
 }

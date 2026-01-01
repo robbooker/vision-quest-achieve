@@ -6,6 +6,7 @@ import { EmptyState } from '@/components/dashboard/EmptyState';
 import { CreateCycleDialog } from '@/components/dashboard/CreateCycleDialog';
 import { CreateGoalDialog } from '@/components/dashboard/CreateGoalDialog';
 import { MilestonePlannerDialog } from '@/components/dashboard/MilestonePlannerDialog';
+import { TacticsManagerDialog } from '@/components/dashboard/TacticsManagerDialog';
 import { WeekView } from '@/components/dashboard/WeekView';
 import { WeeklyReviewDialog, ReplanDialog } from '@/components/dashboard/WeeklyReviewDialog';
 import { GoalCoachChat } from '@/components/coach/GoalCoachChat';
@@ -41,6 +42,7 @@ export default function Dashboard() {
   const [createCycleOpen, setCreateCycleOpen] = useState(false);
   const [createGoalOpen, setCreateGoalOpen] = useState(false);
   const [milestonePlannerGoal, setMilestonePlannerGoal] = useState<Goal | null>(null);
+  const [tacticsManagerGoal, setTacticsManagerGoal] = useState<Goal | null>(null);
   
   const [weeklyReviewOpen, setWeeklyReviewOpen] = useState(false);
   const [replanOpen, setReplanOpen] = useState(false);
@@ -74,6 +76,10 @@ export default function Dashboard() {
 
   const handlePlanMilestones = (goal: Goal) => {
     setMilestonePlannerGoal(goal);
+  };
+
+  const handleManageTactics = (goal: Goal) => {
+    setTacticsManagerGoal(goal);
   };
 
   const handleDeleteCycle = async () => {
@@ -249,6 +255,7 @@ export default function Dashboard() {
                   index={index}
                   onDelete={handleDeleteGoal}
                   onPlanMilestones={handlePlanMilestones}
+                  onManageTactics={handleManageTactics}
                 />
               ))}
               
@@ -322,6 +329,13 @@ export default function Dashboard() {
           open={!!milestonePlannerGoal}
           onOpenChange={(open) => !open && setMilestonePlannerGoal(null)}
           goal={milestonePlannerGoal}
+        />
+      )}
+      {tacticsManagerGoal && (
+        <TacticsManagerDialog
+          open={!!tacticsManagerGoal}
+          onOpenChange={(open) => !open && setTacticsManagerGoal(null)}
+          goal={tacticsManagerGoal}
         />
       )}
       {activeCycle && (

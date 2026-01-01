@@ -18,6 +18,7 @@ interface GoalCardProps {
   onEdit?: (goal: Goal) => void;
   onDelete?: (goalId: string) => void;
   onPlanMilestones?: (goal: Goal) => void;
+  onManageTactics?: (goal: Goal) => void;
 }
 
 const goalColors = [
@@ -32,7 +33,7 @@ const borderColors = [
   'bg-chart-3',
 ];
 
-export function GoalCard({ goal, index, onEdit, onDelete, onPlanMilestones }: GoalCardProps) {
+export function GoalCard({ goal, index, onEdit, onDelete, onPlanMilestones, onManageTactics }: GoalCardProps) {
   const colorClass = goalColors[index % goalColors.length];
   const borderColor = borderColors[index % borderColors.length];
   const { milestones, isLoading } = useMilestones(goal.id);
@@ -71,6 +72,12 @@ export function GoalCard({ goal, index, onEdit, onDelete, onPlanMilestones }: Go
                 <DropdownMenuItem onClick={() => onPlanMilestones(goal)}>
                   <CalendarCheck className="mr-2 h-4 w-4" />
                   Plan Milestones
+                </DropdownMenuItem>
+              )}
+              {onManageTactics && (
+                <DropdownMenuItem onClick={() => onManageTactics(goal)}>
+                  <Zap className="mr-2 h-4 w-4" />
+                  Manage Tactics
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem onClick={() => onEdit?.(goal)}>

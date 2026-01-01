@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { CalendarSettings } from '@/components/settings/CalendarSettings';
 import { NotificationSettings } from '@/components/settings/NotificationSettings';
+import { DisplaySettings } from '@/components/settings/DisplaySettings';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Sparkles, ChevronRight } from 'lucide-react';
@@ -37,6 +38,7 @@ export default function Settings() {
           </CardContent>
         </Card>
 
+        <DisplaySettings />
         <NotificationSettings />
         <CalendarSettings />
       </div>

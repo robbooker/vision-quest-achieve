@@ -11,3 +11,15 @@ verify_jwt = false
 
 [functions.google-calendar-create-event]
 verify_jwt = false
+
+[functions.push-subscribe]
+verify_jwt = false
+
+[functions.push-unsubscribe]
+verify_jwt = false
+
+[functions.send-push-notification]
+verify_jwt = false
+
+[functions.notification-scheduler]
+verify_jwt = false

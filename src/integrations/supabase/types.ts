@@ -135,6 +135,42 @@ export type Database = {
           },
         ]
       }
+      notification_preferences: {
+        Row: {
+          behind_plan: boolean | null
+          created_at: string | null
+          id: string
+          review_day: number | null
+          review_hour: number | null
+          start_of_block: boolean | null
+          updated_at: string | null
+          user_id: string
+          weekly_review: boolean | null
+        }
+        Insert: {
+          behind_plan?: boolean | null
+          created_at?: string | null
+          id?: string
+          review_day?: number | null
+          review_hour?: number | null
+          start_of_block?: boolean | null
+          updated_at?: string | null
+          user_id: string
+          weekly_review?: boolean | null
+        }
+        Update: {
+          behind_plan?: boolean | null
+          created_at?: string | null
+          id?: string
+          review_day?: number | null
+          review_hour?: number | null
+          start_of_block?: boolean | null
+          updated_at?: string | null
+          user_id?: string
+          weekly_review?: boolean | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -158,6 +194,66 @@ export type Database = {
           display_name?: string | null
           id?: string
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth_key: string
+          created_at: string | null
+          endpoint: string
+          id: string
+          p256dh_key: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          auth_key: string
+          created_at?: string | null
+          endpoint: string
+          id?: string
+          p256dh_key: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          auth_key?: string
+          created_at?: string | null
+          endpoint?: string
+          id?: string
+          p256dh_key?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      scheduled_notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          notification_type: string
+          reference_id: string | null
+          scheduled_for: string
+          sent_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          notification_type: string
+          reference_id?: string | null
+          scheduled_for: string
+          sent_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          notification_type?: string
+          reference_id?: string | null
+          scheduled_for?: string
+          sent_at?: string | null
           user_id?: string
         }
         Relationships: []

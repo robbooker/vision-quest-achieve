@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      chat_messages: {
+        Row: {
+          content: string
+          context_goal_id: string | null
+          created_at: string
+          id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          context_goal_id?: string | null
+          created_at?: string
+          id?: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          context_goal_id?: string | null
+          created_at?: string
+          id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_context_goal_id_fkey"
+            columns: ["context_goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cycles: {
         Row: {
           archived: boolean
@@ -50,38 +85,141 @@ export type Database = {
         }
         Relationships: []
       }
+      goal_indicators: {
+        Row: {
+          created_at: string
+          goal_id: string
+          id: string
+          name: string
+          target_value: number | null
+          type: string
+          unit: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          goal_id: string
+          id?: string
+          name: string
+          target_value?: number | null
+          type: string
+          unit: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          goal_id?: string
+          id?: string
+          name?: string
+          target_value?: number | null
+          type?: string
+          unit?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_indicators_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      goal_tactics: {
+        Row: {
+          created_at: string
+          due_weeks: Json | null
+          frequency: string
+          goal_id: string
+          id: string
+          is_active: boolean
+          target_count: number
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          due_weeks?: Json | null
+          frequency?: string
+          goal_id: string
+          id?: string
+          is_active?: boolean
+          target_count?: number
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          due_weeks?: Json | null
+          frequency?: string
+          goal_id?: string
+          id?: string
+          is_active?: boolean
+          target_count?: number
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_tactics_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       goals: {
         Row: {
+          accountability_partner: string | null
           created_at: string
           cycle_id: string
           id: string
           metric_type: string
+          obstacles: string | null
+          strategies: string | null
           target_value: number
           title: string
           updated_at: string
           user_id: string
+          vision_connection: string | null
           why: string | null
         }
         Insert: {
+          accountability_partner?: string | null
           created_at?: string
           cycle_id: string
           id?: string
           metric_type: string
+          obstacles?: string | null
+          strategies?: string | null
           target_value: number
           title: string
           updated_at?: string
           user_id: string
+          vision_connection?: string | null
           why?: string | null
         }
         Update: {
+          accountability_partner?: string | null
           created_at?: string
           cycle_id?: string
           id?: string
           metric_type?: string
+          obstacles?: string | null
+          strategies?: string | null
           target_value?: number
           title?: string
           updated_at?: string
           user_id?: string
+          vision_connection?: string | null
           why?: string | null
         }
         Relationships: [
@@ -90,6 +228,44 @@ export type Database = {
             columns: ["cycle_id"]
             isOneToOne: false
             referencedRelation: "cycles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      indicator_logs: {
+        Row: {
+          created_at: string
+          id: string
+          indicator_id: string
+          logged_at: string
+          notes: string | null
+          user_id: string
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          indicator_id: string
+          logged_at?: string
+          notes?: string | null
+          user_id: string
+          value: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          indicator_id?: string
+          logged_at?: string
+          notes?: string | null
+          user_id?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "indicator_logs_indicator_id_fkey"
+            columns: ["indicator_id"]
+            isOneToOne: false
+            referencedRelation: "goal_indicators"
             referencedColumns: ["id"]
           },
         ]
@@ -403,6 +579,36 @@ export type Database = {
           user_id?: string
           work_end_hour?: number | null
           work_start_hour?: number | null
+        }
+        Relationships: []
+      }
+      user_vision: {
+        Row: {
+          core_values: string | null
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+          vision_3_year: string | null
+          vision_long_term: string | null
+        }
+        Insert: {
+          core_values?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          vision_3_year?: string | null
+          vision_long_term?: string | null
+        }
+        Update: {
+          core_values?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          vision_3_year?: string | null
+          vision_long_term?: string | null
         }
         Relationships: []
       }

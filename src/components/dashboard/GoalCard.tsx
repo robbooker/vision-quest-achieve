@@ -1,7 +1,7 @@
 import { Goal } from '@/hooks/useGoals';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Target, MoreVertical, Trash2, Edit, CalendarCheck } from 'lucide-react';
+import { Target, MoreVertical, Trash2, Edit, CalendarCheck, Zap } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { useMilestones } from '@/hooks/useMilestones';
+import { useTactics } from '@/hooks/useTactics';
 
 interface GoalCardProps {
   goal: Goal;
@@ -35,7 +36,9 @@ export function GoalCard({ goal, index, onEdit, onDelete, onPlanMilestones }: Go
   const colorClass = goalColors[index % goalColors.length];
   const borderColor = borderColors[index % borderColors.length];
   const { milestones, isLoading } = useMilestones(goal.id);
+  const { tactics, isLoading: tacticsLoading } = useTactics(goal.id);
   const hasMilestones = milestones.length === 12;
+  const activeTactics = tactics.filter(t => t.is_active);
 
   return (
     <Card className="relative overflow-hidden">
@@ -100,6 +103,28 @@ export function GoalCard({ goal, index, onEdit, onDelete, onPlanMilestones }: Go
           <div className="text-sm">
             <span className="text-muted-foreground">Why: </span>
             <span className="text-foreground">{goal.why}</span>
+          </div>
+        )}
+
+        {/* Tactics preview */}
+        {!tacticsLoading && activeTactics.length > 0 && (
+          <div className="space-y-1">
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Zap className="h-3 w-3" />
+              <span>{activeTactics.length} tactic{activeTactics.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {activeTactics.slice(0, 3).map((tactic) => (
+                <Badge key={tactic.id} variant="secondary" className="text-xs">
+                  {tactic.title.length > 20 ? tactic.title.slice(0, 20) + '...' : tactic.title}
+                </Badge>
+              ))}
+              {activeTactics.length > 3 && (
+                <Badge variant="outline" className="text-xs">
+                  +{activeTactics.length - 3} more
+                </Badge>
+              )}
+            </div>
           </div>
         )}
 

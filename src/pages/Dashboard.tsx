@@ -8,6 +8,7 @@ import { CreateGoalDialog } from '@/components/dashboard/CreateGoalDialog';
 import { MilestonePlannerDialog } from '@/components/dashboard/MilestonePlannerDialog';
 import { WeekView } from '@/components/dashboard/WeekView';
 import { WeeklyReviewDialog, ReplanDialog } from '@/components/dashboard/WeeklyReviewDialog';
+import { GoalCoachChat } from '@/components/coach/GoalCoachChat';
 import { useCycles } from '@/hooks/useCycles';
 import { useGoals, Goal } from '@/hooks/useGoals';
 import { useTaskInstances } from '@/hooks/useTaskInstances';
@@ -377,6 +378,9 @@ export default function Dashboard() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* AI Goal Coach */}
+      <GoalCoachChat cycleId={activeCycle?.id} />
     </DashboardLayout>
   );
 }

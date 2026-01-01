@@ -130,6 +130,8 @@ serve(async (req) => {
       requestBody.tool_choice = 'auto';
     }
 
+    console.log('Calling AI API with request:', JSON.stringify(requestBody).substring(0, 500));
+
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -140,6 +142,8 @@ serve(async (req) => {
       },
       body: JSON.stringify(requestBody),
     });
+
+    console.log('AI API response status:', response.status);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -184,7 +188,9 @@ serve(async (req) => {
                   if (delta?.content) {
                     fullContent += delta.content;
                     // Send content delta
-                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'content', delta: delta.content })}\n\n`));
+                    const dataToSend = JSON.stringify({ type: 'content', delta: delta.content });
+                    console.log('Sending chunk:', dataToSend.substring(0, 100));
+                    controller.enqueue(encoder.encode(`data: ${dataToSend}\n\n`));
                   }
 
                   // Handle tool calls

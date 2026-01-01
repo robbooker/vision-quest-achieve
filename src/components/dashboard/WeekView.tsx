@@ -1,11 +1,14 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useMilestones } from '@/hooks/useMilestones';
+import { useCalendarConnection, useCalendarEvents, useUserPreferences, useCalendarAvailability } from '@/hooks/useCalendar';
 import { Goal } from '@/hooks/useGoals';
 import { Cycle } from '@/hooks/useCycles';
-import { format, addWeeks } from 'date-fns';
-import { Target, Calendar } from 'lucide-react';
+import { format, addWeeks, startOfDay, endOfDay, addDays } from 'date-fns';
+import { Target, Calendar, Clock, AlertCircle, Loader2 } from 'lucide-react';
 
 interface WeekViewProps {
   cycle: Cycle;
@@ -13,23 +16,39 @@ interface WeekViewProps {
   currentWeek: number;
 }
 
-interface GoalMilestoneData {
-  goal: Goal;
-  milestone: {
-    target_value: number;
-    week_number: number;
-  } | null;
-}
-
 export function WeekView({ cycle, goals, currentWeek }: WeekViewProps) {
-  // Calculate week date range
   const weekStart = addWeeks(new Date(cycle.start_date), currentWeek - 1);
   const weekEnd = addWeeks(weekStart, 1);
 
-  // We need to fetch milestones for all goals
-  // Since hooks can't be called conditionally, we'll use the first goal's hook
-  // and rely on the parent component to provide milestone data
+  // Calendar integration
+  const { isConnected, isLoading: connectionLoading, connect, isConnecting } = useCalendarConnection();
+  const { preferences, isLoading: prefsLoading } = useUserPreferences();
   
+  // Fetch calendar events for the week
+  const timeMin = startOfDay(weekStart).toISOString();
+  const timeMax = endOfDay(addDays(weekEnd, -1)).toISOString();
+  const { events, isLoading: eventsLoading, error: eventsError } = useCalendarEvents(
+    isConnected ? timeMin : '',
+    isConnected ? timeMax : ''
+  );
+
+  // Calculate busy hours for the week
+  const busyHours = useMemo(() => {
+    if (!events.length) return 0;
+    return events
+      .filter(e => !e.allDay)
+      .reduce((total, event) => {
+        const start = new Date(event.start);
+        const end = new Date(event.end);
+        return total + (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+      }, 0);
+  }, [events]);
+
+  // Calculate work hours for the week
+  const workHoursPerDay = preferences.work_end_hour - preferences.work_start_hour;
+  const totalWorkHours = workHoursPerDay * 5; // 5 work days
+  const availableHours = Math.max(0, totalWorkHours - busyHours);
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -44,6 +63,71 @@ export function WeekView({ cycle, goals, currentWeek }: WeekViewProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Calendar Status */}
+        {connectionLoading ? (
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="text-sm">Checking calendar connection...</span>
+          </div>
+        ) : !isConnected ? (
+          <div className="flex items-center justify-between p-3 rounded-lg border border-dashed">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
+                Connect calendar to see availability
+              </span>
+            </div>
+            <Button size="sm" variant="outline" onClick={connect} disabled={isConnecting}>
+              {isConnecting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                'Connect'
+              )}
+            </Button>
+          </div>
+        ) : eventsLoading ? (
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="text-sm">Loading calendar events...</span>
+          </div>
+        ) : eventsError ? (
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive">
+            <AlertCircle className="h-4 w-4" />
+            <span className="text-sm">
+              {eventsError === 'RECONNECT_REQUIRED' 
+                ? 'Calendar needs to be reconnected' 
+                : 'Failed to load calendar'}
+            </span>
+          </div>
+        ) : (
+          <div className="p-3 rounded-lg bg-muted/50 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Week Availability</span>
+              </div>
+              <Badge variant="secondary">
+                {events.length} events
+              </Badge>
+            </div>
+            <div className="grid grid-cols-2 gap-4 pt-2">
+              <div>
+                <p className="text-2xl font-bold text-foreground">
+                  {availableHours.toFixed(1)}h
+                </p>
+                <p className="text-xs text-muted-foreground">Available</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-muted-foreground">
+                  {busyHours.toFixed(1)}h
+                </p>
+                <p className="text-xs text-muted-foreground">Busy</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Goals for this week */}
         {goals.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">
             No goals set for this cycle yet.

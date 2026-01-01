@@ -238,6 +238,75 @@ export type Database = {
           },
         ]
       }
+      user_calendar_tokens: {
+        Row: {
+          access_token: string
+          calendar_id: string | null
+          created_at: string | null
+          id: string
+          refresh_token: string
+          token_expires_at: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          calendar_id?: string | null
+          created_at?: string | null
+          id?: string
+          refresh_token: string
+          token_expires_at: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          calendar_id?: string | null
+          created_at?: string | null
+          id?: string
+          refresh_token?: string
+          token_expires_at?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_preferences: {
+        Row: {
+          buffer_minutes: number | null
+          created_at: string | null
+          id: string
+          min_task_block_minutes: number | null
+          timezone: string | null
+          updated_at: string | null
+          user_id: string
+          work_end_hour: number | null
+          work_start_hour: number | null
+        }
+        Insert: {
+          buffer_minutes?: number | null
+          created_at?: string | null
+          id?: string
+          min_task_block_minutes?: number | null
+          timezone?: string | null
+          updated_at?: string | null
+          user_id: string
+          work_end_hour?: number | null
+          work_start_hour?: number | null
+        }
+        Update: {
+          buffer_minutes?: number | null
+          created_at?: string | null
+          id?: string
+          min_task_block_minutes?: number | null
+          timezone?: string | null
+          updated_at?: string | null
+          user_id?: string
+          work_end_hour?: number | null
+          work_start_hour?: number | null
+        }
+        Relationships: []
+      }
       week_reviews: {
         Row: {
           celebration: string | null

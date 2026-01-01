@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import { MessageCircle, X, Send, Trash2, Sparkles, Mic, Plus, History, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { useTactics } from '@/hooks/useTactics';
 import { useCycles } from '@/hooks/useCycles';
 import { useVision } from '@/hooks/useVision';
 import { useChatPersistence } from '@/hooks/useChatPersistence';
+import { useGlobalChat } from '@/hooks/useGlobalChat';
 import { cn } from '@/lib/utils';
 import { InterviewMode } from './InterviewMode';
 import { GoalProposalDialog } from './GoalProposalDialog';
@@ -46,7 +47,7 @@ function ChatMessageBubble({ message }: { message: ChatMessage }) {
 }
 
 export function GoalCoachChat({ cycleId }: GoalCoachChatProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  const { isOpen, setIsOpen } = useGlobalChat();
   const [input, setInput] = useState('');
   const [activeTab, setActiveTab] = useState<'chat' | 'interview'>('chat');
   const [showProposal, setShowProposal] = useState(false);

@@ -19,7 +19,8 @@ import {
   Calendar,
   Target,
   MessageSquare,
-  X
+  Trash2,
+  SkipForward
 } from 'lucide-react';
 import {
   Dialog,
@@ -36,6 +37,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Today() {
@@ -44,12 +55,13 @@ export default function Today() {
   const currentWeek = activeCycle ? getCurrentWeekNumber(activeCycle) : 0;
   
   const { goals } = useGoals(activeCycle?.id);
-  const { tasks, isLoading: tasksLoading, updateTask, createTask } = useTaskInstances(activeCycle?.id);
+  const { tasks, isLoading: tasksLoading, updateTask, createTask, deleteTask } = useTaskInstances(activeCycle?.id);
   const { toast } = useToast();
 
   const [addTaskOpen, setAddTaskOpen] = useState(false);
   const [noteTaskId, setNoteTaskId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState('');
+  const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
   const [newTask, setNewTask] = useState({
     title: '',
     goal_id: '',
@@ -140,6 +152,26 @@ export default function Today() {
     setNoteText(task.notes || '');
   };
 
+  const handleSkipTask = async (task: TaskInstance) => {
+    try {
+      await updateTask.mutateAsync({ id: task.id, status: 'skipped' });
+      toast({ title: 'Task skipped' });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to skip task', variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteTask = async () => {
+    if (!deleteTaskId) return;
+    try {
+      await deleteTask.mutateAsync(deleteTaskId);
+      toast({ title: 'Task deleted' });
+      setDeleteTaskId(null);
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to delete task', variant: 'destructive' });
+    }
+  };
+
   if (cyclesLoading || tasksLoading) {
     return (
       <DashboardLayout>
@@ -199,6 +231,8 @@ export default function Today() {
                   goals={goals}
                   onToggle={handleToggleComplete}
                   onNote={openNoteDialog}
+                  onSkip={handleSkipTask}
+                  onDelete={(id) => setDeleteTaskId(id)}
                 />
               ))}
             </CardContent>
@@ -227,6 +261,8 @@ export default function Today() {
                     goals={goals}
                     onToggle={handleToggleComplete}
                     onNote={openNoteDialog}
+                    onSkip={handleSkipTask}
+                    onDelete={(id) => setDeleteTaskId(id)}
                   />
                 ))}
               </div>
@@ -251,6 +287,8 @@ export default function Today() {
                   goals={goals}
                   onToggle={handleToggleComplete}
                   onNote={openNoteDialog}
+                  onSkip={handleSkipTask}
+                  onDelete={(id) => setDeleteTaskId(id)}
                 />
               ))}
             </CardContent>
@@ -276,6 +314,8 @@ export default function Today() {
                     goals={goals}
                     onToggle={handleToggleComplete}
                     onNote={openNoteDialog}
+                    onSkip={handleSkipTask}
+                    onDelete={(id) => setDeleteTaskId(id)}
                   />
                 ))}
             </CardContent>
@@ -394,6 +434,24 @@ export default function Today() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteTaskId} onOpenChange={(open) => !open && setDeleteTaskId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Task</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this task? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteTask} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }
@@ -403,29 +461,35 @@ interface TaskItemProps {
   goals: { id: string; title: string }[];
   onToggle: (task: TaskInstance) => void;
   onNote: (task: TaskInstance) => void;
+  onSkip: (task: TaskInstance) => void;
+  onDelete: (taskId: string) => void;
 }
 
-function TaskItem({ task, goals, onToggle, onNote }: TaskItemProps) {
+function TaskItem({ task, goals, onToggle, onNote, onSkip, onDelete }: TaskItemProps) {
   const goal = goals.find(g => g.id === task.goal_id);
   const isCompleted = task.status === 'completed';
+  const isSkipped = task.status === 'skipped';
 
   return (
     <div className={`flex items-center gap-3 p-3 rounded-lg border ${
-      isCompleted ? 'bg-muted/30' : 'bg-card hover:bg-muted/50'
+      isCompleted ? 'bg-muted/30' : isSkipped ? 'bg-muted/20 opacity-60' : 'bg-card hover:bg-muted/50'
     } transition-colors`}>
       <button
         onClick={() => onToggle(task)}
         className="flex-shrink-0"
+        disabled={isSkipped}
       >
         {isCompleted ? (
           <CheckCircle2 className="h-5 w-5 text-green-500" />
+        ) : isSkipped ? (
+          <SkipForward className="h-5 w-5 text-muted-foreground" />
         ) : (
           <Circle className="h-5 w-5 text-muted-foreground hover:text-primary" />
         )}
       </button>
       
       <div className="flex-1 min-w-0">
-        <p className={`font-medium text-sm ${isCompleted ? 'line-through text-muted-foreground' : ''}`}>
+        <p className={`font-medium text-sm ${isCompleted || isSkipped ? 'line-through text-muted-foreground' : ''}`}>
           {task.title}
         </p>
         <div className="flex items-center gap-2 mt-1">
@@ -444,17 +508,42 @@ function TaskItem({ task, goals, onToggle, onNote }: TaskItemProps) {
               Note
             </Badge>
           )}
+          {isSkipped && (
+            <Badge variant="outline" className="text-xs text-muted-foreground">
+              Skipped
+            </Badge>
+          )}
         </div>
       </div>
 
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => onNote(task)}
-        className="flex-shrink-0"
-      >
-        <MessageSquare className="h-4 w-4" />
-      </Button>
+      <div className="flex items-center gap-1 flex-shrink-0">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onNote(task)}
+        >
+          <MessageSquare className="h-4 w-4" />
+        </Button>
+        {!isCompleted && !isSkipped && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onSkip(task)}
+            title="Skip task"
+          >
+            <SkipForward className="h-4 w-4" />
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onDelete(task.id)}
+          className="text-destructive hover:text-destructive"
+          title="Delete task"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 }

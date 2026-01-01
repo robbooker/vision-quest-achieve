@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       cycles: {
         Row: {
+          archived: boolean
           created_at: string
           end_date: string
           id: string
@@ -26,6 +27,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          archived?: boolean
           created_at?: string
           end_date: string
           id?: string
@@ -36,6 +38,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          archived?: boolean
           created_at?: string
           end_date?: string
           id?: string

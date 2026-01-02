@@ -14,6 +14,7 @@ import { useTacticLogs } from '@/hooks/useTacticLogs';
 import { HabitItem } from '@/components/dashboard/HabitItem';
 import { DailyScoreLogger } from '@/components/dashboard/DailyScoreLogger';
 import { QuickTaskList } from '@/components/dashboard/QuickTaskList';
+import { useQuickTasks } from '@/hooks/useQuickTasks';
 import { format, isToday, isBefore, startOfDay, addDays } from 'date-fns';
 import { 
   CheckCircle2, 
@@ -76,10 +77,9 @@ export default function Today() {
   const [noteTaskId, setNoteTaskId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState('');
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
-  const [newTask, setNewTask] = useState({
+  const [newQuickTask, setNewQuickTask] = useState({
     title: '',
-    goal_id: '',
-    duration_minutes: 60,
+    category: 'personal' as 'personal' | 'business',
   });
 
   // Handle habit toggle/increment
@@ -157,20 +157,18 @@ export default function Today() {
     }
   };
 
+  const { createTask: createQuickTask } = useQuickTasks();
+  
   const handleAddTask = async () => {
-    if (!newTask.title || !newTask.goal_id || !activeCycle) return;
+    if (!newQuickTask.title.trim()) return;
     try {
-      await createTask.mutateAsync({
-        cycle_id: activeCycle.id,
-        goal_id: newTask.goal_id,
-        title: newTask.title,
-        due_week: currentWeek,
-        due_date: new Date().toISOString().split('T')[0],
-        duration_minutes: newTask.duration_minutes,
+      await createQuickTask.mutateAsync({
+        title: newQuickTask.title.trim(),
+        category: newQuickTask.category,
       });
       toast({ title: 'Task added' });
       setAddTaskOpen(false);
-      setNewTask({ title: '', goal_id: '', duration_minutes: 60 });
+      setNewQuickTask({ title: '', category: 'personal' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to add task', variant: 'destructive' });
     }
@@ -399,44 +397,25 @@ export default function Today() {
               <Label>Task Title</Label>
               <Input
                 placeholder="What do you need to do?"
-                value={newTask.title}
-                onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                value={newQuickTask.title}
+                onChange={(e) => setNewQuickTask({ ...newQuickTask, title: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleAddTask();
+                }}
               />
             </div>
             <div className="space-y-2">
-              <Label>Goal</Label>
+              <Label>Category</Label>
               <Select
-                value={newTask.goal_id}
-                onValueChange={(v) => setNewTask({ ...newTask, goal_id: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a goal" />
-                </SelectTrigger>
-                <SelectContent>
-                  {goals.map(goal => (
-                    <SelectItem key={goal.id} value={goal.id}>
-                      {goal.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Duration</Label>
-              <Select
-                value={newTask.duration_minutes.toString()}
-                onValueChange={(v) => setNewTask({ ...newTask, duration_minutes: parseInt(v) })}
+                value={newQuickTask.category}
+                onValueChange={(v) => setNewQuickTask({ ...newQuickTask, category: v as 'personal' | 'business' })}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="15">15 minutes</SelectItem>
-                  <SelectItem value="30">30 minutes</SelectItem>
-                  <SelectItem value="45">45 minutes</SelectItem>
-                  <SelectItem value="60">1 hour</SelectItem>
-                  <SelectItem value="90">1.5 hours</SelectItem>
-                  <SelectItem value="120">2 hours</SelectItem>
+                  <SelectItem value="personal">Personal</SelectItem>
+                  <SelectItem value="business">Business</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -444,7 +423,7 @@ export default function Today() {
               <Button variant="outline" onClick={() => setAddTaskOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleAddTask} disabled={!newTask.title || !newTask.goal_id}>
+              <Button onClick={handleAddTask} disabled={!newQuickTask.title.trim()}>
                 Add Task
               </Button>
             </div>

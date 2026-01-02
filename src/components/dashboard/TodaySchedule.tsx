@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { Calendar, Clock, ExternalLink } from "lucide-react";
+import { Calendar, Clock, ExternalLink, Plus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,9 +18,10 @@ interface TodayScheduleProps {
   isLoading: boolean;
   isConnected: boolean;
   onConnect: () => void;
+  onAddEvent?: () => void;
 }
 
-export function TodaySchedule({ events, isLoading, isConnected, onConnect }: TodayScheduleProps) {
+export function TodaySchedule({ events, isLoading, isConnected, onConnect, onAddEvent }: TodayScheduleProps) {
   if (!isConnected) {
     return (
       <Card>
@@ -77,15 +78,22 @@ export function TodaySchedule({ events, isLoading, isConnected, onConnect }: Tod
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base font-medium flex items-center gap-2">
-          <Calendar className="h-4 w-4" />
-          Today's Schedule
-          {events.length > 0 && (
-            <span className="text-xs text-muted-foreground font-normal">
-              ({events.length} event{events.length !== 1 ? 's' : ''})
-            </span>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base font-medium flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Today's Schedule
+            {events.length > 0 && (
+              <span className="text-xs text-muted-foreground font-normal">
+                ({events.length} event{events.length !== 1 ? 's' : ''})
+              </span>
+            )}
+          </CardTitle>
+          {onAddEvent && (
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onAddEvent}>
+              <Plus className="h-4 w-4" />
+            </Button>
           )}
-        </CardTitle>
+        </div>
       </CardHeader>
       <CardContent>
         {events.length === 0 ? (

@@ -114,12 +114,14 @@ Deno.serve(async (req) => {
 
     if (action === "create") {
       // Create a new calendar event
+      // Use "12WY:" prefix only for task-related events
+      const eventSummary = taskInstanceId ? `12WY: ${title}` : title;
       const eventBody = {
-        summary: `12WY: ${title}`,
+        summary: eventSummary,
         start: { dateTime: startTime },
         end: { dateTime: endTime },
-        colorId: "9", // Blue color for task holds
-        description: "Created by 12-Week Year Planner",
+        colorId: taskInstanceId ? "9" : undefined, // Blue color for task holds only
+        description: taskInstanceId ? "Created by 12-Week Year Planner" : undefined,
       };
 
       const createResponse = await fetch(baseUrl, {

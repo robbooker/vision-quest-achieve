@@ -28,7 +28,10 @@ import { useGoals } from '@/hooks/useGoals';
 import { useTaskInstances } from '@/hooks/useTaskInstances';
 import { useWeekReviews } from '@/hooks/useWeekReviews';
 import { useMilestones } from '@/hooks/useMilestones';
-import { TrendingUp, BarChart3, Target, AlertTriangle, Calendar } from 'lucide-react';
+import { useBigTen } from '@/hooks/useBigTen';
+import { useQuickTasks } from '@/hooks/useQuickTasks';
+import { TrendingUp, BarChart3, Target, AlertTriangle, Calendar, CheckSquare, FolderKanban, ListTodo } from 'lucide-react';
+import { format, subDays, startOfDay, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek } from 'date-fns';
 
 export default function Reports() {
   const { getActiveCycle, getCurrentWeekNumber, isLoading: cyclesLoading } = useCycles();
@@ -38,6 +41,8 @@ export default function Reports() {
   const { goals } = useGoals(activeCycle?.id);
   const { tasks, getWeekStats } = useTaskInstances(activeCycle?.id);
   const { reviews } = useWeekReviews(activeCycle?.id);
+  const { projects: bigTenProjects } = useBigTen();
+  const { tasks: quickTasks } = useQuickTasks();
 
   // Generate execution score data for all weeks
   const executionScoreData = useMemo(() => {
@@ -102,6 +107,60 @@ export default function Reports() {
     return { avgScore, totalPlanned, totalScheduled, totalCompleted, totalGap };
   }, [executionScoreData, hoursBreakdownData]);
 
+  // Big Ten stats
+  const bigTenStats = useMemo(() => {
+    const activeProjects = bigTenProjects.filter(p => !p.completed);
+    const completedProjects = bigTenProjects.filter(p => p.completed);
+    const allTasks = bigTenProjects.flatMap(p => p.tasks || []);
+    const completedTasks = allTasks.filter(t => t.completed);
+    
+    return {
+      activeCount: activeProjects.length,
+      completedCount: completedProjects.length,
+      totalTasks: allTasks.length,
+      completedTasks: completedTasks.length,
+      taskCompletionRate: allTasks.length > 0 
+        ? Math.round((completedTasks.length / allTasks.length) * 100) 
+        : 0,
+    };
+  }, [bigTenProjects]);
+
+  // Quick Tasks stats - tasks completed over time (last 4 weeks)
+  const quickTasksStats = useMemo(() => {
+    const now = new Date();
+    const fourWeeksAgo = subDays(now, 28);
+    
+    const completedQuickTasks = quickTasks.filter(t => t.completed && t.completed_at);
+    const recentCompleted = completedQuickTasks.filter(
+      t => new Date(t.completed_at!) >= fourWeeksAgo
+    );
+    
+    // Group by week
+    const weeks = eachWeekOfInterval({ start: fourWeeksAgo, end: now }, { weekStartsOn: 1 });
+    const weeklyData = weeks.map((weekStart, index) => {
+      const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+      const tasksInWeek = recentCompleted.filter(t => {
+        const completedDate = new Date(t.completed_at!);
+        return completedDate >= weekStart && completedDate <= weekEnd;
+      });
+      
+      return {
+        week: `W${index + 1}`,
+        label: format(weekStart, 'MMM d'),
+        completed: tasksInWeek.length,
+        personal: tasksInWeek.filter(t => t.category === 'personal').length,
+        business: tasksInWeek.filter(t => t.category === 'business').length,
+      };
+    });
+    
+    return {
+      totalActive: quickTasks.filter(t => !t.completed).length,
+      totalCompleted: completedQuickTasks.length,
+      recentCompleted: recentCompleted.length,
+      weeklyData,
+    };
+  }, [quickTasks]);
+
   const chartConfig = {
     score: { label: 'Execution Score', color: 'hsl(var(--primary))' },
     target: { label: 'Target (80%)', color: 'hsl(var(--muted-foreground))' },
@@ -111,6 +170,8 @@ export default function Reports() {
     gap: { label: 'Reality Gap', color: 'hsl(var(--destructive))' },
     progress: { label: 'Progress', color: 'hsl(var(--primary))' },
     goalTarget: { label: 'Target', color: 'hsl(var(--muted-foreground))' },
+    personal: { label: 'Personal', color: 'hsl(var(--primary))' },
+    business: { label: 'Business', color: 'hsl(var(--secondary))' },
   };
 
   if (cyclesLoading) {
@@ -300,6 +361,89 @@ export default function Reports() {
                     radius={[4, 4, 0, 0]}
                     fill="hsl(var(--destructive))"
                   />
+                </BarChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Big 10 & Quick Tasks Section */}
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-foreground">Projects & Tasks</h2>
+          
+          {/* Stats Cards */}
+          <div className="grid gap-4 md:grid-cols-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2">
+                  <FolderKanban className="h-4 w-4 text-primary" />
+                  <span className="text-sm text-muted-foreground">Active Big 10</span>
+                </div>
+                <p className="text-2xl font-bold mt-1">{bigTenStats.activeCount}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {bigTenStats.completedCount} completed
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2">
+                  <CheckSquare className="h-4 w-4 text-primary" />
+                  <span className="text-sm text-muted-foreground">Big 10 Tasks</span>
+                </div>
+                <p className="text-2xl font-bold mt-1">
+                  {bigTenStats.completedTasks}/{bigTenStats.totalTasks}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {bigTenStats.taskCompletionRate}% complete
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2">
+                  <ListTodo className="h-4 w-4 text-primary" />
+                  <span className="text-sm text-muted-foreground">Quick Tasks Active</span>
+                </div>
+                <p className="text-2xl font-bold mt-1">{quickTasksStats.totalActive}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {quickTasksStats.totalCompleted} all-time completed
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                  <span className="text-sm text-muted-foreground">Last 4 Weeks</span>
+                </div>
+                <p className="text-2xl font-bold mt-1">{quickTasksStats.recentCompleted}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  quick tasks completed
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Quick Tasks Completion Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <ListTodo className="h-4 w-4" />
+                Quick Tasks Completed (Last 4 Weeks)
+              </CardTitle>
+              <CardDescription>Personal vs business tasks by week</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer config={chartConfig} className="h-[200px]">
+                <BarChart data={quickTasksStats.weeklyData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="label" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 12 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  <Bar dataKey="personal" stackId="a" fill="hsl(var(--primary))" radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="business" stackId="a" fill="hsl(var(--secondary))" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ChartContainer>
             </CardContent>

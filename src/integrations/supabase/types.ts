@@ -193,6 +193,33 @@ export type Database = {
         }
         Relationships: []
       }
+      friendships: {
+        Row: {
+          addressee_id: string
+          created_at: string
+          id: string
+          requester_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          addressee_id: string
+          created_at?: string
+          id?: string
+          requester_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          addressee_id?: string
+          created_at?: string
+          id?: string
+          requester_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       goal_indicators: {
         Row: {
           created_at: string
@@ -460,6 +487,7 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           display_name: string | null
+          email: string | null
           id: string
           updated_at: string
           user_id: string
@@ -468,6 +496,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
+          email?: string | null
           id?: string
           updated_at?: string
           user_id: string
@@ -476,6 +505,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
+          email?: string | null
           id?: string
           updated_at?: string
           user_id?: string
@@ -575,6 +605,39 @@ export type Database = {
           scheduled_for?: string
           sent_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      shared_tasks: {
+        Row: {
+          completed: boolean
+          completed_at: string | null
+          created_at: string
+          id: string
+          owner_id: string
+          position: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          owner_id: string
+          position?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          owner_id?: string
+          position?: number
+          title?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -691,6 +754,35 @@ export type Database = {
             columns: ["template_id"]
             isOneToOne: false
             referencedRelation: "work_package_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_shares: {
+        Row: {
+          created_at: string
+          id: string
+          shared_with_id: string
+          task_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          shared_with_id: string
+          task_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          shared_with_id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_shares_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "shared_tasks"
             referencedColumns: ["id"]
           },
         ]

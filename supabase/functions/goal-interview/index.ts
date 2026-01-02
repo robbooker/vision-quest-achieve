@@ -42,7 +42,9 @@ serve(async (req) => {
 
     const systemPrompt = SYSTEM_PROMPT + contextStr;
 
+    // Log the full conversation for debugging
     console.log(`Goal interview - Phase: ${phase}, Messages: ${messages?.length || 0}`);
+    console.log('Messages received:', JSON.stringify(messages, null, 2));
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -51,7 +53,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'google/gemini-3-pro-preview',
         messages: [
           { role: 'system', content: systemPrompt },
           ...(messages || [])

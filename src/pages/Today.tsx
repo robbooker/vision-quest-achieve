@@ -9,6 +9,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCycles } from '@/hooks/useCycles';
 import { useGoals } from '@/hooks/useGoals';
 import { useTaskInstances, TaskInstance } from '@/hooks/useTaskInstances';
+import { useDailyTactics } from '@/hooks/useDailyTactics';
+import { useTacticLogs } from '@/hooks/useTacticLogs';
+import { HabitItem } from '@/components/dashboard/HabitItem';
 import { format, isToday, isBefore, startOfDay, addDays } from 'date-fns';
 import { 
   CheckCircle2, 
@@ -20,7 +23,8 @@ import {
   Target,
   MessageSquare,
   Trash2,
-  SkipForward
+  SkipForward,
+  Repeat
 } from 'lucide-react';
 import {
   Dialog,
@@ -58,6 +62,14 @@ export default function Today() {
   const { tasks, isLoading: tasksLoading, updateTask, createTask, deleteTask } = useTaskInstances(activeCycle?.id);
   const { toast } = useToast();
 
+  // Get all daily tactics for goals in this cycle
+  const goalIds = useMemo(() => goals.map(g => g.id), [goals]);
+  const { data: allTactics = [] } = useDailyTactics(goalIds);
+  
+  
+  // Get today's tactic logs
+  const { logs, upsertLog, getLogForTactic, getStreak } = useTacticLogs();
+
   const [addTaskOpen, setAddTaskOpen] = useState(false);
   const [noteTaskId, setNoteTaskId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState('');
@@ -67,6 +79,21 @@ export default function Today() {
     goal_id: '',
     duration_minutes: 60,
   });
+
+  // Handle habit toggle/increment
+  const handleHabitToggle = async (tacticId: string, newCount: number) => {
+    try {
+      await upsertLog.mutateAsync({ tacticId, completedCount: newCount });
+      if (newCount > 0) {
+        const tactic = allTactics.find(t => t.id === tacticId);
+        if (tactic && newCount >= tactic.target_count) {
+          toast({ title: 'Habit completed!', description: tactic.title });
+        }
+      }
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to update habit', variant: 'destructive' });
+    }
+  };
 
   // Categorize tasks
   const { todayTasks, upcomingTasks, overdueTasks } = useMemo(() => {
@@ -213,6 +240,36 @@ export default function Today() {
             Add Task
           </Button>
         </div>
+
+        {/* Daily Habits Section */}
+        {allTactics.length > 0 && (
+          <Card className="border-primary/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Repeat className="h-4 w-4 text-primary" />
+                Daily Habits ({allTactics.filter(t => {
+                  const log = getLogForTactic(t.id);
+                  return log && log.completed_count >= t.target_count;
+                }).length}/{allTactics.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {allTactics.map(tactic => {
+                const goal = goals.find(g => g.id === tactic.goal_id);
+                return (
+                  <HabitItem
+                    key={tactic.id}
+                    tactic={tactic}
+                    log={getLogForTactic(tactic.id)}
+                    streak={getStreak(tactic.id, tactic.target_count)}
+                    goalTitle={goal?.title || 'Unknown Goal'}
+                    onToggle={handleHabitToggle}
+                  />
+                );
+              })}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Overdue Tasks */}
         {overdueTasks.length > 0 && (

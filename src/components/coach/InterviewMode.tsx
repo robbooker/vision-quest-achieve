@@ -52,7 +52,7 @@ export function InterviewMode({ cycleId, onComplete, onCancel }: InterviewModePr
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
   const [hasStarted, setHasStarted] = useState(false);
   
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const interview = useGoalInterview({
@@ -81,9 +81,7 @@ export function InterviewMode({ cycleId, onComplete, onCancel }: InterviewModePr
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [interview.messages]);
 
   // Focus input when switching to text mode
@@ -169,9 +167,9 @@ export function InterviewMode({ cycleId, onComplete, onCancel }: InterviewModePr
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Header with phase indicator */}
-      <div className="px-4 py-2 border-b flex items-center justify-between">
+      <div className="flex-shrink-0 px-4 py-2 border-b flex items-center justify-between">
         <Badge variant="secondary" className="text-xs">
           {PHASE_LABELS[interview.phase]}
         </Badge>
@@ -205,8 +203,8 @@ export function InterviewMode({ cycleId, onComplete, onCancel }: InterviewModePr
         </div>
       </div>
 
-      {/* Messages */}
-      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+      {/* Messages - scrollable area */}
+      <div className="flex-1 overflow-y-auto min-h-0 p-4">
         <div className="space-y-3">
           {interview.messages.map((msg, i) => (
             <MessageBubble 
@@ -237,17 +235,20 @@ export function InterviewMode({ cycleId, onComplete, onCancel }: InterviewModePr
               </Badge>
             </div>
           )}
+
+          {interview.error && (
+            <div className="mt-2 text-xs text-destructive text-center">
+              {interview.error}
+            </div>
+          )}
+          
+          {/* Scroll anchor */}
+          <div ref={messagesEndRef} />
         </div>
+      </div>
 
-        {interview.error && (
-          <div className="mt-2 text-xs text-destructive text-center">
-            {interview.error}
-          </div>
-        )}
-      </ScrollArea>
-
-      {/* Input area */}
-      <div className="p-3 border-t bg-muted/30">
+      {/* Input area - fixed at bottom */}
+      <div className="flex-shrink-0 p-3 border-t bg-muted/30">
         {isVoiceMode ? (
           <div className="flex flex-col items-center gap-2">
             {voiceInput.transcript && (

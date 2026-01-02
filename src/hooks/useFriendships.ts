@@ -43,22 +43,22 @@ export function useFriendships() {
     enabled: !!user,
   });
 
-  // Fetch profiles for friend lookup
+  // Fetch profiles for all related users (friends + pending)
   const profilesQuery = useQuery({
     queryKey: ['profiles-for-friends', user?.id],
     queryFn: async () => {
       if (!user || !friendshipsQuery.data) return [];
       
-      const friendIds = friendshipsQuery.data
-        .filter(f => f.status === 'accepted')
+      // Collect all user IDs we need profiles for
+      const allUserIds = friendshipsQuery.data
         .map(f => f.requester_id === user.id ? f.addressee_id : f.requester_id);
       
-      if (friendIds.length === 0) return [];
+      if (allUserIds.length === 0) return [];
       
       const { data, error } = await supabase
         .from('profiles')
         .select('user_id, email, display_name')
-        .in('user_id', friendIds);
+        .in('user_id', allUserIds);
       
       if (error) throw error;
       return data;
@@ -66,28 +66,53 @@ export function useFriendships() {
     enabled: !!user && !!friendshipsQuery.data,
   });
 
+  // Helper to get profile display info
+  const getProfileDisplay = (userId: string) => {
+    const profile = (profilesQuery.data || []).find(p => p.user_id === userId);
+    return {
+      email: profile?.email || '',
+      display_name: profile?.display_name || null,
+    };
+  };
+
   // Get accepted friends with their profile info
   const friends: Friend[] = (friendshipsQuery.data || [])
     .filter(f => f.status === 'accepted')
     .map(f => {
       const friendUserId = f.requester_id === user?.id ? f.addressee_id : f.requester_id;
-      const profile = (profilesQuery.data || []).find(p => p.user_id === friendUserId);
+      const profile = getProfileDisplay(friendUserId);
       return {
-        id: profile?.user_id || friendUserId,
+        id: friendUserId,
         user_id: friendUserId,
-        email: profile?.email || '',
-        display_name: profile?.display_name || null,
+        email: profile.email,
+        display_name: profile.display_name,
         friendship_id: f.id,
       };
     });
 
-  // Get pending requests (received)
+  // Get pending requests (received) with profile info
   const pendingReceived = (friendshipsQuery.data || [])
-    .filter(f => f.status === 'pending' && f.addressee_id === user?.id);
+    .filter(f => f.status === 'pending' && f.addressee_id === user?.id)
+    .map(f => {
+      const profile = getProfileDisplay(f.requester_id);
+      return {
+        ...f,
+        friend_email: profile.email,
+        friend_name: profile.display_name,
+      };
+    });
 
-  // Get pending requests (sent)
+  // Get pending requests (sent) with profile info
   const pendingSent = (friendshipsQuery.data || [])
-    .filter(f => f.status === 'pending' && f.requester_id === user?.id);
+    .filter(f => f.status === 'pending' && f.requester_id === user?.id)
+    .map(f => {
+      const profile = getProfileDisplay(f.addressee_id);
+      return {
+        ...f,
+        friend_email: profile.email,
+        friend_name: profile.display_name,
+      };
+    });
 
   // Send friend request by email
   const sendFriendRequest = useMutation({

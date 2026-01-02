@@ -10,8 +10,10 @@ import { useTacticLogs } from '@/hooks/useTacticLogs';
 import { HabitItem } from '@/components/dashboard/HabitItem';
 import { DailyScoreLogger } from '@/components/dashboard/DailyScoreLogger';
 import { QuickTaskList } from '@/components/dashboard/QuickTaskList';
+import { TodaySchedule } from '@/components/dashboard/TodaySchedule';
 import { useQuickTasks } from '@/hooks/useQuickTasks';
-import { format } from 'date-fns';
+import { useCalendarConnection, useCalendarEvents } from '@/hooks/useCalendar';
+import { format, startOfDay, endOfDay } from 'date-fns';
 import { 
   Plus,
   Calendar,
@@ -41,6 +43,14 @@ export default function Today() {
   
   const { goals } = useGoals(activeCycle?.id);
   const { toast } = useToast();
+
+  // Calendar integration
+  const { isConnected, isLoading: calendarConnecting, connect } = useCalendarConnection();
+  const today = new Date();
+  const { events: calendarEvents, isLoading: eventsLoading } = useCalendarEvents(
+    startOfDay(today).toISOString(),
+    endOfDay(today).toISOString()
+  );
 
   // Get all daily tactics for goals in this cycle
   const goalIds = useMemo(() => goals.map(g => g.id), [goals]);
@@ -196,35 +206,53 @@ export default function Today() {
           </Button>
         </div>
 
-        {/* Daily Habits Section */}
-        {allTactics.length > 0 && (
-          <Card className="border-primary/20">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Repeat className="h-4 w-4 text-primary" />
-                Daily Habits ({allTactics.filter(t => {
-                  const log = getLogForTactic(t.id);
-                  return log && log.completed_count >= t.target_count;
-                }).length}/{allTactics.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {allTactics.map(tactic => {
-                const goal = goals.find(g => g.id === tactic.goal_id);
-                return (
-                  <HabitItem
-                    key={tactic.id}
-                    tactic={tactic}
-                    log={getLogForTactic(tactic.id)}
-                    streak={getStreak(tactic.id, tactic.target_count)}
-                    goalTitle={goal?.title || 'Unknown Goal'}
-                    onToggle={handleHabitToggle}
-                  />
-                );
-              })}
-            </CardContent>
-          </Card>
-        )}
+        {/* Daily Habits + Calendar Schedule Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Daily Habits Section */}
+          {allTactics.length > 0 ? (
+            <Card className="border-primary/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Repeat className="h-4 w-4 text-primary" />
+                  Daily Habits ({allTactics.filter(t => {
+                    const log = getLogForTactic(t.id);
+                    return log && log.completed_count >= t.target_count;
+                  }).length}/{allTactics.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {allTactics.map(tactic => {
+                  const goal = goals.find(g => g.id === tactic.goal_id);
+                  return (
+                    <HabitItem
+                      key={tactic.id}
+                      tactic={tactic}
+                      log={getLogForTactic(tactic.id)}
+                      streak={getStreak(tactic.id, tactic.target_count)}
+                      goalTitle={goal?.title || 'Unknown Goal'}
+                      onToggle={handleHabitToggle}
+                    />
+                  );
+                })}
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-8 text-center">
+                <Repeat className="h-8 w-8 text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground">No daily habits set up yet</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Today's Schedule */}
+          <TodaySchedule
+            events={calendarEvents}
+            isLoading={eventsLoading || calendarConnecting}
+            isConnected={isConnected}
+            onConnect={connect}
+          />
+        </div>
 
         {/* Quick Task List */}
         <QuickTaskList />

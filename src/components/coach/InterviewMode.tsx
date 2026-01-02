@@ -222,11 +222,26 @@ export function InterviewMode({ cycleId, onComplete, onCancel }: InterviewModePr
   if (!hasStarted) {
     return (
       <div className="flex flex-col h-full p-4">
-        <div className="space-y-4 max-w-md mx-auto w-full">
+      <div className="space-y-4 max-w-md mx-auto w-full">
           <div className="text-center space-y-2">
             <h3 className="text-lg font-semibold">Goal Interview</h3>
             <p className="text-sm text-muted-foreground">
-              I'll ask you a few questions to help define your goal, milestones, and tactics.
+              Let's build your 12-week goal together through a quick conversation.
+            </p>
+          </div>
+          
+          {/* Explanation of how it works */}
+          <div className="bg-muted/50 rounded-lg p-4 space-y-3 text-sm">
+            <p className="font-medium">How it works:</p>
+            <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
+              <li><span className="text-foreground">Share your vision</span> — What do you want to achieve?</li>
+              <li><span className="text-foreground">Define success</span> — How will you measure progress?</li>
+              <li><span className="text-foreground">Connect your why</span> — What motivates you?</li>
+              <li><span className="text-foreground">Set milestones</span> — Weekly checkpoints to stay on track</li>
+              <li><span className="text-foreground">Plan tactics</span> — Daily/weekly actions you'll take</li>
+            </ol>
+            <p className="text-muted-foreground pt-1">
+              When ready, click <span className="font-medium text-foreground">"Create Goal from Interview"</span> to save everything to your dashboard.
             </p>
           </div>
           

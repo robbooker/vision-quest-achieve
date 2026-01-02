@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
+import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
@@ -22,6 +23,7 @@ import Vision from "./pages/Vision";
 import BigTen from "./pages/BigTen";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
+import Blog from "./pages/Blog";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,46 +40,49 @@ function TextSizeInitializer() {
 }
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider 
-      attribute="class" 
-      defaultTheme="system" 
-      enableSystem
-      themes={['light', 'dark', 'terminal']}
-    >
-      <AuthProvider>
-        <TerminalModeProvider>
-          <GlobalChatProvider>
-          <ToastProvider>
-          <TooltipProvider>
-            <TextSizeInitializer />
-            <Toaster />
-            <Sonner />
-            <NotificationListener />
-            <BrowserRouter>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-                <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-                <Route path="/today" element={<ProtectedRoute><Today /></ProtectedRoute>} />
-                <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-                <Route path="/vision" element={<ProtectedRoute><Vision /></ProtectedRoute>} />
-                <Route path="/big-ten" element={<ProtectedRoute><BigTen /></ProtectedRoute>} />
-                <Route path="/privacy" element={<PrivacyPolicy />} />
-                <Route path="/terms" element={<TermsOfService />} />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-            <InstallPrompt />
-          </TooltipProvider>
-          </ToastProvider>
-          </GlobalChatProvider>
-        </TerminalModeProvider>
-      </AuthProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
+  <HelmetProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider 
+        attribute="class" 
+        defaultTheme="system" 
+        enableSystem
+        themes={['light', 'dark', 'terminal']}
+      >
+        <AuthProvider>
+          <TerminalModeProvider>
+            <GlobalChatProvider>
+            <ToastProvider>
+            <TooltipProvider>
+              <TextSizeInitializer />
+              <Toaster />
+              <Sonner />
+              <NotificationListener />
+              <BrowserRouter>
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/blog" element={<Blog />} />
+                  <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                  <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+                  <Route path="/today" element={<ProtectedRoute><Today /></ProtectedRoute>} />
+                  <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+                  <Route path="/vision" element={<ProtectedRoute><Vision /></ProtectedRoute>} />
+                  <Route path="/big-ten" element={<ProtectedRoute><BigTen /></ProtectedRoute>} />
+                  <Route path="/privacy" element={<PrivacyPolicy />} />
+                  <Route path="/terms" element={<TermsOfService />} />
+                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </BrowserRouter>
+              <InstallPrompt />
+            </TooltipProvider>
+            </ToastProvider>
+            </GlobalChatProvider>
+          </TerminalModeProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  </HelmetProvider>
 );
 
 export default App;

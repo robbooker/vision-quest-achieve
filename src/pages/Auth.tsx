@@ -12,6 +12,7 @@ import { Calendar, Target, TrendingUp } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Footer } from '@/components/layout/Footer';
 import { z } from 'zod';
+import gpLogo from '@/assets/gp-logo.png';
 
 const authSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -134,8 +135,8 @@ export default function Auth() {
       {/* Left side - Branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-primary/5 items-center justify-center p-12">
         <div className="max-w-md space-y-8">
-          <div className="space-y-2">
-            <h1 className="text-4xl font-logo text-foreground">Groovy Planning</h1>
+          <div className="space-y-4">
+            <img src={gpLogo} alt="Groovy Planning" className="h-24 w-auto" />
             <p className="text-xl text-muted-foreground">
               It's not far out. And that's a good thing.
             </p>

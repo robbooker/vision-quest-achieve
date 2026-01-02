@@ -145,7 +145,7 @@ export function NotificationSettings() {
             <div className="space-y-1">
               <p className="text-sm font-medium">Install the app for best experience</p>
               <p className="text-sm text-muted-foreground">
-                Add VisionQuest to your home screen for reliable push notifications.
+                Add Groovy Planning to your home screen for reliable push notifications.
                 On iOS, this is required for notifications to work.
               </p>
             </div>

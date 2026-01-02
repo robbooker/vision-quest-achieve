@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,9 +16,11 @@ import {
 import { useTaskInstances } from '@/hooks/useTaskInstances';
 import { useWeekReviews } from '@/hooks/useWeekReviews';
 import { useMilestones } from '@/hooks/useMilestones';
+import { useWeeklyHabitStats } from '@/hooks/useGoalProgress';
 import { Cycle } from '@/hooks/useCycles';
 import { Goal } from '@/hooks/useGoals';
 import { useToast } from '@/hooks/use-toast';
+import { startOfWeek, endOfWeek, addWeeks } from 'date-fns';
 import { 
   Trophy, 
   Lightbulb, 
@@ -27,7 +29,8 @@ import {
   Loader2,
   CheckCircle2,
   XCircle,
-  TrendingUp
+  TrendingUp,
+  Repeat
 } from 'lucide-react';
 
 interface WeeklyReviewDialogProps {
@@ -51,6 +54,14 @@ export function WeeklyReviewDialog({
   
   const existingReview = getReviewForWeek(currentWeek);
   const weekStats = getWeekStats(tasks, currentWeek);
+
+  // Calculate week date range for habit stats
+  const cycleStart = new Date(cycle.start_date);
+  const weekStart = addWeeks(startOfWeek(cycleStart, { weekStartsOn: 1 }), currentWeek - 1);
+  const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+  
+  const goalIds = useMemo(() => goals.map(g => g.id), [goals]);
+  const { data: habitStats, isLoading: habitStatsLoading } = useWeeklyHabitStats(goalIds, weekStart, weekEnd);
 
   const [formData, setFormData] = useState({
     wins: '',
@@ -129,6 +140,34 @@ export function WeeklyReviewDialog({
               </div>
             </CardContent>
           </Card>
+
+          {/* Daily Habits Stats */}
+          {habitStats && habitStats.total > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Repeat className="h-4 w-4" />
+                  Daily Habits
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-4">
+                  <div className="text-4xl font-bold text-foreground">
+                    {habitStats.percentage}%
+                  </div>
+                  <div className="flex-1">
+                    <Progress value={habitStats.percentage} className="h-3" />
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {habitStats.completed} of {habitStats.total} habit-days completed
+                    </p>
+                  </div>
+                  <Badge variant={habitStats.percentage >= 80 ? 'default' : habitStats.percentage >= 50 ? 'secondary' : 'destructive'}>
+                    {habitStats.percentage >= 80 ? 'Consistent' : habitStats.percentage >= 50 ? 'Partial' : 'Struggling'}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Goal Progress */}
           <div className="space-y-3">

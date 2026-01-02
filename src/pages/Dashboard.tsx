@@ -11,6 +11,7 @@ import { WeekView } from '@/components/dashboard/WeekView';
 import { WeeklyReviewDialog, ReplanDialog } from '@/components/dashboard/WeeklyReviewDialog';
 import { GoalCoachChat } from '@/components/coach/GoalCoachChat';
 import { useCycles } from '@/hooks/useCycles';
+import { useGlobalChat } from '@/hooks/useGlobalChat';
 import { useGoals, Goal } from '@/hooks/useGoals';
 import { useTaskInstances } from '@/hooks/useTaskInstances';
 import { useWeekReviews } from '@/hooks/useWeekReviews';
@@ -49,6 +50,7 @@ export default function Dashboard() {
   const [deleteCycleId, setDeleteCycleId] = useState<string | null>(null);
   const [archiveCycleId, setArchiveCycleId] = useState<string | null>(null);
   
+  const { openToTab } = useGlobalChat();
   const { cycles, isLoading: cyclesLoading, getActiveCycle, getCurrentWeekNumber, deleteCycle, archiveCycle } = useCycles();
   const activeCycle = getActiveCycle();
   const currentWeek = activeCycle ? getCurrentWeekNumber(activeCycle) : 0;
@@ -245,7 +247,11 @@ export default function Dashboard() {
               <Skeleton className="h-48" />
             </div>
           ) : goals.length === 0 ? (
-            <EmptyState type="goal" onAction={() => setCreateGoalOpen(true)} />
+            <EmptyState 
+              type="goal" 
+              onAction={() => setCreateGoalOpen(true)} 
+              onChatAction={() => openToTab('interview')}
+            />
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {goals.map((goal, index) => (

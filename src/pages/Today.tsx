@@ -101,13 +101,80 @@ export default function Today() {
   if (!activeCycle) {
     return (
       <DashboardLayout>
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
-          <h2 className="text-xl font-semibold mb-2">No Active Cycle</h2>
-          <p className="text-muted-foreground">
-            Create a cycle from the dashboard to start tracking your tasks.
-          </p>
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Today</h1>
+              <p className="text-muted-foreground">
+                {format(new Date(), 'EEEE, MMMM d, yyyy')}
+              </p>
+            </div>
+            <Button onClick={() => setAddTaskOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Task
+            </Button>
+          </div>
+
+          {/* Quick Task List - available without a cycle */}
+          <QuickTaskList />
+
+          {/* Prompt to create cycle for goal tracking */}
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center justify-center py-8 text-center">
+              <Calendar className="h-10 w-10 text-muted-foreground mb-3" />
+              <h3 className="font-semibold mb-1">No Active Cycle</h3>
+              <p className="text-sm text-muted-foreground">
+                Create a cycle from the dashboard to track habits and goals.
+              </p>
+            </CardContent>
+          </Card>
         </div>
+
+        {/* Add Task Dialog */}
+        <Dialog open={addTaskOpen} onOpenChange={setAddTaskOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Task for Today</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label>Task Title</Label>
+                <Input
+                  placeholder="What do you need to do?"
+                  value={newQuickTask.title}
+                  onChange={(e) => setNewQuickTask({ ...newQuickTask, title: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleAddTask();
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Category</Label>
+                <Select
+                  value={newQuickTask.category}
+                  onValueChange={(v) => setNewQuickTask({ ...newQuickTask, category: v as 'personal' | 'business' })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="personal">Personal</SelectItem>
+                    <SelectItem value="business">Business</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex justify-end gap-2 pt-4">
+                <Button variant="outline" onClick={() => setAddTaskOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleAddTask} disabled={!newQuickTask.title.trim()}>
+                  Add Task
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </DashboardLayout>
     );
   }

@@ -2,31 +2,19 @@ import { useState, useMemo } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCycles } from '@/hooks/useCycles';
 import { useGoals } from '@/hooks/useGoals';
-import { useTaskInstances, TaskInstance } from '@/hooks/useTaskInstances';
 import { useDailyTactics } from '@/hooks/useDailyTactics';
 import { useTacticLogs } from '@/hooks/useTacticLogs';
 import { HabitItem } from '@/components/dashboard/HabitItem';
 import { DailyScoreLogger } from '@/components/dashboard/DailyScoreLogger';
 import { QuickTaskList } from '@/components/dashboard/QuickTaskList';
 import { useQuickTasks } from '@/hooks/useQuickTasks';
-import { format, isToday, isBefore, startOfDay, addDays } from 'date-fns';
+import { format } from 'date-fns';
 import { 
-  CheckCircle2, 
-  Circle, 
-  Clock, 
-  AlertCircle, 
   Plus,
   Calendar,
-  Target,
-  MessageSquare,
-  Trash2,
-  SkipForward,
   Repeat
 } from 'lucide-react';
 import {
@@ -44,16 +32,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Today() {
@@ -62,21 +40,16 @@ export default function Today() {
   const currentWeek = activeCycle ? getCurrentWeekNumber(activeCycle) : 0;
   
   const { goals } = useGoals(activeCycle?.id);
-  const { tasks, isLoading: tasksLoading, updateTask, createTask, deleteTask } = useTaskInstances(activeCycle?.id);
   const { toast } = useToast();
 
   // Get all daily tactics for goals in this cycle
   const goalIds = useMemo(() => goals.map(g => g.id), [goals]);
   const { data: allTactics = [] } = useDailyTactics(goalIds);
   
-  
   // Get today's tactic logs
   const { logs, upsertLog, getLogForTactic, getStreak } = useTacticLogs();
 
   const [addTaskOpen, setAddTaskOpen] = useState(false);
-  const [noteTaskId, setNoteTaskId] = useState<string | null>(null);
-  const [noteText, setNoteText] = useState('');
-  const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
   const [newQuickTask, setNewQuickTask] = useState({
     title: '',
     category: 'personal' as 'personal' | 'business',
@@ -97,66 +70,6 @@ export default function Today() {
     }
   };
 
-  // Categorize tasks
-  const { todayTasks, upcomingTasks, overdueTasks } = useMemo(() => {
-    const today = startOfDay(new Date());
-    const threeDaysAhead = addDays(today, 3);
-    
-    const todayTasks: TaskInstance[] = [];
-    const upcomingTasks: TaskInstance[] = [];
-    const overdueTasks: TaskInstance[] = [];
-
-    tasks.forEach(task => {
-      if (task.status === 'completed' || task.status === 'skipped') return;
-      
-      const dueDate = task.due_date ? startOfDay(new Date(task.due_date)) : null;
-      const scheduledDate = task.scheduled_start ? startOfDay(new Date(task.scheduled_start)) : null;
-      const taskDate = scheduledDate || dueDate;
-
-      if (!taskDate) {
-        // Unscheduled tasks for current week
-        if (task.due_week === currentWeek) {
-          upcomingTasks.push(task);
-        }
-        return;
-      }
-
-      if (isToday(taskDate)) {
-        todayTasks.push(task);
-      } else if (isBefore(taskDate, today)) {
-        overdueTasks.push(task);
-      } else if (taskDate <= threeDaysAhead) {
-        upcomingTasks.push(task);
-      }
-    });
-
-    return { todayTasks, upcomingTasks, overdueTasks };
-  }, [tasks, currentWeek]);
-
-  const handleToggleComplete = async (task: TaskInstance) => {
-    const newStatus = task.status === 'completed' ? 'pending' : 'completed';
-    try {
-      await updateTask.mutateAsync({ id: task.id, status: newStatus });
-      if (newStatus === 'completed') {
-        toast({ title: 'Task completed!', description: task.title });
-      }
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to update task', variant: 'destructive' });
-    }
-  };
-
-  const handleSaveNote = async () => {
-    if (!noteTaskId) return;
-    try {
-      await updateTask.mutateAsync({ id: noteTaskId, notes: noteText });
-      toast({ title: 'Note saved' });
-      setNoteTaskId(null);
-      setNoteText('');
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to save note', variant: 'destructive' });
-    }
-  };
-
   const { createTask: createQuickTask } = useQuickTasks();
   
   const handleAddTask = async () => {
@@ -174,32 +87,7 @@ export default function Today() {
     }
   };
 
-  const openNoteDialog = (task: TaskInstance) => {
-    setNoteTaskId(task.id);
-    setNoteText(task.notes || '');
-  };
-
-  const handleSkipTask = async (task: TaskInstance) => {
-    try {
-      await updateTask.mutateAsync({ id: task.id, status: 'skipped' });
-      toast({ title: 'Task skipped' });
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to skip task', variant: 'destructive' });
-    }
-  };
-
-  const handleDeleteTask = async () => {
-    if (!deleteTaskId) return;
-    try {
-      await deleteTask.mutateAsync(deleteTaskId);
-      toast({ title: 'Task deleted' });
-      setDeleteTaskId(null);
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to delete task', variant: 'destructive' });
-    }
-  };
-
-  if (cyclesLoading || tasksLoading) {
+  if (cyclesLoading) {
     return (
       <DashboardLayout>
         <div className="space-y-6">
@@ -271,114 +159,6 @@ export default function Today() {
           </Card>
         )}
 
-        {/* Overdue Tasks */}
-        {overdueTasks.length > 0 && (
-          <Card className="border-destructive/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2 text-destructive">
-                <AlertCircle className="h-4 w-4" />
-                Overdue ({overdueTasks.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {overdueTasks.map(task => (
-                <TaskItem
-                  key={task.id}
-                  task={task}
-                  goals={goals}
-                  onToggle={handleToggleComplete}
-                  onNote={openNoteDialog}
-                  onSkip={handleSkipTask}
-                  onDelete={(id) => setDeleteTaskId(id)}
-                />
-              ))}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Today's Tasks */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Clock className="h-4 w-4 text-primary" />
-              Today's Tasks ({todayTasks.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {todayTasks.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                No tasks scheduled for today. Add one or check upcoming tasks.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {todayTasks.map(task => (
-                  <TaskItem
-                    key={task.id}
-                    task={task}
-                    goals={goals}
-                    onToggle={handleToggleComplete}
-                    onNote={openNoteDialog}
-                    onSkip={handleSkipTask}
-                    onDelete={(id) => setDeleteTaskId(id)}
-                  />
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Upcoming Tasks */}
-        {upcomingTasks.length > 0 && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2 text-muted-foreground">
-                <Calendar className="h-4 w-4" />
-                Coming Up ({upcomingTasks.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {upcomingTasks.map(task => (
-                <TaskItem
-                  key={task.id}
-                  task={task}
-                  goals={goals}
-                  onToggle={handleToggleComplete}
-                  onNote={openNoteDialog}
-                  onSkip={handleSkipTask}
-                  onDelete={(id) => setDeleteTaskId(id)}
-                />
-              ))}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Completed Today */}
-        {tasks.filter(t => t.status === 'completed' && t.due_date === new Date().toISOString().split('T')[0]).length > 0 && (
-          <Card className="opacity-60">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2 text-muted-foreground">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                Completed Today
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {tasks
-                .filter(t => t.status === 'completed' && t.due_date === new Date().toISOString().split('T')[0])
-                .map(task => (
-                  <TaskItem
-                    key={task.id}
-                    task={task}
-                    goals={goals}
-                    onToggle={handleToggleComplete}
-                    onNote={openNoteDialog}
-                    onSkip={handleSkipTask}
-                    onDelete={(id) => setDeleteTaskId(id)}
-                  />
-                ))}
-            </CardContent>
-          </Card>
-        )}
-
         {/* Quick Task List */}
         <QuickTaskList />
 
@@ -430,164 +210,6 @@ export default function Today() {
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Note Dialog */}
-      <Dialog open={!!noteTaskId} onOpenChange={(open) => !open && setNoteTaskId(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Note</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 pt-4">
-            <div className="flex gap-2 flex-wrap">
-              <Badge 
-                variant="outline" 
-                className="cursor-pointer hover:bg-muted"
-                onClick={() => setNoteText(prev => prev + (prev ? ' ' : '') + 'Blocked:')}
-              >
-                🚫 Blocked
-              </Badge>
-              <Badge 
-                variant="outline" 
-                className="cursor-pointer hover:bg-muted"
-                onClick={() => setNoteText(prev => prev + (prev ? ' ' : '') + 'Took longer than expected.')}
-              >
-                ⏰ Overran
-              </Badge>
-              <Badge 
-                variant="outline" 
-                className="cursor-pointer hover:bg-muted"
-                onClick={() => setNoteText(prev => prev + (prev ? ' ' : '') + 'Completed faster than expected.')}
-              >
-                ⚡ Quick
-              </Badge>
-            </div>
-            <Textarea
-              placeholder="Add a note about this task..."
-              value={noteText}
-              onChange={(e) => setNoteText(e.target.value)}
-              rows={4}
-            />
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setNoteTaskId(null)}>
-                Cancel
-              </Button>
-              <Button onClick={handleSaveNote}>
-                Save Note
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteTaskId} onOpenChange={(open) => !open && setDeleteTaskId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Task</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this task? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteTask} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </DashboardLayout>
-  );
-}
-
-interface TaskItemProps {
-  task: TaskInstance;
-  goals: { id: string; title: string }[];
-  onToggle: (task: TaskInstance) => void;
-  onNote: (task: TaskInstance) => void;
-  onSkip: (task: TaskInstance) => void;
-  onDelete: (taskId: string) => void;
-}
-
-function TaskItem({ task, goals, onToggle, onNote, onSkip, onDelete }: TaskItemProps) {
-  const goal = goals.find(g => g.id === task.goal_id);
-  const isCompleted = task.status === 'completed';
-  const isSkipped = task.status === 'skipped';
-
-  return (
-    <div className={`flex items-center gap-3 p-3 rounded-lg border ${
-      isCompleted ? 'bg-muted/30' : isSkipped ? 'bg-muted/20 opacity-60' : 'bg-card hover:bg-muted/50'
-    } transition-colors`}>
-      <button
-        onClick={() => onToggle(task)}
-        className="flex-shrink-0"
-        disabled={isSkipped}
-      >
-        {isCompleted ? (
-          <CheckCircle2 className="h-5 w-5 text-green-500" />
-        ) : isSkipped ? (
-          <SkipForward className="h-5 w-5 text-muted-foreground" />
-        ) : (
-          <Circle className="h-5 w-5 text-muted-foreground hover:text-primary" />
-        )}
-      </button>
-      
-      <div className="flex-1 min-w-0">
-        <p className={`font-medium text-sm ${isCompleted || isSkipped ? 'line-through text-muted-foreground' : ''}`}>
-          {task.title}
-        </p>
-        <div className="flex items-center gap-2 mt-1">
-          {goal && (
-            <Badge variant="secondary" className="text-xs">
-              <Target className="h-3 w-3 mr-1" />
-              {goal.title}
-            </Badge>
-          )}
-          <span className="text-xs text-muted-foreground">
-            {task.duration_minutes}m
-          </span>
-          {task.notes && (
-            <Badge variant="outline" className="text-xs">
-              <MessageSquare className="h-3 w-3 mr-1" />
-              Note
-            </Badge>
-          )}
-          {isSkipped && (
-            <Badge variant="outline" className="text-xs text-muted-foreground">
-              Skipped
-            </Badge>
-          )}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-1 flex-shrink-0">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onNote(task)}
-        >
-          <MessageSquare className="h-4 w-4" />
-        </Button>
-        {!isCompleted && !isSkipped && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onSkip(task)}
-            title="Skip task"
-          >
-            <SkipForward className="h-4 w-4" />
-          </Button>
-        )}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onDelete(task.id)}
-          className="text-destructive hover:text-destructive"
-          title="Delete task"
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
   );
 }

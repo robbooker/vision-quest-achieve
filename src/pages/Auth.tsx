@@ -184,9 +184,18 @@ export default function Auth() {
 
       {/* Right side - Auth forms */}
       <div className="flex w-full lg:w-1/2 items-center justify-center p-8">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Welcome</CardTitle>
+        <div className="w-full max-w-md space-y-6">
+          {/* Mobile logo */}
+          <div className="flex flex-col items-center gap-2 lg:hidden">
+            <img src={gpLogo} alt="Groovy Planning" className="h-16 w-auto" />
+            <p className="text-sm text-muted-foreground text-center">
+              It's not far out. And that's a good thing.
+            </p>
+          </div>
+          
+          <Card className="w-full">
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl">Welcome</CardTitle>
             <CardDescription>
               Sign in to start your groovy planning journey
             </CardDescription>
@@ -307,6 +316,7 @@ export default function Auth() {
             </Tabs>
           </CardContent>
         </Card>
+        </div>
       </div>
       </div>
 

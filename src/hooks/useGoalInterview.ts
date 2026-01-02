@@ -37,6 +37,13 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 const INTERVIEW_CONVERSATION_PREFIX = '[Interview]';
 
+export interface InterviewConversation {
+  id: string;
+  title: string;
+  updated_at: string;
+  message_count: number;
+}
+
 export function useGoalInterview(options: UseGoalInterviewOptions = {}) {
   const { cycleId, onGoalExtracted } = options;
   const { user } = useAuth();
@@ -48,6 +55,7 @@ export function useGoalInterview(options: UseGoalInterviewOptions = {}) {
   const [error, setError] = useState<string | null>(null);
   const [extractedGoal, setExtractedGoal] = useState<ExtractedGoal | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [pastInterviews, setPastInterviews] = useState<InterviewConversation[]>([]);
   const abortRef = useRef<AbortController | null>(null);
 
   const { vision } = useVision();
@@ -63,54 +71,80 @@ export function useGoalInterview(options: UseGoalInterviewOptions = {}) {
     return 'vision';
   };
 
-  // Load existing interview conversation on mount
+  // Load all interview conversations on mount
   useEffect(() => {
-    const loadExistingInterview = async () => {
+    const loadInterviews = async () => {
       if (!user) {
         setIsLoadingHistory(false);
         return;
       }
 
       try {
-        // Find the most recent interview conversation
-        const { data: conversation } = await supabase
+        // Get all interview conversations
+        const { data: conversations } = await supabase
           .from('conversations')
-          .select('id, title')
+          .select('id, title, updated_at')
           .eq('user_id', user.id)
           .like('title', `${INTERVIEW_CONVERSATION_PREFIX}%`)
-          .order('updated_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+          .order('updated_at', { ascending: false });
 
-        if (!conversation) {
-          setIsLoadingHistory(false);
-          return;
-        }
-
-        // Load messages for this conversation
-        const { data: chatMessages } = await supabase
-          .from('chat_messages')
-          .select('role, content')
-          .eq('conversation_id', conversation.id)
-          .order('created_at', { ascending: true });
-
-        if (chatMessages && chatMessages.length > 0) {
-          const loadedMessages = chatMessages.map(m => ({
-            role: m.role as 'user' | 'assistant',
-            content: m.content,
-          }));
-          setMessages(loadedMessages);
-          setConversationId(conversation.id);
-          setPhase(calculatePhase(loadedMessages.length));
+        if (conversations && conversations.length > 0) {
+          // Get message counts for each conversation
+          const interviewsWithCounts: InterviewConversation[] = await Promise.all(
+            conversations.map(async (conv) => {
+              const { count } = await supabase
+                .from('chat_messages')
+                .select('*', { count: 'exact', head: true })
+                .eq('conversation_id', conv.id);
+              
+              return {
+                id: conv.id,
+                title: conv.title,
+                updated_at: conv.updated_at,
+                message_count: count || 0,
+              };
+            })
+          );
+          
+          setPastInterviews(interviewsWithCounts);
         }
       } catch (e) {
-        console.error('Failed to load interview history:', e);
+        console.error('Failed to load interviews:', e);
       } finally {
         setIsLoadingHistory(false);
       }
     };
 
-    loadExistingInterview();
+    loadInterviews();
+  }, [user]);
+
+  // Load a specific interview conversation
+  const loadInterview = useCallback(async (interviewId: string) => {
+    if (!user) return;
+
+    setIsLoading(true);
+    try {
+      const { data: chatMessages } = await supabase
+        .from('chat_messages')
+        .select('role, content')
+        .eq('conversation_id', interviewId)
+        .order('created_at', { ascending: true });
+
+      if (chatMessages && chatMessages.length > 0) {
+        const loadedMessages = chatMessages.map(m => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+        }));
+        setMessages(loadedMessages);
+        setConversationId(interviewId);
+        setPhase(calculatePhase(loadedMessages.length));
+      }
+    } catch (e) {
+      console.error('Failed to load interview:', e);
+      setError('Failed to load interview');
+    } finally {
+      setIsLoading(false);
+    }
   }, [user]);
 
   // Save a message to the database
@@ -202,18 +236,12 @@ export function useGoalInterview(options: UseGoalInterviewOptions = {}) {
   };
 
   const startInterview = useCallback(async () => {
-    // Delete old interview conversation and start fresh
-    if (conversationId) {
-      await supabase
-        .from('conversations')
-        .delete()
-        .eq('id', conversationId);
-    }
-
+    // Start fresh without deleting old interviews
     setMessages([]);
     setPhase('vision');
     setError(null);
     setExtractedGoal(null);
+    setConversationId(null);
     setIsLoading(true);
 
     // Create new conversation
@@ -224,6 +252,14 @@ export function useGoalInterview(options: UseGoalInterviewOptions = {}) {
       return '';
     }
     setConversationId(newConvId);
+
+    // Add to past interviews list
+    setPastInterviews(prev => [{
+      id: newConvId,
+      title: `${INTERVIEW_CONVERSATION_PREFIX} Goal Interview`,
+      updated_at: new Date().toISOString(),
+      message_count: 0,
+    }, ...prev]);
 
     abortRef.current = new AbortController();
 
@@ -266,7 +302,7 @@ export function useGoalInterview(options: UseGoalInterviewOptions = {}) {
     } finally {
       setIsLoading(false);
     }
-  }, [buildContext, conversationId, user]);
+  }, [buildContext, user]);
 
   const sendMessage = useCallback(async (text: string): Promise<string> => {
     if (!text.trim() || !conversationId) return '';
@@ -336,6 +372,9 @@ export function useGoalInterview(options: UseGoalInterviewOptions = {}) {
         .from('conversations')
         .delete()
         .eq('id', conversationId);
+      
+      // Remove from past interviews list
+      setPastInterviews(prev => prev.filter(p => p.id !== conversationId));
     }
 
     setMessages([]);
@@ -344,6 +383,22 @@ export function useGoalInterview(options: UseGoalInterviewOptions = {}) {
     setExtractedGoal(null);
     setIsLoading(false);
     setConversationId(null);
+  }, [conversationId]);
+
+  const deleteInterview = useCallback(async (interviewId: string) => {
+    await supabase
+      .from('conversations')
+      .delete()
+      .eq('id', interviewId);
+    
+    setPastInterviews(prev => prev.filter(p => p.id !== interviewId));
+    
+    // If we deleted the current interview, clear state
+    if (interviewId === conversationId) {
+      setMessages([]);
+      setPhase('vision');
+      setConversationId(null);
+    }
   }, [conversationId]);
 
   // Check if there's a resumable interview
@@ -362,5 +417,8 @@ export function useGoalInterview(options: UseGoalInterviewOptions = {}) {
     isComplete: phase === 'complete',
     hasExistingInterview,
     conversationId,
+    pastInterviews,
+    loadInterview,
+    deleteInterview,
   };
 }

@@ -14,7 +14,8 @@ import {
   ChevronDown,
   ChevronUp,
   Briefcase,
-  User
+  User,
+  GripVertical
 } from 'lucide-react';
 import {
   Select,
@@ -33,13 +34,142 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useQuickTasks, QuickTask } from '@/hooks/useQuickTasks';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+
+interface SortableTaskItemProps {
+  task: QuickTask;
+  isEditing: boolean;
+  editTitle: string;
+  onEditTitleChange: (value: string) => void;
+  onToggleComplete: (task: QuickTask) => void;
+  onSaveEdit: (id: string) => void;
+  onCancelEdit: () => void;
+  onStartEdit: (task: QuickTask) => void;
+  onDelete: (id: string) => void;
+}
+
+function SortableTaskItem({
+  task,
+  isEditing,
+  editTitle,
+  onEditTitleChange,
+  onToggleComplete,
+  onSaveEdit,
+  onCancelEdit,
+  onStartEdit,
+  onDelete,
+}: SortableTaskItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: task.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex items-center gap-2 py-2 px-3 rounded-md group hover:bg-muted/50 transition-colors",
+        task.completed && "opacity-60",
+        isDragging && "opacity-50 bg-muted shadow-lg z-10"
+      )}
+    >
+      {!task.completed && (
+        <button
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+      )}
+      
+      <Checkbox
+        checked={task.completed}
+        onCheckedChange={() => onToggleComplete(task)}
+        className="h-5 w-5 rounded-sm border-2"
+      />
+      
+      {isEditing ? (
+        <div className="flex-1 flex items-center gap-2">
+          <Input
+            value={editTitle}
+            onChange={(e) => onEditTitleChange(e.target.value)}
+            className="h-8"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') onSaveEdit(task.id);
+              if (e.key === 'Escape') onCancelEdit();
+            }}
+          />
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onSaveEdit(task.id)}>
+            <Check className="h-4 w-4" />
+          </Button>
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onCancelEdit}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      ) : (
+        <>
+          <span className={cn(
+            "flex-1 text-sm",
+            task.completed && "line-through text-muted-foreground"
+          )}>
+            {task.title}
+          </span>
+          
+          <Badge variant="outline" className="text-xs">
+            {task.category === 'personal' ? (
+              <><User className="h-3 w-3 mr-1" />Personal</>
+            ) : (
+              <><Briefcase className="h-3 w-3 mr-1" />Business</>
+            )}
+          </Badge>
+          
+          <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
+            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onStartEdit(task)}>
+              <Pencil className="h-3 w-3" />
+            </Button>
+            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => onDelete(task.id)}>
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 export function QuickTaskList() {
-  const { activeTasks, completedTasks, isLoading, createTask, updateTask, deleteTask } = useQuickTasks();
+  const { activeTasks, completedTasks, isLoading, createTask, updateTask, deleteTask, reorderTasks } = useQuickTasks();
   const { toast } = useToast();
   
   const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -49,6 +179,17 @@ export function QuickTaskList() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showCompleted, setShowCompleted] = useState(false);
   const [filter, setFilter] = useState<'all' | 'personal' | 'business'>('all');
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const handleAddTask = async () => {
     if (!newTaskTitle.trim()) return;
@@ -116,72 +257,31 @@ export function QuickTaskList() {
     setEditTitle('');
   };
 
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (!over || active.id === over.id) return;
+    
+    const oldIndex = filteredActiveTasks.findIndex(t => t.id === active.id);
+    const newIndex = filteredActiveTasks.findIndex(t => t.id === over.id);
+    
+    if (oldIndex === -1 || newIndex === -1) return;
+    
+    const reorderedTasks = arrayMove(filteredActiveTasks, oldIndex, newIndex);
+    const updates = reorderedTasks.map((task, index) => ({
+      id: task.id,
+      position: index,
+    }));
+    
+    try {
+      await reorderTasks.mutateAsync(updates);
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to reorder tasks', variant: 'destructive' });
+    }
+  };
+
   const filteredActiveTasks = activeTasks.filter(t => filter === 'all' || t.category === filter);
   const filteredCompletedTasks = completedTasks.filter(t => filter === 'all' || t.category === filter);
-
-  const TaskItem = ({ task }: { task: QuickTask }) => {
-    const isEditing = editingId === task.id;
-    
-    return (
-      <div className={cn(
-        "flex items-center gap-3 py-2 px-3 rounded-md group hover:bg-muted/50 transition-colors",
-        task.completed && "opacity-60"
-      )}>
-        <Checkbox
-          checked={task.completed}
-          onCheckedChange={() => handleToggleComplete(task)}
-          className="h-5 w-5 rounded-sm border-2"
-        />
-        
-        {isEditing ? (
-          <div className="flex-1 flex items-center gap-2">
-            <Input
-              value={editTitle}
-              onChange={(e) => setEditTitle(e.target.value)}
-              className="h-8"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleSaveEdit(task.id);
-                if (e.key === 'Escape') cancelEdit();
-              }}
-            />
-            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleSaveEdit(task.id)}>
-              <Check className="h-4 w-4" />
-            </Button>
-            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={cancelEdit}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        ) : (
-          <>
-            <span className={cn(
-              "flex-1 text-sm",
-              task.completed && "line-through text-muted-foreground"
-            )}>
-              {task.title}
-            </span>
-            
-            <Badge variant="outline" className="text-xs">
-              {task.category === 'personal' ? (
-                <><User className="h-3 w-3 mr-1" />Personal</>
-              ) : (
-                <><Briefcase className="h-3 w-3 mr-1" />Business</>
-              )}
-            </Badge>
-            
-            <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
-              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEdit(task)}>
-                <Pencil className="h-3 w-3" />
-              </Button>
-              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setDeleteId(task.id)}>
-                <Trash2 className="h-3 w-3" />
-              </Button>
-            </div>
-          </>
-        )}
-      </div>
-    );
-  };
 
   if (isLoading) {
     return (
@@ -259,17 +359,39 @@ export function QuickTaskList() {
           </Button>
         </div>
 
-        {/* Active tasks */}
+        {/* Active tasks with drag and drop */}
         {filteredActiveTasks.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">
             No tasks yet. Add one above!
           </p>
         ) : (
-          <div className="space-y-1">
-            {filteredActiveTasks.map(task => (
-              <TaskItem key={task.id} task={task} />
-            ))}
-          </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={filteredActiveTasks.map(t => t.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-1">
+                {filteredActiveTasks.map(task => (
+                  <SortableTaskItem
+                    key={task.id}
+                    task={task}
+                    isEditing={editingId === task.id}
+                    editTitle={editTitle}
+                    onEditTitleChange={setEditTitle}
+                    onToggleComplete={handleToggleComplete}
+                    onSaveEdit={handleSaveEdit}
+                    onCancelEdit={cancelEdit}
+                    onStartEdit={startEdit}
+                    onDelete={setDeleteId}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         )}
 
         {/* Completed tasks toggle */}
@@ -288,9 +410,18 @@ export function QuickTaskList() {
             {showCompleted && (
               <div className="space-y-1 mt-2">
                 {filteredCompletedTasks.map(task => (
-                  <div key={task.id} className="flex items-center gap-3 py-2 px-3 group">
-                    <TaskItem task={task} />
-                  </div>
+                  <SortableTaskItem
+                    key={task.id}
+                    task={task}
+                    isEditing={editingId === task.id}
+                    editTitle={editTitle}
+                    onEditTitleChange={setEditTitle}
+                    onToggleComplete={handleToggleComplete}
+                    onSaveEdit={handleSaveEdit}
+                    onCancelEdit={cancelEdit}
+                    onStartEdit={startEdit}
+                    onDelete={setDeleteId}
+                  />
                 ))}
               </div>
             )}

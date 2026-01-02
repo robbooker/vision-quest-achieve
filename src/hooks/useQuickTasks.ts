@@ -9,6 +9,7 @@ export interface QuickTask {
   category: 'personal' | 'business';
   completed: boolean;
   completed_at: string | null;
+  position: number;
   created_at: string;
   updated_at: string;
 }
@@ -25,7 +26,7 @@ export function useQuickTasks() {
       const { data, error } = await supabase
         .from('quick_tasks')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('position', { ascending: true });
       
       if (error) throw error;
       return data as QuickTask[];
@@ -37,12 +38,14 @@ export function useQuickTasks() {
     mutationFn: async (task: { title: string; category: 'personal' | 'business' }) => {
       if (!user) throw new Error('Not authenticated');
       
+      // New tasks go to position 0 (top of list)
       const { data, error } = await supabase
         .from('quick_tasks')
         .insert({
           user_id: user.id,
           title: task.title,
           category: task.category,
+          position: 0,
         })
         .select()
         .single();
@@ -56,10 +59,11 @@ export function useQuickTasks() {
   });
 
   const updateTask = useMutation({
-    mutationFn: async (update: { id: string; title?: string; category?: 'personal' | 'business'; completed?: boolean }) => {
+    mutationFn: async (update: { id: string; title?: string; category?: 'personal' | 'business'; completed?: boolean; position?: number }) => {
       const updateData: Record<string, unknown> = {};
       if (update.title !== undefined) updateData.title = update.title;
       if (update.category !== undefined) updateData.category = update.category;
+      if (update.position !== undefined) updateData.position = update.position;
       if (update.completed !== undefined) {
         updateData.completed = update.completed;
         updateData.completed_at = update.completed ? new Date().toISOString() : null;
@@ -80,6 +84,25 @@ export function useQuickTasks() {
     },
   });
 
+  const reorderTasks = useMutation({
+    mutationFn: async (updates: { id: string; position: number }[]) => {
+      // Update all positions in parallel
+      const promises = updates.map(({ id, position }) =>
+        supabase
+          .from('quick_tasks')
+          .update({ position })
+          .eq('id', id)
+      );
+      
+      const results = await Promise.all(promises);
+      const errors = results.filter(r => r.error);
+      if (errors.length > 0) throw errors[0].error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['quick-tasks'] });
+    },
+  });
+
   const deleteTask = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
@@ -94,11 +117,15 @@ export function useQuickTasks() {
     },
   });
 
-  // Get active (uncompleted) tasks - these roll over automatically
-  const activeTasks = (tasksQuery.data || []).filter(t => !t.completed);
+  // Get active (uncompleted) tasks sorted by position
+  const activeTasks = (tasksQuery.data || [])
+    .filter(t => !t.completed)
+    .sort((a, b) => a.position - b.position);
   
-  // Get completed tasks
-  const completedTasks = (tasksQuery.data || []).filter(t => t.completed);
+  // Get completed tasks sorted by completion date (most recent first)
+  const completedTasks = (tasksQuery.data || [])
+    .filter(t => t.completed)
+    .sort((a, b) => new Date(b.completed_at || 0).getTime() - new Date(a.completed_at || 0).getTime());
 
   return {
     tasks: tasksQuery.data || [],
@@ -108,5 +135,6 @@ export function useQuickTasks() {
     createTask,
     updateTask,
     deleteTask,
+    reorderTasks,
   };
 }

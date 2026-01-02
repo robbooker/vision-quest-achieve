@@ -365,7 +365,7 @@ export function useGoalInterview(options: UseGoalInterviewOptions = {}) {
 
   // Extract goal from conversation using AI
   const extractGoal = useCallback(async (): Promise<ExtractedGoal | null> => {
-    if (messages.length < 6) return null; // Need enough conversation
+    if (messages.length < 4) return null; // Need enough conversation
     
     setIsLoading(true);
     setError(null);

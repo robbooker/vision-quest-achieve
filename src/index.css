@@ -482,3 +482,77 @@ html.text-size-medium {
 html.text-size-large {
   font-size: 18px;
 }
+
+/* Mobile Command Bar for Quick Tasks */
+@media (max-width: 768px) {
+  .command-bar-overlay {
+    position: fixed;
+    inset: 0;
+    background: hsl(0 0% 0% / 0.7);
+    z-index: 999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+
+  .command-bar-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .mobile-command-bar {
+    position: fixed;
+    bottom: 20px;
+    left: 10px;
+    right: 10px;
+    background: hsl(0 0% 0%);
+    border: 2px solid hsl(0 100% 25%);
+    box-shadow: 0 -5px 20px hsl(0 0% 0% / 0.8);
+    z-index: 1000;
+    transition: all 0.2s ease;
+  }
+
+  .mobile-command-bar.expanded {
+    bottom: 0;
+    left: 0;
+    right: 0;
+    border-bottom: none;
+    border-left: none;
+    border-right: none;
+  }
+
+  .mobile-command-input {
+    background: transparent;
+    color: hsl(32 95% 54%);
+    font-family: 'Space Mono', monospace;
+    border: none;
+    padding: 15px;
+    width: 100%;
+    font-size: 16px;
+    caret-color: hsl(32 95% 54%);
+    transition: height 0.2s ease;
+  }
+
+  .mobile-command-input::placeholder {
+    color: hsl(32 95% 54% / 0.5);
+  }
+
+  .mobile-command-input:focus {
+    outline: none;
+  }
+
+  .mobile-command-bar.expanded .mobile-command-input {
+    padding: 20px 15px;
+  }
+
+  /* Success flash animation */
+  @keyframes success-flash {
+    0% { border-color: hsl(0 100% 25%); }
+    50% { border-color: hsl(165 91% 63%); box-shadow: 0 0 20px hsl(165 91% 63% / 0.5); }
+    100% { border-color: hsl(0 100% 25%); }
+  }
+
+  .mobile-command-bar.success {
+    animation: success-flash 0.3s ease;
+  }
+}

@@ -369,8 +369,8 @@ export function InterviewMode({ cycleId, onComplete, onCancel }: InterviewModePr
       </div>
 
       {/* Messages - scrollable area */}
-      <div className="flex-1 overflow-y-auto min-h-0 p-4">
-        <div className="space-y-3">
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="p-4 space-y-3">
           {interview.messages.map((msg, i) => (
             <MessageBubble 
               key={i} 
@@ -434,7 +434,7 @@ export function InterviewMode({ cycleId, onComplete, onCancel }: InterviewModePr
           {/* Scroll anchor */}
           <div ref={messagesEndRef} />
         </div>
-      </div>
+      </ScrollArea>
 
       {/* Input area - fixed at bottom */}
       <div className="flex-shrink-0 p-3 border-t bg-muted/30">

@@ -2,6 +2,8 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { BigTenCard } from '@/components/bigten/BigTenCard';
 import { useBigTen } from '@/hooks/useBigTen';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Plus } from 'lucide-react';
 
 export default function BigTen() {
   const {
@@ -15,18 +17,26 @@ export default function BigTen() {
     deleteTask,
   } = useBigTen();
 
-  // Create an array of 10 slots
-  const slots = Array.from({ length: 10 }, (_, i) => {
-    const position = i + 1;
-    return projects.find((p) => p.position === position) || null;
-  });
+  // Split projects into active and completed
+  const activeProjects = projects.filter((p) => !p.completed);
+  const completedProjects = projects.filter((p) => p.completed);
 
-  const handleCreateProject = (title: string, position: number) => {
-    createProject.mutate({ title, position });
+  // Find next available position for new project
+  const getNextPosition = () => {
+    const usedPositions = activeProjects.map((p) => p.position);
+    for (let i = 1; i <= 10; i++) {
+      if (!usedPositions.includes(i)) return i;
+    }
+    return activeProjects.length + 1;
   };
 
-  const handleUpdateProject = (id: string, title?: string, target_date?: string | null) => {
-    updateProject.mutate({ id, title, target_date });
+  const handleCreateProject = (title: string, _position: number) => {
+    if (activeProjects.length >= 10) return;
+    createProject.mutate({ title, position: getNextPosition() });
+  };
+
+  const handleUpdateProject = (id: string, title?: string, target_date?: string | null, completed?: boolean) => {
+    updateProject.mutate({ id, title, target_date, completed });
   };
 
   const handleDeleteProject = (id: string) => {
@@ -45,38 +55,79 @@ export default function BigTen() {
     deleteTask.mutate(id);
   };
 
+  const canAddMore = activeProjects.length < 10;
+
   return (
     <DashboardLayout>
       <div className="container max-w-5xl py-6 space-y-6">
         <div>
           <h1 className="text-3xl font-bold">The Big 10</h1>
           <p className="text-muted-foreground mt-1">
-            Your 10 big-picture projects that move the needle in your life.
+            Your big-picture projects that move the needle in your life.
           </p>
         </div>
 
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {Array.from({ length: 10 }).map((_, i) => (
+            {Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-[200px] w-full" />
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {slots.map((project, i) => (
-              <BigTenCard
-                key={project?.id || `slot-${i + 1}`}
-                project={project || undefined}
-                position={i + 1}
-                onCreateProject={handleCreateProject}
-                onUpdateProject={handleUpdateProject}
-                onDeleteProject={handleDeleteProject}
-                onCreateTask={handleCreateTask}
-                onUpdateTask={handleUpdateTask}
-                onDeleteTask={handleDeleteTask}
-              />
-            ))}
-          </div>
+          <>
+            {/* Active projects */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {activeProjects.map((project) => (
+                <BigTenCard
+                  key={project.id}
+                  project={project}
+                  position={project.position}
+                  onCreateProject={handleCreateProject}
+                  onUpdateProject={handleUpdateProject}
+                  onDeleteProject={handleDeleteProject}
+                  onCreateTask={handleCreateTask}
+                  onUpdateTask={handleUpdateTask}
+                  onDeleteTask={handleDeleteTask}
+                />
+              ))}
+              
+              {/* Add new project card */}
+              {canAddMore && (
+                <Card
+                  className="border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 transition-colors cursor-pointer min-h-[200px] flex items-center justify-center"
+                  onClick={() => handleCreateProject('New Project', getNextPosition())}
+                >
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                    <Plus className="h-8 w-8" />
+                    <span className="text-sm font-medium">Add a Big 10 Project</span>
+                  </div>
+                </Card>
+              )}
+            </div>
+
+            {/* Completed projects */}
+            {completedProjects.length > 0 && (
+              <div className="space-y-4">
+                <h2 className="text-xl font-semibold text-muted-foreground">Completed</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {completedProjects.map((project) => (
+                    <BigTenCard
+                      key={project.id}
+                      project={project}
+                      position={project.position}
+                      showAddButton={false}
+                      onCreateProject={handleCreateProject}
+                      onUpdateProject={handleUpdateProject}
+                      onDeleteProject={handleDeleteProject}
+                      onCreateTask={handleCreateTask}
+                      onUpdateTask={handleUpdateTask}
+                      onDeleteTask={handleDeleteTask}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </DashboardLayout>

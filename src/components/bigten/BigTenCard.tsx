@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { Calendar, Plus, Trash2, Check, X } from 'lucide-react';
+import { Calendar, Plus, Trash2, Check, X, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,8 +13,9 @@ import { BigTenProject, BigTenTask } from '@/hooks/useBigTen';
 interface BigTenCardProps {
   project?: BigTenProject;
   position: number;
+  showAddButton?: boolean;
   onCreateProject: (title: string, position: number) => void;
-  onUpdateProject: (id: string, title?: string, target_date?: string | null) => void;
+  onUpdateProject: (id: string, title?: string, target_date?: string | null, completed?: boolean) => void;
   onDeleteProject: (id: string) => void;
   onCreateTask: (project_id: string, title: string, position: number) => void;
   onUpdateTask: (id: string, title?: string, completed?: boolean) => void;
@@ -24,6 +25,7 @@ interface BigTenCardProps {
 export function BigTenCard({
   project,
   position,
+  showAddButton = true,
   onCreateProject,
   onUpdateProject,
   onDeleteProject,
@@ -78,8 +80,9 @@ export function BigTenCard({
     setEditingTaskId(null);
   };
 
-  // Empty card state
+  // Empty card state - only show if showAddButton is true
   if (!project) {
+    if (!showAddButton) return null;
     return (
       <Card
         className="border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 transition-colors cursor-pointer min-h-[200px] flex items-center justify-center"
@@ -92,6 +95,10 @@ export function BigTenCard({
       </Card>
     );
   }
+
+  const handleCompleteProject = () => {
+    onUpdateProject(project.id, undefined, undefined, true);
+  };
 
   return (
     <Card className="min-h-[200px] flex flex-col">
@@ -117,15 +124,33 @@ export function BigTenCard({
               </Button>
             </div>
           ) : (
-            <h3
-              className="text-lg font-semibold cursor-pointer hover:text-primary transition-colors"
-              onClick={() => {
-                setEditedTitle(project.title);
-                setIsEditingTitle(true);
-              }}
-            >
-              {project.title}
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3
+                className={cn(
+                  'text-lg font-semibold cursor-pointer hover:text-primary transition-colors',
+                  project.completed && 'line-through text-muted-foreground'
+                )}
+                onClick={() => {
+                  if (!project.completed) {
+                    setEditedTitle(project.title);
+                    setIsEditingTitle(true);
+                  }
+                }}
+              >
+                {project.title}
+              </h3>
+              {!project.completed && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7 text-muted-foreground hover:text-primary"
+                  onClick={handleCompleteProject}
+                  title="Mark as complete"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           )}
         </div>
         <Button

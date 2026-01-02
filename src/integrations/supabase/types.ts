@@ -16,6 +16,8 @@ export type Database = {
     Tables: {
       big_ten_projects: {
         Row: {
+          completed: boolean
+          completed_at: string | null
           created_at: string
           id: string
           position: number
@@ -25,6 +27,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          completed?: boolean
+          completed_at?: string | null
           created_at?: string
           id?: string
           position: number
@@ -34,6 +38,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          completed?: boolean
+          completed_at?: string | null
           created_at?: string
           id?: string
           position?: number

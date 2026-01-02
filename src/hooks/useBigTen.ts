@@ -19,6 +19,8 @@ export interface BigTenProject {
   title: string;
   target_date: string | null;
   position: number;
+  completed: boolean;
+  completed_at: string | null;
   created_at: string;
   updated_at: string;
   tasks?: BigTenTask[];
@@ -91,14 +93,20 @@ export function useBigTen() {
       id,
       title,
       target_date,
+      completed,
     }: {
       id: string;
       title?: string;
       target_date?: string | null;
+      completed?: boolean;
     }) => {
       const updates: Record<string, unknown> = {};
       if (title !== undefined) updates.title = title;
       if (target_date !== undefined) updates.target_date = target_date;
+      if (completed !== undefined) {
+        updates.completed = completed;
+        updates.completed_at = completed ? new Date().toISOString() : null;
+      }
 
       const { error } = await supabase
         .from('big_ten_projects')

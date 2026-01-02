@@ -17,6 +17,7 @@ import { LogOut, Settings, User, LayoutDashboard, CheckSquare, BarChart3, Star }
 import { cn } from '@/lib/utils';
 import { Footer } from '@/components/layout/Footer';
 import gpLogo from '@/assets/gp-logo.png';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -98,6 +99,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
 
           <div className="flex items-center gap-2">
+            <NotificationBell />
             <ThemeToggle />
             
             <DropdownMenu>

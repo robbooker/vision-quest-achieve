@@ -39,6 +39,8 @@ export function BigTenCard({
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editedTaskTitle, setEditedTaskTitle] = useState('');
+  const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
+  const [exitingTaskId, setExitingTaskId] = useState<string | null>(null);
 
   const tasks = project?.tasks || [];
   const canAddTask = tasks.length < 5;
@@ -70,7 +72,22 @@ export function BigTenCard({
   };
 
   const handleToggleTask = (task: BigTenTask) => {
-    onUpdateTask(task.id, undefined, !task.completed);
+    // If completing (not uncompleting), run animation first
+    if (!task.completed) {
+      setCompletingTaskId(task.id);
+      
+      setTimeout(() => {
+        setExitingTaskId(task.id);
+      }, 400);
+      
+      setTimeout(() => {
+        onUpdateTask(task.id, undefined, true);
+        setCompletingTaskId(null);
+        setExitingTaskId(null);
+      }, 650);
+    } else {
+      onUpdateTask(task.id, undefined, false);
+    }
   };
 
   const handleSaveTaskTitle = (taskId: string) => {
@@ -166,10 +183,19 @@ export function BigTenCard({
         {/* Tasks list */}
         <div className="space-y-2 flex-1">
           {tasks.map((task) => (
-            <div key={task.id} className="flex items-center gap-2 group">
+            <div 
+              key={task.id} 
+              className={cn(
+                "flex items-center gap-2 group",
+                completingTaskId === task.id && "task-completing",
+                exitingTaskId === task.id && "task-exit"
+              )}
+            >
               <Checkbox
-                checked={task.completed}
+                checked={task.completed || completingTaskId === task.id}
                 onCheckedChange={() => handleToggleTask(task)}
+                className={cn(completingTaskId === task.id && "task-checkbox")}
+                disabled={completingTaskId === task.id}
               />
               {editingTaskId === task.id ? (
                 <div className="flex items-center gap-1 flex-1">
@@ -192,11 +218,14 @@ export function BigTenCard({
                   <span
                     className={cn(
                       'text-sm flex-1 cursor-pointer hover:text-primary transition-colors',
-                      task.completed && 'line-through text-muted-foreground'
+                      task.completed && 'line-through text-muted-foreground',
+                      completingTaskId === task.id && 'task-text text-muted-foreground'
                     )}
                     onClick={() => {
-                      setEditedTaskTitle(task.title);
-                      setEditingTaskId(task.id);
+                      if (completingTaskId !== task.id) {
+                        setEditedTaskTitle(task.title);
+                        setEditingTaskId(task.id);
+                      }
                     }}
                   >
                     {task.title}

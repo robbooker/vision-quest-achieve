@@ -124,11 +124,13 @@ export default function Auth() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen relative">
+    <div className="flex flex-col min-h-screen">
       {/* Theme Toggle - top right */}
       <div className="absolute top-4 right-4 z-10">
         <ThemeToggle />
       </div>
+      
+      <div className="flex flex-1">
       {/* Left side - Branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-primary/5 items-center justify-center p-12">
         <div className="max-w-md space-y-8">
@@ -304,6 +306,7 @@ export default function Auth() {
             </Tabs>
           </CardContent>
         </Card>
+      </div>
       </div>
 
       <Footer />

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -9,12 +10,19 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2 } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { CalendarIcon, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface AddCalendarEventDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (event: { title: string; startTime: string; endTime: string }) => Promise<void>;
+  onSubmit: (event: { title: string; date: Date; startTime: string; endTime: string }) => Promise<void>;
   isLoading: boolean;
 }
 
@@ -25,6 +33,7 @@ export function AddCalendarEventDialog({
   isLoading,
 }: AddCalendarEventDialogProps) {
   const [title, setTitle] = useState("");
+  const [date, setDate] = useState<Date>(new Date());
   const [startTime, setStartTime] = useState(() => {
     const now = new Date();
     now.setMinutes(0, 0, 0);
@@ -40,12 +49,13 @@ export function AddCalendarEventDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim() || !date) return;
     
-    await onSubmit({ title: title.trim(), startTime, endTime });
+    await onSubmit({ title: title.trim(), date, startTime, endTime });
     
     // Reset form
     setTitle("");
+    setDate(new Date());
     const now = new Date();
     now.setMinutes(0, 0, 0);
     now.setHours(now.getHours() + 1);
@@ -54,7 +64,7 @@ export function AddCalendarEventDialog({
     setEndTime(`${String(now.getHours()).padStart(2, "0")}:00`);
   };
 
-  const isValid = title.trim() && startTime < endTime;
+  const isValid = title.trim() && date && startTime < endTime;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -72,6 +82,32 @@ export function AddCalendarEventDialog({
               placeholder="Meeting, Call, etc."
               autoFocus
             />
+          </div>
+          <div className="space-y-2">
+            <Label>Date</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !date && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {date ? format(date, "PPP") : <span>Pick a date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  onSelect={(d) => d && setDate(d)}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

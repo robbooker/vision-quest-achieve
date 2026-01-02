@@ -10,6 +10,8 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { TerminalModeProvider } from "@/hooks/useTerminalMode";
 import { GlobalChatProvider } from "@/hooks/useGlobalChat";
+import { ToastProvider } from "@/components/notifications/ToastProvider";
+import { NotificationListener } from "@/components/notifications/NotificationListener";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -46,10 +48,12 @@ const App = () => (
       <AuthProvider>
         <TerminalModeProvider>
           <GlobalChatProvider>
+          <ToastProvider>
           <TooltipProvider>
             <TextSizeInitializer />
             <Toaster />
             <Sonner />
+            <NotificationListener />
             <BrowserRouter>
               <Routes>
                 <Route path="/" element={<Index />} />
@@ -68,6 +72,7 @@ const App = () => (
             </BrowserRouter>
             <InstallPrompt />
           </TooltipProvider>
+          </ToastProvider>
           </GlobalChatProvider>
         </TerminalModeProvider>
       </AuthProvider>

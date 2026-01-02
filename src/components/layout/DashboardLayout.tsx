@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { LogOut, Settings, User, LayoutDashboard, CheckSquare, BarChart3, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Footer } from '@/components/layout/Footer';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -43,7 +44,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                       'User';
 
   return (
-    <div className={cn("min-h-screen bg-background", isTerminal && "font-mono text-[13px]")}>
+    <div className={cn("min-h-screen bg-background flex flex-col", isTerminal && "font-mono text-[13px]")}>
       {/* Terminal Command Bar */}
       {isTerminal && (
         <div className="bg-[hsl(0,100%,25%)] text-[hsl(32,95%,54%)] px-4 py-1 text-xs font-bold border-b-2 border-background flex items-center justify-between">
@@ -177,9 +178,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </header>
 
       {/* Main content */}
-      <main className={cn("container py-6", isTerminal && "border-x border-[hsl(0,0%,20%)]")}>
+      <main className={cn("container py-6 flex-1", isTerminal && "border-x border-[hsl(0,0%,20%)]")}>
         {children}
       </main>
+
+      <Footer />
     </div>
   );
 }

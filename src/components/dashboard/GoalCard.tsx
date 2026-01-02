@@ -29,7 +29,8 @@ export function GoalCard({ goal, index, onEdit, onDelete, onPlanMilestones, onMa
     goal.target_value, 
     goal.metric_type
   );
-  const hasMilestones = milestones.length === 12;
+  // Support both old 12-week cycles and new 6-week cycles
+  const hasMilestones = milestones.length >= 6;
   const activeTactics = tactics.filter(t => t.is_active);
 
   return (

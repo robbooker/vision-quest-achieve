@@ -71,7 +71,7 @@ export function CreateCycleDialog({ open, onOpenChange }: CreateCycleDialogProps
     }
   };
 
-  const endDate = startDate ? addWeeks(startDate, 12) : null;
+  const endDate = startDate ? addWeeks(startDate, 6) : null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -79,7 +79,7 @@ export function CreateCycleDialog({ open, onOpenChange }: CreateCycleDialogProps
         <DialogHeader>
           <DialogTitle>Create New Cycle</DialogTitle>
           <DialogDescription>
-            Start a new 12-week year. Choose a name and start date.
+            Start a new 6-week sprint. Choose a name and start date.
           </DialogDescription>
         </DialogHeader>
 
@@ -124,7 +124,7 @@ export function CreateCycleDialog({ open, onOpenChange }: CreateCycleDialogProps
             <div className="rounded-lg bg-muted/50 p-3 text-sm">
               <span className="text-muted-foreground">End date: </span>
               <span className="font-medium">{format(endDate, 'PPP')}</span>
-              <span className="text-muted-foreground"> (12 weeks)</span>
+              <span className="text-muted-foreground"> (6 weeks + 2 week reset)</span>
             </div>
           )}
         </div>

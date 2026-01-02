@@ -42,7 +42,7 @@ export function useCycles() {
   const createCycle = useMutation({
     mutationFn: async (input: CreateCycleInput) => {
       const startDate = startOfDay(new Date(input.start_date));
-      const endDate = addWeeks(startDate, 12);
+      const endDate = addWeeks(startDate, 6);
       
       // Always set to 'active' so users can immediately start planning
       const { data, error } = await supabase
@@ -113,7 +113,10 @@ export function useCycles() {
     },
   });
 
-  // Helper to get current week number for a cycle
+  // Helper to get current week number for a cycle (6+2 model)
+  // Weeks 1-6: Active cycle
+  // Week 7: Review/Reflection week
+  // Week 8: Planning week for next cycle
   const getCurrentWeekNumber = (cycle: Cycle): number => {
     const today = startOfDay(new Date());
     const startDate = startOfDay(new Date(cycle.start_date));
@@ -122,16 +125,20 @@ export function useCycles() {
     // If today is before cycle starts, return 0
     if (today < startDate) return 0;
     
-    // If today is after end date, check if in week 13
+    // Calculate weeks since start
+    const weeksDiff = differenceInWeeks(today, startDate);
+    const currentWeek = weeksDiff + 1;
+    
+    // If today is after end date (week 6), check reset period
     if (today > endDate) {
       const weeksAfterEnd = differenceInWeeks(today, endDate);
-      if (weeksAfterEnd < 1) return 13; // Week 13 (review week)
-      return 13; // Still show as week 13 until new cycle
+      if (weeksAfterEnd < 1) return 7; // Week 7 (review week)
+      if (weeksAfterEnd < 2) return 8; // Week 8 (planning week)
+      return 8; // Still show as week 8 until new cycle
     }
     
-    // Calculate current week (1-12)
-    const weeksDiff = differenceInWeeks(today, startDate);
-    return Math.min(weeksDiff + 1, 12);
+    // Calculate current week (1-6)
+    return Math.min(currentWeek, 6);
   };
 
   // Find the active cycle
@@ -144,10 +151,10 @@ export function useCycles() {
     const activeCycle = cyclesQuery.data.find(c => c.status === 'active');
     if (activeCycle) return activeCycle;
     
-    // Otherwise, find a cycle where today falls within start and end (+1 week for review)
+    // Otherwise, find a cycle where today falls within start and end (+2 weeks for reset period)
     const currentCycle = cyclesQuery.data.find(cycle => {
       const startDate = new Date(cycle.start_date);
-      const endDate = addWeeks(new Date(cycle.end_date), 1); // Include week 13
+      const endDate = addWeeks(new Date(cycle.end_date), 2); // Include weeks 7-8 (reset period)
       return isWithinInterval(today, { start: startDate, end: endDate });
     });
     

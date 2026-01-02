@@ -135,12 +135,12 @@ export function useMilestones(goalId?: string) {
   };
 }
 
-// Helper function to generate milestone distributions
+// Helper function to generate milestone distributions (6-week cycle)
 export function generateMilestoneDistribution(
   targetValue: number,
   distributionType: DistributionType
 ): number[] {
-  const weeks = 12;
+  const weeks = 6;
   
   switch (distributionType) {
     case 'linear': {
@@ -152,7 +152,7 @@ export function generateMilestoneDistribution(
     }
     
     case 'ramp-up': {
-      // Weights: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
+      // Weights: 1, 2, 3, 4, 5, 6
       const weights = Array.from({ length: weeks }, (_, i) => i + 1);
       const totalWeight = weights.reduce((a, b) => a + b, 0);
       const values = weights.map(w => Math.floor((w / totalWeight) * targetValue));
@@ -162,7 +162,7 @@ export function generateMilestoneDistribution(
     }
     
     case 'ramp-down': {
-      // Weights: 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
+      // Weights: 6, 5, 4, 3, 2, 1
       const weights = Array.from({ length: weeks }, (_, i) => weeks - i);
       const totalWeight = weights.reduce((a, b) => a + b, 0);
       const values = weights.map(w => Math.floor((w / totalWeight) * targetValue));

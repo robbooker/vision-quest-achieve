@@ -55,7 +55,7 @@ export function WeekView({ cycle, goals, currentWeek }: WeekViewProps) {
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
             <Calendar className="h-5 w-5 text-primary" />
-            Week {currentWeek} of 12
+            Week {currentWeek} of 6
           </CardTitle>
           <span className="text-sm text-muted-foreground">
             {format(weekStart, 'MMM d')} - {format(weekEnd, 'MMM d, yyyy')}

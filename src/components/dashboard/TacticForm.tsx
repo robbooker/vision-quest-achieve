@@ -96,7 +96,7 @@ export function TacticForm({ tactic, onSubmit, onCancel, isLoading }: TacticForm
         <div className="space-y-2">
           <Label>Select Weeks</Label>
           <div className="grid grid-cols-6 gap-2">
-            {Array.from({ length: 12 }, (_, i) => i + 1).map((week) => (
+            {Array.from({ length: 6 }, (_, i) => i + 1).map((week) => (
               <Button
                 key={week}
                 type="button"

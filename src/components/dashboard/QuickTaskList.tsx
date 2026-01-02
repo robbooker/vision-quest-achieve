@@ -397,7 +397,7 @@ export function QuickTaskList() {
         {/* Active tasks with drag and drop */}
         {filteredActiveTasks.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">
-            No tasks yet. Add one above!
+            No tasks yet. Add one!
           </p>
         ) : (
           <DndContext

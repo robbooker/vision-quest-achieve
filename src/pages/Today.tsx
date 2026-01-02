@@ -102,10 +102,10 @@ export default function Today() {
     }
   };
 
-  const handleCreateCalendarEvent = async (eventData: { title: string; startTime: string; endTime: string }) => {
-    const todayStr = format(today, 'yyyy-MM-dd');
-    const startDateTime = new Date(`${todayStr}T${eventData.startTime}:00`).toISOString();
-    const endDateTime = new Date(`${todayStr}T${eventData.endTime}:00`).toISOString();
+  const handleCreateCalendarEvent = async (eventData: { title: string; date: Date; startTime: string; endTime: string }) => {
+    const dateStr = format(eventData.date, 'yyyy-MM-dd');
+    const startDateTime = new Date(`${dateStr}T${eventData.startTime}:00`).toISOString();
+    const endDateTime = new Date(`${dateStr}T${eventData.endTime}:00`).toISOString();
 
     setIsCreatingEvent(true);
     try {

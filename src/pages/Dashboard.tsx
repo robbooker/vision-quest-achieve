@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { CycleHeader } from '@/components/dashboard/CycleHeader';
 import { GoalCard } from '@/components/dashboard/GoalCard';
@@ -9,11 +9,13 @@ import { MilestonePlannerDialog } from '@/components/dashboard/MilestonePlannerD
 import { TacticsManagerDialog } from '@/components/dashboard/TacticsManagerDialog';
 import { WeekView } from '@/components/dashboard/WeekView';
 import { WeeklyReviewDialog, ReplanDialog } from '@/components/dashboard/WeeklyReviewDialog';
+import { CycleMigrationDialog } from '@/components/dashboard/CycleMigrationDialog';
 import { GoalCoachChat } from '@/components/coach/GoalCoachChat';
 import { useCycles } from '@/hooks/useCycles';
 import { useGlobalChat } from '@/hooks/useGlobalChat';
 import { useGoals, Goal } from '@/hooks/useGoals';
 import { useTaskInstances } from '@/hooks/useTaskInstances';
+import { differenceInWeeks } from 'date-fns';
 import { useWeekReviews } from '@/hooks/useWeekReviews';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -49,6 +51,8 @@ export default function Dashboard() {
   const [replanOpen, setReplanOpen] = useState(false);
   const [deleteCycleId, setDeleteCycleId] = useState<string | null>(null);
   const [archiveCycleId, setArchiveCycleId] = useState<string | null>(null);
+  const [migrationDialogOpen, setMigrationDialogOpen] = useState(false);
+  const [migrationShown, setMigrationShown] = useState(false);
   
   const { openToTab } = useGlobalChat();
   const { cycles, isLoading: cyclesLoading, getActiveCycle, getCurrentWeekNumber, deleteCycle, archiveCycle } = useCycles();
@@ -59,6 +63,20 @@ export default function Dashboard() {
   const { tasks, getWeekStats } = useTaskInstances(activeCycle?.id);
   const weekStats = activeCycle ? getWeekStats(tasks, currentWeek) : { completed: 0, total: 0, percentage: 0 };
   const { toast } = useToast();
+
+  // Check if active cycle is a legacy 12-week cycle
+  const isLegacy12Week = activeCycle && differenceInWeeks(
+    new Date(activeCycle.end_date), 
+    new Date(activeCycle.start_date)
+  ) >= 10;
+
+  // Show migration dialog once for legacy cycles
+  useEffect(() => {
+    if (isLegacy12Week && !migrationShown && !cyclesLoading) {
+      setMigrationDialogOpen(true);
+      setMigrationShown(true);
+    }
+  }, [isLegacy12Week, migrationShown, cyclesLoading]);
 
   const handleDeleteGoal = async (goalId: string) => {
     try {
@@ -400,6 +418,15 @@ export default function Dashboard() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Cycle Migration Dialog for legacy 12-week cycles */}
+      {activeCycle && isLegacy12Week && (
+        <CycleMigrationDialog
+          open={migrationDialogOpen}
+          onOpenChange={setMigrationDialogOpen}
+          cycle={activeCycle}
+        />
+      )}
 
       {/* AI Goal Coach */}
       <GoalCoachChat cycleId={activeCycle?.id} />

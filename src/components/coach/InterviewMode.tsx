@@ -67,12 +67,13 @@ export function InterviewMode({ cycleId, onComplete, onCancel }: InterviewModePr
   const handleVoiceResult = useCallback((text: string) => {
     if (text.trim()) {
       interview.sendMessage(text).then((response) => {
-        if (isVoiceEnabled && response) {
+        // Only speak if in voice mode AND voice is enabled
+        if (isVoiceMode && isVoiceEnabled && response) {
           voice.speak(response);
         }
       });
     }
-  }, [interview, voice, isVoiceEnabled]);
+  }, [interview, voice, isVoiceMode, isVoiceEnabled]);
 
   const voiceInput = useVoiceInput({
     onResult: handleVoiceResult,
@@ -112,7 +113,8 @@ export function InterviewMode({ cycleId, onComplete, onCancel }: InterviewModePr
     setTextInput('');
     
     const response = await interview.sendMessage(text);
-    if (isVoiceEnabled && response) {
+    // Only speak if in voice mode AND voice is enabled
+    if (isVoiceMode && isVoiceEnabled && response) {
       voice.speak(response);
     }
   };

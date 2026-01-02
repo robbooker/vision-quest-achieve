@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Mic, MicOff, Send, Volume2, VolumeX, MessageSquare, Loader2, RotateCcw, Plus, Trash2, Clock } from 'lucide-react';
+import { Mic, MicOff, Send, Volume2, VolumeX, MessageSquare, Loader2, RotateCcw, Plus, Trash2, Clock, CheckCircle, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -10,8 +10,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { useCoachVoice } from '@/hooks/useCoachVoice';
-import { useGoalInterview, InterviewMessage, InterviewPhase, InterviewConversation } from '@/hooks/useGoalInterview';
+import { useGoalInterview, InterviewMessage, InterviewPhase, ExtractedGoal } from '@/hooks/useGoalInterview';
+import { useGoals } from '@/hooks/useGoals';
+import { useMilestones } from '@/hooks/useMilestones';
+import { useTactics } from '@/hooks/useTactics';
 import { formatDistanceToNow } from 'date-fns';
+import { toast } from 'sonner';
 
 const PHASE_LABELS: Record<InterviewPhase, string> = {
   vision: 'What do you want?',
@@ -24,7 +28,7 @@ const PHASE_LABELS: Record<InterviewPhase, string> = {
 
 interface InterviewModeProps {
   cycleId?: string;
-  onComplete: (goal: ReturnType<typeof useGoalInterview>['extractedGoal']) => void;
+  onComplete: (goal: ExtractedGoal | null) => void;
   onCancel: () => void;
 }
 
@@ -53,6 +57,7 @@ export function InterviewMode({ cycleId, onComplete, onCancel }: InterviewModePr
   const [textInput, setTextInput] = useState('');
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
   const [hasStarted, setHasStarted] = useState(false);
+  const [isCreatingGoal, setIsCreatingGoal] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -60,9 +65,13 @@ export function InterviewMode({ cycleId, onComplete, onCancel }: InterviewModePr
   const interview = useGoalInterview({
     cycleId,
     onGoalExtracted: (goal) => {
-      onComplete(goal);
+      // Goal extracted, but we'll let user click to create
     },
   });
+
+  const { createGoal } = useGoals(cycleId);
+  const { createMilestone } = useMilestones(cycleId || '');
+  const { createTactic } = useTactics();
 
   const voice = useCoachVoice();
   
@@ -123,6 +132,67 @@ export function InterviewMode({ cycleId, onComplete, onCancel }: InterviewModePr
     // Only speak if in voice mode AND voice is enabled
     if (isVoiceMode && isVoiceEnabled && response) {
       voice.speak(response);
+    }
+  };
+
+  // Handle goal creation
+  const handleCreateGoal = async () => {
+    if (!cycleId) {
+      toast.error('No active cycle. Please create a cycle first.');
+      return;
+    }
+
+    setIsCreatingGoal(true);
+    
+    try {
+      // First extract the goal
+      const extracted = interview.extractedGoal || await interview.extractGoal();
+      
+      if (!extracted) {
+        toast.error('Could not extract goal from conversation');
+        return;
+      }
+
+      // Create the goal
+      const goal = await createGoal.mutateAsync({
+        cycle_id: cycleId,
+        title: extracted.title,
+        metric_type: extracted.metric_type,
+        target_value: extracted.target_value,
+        why: extracted.why,
+      });
+
+      // Create milestones if extracted
+      if (extracted.milestones && extracted.milestones.length > 0) {
+        for (const milestone of extracted.milestones) {
+          await createMilestone.mutateAsync({
+            goal_id: goal.id,
+            week_number: milestone.week_number,
+            target_value: milestone.target_value,
+            description: milestone.description,
+          });
+        }
+      }
+
+      // Create tactics if extracted
+      if (extracted.tactics && extracted.tactics.length > 0) {
+        for (const tactic of extracted.tactics) {
+          await createTactic.mutateAsync({
+            goal_id: goal.id,
+            title: tactic.title,
+            frequency: tactic.frequency,
+            target_count: tactic.target_count,
+          });
+        }
+      }
+
+      toast.success('Goal created successfully!');
+      onComplete(extracted);
+    } catch (e) {
+      console.error('Failed to create goal:', e);
+      toast.error('Failed to create goal');
+    } finally {
+      setIsCreatingGoal(false);
     }
   };
 
@@ -319,6 +389,29 @@ export function InterviewMode({ cycleId, onComplete, onCancel }: InterviewModePr
           {interview.error && (
             <div className="mt-2 text-xs text-destructive text-center">
               {interview.error}
+            </div>
+          )}
+
+          {/* Create Goal button when enough conversation */}
+          {interview.messages.length >= 8 && !interview.isLoading && (
+            <div className="flex justify-center pt-4">
+              <Button
+                onClick={handleCreateGoal}
+                disabled={isCreatingGoal}
+                className="gap-2"
+              >
+                {isCreatingGoal ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Creating Goal...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    Create Goal from Interview
+                  </>
+                )}
+              </Button>
             </div>
           )}
           

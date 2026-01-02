@@ -363,6 +363,44 @@ export function useGoalInterview(options: UseGoalInterviewOptions = {}) {
     }
   }, [messages, phase, buildContext, conversationId, user]);
 
+  // Extract goal from conversation using AI
+  const extractGoal = useCallback(async (): Promise<ExtractedGoal | null> => {
+    if (messages.length < 6) return null; // Need enough conversation
+    
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/extract-goal`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+        },
+        body: JSON.stringify({ messages }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to extract goal: ${response.status}`);
+      }
+
+      const goal = await response.json();
+      setExtractedGoal(goal);
+      
+      if (onGoalExtracted) {
+        onGoalExtracted(goal);
+      }
+      
+      return goal;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to extract goal';
+      setError(msg);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [messages, onGoalExtracted]);
+
   const reset = useCallback(async () => {
     abortRef.current?.abort();
     
@@ -413,6 +451,7 @@ export function useGoalInterview(options: UseGoalInterviewOptions = {}) {
     extractedGoal,
     startInterview,
     sendMessage,
+    extractGoal,
     reset,
     isComplete: phase === 'complete',
     hasExistingInterview,

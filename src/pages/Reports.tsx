@@ -31,6 +31,7 @@ import { useMilestones } from '@/hooks/useMilestones';
 import { useBigTen } from '@/hooks/useBigTen';
 import { useQuickTasks } from '@/hooks/useQuickTasks';
 import { TrendingUp, BarChart3, Target, AlertTriangle, Calendar, CheckSquare, FolderKanban, ListTodo } from 'lucide-react';
+import { HabitChainCalendar } from '@/components/reports/HabitChainCalendar';
 import { format, subDays, startOfDay, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek } from 'date-fns';
 
 export default function Reports() {
@@ -366,6 +367,9 @@ export default function Reports() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Habit Chains Section */}
+        <HabitChainCalendar />
 
         {/* Big 10 & Quick Tasks Section */}
         <div className="space-y-4">

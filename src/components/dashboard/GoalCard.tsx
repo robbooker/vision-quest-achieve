@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useMilestones } from '@/hooks/useMilestones';
 import { useTactics } from '@/hooks/useTactics';
+import { useGoalProgress } from '@/hooks/useGoalProgress';
 
 interface GoalCardProps {
   goal: Goal;
@@ -23,6 +24,11 @@ interface GoalCardProps {
 export function GoalCard({ goal, index, onEdit, onDelete, onPlanMilestones, onManageTactics }: GoalCardProps) {
   const { milestones, isLoading } = useMilestones(goal.id);
   const { tactics, isLoading: tacticsLoading } = useTactics(goal.id);
+  const { actualValue, progressPercent, isLoading: progressLoading } = useGoalProgress(
+    goal.id, 
+    goal.target_value, 
+    goal.metric_type
+  );
   const hasMilestones = milestones.length === 12;
   const activeTactics = tactics.filter(t => t.is_active);
 
@@ -132,11 +138,21 @@ export function GoalCard({ goal, index, onEdit, onDelete, onPlanMilestones, onMa
         <div className="pt-2">
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-2 uppercase tracking-wide">
             <span>Progress</span>
-            <span className="nixie-display py-1 px-2 text-xs">0%</span>
+            <span className="nixie-display py-1 px-2 text-xs">
+              {progressLoading ? '...' : `${progressPercent}%`}
+            </span>
           </div>
           <div className="nixie-progress h-2">
-            <div className="nixie-progress-bar" style={{ width: '0%' }} />
+            <div 
+              className="nixie-progress-bar transition-all duration-500" 
+              style={{ width: `${progressPercent}%` }} 
+            />
           </div>
+          {!progressLoading && actualValue > 0 && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Actual: {actualValue} {goal.metric_type}
+            </p>
+          )}
         </div>
       )}
     </div>

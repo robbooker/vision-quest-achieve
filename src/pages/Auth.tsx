@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, Target, TrendingUp } from 'lucide-react';
+import { Calendar, Target, TrendingUp, BookOpen } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Footer } from '@/components/layout/Footer';
 import { z } from 'zod';
@@ -175,6 +175,20 @@ export default function Auth() {
                 <h3 className="font-semibold text-foreground">Track Execution</h3>
                 <p className="text-sm text-muted-foreground">
                   Measure what matters with weekly reviews
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-start gap-4">
+              <div className="rounded-lg bg-primary/10 p-3">
+                <BookOpen className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground">Learn the Science</h3>
+                <p className="text-sm text-muted-foreground">
+                  <Link to="/blog" className="text-primary hover:underline">
+                    Read how 50 years of psychology solved goal-setting →
+                  </Link>
                 </p>
               </div>
             </div>

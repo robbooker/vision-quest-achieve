@@ -108,6 +108,12 @@ export function NotificationBell() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
+          {/* Steam animation */}
+          <div className="absolute -top-1 left-1/2 -translate-x-1/2 flex gap-0.5">
+            <span className="w-0.5 h-2 bg-muted-foreground/40 rounded-full animate-steam-1" />
+            <span className="w-0.5 h-2.5 bg-muted-foreground/30 rounded-full animate-steam-2" />
+            <span className="w-0.5 h-2 bg-muted-foreground/40 rounded-full animate-steam-3" />
+          </div>
           <ToastIcon className="h-5 w-5 text-amber-700 dark:text-amber-400" />
           {unreadCount > 0 && (
             <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center font-medium">

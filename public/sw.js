@@ -3,7 +3,7 @@
 self.addEventListener('push', function(event) {
   console.log('[SW] Push received:', event);
 
-  let data = { title: 'VisionQuest', body: 'You have a notification', url: '/' };
+  let data = { title: 'Groovy Planning', body: 'You have a notification', url: '/' };
   
   if (event.data) {
     try {

@@ -81,7 +81,7 @@ export function InstallPrompt() {
             <Smartphone className="h-5 w-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-medium text-foreground">Install VisionQuest</h3>
+            <h3 className="font-medium text-foreground">Install Groovy Planning</h3>
             {isIOS ? (
               <p className="text-sm text-muted-foreground mt-1">
                 Tap <span className="font-medium">Share</span> then <span className="font-medium">Add to Home Screen</span> to install and enable notifications.

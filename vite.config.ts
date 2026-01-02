@@ -17,9 +17,9 @@ export default defineConfig(({ mode }) => ({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "icon-192.png", "icon-512.png"],
       manifest: {
-        name: "VisionQuest",
-        short_name: "VisionQuest",
-        description: "Achieve your goals with focused cycles",
+        name: "Groovy Planning",
+        short_name: "Groovy",
+        description: "It's not far out. And that's a good thing.",
         theme_color: "#0f172a",
         background_color: "#0f172a",
         display: "standalone",

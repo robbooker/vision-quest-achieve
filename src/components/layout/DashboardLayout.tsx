@@ -16,6 +16,7 @@ import {
 import { LogOut, Settings, User, LayoutDashboard, CheckSquare, BarChart3, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Footer } from '@/components/layout/Footer';
+import gpLogo from '@/assets/gp-logo.png';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -61,16 +62,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="container flex h-14 items-center justify-between">
           <div className="flex items-center gap-6">
             <Link to="/dashboard" className="flex items-center gap-2">
-              <span className={cn(
-                "text-xl font-logo text-foreground",
-                isTerminal && "text-[hsl(34,100%,58%)] font-mono"
-              )}>
-                {isTerminal ? '12WY <GO>' : '12WY'}
-              </span>
-              {!isTerminal && (
-                <span className="text-sm font-logo text-muted-foreground hidden sm:inline">
-                  12-Week Year
+              {isTerminal ? (
+                <span className="text-xl font-logo text-[hsl(34,100%,58%)] font-mono">
+                  GP &lt;GO&gt;
                 </span>
+              ) : (
+                <img src={gpLogo} alt="Groovy Planning" className="h-10 w-auto" />
               )}
             </Link>
 

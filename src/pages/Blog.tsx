@@ -61,7 +61,7 @@ const Blog = () => {
           <Separator className="my-8" />
 
           {/* Content */}
-          <div className="prose prose-lg dark:prose-invert max-w-none">
+          <div className="prose prose-lg dark:prose-invert max-w-none space-y-6 [&>p]:mb-0">
             <p className="text-lg leading-relaxed text-foreground/90">
               It is the oldest cliché in self-improvement: <em>The road to hell is paved with good intentions.</em>
             </p>

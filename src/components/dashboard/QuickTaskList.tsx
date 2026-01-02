@@ -61,6 +61,8 @@ interface SortableTaskItemProps {
   task: QuickTask;
   isEditing: boolean;
   editTitle: string;
+  isCompleting: boolean;
+  isExiting: boolean;
   onEditTitleChange: (value: string) => void;
   onToggleComplete: (task: QuickTask) => void;
   onSaveEdit: (id: string) => void;
@@ -73,6 +75,8 @@ function SortableTaskItem({
   task,
   isEditing,
   editTitle,
+  isCompleting,
+  isExiting,
   onEditTitleChange,
   onToggleComplete,
   onSaveEdit,
@@ -101,10 +105,12 @@ function SortableTaskItem({
       className={cn(
         "flex items-center gap-2 sm:gap-3 py-3 px-2 sm:px-3 rounded-md group hover:bg-muted/50 transition-colors",
         task.completed && "opacity-60",
-        isDragging && "opacity-50 bg-muted shadow-lg z-10"
+        isDragging && "opacity-50 bg-muted shadow-lg z-10",
+        isCompleting && "task-completing",
+        isExiting && "task-exit"
       )}
     >
-      {!task.completed && (
+      {!task.completed && !isCompleting && (
         <button
           {...attributes}
           {...listeners}
@@ -113,11 +119,13 @@ function SortableTaskItem({
           <GripVertical className="h-4 w-4" />
         </button>
       )}
+      {(task.completed || isCompleting) && <div className="w-4" />}
       
       <Checkbox
-        checked={task.completed}
+        checked={task.completed || isCompleting}
         onCheckedChange={() => onToggleComplete(task)}
-        className="h-5 w-5 rounded-sm border-2"
+        className={cn("h-5 w-5 rounded-sm border-2", isCompleting && "task-checkbox")}
+        disabled={isCompleting}
       />
       
       {isEditing ? (
@@ -143,7 +151,8 @@ function SortableTaskItem({
         <>
           <span className={cn(
             "flex-1 text-sm leading-snug",
-            task.completed && "line-through text-muted-foreground"
+            task.completed && "line-through text-muted-foreground",
+            isCompleting && "task-text text-muted-foreground"
           )}>
             {task.title}
           </span>
@@ -191,6 +200,8 @@ export function QuickTaskList() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showCompleted, setShowCompleted] = useState(false);
   const [filter, setFilter] = useState<'all' | 'personal' | 'business'>('all');
+  const [completingId, setCompletingId] = useState<string | null>(null);
+  const [exitingId, setExitingId] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -223,16 +234,40 @@ export function QuickTaskList() {
   };
 
   const handleToggleComplete = async (task: QuickTask) => {
-    try {
-      await updateTask.mutateAsync({
-        id: task.id,
-        completed: !task.completed,
-      });
-      if (!task.completed) {
-        toast({ title: 'Task completed!' });
+    // If completing (not uncompleting), run the animation first
+    if (!task.completed) {
+      setCompletingId(task.id);
+      
+      // After checkmark + strikethrough animation, start exit
+      setTimeout(() => {
+        setExitingId(task.id);
+      }, 400);
+      
+      // After exit animation, actually update
+      setTimeout(async () => {
+        try {
+          await updateTask.mutateAsync({
+            id: task.id,
+            completed: true,
+          });
+          toast({ title: 'Task completed!' });
+        } catch (error) {
+          toast({ title: 'Error', description: 'Failed to update task', variant: 'destructive' });
+        } finally {
+          setCompletingId(null);
+          setExitingId(null);
+        }
+      }, 650);
+    } else {
+      // Uncompleting - no animation needed
+      try {
+        await updateTask.mutateAsync({
+          id: task.id,
+          completed: false,
+        });
+      } catch (error) {
+        toast({ title: 'Error', description: 'Failed to update task', variant: 'destructive' });
       }
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to update task', variant: 'destructive' });
     }
   };
 
@@ -416,6 +451,8 @@ export function QuickTaskList() {
                     task={task}
                     isEditing={editingId === task.id}
                     editTitle={editTitle}
+                    isCompleting={completingId === task.id}
+                    isExiting={exitingId === task.id}
                     onEditTitleChange={setEditTitle}
                     onToggleComplete={handleToggleComplete}
                     onSaveEdit={handleSaveEdit}
@@ -450,6 +487,8 @@ export function QuickTaskList() {
                     task={task}
                     isEditing={editingId === task.id}
                     editTitle={editTitle}
+                    isCompleting={false}
+                    isExiting={false}
                     onEditTitleChange={setEditTitle}
                     onToggleComplete={handleToggleComplete}
                     onSaveEdit={handleSaveEdit}

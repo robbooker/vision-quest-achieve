@@ -54,9 +54,9 @@ function ChatMessageBubble({ message }: { message: ChatMessage }) {
 }
 
 export function GoalCoachChat({ cycleId }: GoalCoachChatProps) {
-  const { isOpen, setIsOpen } = useGlobalChat();
+  const { isOpen, setIsOpen, initialTab } = useGlobalChat();
   const [input, setInput] = useState('');
-  const [activeTab, setActiveTab] = useState<'chat' | 'interview'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'interview'>(initialTab);
   const [showProposal, setShowProposal] = useState(false);
   const [proposedGoal, setProposedGoal] = useState<ExtractedGoal | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -95,6 +95,13 @@ export function GoalCoachChat({ cycleId }: GoalCoachChatProps) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  // Sync activeTab when chat opens with a specific initialTab
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
 
   useEffect(() => {
     if (isOpen && inputRef.current && activeTab === 'chat') {

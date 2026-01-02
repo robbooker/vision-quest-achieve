@@ -1,12 +1,13 @@
 import { Button } from '@/components/ui/button';
-import { Calendar, Plus, Target } from 'lucide-react';
+import { Calendar, Plus, Target, MessageSquare } from 'lucide-react';
 
 interface EmptyStateProps {
   type: 'cycle' | 'goal';
   onAction: () => void;
+  onChatAction?: () => void;
 }
 
-export function EmptyState({ type, onAction }: EmptyStateProps) {
+export function EmptyState({ type, onAction, onChatAction }: EmptyStateProps) {
   if (type === 'cycle') {
     return (
       <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
@@ -39,10 +40,18 @@ export function EmptyState({ type, onAction }: EmptyStateProps) {
       <p className="text-sm text-muted-foreground max-w-sm mb-4">
         Add 1-3 transformational goals for this cycle. Focus is the key to execution.
       </p>
-      <Button variant="outline" onClick={onAction}>
-        <Plus className="mr-2 h-4 w-4" />
-        Add Your First Goal
-      </Button>
+      <div className="flex flex-col sm:flex-row gap-2">
+        <Button variant="outline" onClick={onAction}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Your First Goal Manually
+        </Button>
+        {onChatAction && (
+          <Button onClick={onChatAction}>
+            <MessageSquare className="mr-2 h-4 w-4" />
+            Add Your First Goal by Chat
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

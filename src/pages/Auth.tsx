@@ -138,7 +138,7 @@ export default function Auth() {
           <div className="space-y-4">
             <img src={gpLogo} alt="Groovy Planning" className="h-24 w-auto" />
             <p className="text-xl text-muted-foreground">
-              It's not far out. And that's a good thing.
+              Make some plans. Future You will thank you.
             </p>
           </div>
           
@@ -189,7 +189,7 @@ export default function Auth() {
           <div className="flex flex-col items-center gap-2 lg:hidden">
             <img src={gpLogo} alt="Groovy Planning" className="h-16 w-auto" />
             <p className="text-sm text-muted-foreground text-center">
-              It's not far out. And that's a good thing.
+              Make some plans. Future You will thank you.
             </p>
           </div>
           

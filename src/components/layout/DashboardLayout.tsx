@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LogOut, Settings, User, LayoutDashboard, CheckSquare, BarChart3 } from 'lucide-react';
+import { LogOut, Settings, User, LayoutDashboard, CheckSquare, BarChart3, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface DashboardLayoutProps {
@@ -23,6 +23,7 @@ interface DashboardLayoutProps {
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/today', label: 'Today', icon: CheckSquare },
+  { href: '/big-ten', label: 'Big 10', icon: Star },
   { href: '/reports', label: 'Reports', icon: BarChart3 },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];

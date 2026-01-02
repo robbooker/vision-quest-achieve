@@ -10,6 +10,7 @@ import { useTacticLogs } from '@/hooks/useTacticLogs';
 import { HabitItem } from '@/components/dashboard/HabitItem';
 import { DailyScoreLogger } from '@/components/dashboard/DailyScoreLogger';
 import { QuickTaskList } from '@/components/dashboard/QuickTaskList';
+import { SharedTaskList } from '@/components/dashboard/SharedTaskList';
 import { TodaySchedule } from '@/components/dashboard/TodaySchedule';
 import { AddCalendarEventDialog } from '@/components/dashboard/AddCalendarEventDialog';
 import { useQuickTasks } from '@/hooks/useQuickTasks';
@@ -288,8 +289,11 @@ export default function Today() {
           />
         </div>
 
-        {/* Quick Task List */}
-        <QuickTaskList />
+        {/* Task Lists Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <QuickTaskList />
+          <SharedTaskList />
+        </div>
 
         {/* Daily Score Logger */}
         <DailyScoreLogger goals={goals} />

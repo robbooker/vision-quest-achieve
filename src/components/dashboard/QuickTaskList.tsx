@@ -97,7 +97,7 @@ function SortableTaskItem({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-center gap-2 py-2 px-3 rounded-md group hover:bg-muted/50 transition-colors",
+        "flex items-center gap-2 sm:gap-3 py-3 px-2 sm:px-3 rounded-md group hover:bg-muted/50 transition-colors",
         task.completed && "opacity-60",
         isDragging && "opacity-50 bg-muted shadow-lg z-10"
       )}
@@ -140,26 +140,35 @@ function SortableTaskItem({
       ) : (
         <>
           <span className={cn(
-            "flex-1 text-sm",
+            "flex-1 text-sm leading-snug",
             task.completed && "line-through text-muted-foreground"
           )}>
             {task.title}
           </span>
           
-          <Badge variant="outline" className="text-xs">
+          <Badge variant="outline" className="text-xs shrink-0 hidden sm:flex">
             {task.category === 'personal' ? (
               <><User className="h-3 w-3 mr-1" />Personal</>
             ) : (
               <><Briefcase className="h-3 w-3 mr-1" />Business</>
             )}
           </Badge>
+
+          {/* Mobile: show icon only */}
+          <Badge variant="outline" className="text-xs shrink-0 flex sm:hidden p-1.5">
+            {task.category === 'personal' ? (
+              <User className="h-3.5 w-3.5" />
+            ) : (
+              <Briefcase className="h-3.5 w-3.5" />
+            )}
+          </Badge>
           
-          <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
-            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onStartEdit(task)}>
-              <Pencil className="h-3 w-3" />
+          <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+            <Button size="icon" variant="ghost" className="h-8 w-8 sm:h-7 sm:w-7" onClick={() => onStartEdit(task)}>
+              <Pencil className="h-4 w-4 sm:h-3 sm:w-3" />
             </Button>
-            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => onDelete(task.id)}>
-              <Trash2 className="h-3 w-3" />
+            <Button size="icon" variant="ghost" className="h-8 w-8 sm:h-7 sm:w-7 text-destructive" onClick={() => onDelete(task.id)}>
+              <Trash2 className="h-4 w-4 sm:h-3 sm:w-3" />
             </Button>
           </div>
         </>
@@ -324,39 +333,49 @@ export function QuickTaskList() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Add task form */}
-        <div className="flex gap-2">
-          <Input
-            placeholder="Add a quick task..."
-            value={newTaskTitle}
-            onChange={(e) => setNewTaskTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleAddTask();
-            }}
-            className="flex-1"
-          />
-          <Select value={newTaskCategory} onValueChange={(v) => setNewTaskCategory(v as 'personal' | 'business')}>
-            <SelectTrigger className="w-[110px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="personal">
-                <div className="flex items-center gap-1">
-                  <User className="h-3 w-3" />
-                  Personal
-                </div>
-              </SelectItem>
-              <SelectItem value="business">
-                <div className="flex items-center gap-1">
-                  <Briefcase className="h-3 w-3" />
-                  Business
-                </div>
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          <Button size="icon" onClick={handleAddTask} disabled={!newTaskTitle.trim()}>
-            <Plus className="h-4 w-4" />
-          </Button>
+        {/* Add task form - mobile optimized */}
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <Input
+              placeholder="Add a quick task..."
+              value={newTaskTitle}
+              onChange={(e) => setNewTaskTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleAddTask();
+              }}
+              className="flex-1 min-w-0 h-11 text-base"
+            />
+            <Button 
+              size="icon" 
+              onClick={handleAddTask} 
+              disabled={!newTaskTitle.trim()}
+              className="h-11 w-11 shrink-0"
+            >
+              <Plus className="h-5 w-5" />
+            </Button>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant={newTaskCategory === 'personal' ? 'default' : 'outline'}
+              size="sm"
+              className="flex-1 h-9"
+              onClick={() => setNewTaskCategory('personal')}
+            >
+              <User className="h-4 w-4 mr-1.5" />
+              Personal
+            </Button>
+            <Button
+              type="button"
+              variant={newTaskCategory === 'business' ? 'default' : 'outline'}
+              size="sm"
+              className="flex-1 h-9"
+              onClick={() => setNewTaskCategory('business')}
+            >
+              <Briefcase className="h-4 w-4 mr-1.5" />
+              Business
+            </Button>
+          </div>
         </div>
 
         {/* Active tasks with drag and drop */}

@@ -369,7 +369,10 @@ export function QuickTaskList() {
                   variant={newTaskCategory === 'personal' ? 'default' : 'outline'}
                   size="sm"
                   className="flex-1 h-9"
-                  onClick={() => setNewTaskCategory('personal')}
+                  onClick={() => {
+                    setNewTaskCategory('personal');
+                    setFilter('personal');
+                  }}
                 >
                   <User className="h-4 w-4 mr-1.5" />
                   Personal
@@ -379,7 +382,10 @@ export function QuickTaskList() {
                   variant={newTaskCategory === 'business' ? 'default' : 'outline'}
                   size="sm"
                   className="flex-1 h-9"
-                  onClick={() => setNewTaskCategory('business')}
+                  onClick={() => {
+                    setNewTaskCategory('business');
+                    setFilter('business');
+                  }}
                 >
                   <Briefcase className="h-4 w-4 mr-1.5" />
                   Business

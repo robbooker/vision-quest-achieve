@@ -13,6 +13,7 @@ import { useDailyTactics } from '@/hooks/useDailyTactics';
 import { useTacticLogs } from '@/hooks/useTacticLogs';
 import { HabitItem } from '@/components/dashboard/HabitItem';
 import { DailyScoreLogger } from '@/components/dashboard/DailyScoreLogger';
+import { QuickTaskList } from '@/components/dashboard/QuickTaskList';
 import { format, isToday, isBefore, startOfDay, addDays } from 'date-fns';
 import { 
   CheckCircle2, 
@@ -379,6 +380,9 @@ export default function Today() {
             </CardContent>
           </Card>
         )}
+
+        {/* Quick Task List */}
+        <QuickTaskList />
 
         {/* Daily Score Logger */}
         <DailyScoreLogger goals={goals} />

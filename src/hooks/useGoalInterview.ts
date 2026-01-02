@@ -31,22 +31,10 @@ interface UseGoalInterviewOptions {
   onGoalExtracted?: (goal: ExtractedGoal) => void;
 }
 
-interface UseGoalInterviewReturn {
-  messages: InterviewMessage[];
-  phase: InterviewPhase;
-  isLoading: boolean;
-  error: string | null;
-  extractedGoal: ExtractedGoal | null;
-  startInterview: () => Promise<string | void>;
-  sendMessage: (text: string) => Promise<string>;
-  reset: () => void;
-  isComplete: boolean;
-}
-
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-export function useGoalInterview(options: UseGoalInterviewOptions = {}): UseGoalInterviewReturn {
+export function useGoalInterview(options: UseGoalInterviewOptions = {}) {
   const { cycleId, onGoalExtracted } = options;
   
   const [messages, setMessages] = useState<InterviewMessage[]>([]);
@@ -54,80 +42,59 @@ export function useGoalInterview(options: UseGoalInterviewOptions = {}): UseGoal
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [extractedGoal, setExtractedGoal] = useState<ExtractedGoal | null>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const { vision } = useVision();
   const { goals } = useGoals(cycleId);
 
-  const buildContext = useCallback(() => {
-    return {
-      vision: vision?.vision_3_year || vision?.vision_long_term,
-      currentGoals: goals,
-    };
-  }, [vision, goals]);
+  const buildContext = useCallback(() => ({
+    vision: vision?.vision_3_year || vision?.vision_long_term,
+    currentGoals: goals,
+  }), [vision, goals]);
 
-  const processStream = useCallback(async (
+  // Parse SSE stream and extract content
+  const readStream = async (
     response: Response,
-    onChunk: (content: string) => void
-  ): Promise<{ fullContent: string; newPhase?: InterviewPhase; extractedGoal?: ExtractedGoal }> => {
+    onContent: (text: string) => void
+  ): Promise<string> => {
     const reader = response.body?.getReader();
-    if (!reader) {
-      console.error('No response body reader');
-      throw new Error('No response body');
-    }
+    if (!reader) throw new Error('No response body');
 
     const decoder = new TextDecoder();
     let fullContent = '';
-    let newPhase: InterviewPhase | undefined;
-    let goalData: ExtractedGoal | undefined;
     let buffer = '';
 
-    console.log('Starting to process stream...');
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
 
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) {
-          console.log('Stream done, total content length:', fullContent.length);
-          break;
-        }
+      buffer += decoder.decode(value, { stream: true });
+      
+      // Process complete lines
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
 
-        const chunk = decoder.decode(value, { stream: true });
-        buffer += chunk;
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
         
-        // Process complete lines
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+        const data = line.slice(6).trim();
+        if (data === '[DONE]') continue;
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            if (data === '[DONE]') continue;
-
-            try {
-              const parsed = JSON.parse(data);
-              
-              if (parsed.type === 'content' && parsed.delta) {
-                fullContent += parsed.delta;
-                onChunk(fullContent);
-              } else if (parsed.type === 'done') {
-                console.log('Received done event, phase:', parsed.phase);
-                newPhase = parsed.phase;
-                goalData = parsed.extractedGoal;
-              }
-            } catch (e) {
-              console.log('Skipping unparseable chunk:', line.substring(0, 50));
-            }
+        try {
+          const parsed = JSON.parse(data);
+          const delta = parsed.choices?.[0]?.delta?.content;
+          if (delta) {
+            fullContent += delta;
+            onContent(fullContent);
           }
+        } catch {
+          // Skip unparseable lines
         }
       }
-    } finally {
-      reader.releaseLock();
     }
 
-    console.log('Stream processing complete, content:', fullContent.substring(0, 100));
-    return { fullContent, newPhase, extractedGoal: goalData };
-  }, []);
+    return fullContent;
+  };
 
   const startInterview = useCallback(async () => {
     setMessages([]);
@@ -136,126 +103,102 @@ export function useGoalInterview(options: UseGoalInterviewOptions = {}): UseGoal
     setExtractedGoal(null);
     setIsLoading(true);
 
-    abortControllerRef.current = new AbortController();
+    abortRef.current = new AbortController();
 
     try {
-      console.log('Starting interview, calling goal-interview function...');
       const response = await fetch(`${SUPABASE_URL}/functions/v1/goal-interview`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
         },
         body: JSON.stringify({
-          messages: [{ role: 'user', content: 'I want to create a new goal for my 12 Week Year cycle.' }],
+          messages: [{ role: 'user', content: 'Start the goal interview. Ask me what I want to accomplish.' }],
           context: buildContext(),
           phase: 'vision',
         }),
-        signal: abortControllerRef.current.signal,
+        signal: abortRef.current.signal,
       });
-
-      console.log('Response status:', response.status, 'ok:', response.ok);
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Response error:', errorText);
-        throw new Error(`Request failed: ${response.status} - ${errorText}`);
+        const err = await response.text();
+        throw new Error(`Request failed: ${response.status} - ${err}`);
       }
 
-      let streamedContent = '';
-      
-      const { fullContent, newPhase } = await processStream(response, (content) => {
-        streamedContent = content;
-        // Use functional update to avoid stale state
-        setMessages([{ role: 'assistant', content }]);
+      const content = await readStream(response, (text) => {
+        setMessages([{ role: 'assistant', content: text }]);
       });
 
-      // Final update with complete content
-      setMessages([{ role: 'assistant', content: fullContent || streamedContent }]);
-      if (newPhase) setPhase(newPhase);
-      
-      console.log('Interview started, first message content length:', (fullContent || streamedContent).length);
-      return fullContent || streamedContent;
+      setMessages([{ role: 'assistant', content }]);
+      return content;
     } catch (e) {
-      if (e instanceof Error && e.name === 'AbortError') return;
-      const errorMsg = e instanceof Error ? e.message : 'Failed to start interview';
-      console.error('startInterview error:', errorMsg);
-      setError(errorMsg);
+      if (e instanceof Error && e.name === 'AbortError') return '';
+      const msg = e instanceof Error ? e.message : 'Failed to start interview';
+      setError(msg);
       throw e;
     } finally {
       setIsLoading(false);
     }
-  }, [buildContext, processStream]);
+  }, [buildContext]);
 
   const sendMessage = useCallback(async (text: string): Promise<string> => {
     if (!text.trim()) return '';
 
-    const userMessage: InterviewMessage = { role: 'user', content: text };
-    const updatedMessages = [...messages, userMessage];
+    const userMsg: InterviewMessage = { role: 'user', content: text };
+    const updatedMessages = [...messages, userMsg];
     setMessages(updatedMessages);
     setIsLoading(true);
     setError(null);
 
-    abortControllerRef.current = new AbortController();
+    abortRef.current = new AbortController();
 
     try {
       const response = await fetch(`${SUPABASE_URL}/functions/v1/goal-interview`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
         },
         body: JSON.stringify({
-          messages: updatedMessages.map(m => ({ role: m.role, content: m.content })),
+          messages: updatedMessages,
           context: buildContext(),
           phase,
         }),
-        signal: abortControllerRef.current.signal,
+        signal: abortRef.current.signal,
       });
 
       if (!response.ok) {
         throw new Error(`Request failed: ${response.status}`);
       }
 
-      // Add empty assistant message that will be updated
-      setMessages([...updatedMessages, { role: 'assistant', content: '' }]);
-
-      const { fullContent, newPhase, extractedGoal: goalData } = await processStream(response, (content) => {
-        setMessages([...updatedMessages, { role: 'assistant', content }]);
+      const content = await readStream(response, (text) => {
+        setMessages([...updatedMessages, { role: 'assistant', content: text }]);
       });
 
-      setMessages([...updatedMessages, { role: 'assistant', content: fullContent }]);
+      setMessages([...updatedMessages, { role: 'assistant', content }]);
       
-      if (newPhase) {
-        setPhase(newPhase);
-      }
+      // Simple phase progression based on message count
+      const totalMessages = updatedMessages.length + 1;
+      if (totalMessages >= 10) setPhase('complete');
+      else if (totalMessages >= 8) setPhase('tactics');
+      else if (totalMessages >= 6) setPhase('milestones');
+      else if (totalMessages >= 4) setPhase('motivation');
+      else if (totalMessages >= 2) setPhase('metrics');
 
-      if (goalData) {
-        setExtractedGoal(goalData);
-        if (onGoalExtracted) {
-          onGoalExtracted(goalData);
-        }
-      }
-
-      return fullContent;
+      return content;
     } catch (e) {
       if (e instanceof Error && e.name === 'AbortError') return '';
-      const errorMsg = e instanceof Error ? e.message : 'Failed to send message';
-      setError(errorMsg);
-      // Remove the user message if the request failed
-      setMessages(messages);
+      const msg = e instanceof Error ? e.message : 'Failed to send message';
+      setError(msg);
+      setMessages(messages); // Rollback
       throw e;
     } finally {
       setIsLoading(false);
     }
-  }, [messages, phase, buildContext, onGoalExtracted, processStream]);
+  }, [messages, phase, buildContext]);
 
   const reset = useCallback(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
+    abortRef.current?.abort();
     setMessages([]);
     setPhase('vision');
     setError(null);

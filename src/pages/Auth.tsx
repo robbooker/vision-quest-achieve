@@ -98,7 +98,7 @@ export default function Auth() {
     } else {
       toast({
         title: 'Account Created',
-        description: 'Welcome! You can now start planning your 12-week year.',
+        description: 'Welcome! You can now start planning.',
       });
     }
   };
@@ -132,9 +132,9 @@ export default function Auth() {
       <div className="hidden lg:flex lg:w-1/2 bg-primary/5 items-center justify-center p-12">
         <div className="max-w-md space-y-8">
           <div className="space-y-2">
-            <h1 className="text-4xl font-logo text-foreground">12-Week Year</h1>
+            <h1 className="text-4xl font-logo text-foreground">Groovy Planning</h1>
             <p className="text-xl text-muted-foreground">
-              Achieve more in 12 weeks than others do in 12 months.
+              It's not far out. And that's a good thing.
             </p>
           </div>
           
@@ -184,7 +184,7 @@ export default function Auth() {
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Welcome</CardTitle>
             <CardDescription>
-              Sign in to start your 12-week year journey
+              Sign in to start your groovy planning journey
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">

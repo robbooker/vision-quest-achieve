@@ -45,11 +45,11 @@ export default function Reports() {
   const { projects: bigTenProjects } = useBigTen();
   const { tasks: quickTasks } = useQuickTasks();
 
-  // Generate execution score data for all weeks
+  // Generate execution score data for all weeks (6-week cycle)
   const executionScoreData = useMemo(() => {
     if (!activeCycle) return [];
     
-    return Array.from({ length: 12 }, (_, i) => {
+    return Array.from({ length: 6 }, (_, i) => {
       const weekNum = i + 1;
       const review = reviews.find(r => r.week_number === weekNum);
       const stats = getWeekStats(tasks, weekNum);
@@ -63,11 +63,11 @@ export default function Reports() {
     });
   }, [activeCycle, reviews, tasks, currentWeek, getWeekStats]);
 
-  // Generate hours breakdown data
+  // Generate hours breakdown data (6-week cycle)
   const hoursBreakdownData = useMemo(() => {
     if (!activeCycle) return [];
     
-    return Array.from({ length: 12 }, (_, i) => {
+    return Array.from({ length: 6 }, (_, i) => {
       const weekNum = i + 1;
       const weekTasks = tasks.filter(t => t.due_week === weekNum);
       
@@ -210,7 +210,7 @@ export default function Reports() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Reports</h1>
           <p className="text-muted-foreground">
-            {activeCycle.name} • Week {currentWeek} of 12
+            {activeCycle.name} • Week {currentWeek} of 6
           </p>
         </div>
 

@@ -12,7 +12,7 @@ Extract the following from the conversation:
 - target_value: The numeric target (e.g., 25 for 25%)
 - metric_type: What's being measured (e.g., "percentage", "count", "dollars", "hours")
 - why: The user's motivation for this goal
-- milestones: Weekly checkpoints with week_number (1-12), target_value, and description
+- milestones: Weekly checkpoints with week_number (1-6), target_value, and description
 - tactics: Specific actions with title, frequency (daily/weekly), and target_count
 
 Be precise and extract only what was explicitly discussed.`;
@@ -80,7 +80,7 @@ serve(async (req) => {
                     items: {
                       type: 'object',
                       properties: {
-                        week_number: { type: 'number', description: 'Week 1-12' },
+                        week_number: { type: 'number', description: 'Week 1-6' },
                         target_value: { type: 'number', description: 'Target for this milestone' },
                         description: { type: 'string', description: 'What should be achieved' }
                       },

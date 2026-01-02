@@ -224,8 +224,8 @@ export function WeeklyReviewDialog({
             />
           </div>
 
-          {/* Celebration (Week 13) */}
-          {currentWeek === 13 && (
+          {/* Celebration (Week 7 - Review Week) */}
+          {currentWeek === 7 && (
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
                 <Trophy className="h-4 w-4 text-yellow-500" />
@@ -339,7 +339,7 @@ export function ReplanDialog({
           </DialogTitle>
           <DialogDescription>
             Adjust your milestones based on current progress. This will redistribute
-            remaining targets across weeks {currentWeek + 1} to 12.
+            remaining targets across weeks {currentWeek + 1} to 6.
           </DialogDescription>
         </DialogHeader>
 
@@ -358,7 +358,7 @@ export function ReplanDialog({
 
           <p className="text-sm text-muted-foreground">
             This will evenly distribute any remaining target across the remaining weeks
-            ({12 - currentWeek} weeks left).
+            ({6 - currentWeek} weeks left).
           </p>
 
           <div className="flex justify-end gap-2 pt-4">

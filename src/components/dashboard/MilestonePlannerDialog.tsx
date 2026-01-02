@@ -35,7 +35,7 @@ export function MilestonePlannerDialog({
   const { toast } = useToast();
   const { milestones, bulkCreateMilestones, isLoading } = useMilestones(goal.id);
   const [distribution, setDistribution] = useState<DistributionType>('linear');
-  const [weeklyTargets, setWeeklyTargets] = useState<number[]>(Array(12).fill(0));
+  const [weeklyTargets, setWeeklyTargets] = useState<number[]>(Array(6).fill(0));
   const [isSaving, setIsSaving] = useState(false);
 
   const totalTarget = goal.target_value;
@@ -45,7 +45,7 @@ export function MilestonePlannerDialog({
   // Initialize with existing milestones or generate new distribution
   useEffect(() => {
     if (open) {
-      if (milestones.length === 12) {
+      if (milestones.length === 6) {
         setWeeklyTargets(milestones.map(m => m.target_value));
         setDistribution('custom');
       } else {
@@ -94,7 +94,7 @@ export function MilestonePlannerDialog({
       
       toast({
         title: 'Milestones saved',
-        description: 'Your 12-week plan has been created.',
+        description: 'Your 6-week plan has been created.',
       });
       onOpenChange(false);
     } catch (error) {
@@ -138,7 +138,7 @@ export function MilestonePlannerDialog({
           </div>
 
           {/* Weekly targets grid */}
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             {weeklyTargets.map((target, index) => (
               <div key={index} className="space-y-1">
                 <Label htmlFor={`week-${index}`} className="text-xs text-muted-foreground">

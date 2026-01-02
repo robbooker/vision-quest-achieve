@@ -19,6 +19,7 @@ import Reports from "./pages/Reports";
 import Vision from "./pages/Vision";
 import BigTen from "./pages/BigTen";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -60,6 +61,7 @@ const App = () => (
                 <Route path="/vision" element={<ProtectedRoute><Vision /></ProtectedRoute>} />
                 <Route path="/big-ten" element={<ProtectedRoute><BigTen /></ProtectedRoute>} />
                 <Route path="/privacy" element={<PrivacyPolicy />} />
+                <Route path="/terms" element={<TermsOfService />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

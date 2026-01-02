@@ -1,15 +1,17 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Mic, MicOff, Send, Volume2, VolumeX, MessageSquare, Loader2, RotateCcw } from 'lucide-react';
+import { Mic, MicOff, Send, Volume2, VolumeX, MessageSquare, Loader2, RotateCcw, Plus, Trash2, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { useCoachVoice } from '@/hooks/useCoachVoice';
-import { useGoalInterview, InterviewMessage, InterviewPhase } from '@/hooks/useGoalInterview';
+import { useGoalInterview, InterviewMessage, InterviewPhase, InterviewConversation } from '@/hooks/useGoalInterview';
+import { formatDistanceToNow } from 'date-fns';
 
 const PHASE_LABELS: Record<InterviewPhase, string> = {
   vision: 'What do you want?',
@@ -149,13 +151,14 @@ export function InterviewMode({ cycleId, onComplete, onCancel }: InterviewModePr
 
   if (!hasStarted) {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-        <div className="space-y-4 max-w-sm">
-          <h3 className="text-lg font-semibold">Goal Interview</h3>
-          <p className="text-sm text-muted-foreground">
-            I'll ask you a few questions to help define your goal, milestones, and tactics. 
-            You can respond by voice or text.
-          </p>
+      <div className="flex flex-col h-full p-4">
+        <div className="space-y-4 max-w-md mx-auto w-full">
+          <div className="text-center space-y-2">
+            <h3 className="text-lg font-semibold">Goal Interview</h3>
+            <p className="text-sm text-muted-foreground">
+              I'll ask you a few questions to help define your goal, milestones, and tactics.
+            </p>
+          </div>
           
           <div className="flex items-center justify-center gap-2 py-2">
             <Switch
@@ -169,19 +172,63 @@ export function InterviewMode({ cycleId, onComplete, onCancel }: InterviewModePr
           </div>
 
           {!voiceInput.isSupported && isVoiceMode && (
-            <p className="text-xs text-destructive">
+            <p className="text-xs text-destructive text-center">
               Voice input not supported in this browser. Try Chrome or Edge.
             </p>
           )}
 
-          <div className="flex gap-2 pt-2">
+          <div className="flex gap-2">
             <Button variant="outline" onClick={onCancel} className="flex-1">
               Cancel
             </Button>
             <Button onClick={handleStart} className="flex-1">
-              Start Interview
+              <Plus className="h-4 w-4 mr-1" />
+              New Interview
             </Button>
           </div>
+
+          {/* Past interviews list */}
+          {interview.pastInterviews.length > 0 && (
+            <div className="pt-4 border-t">
+              <h4 className="text-sm font-medium mb-2">Resume a previous interview</h4>
+              <ScrollArea className="h-[200px]">
+                <div className="space-y-2 pr-2">
+                  {interview.pastInterviews.map((conv) => (
+                    <div
+                      key={conv.id}
+                      className="flex items-center gap-2 p-2 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
+                    >
+                      <button
+                        className="flex-1 text-left"
+                        onClick={async () => {
+                          await interview.loadInterview(conv.id);
+                          setHasStarted(true);
+                        }}
+                      >
+                        <div className="text-sm font-medium truncate">
+                          {conv.title.replace('[Interview] ', '')}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          {formatDistanceToNow(new Date(conv.updated_at), { addSuffix: true })}
+                          <span>•</span>
+                          <span>{conv.message_count} messages</span>
+                        </div>
+                      </button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        onClick={() => interview.deleteInterview(conv.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          )}
         </div>
       </div>
     );

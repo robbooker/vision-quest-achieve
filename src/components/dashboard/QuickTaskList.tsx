@@ -54,6 +54,8 @@ import { CSS } from '@dnd-kit/utilities';
 import { useQuickTasks, QuickTask } from '@/hooks/useQuickTasks';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { MobileCommandBar } from './MobileCommandBar';
 
 interface SortableTaskItemProps {
   task: QuickTask;
@@ -180,6 +182,7 @@ function SortableTaskItem({
 export function QuickTaskList() {
   const { activeTasks, completedTasks, isLoading, createTask, updateTask, deleteTask, reorderTasks } = useQuickTasks();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskCategory, setNewTaskCategory] = useState<'personal' | 'business'>('personal');
@@ -200,18 +203,22 @@ export function QuickTaskList() {
     })
   );
 
-  const handleAddTask = async () => {
-    if (!newTaskTitle.trim()) return;
+  const handleAddTask = async (title?: string, category?: 'personal' | 'business') => {
+    const taskTitle = title || newTaskTitle;
+    const taskCategory = category || newTaskCategory;
+    
+    if (!taskTitle.trim()) return;
     
     try {
       await createTask.mutateAsync({
-        title: newTaskTitle.trim(),
-        category: newTaskCategory,
+        title: taskTitle.trim(),
+        category: taskCategory,
       });
-      setNewTaskTitle('');
+      if (!title) setNewTaskTitle('');
       toast({ title: 'Task added' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to add task', variant: 'destructive' });
+      throw error;
     }
   };
 
@@ -313,70 +320,73 @@ export function QuickTaskList() {
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base flex items-center gap-2">
-            <ListTodo className="h-4 w-4 text-primary" />
-            Quick Tasks ({filteredActiveTasks.length})
-          </CardTitle>
-          <Select value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
-            <SelectTrigger className="w-[120px] h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="personal">Personal</SelectItem>
-              <SelectItem value="business">Business</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Add task form - mobile optimized */}
-        <div className="space-y-2">
-          <div className="flex gap-2">
-            <Input
-              placeholder="Add a quick task..."
-              value={newTaskTitle}
-              onChange={(e) => setNewTaskTitle(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleAddTask();
-              }}
-              className="flex-1 min-w-0 h-11 text-base"
-            />
-            <Button 
-              size="icon" 
-              onClick={handleAddTask} 
-              disabled={!newTaskTitle.trim()}
-              className="h-11 w-11 shrink-0"
-            >
-              <Plus className="h-5 w-5" />
-            </Button>
+    <>
+      <Card className={cn(isMobile && "mb-24")}>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <ListTodo className="h-4 w-4 text-primary" />
+              Quick Tasks ({filteredActiveTasks.length})
+            </CardTitle>
+            <Select value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
+              <SelectTrigger className="w-[120px] h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="personal">Personal</SelectItem>
+                <SelectItem value="business">Business</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant={newTaskCategory === 'personal' ? 'default' : 'outline'}
-              size="sm"
-              className="flex-1 h-9"
-              onClick={() => setNewTaskCategory('personal')}
-            >
-              <User className="h-4 w-4 mr-1.5" />
-              Personal
-            </Button>
-            <Button
-              type="button"
-              variant={newTaskCategory === 'business' ? 'default' : 'outline'}
-              size="sm"
-              className="flex-1 h-9"
-              onClick={() => setNewTaskCategory('business')}
-            >
-              <Briefcase className="h-4 w-4 mr-1.5" />
-              Business
-            </Button>
-          </div>
-        </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Add task form - desktop only */}
+          {!isMobile && (
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Add a quick task..."
+                  value={newTaskTitle}
+                  onChange={(e) => setNewTaskTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleAddTask();
+                  }}
+                  className="flex-1 min-w-0 h-11 text-base"
+                />
+                <Button 
+                  size="icon" 
+                  onClick={() => handleAddTask()} 
+                  disabled={!newTaskTitle.trim()}
+                  className="h-11 w-11 shrink-0"
+                >
+                  <Plus className="h-5 w-5" />
+                </Button>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={newTaskCategory === 'personal' ? 'default' : 'outline'}
+                  size="sm"
+                  className="flex-1 h-9"
+                  onClick={() => setNewTaskCategory('personal')}
+                >
+                  <User className="h-4 w-4 mr-1.5" />
+                  Personal
+                </Button>
+                <Button
+                  type="button"
+                  variant={newTaskCategory === 'business' ? 'default' : 'outline'}
+                  size="sm"
+                  className="flex-1 h-9"
+                  onClick={() => setNewTaskCategory('business')}
+                >
+                  <Briefcase className="h-4 w-4 mr-1.5" />
+                  Business
+                </Button>
+              </div>
+            </div>
+          )}
 
         {/* Active tasks with drag and drop */}
         {filteredActiveTasks.length === 0 ? (
@@ -419,10 +429,10 @@ export function QuickTaskList() {
             <Button
               variant="ghost"
               size="sm"
-              className="w-full justify-between text-muted-foreground"
+              className="w-full justify-between text-[hsl(165_91%_63%)] hover:text-[hsl(165_91%_70%)] hover:bg-[hsl(165_91%_63%/0.1)]"
               onClick={() => setShowCompleted(!showCompleted)}
             >
-              <span>Completed ({filteredCompletedTasks.length})</span>
+              <span className="font-mono text-sm">COMPLETED ({filteredCompletedTasks.length})</span>
               {showCompleted ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </Button>
             
@@ -466,5 +476,11 @@ export function QuickTaskList() {
         </AlertDialogContent>
       </AlertDialog>
     </Card>
+
+    {/* Mobile Command Bar */}
+    {isMobile && (
+      <MobileCommandBar onAddTask={handleAddTask} />
+    )}
+    </>
   );
 }

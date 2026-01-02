@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.elevenlabs-tts]
 verify_jwt = false
+
+[functions.extract-goal]
+verify_jwt = false

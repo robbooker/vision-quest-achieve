@@ -1,4 +1,6 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './useAuth';
 import { useVision } from './useVision';
 import { useGoals } from './useGoals';
 
@@ -33,19 +35,122 @@ interface UseGoalInterviewOptions {
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const INTERVIEW_CONVERSATION_PREFIX = '[Interview]';
 
 export function useGoalInterview(options: UseGoalInterviewOptions = {}) {
   const { cycleId, onGoalExtracted } = options;
+  const { user } = useAuth();
   
   const [messages, setMessages] = useState<InterviewMessage[]>([]);
   const [phase, setPhase] = useState<InterviewPhase>('vision');
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [extractedGoal, setExtractedGoal] = useState<ExtractedGoal | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const { vision } = useVision();
   const { goals } = useGoals(cycleId);
+
+  // Calculate phase from message count
+  const calculatePhase = (messageCount: number): InterviewPhase => {
+    if (messageCount >= 10) return 'complete';
+    if (messageCount >= 8) return 'tactics';
+    if (messageCount >= 6) return 'milestones';
+    if (messageCount >= 4) return 'motivation';
+    if (messageCount >= 2) return 'metrics';
+    return 'vision';
+  };
+
+  // Load existing interview conversation on mount
+  useEffect(() => {
+    const loadExistingInterview = async () => {
+      if (!user) {
+        setIsLoadingHistory(false);
+        return;
+      }
+
+      try {
+        // Find the most recent interview conversation
+        const { data: conversation } = await supabase
+          .from('conversations')
+          .select('id, title')
+          .eq('user_id', user.id)
+          .like('title', `${INTERVIEW_CONVERSATION_PREFIX}%`)
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!conversation) {
+          setIsLoadingHistory(false);
+          return;
+        }
+
+        // Load messages for this conversation
+        const { data: chatMessages } = await supabase
+          .from('chat_messages')
+          .select('role, content')
+          .eq('conversation_id', conversation.id)
+          .order('created_at', { ascending: true });
+
+        if (chatMessages && chatMessages.length > 0) {
+          const loadedMessages = chatMessages.map(m => ({
+            role: m.role as 'user' | 'assistant',
+            content: m.content,
+          }));
+          setMessages(loadedMessages);
+          setConversationId(conversation.id);
+          setPhase(calculatePhase(loadedMessages.length));
+        }
+      } catch (e) {
+        console.error('Failed to load interview history:', e);
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    };
+
+    loadExistingInterview();
+  }, [user]);
+
+  // Save a message to the database
+  const saveMessage = async (message: InterviewMessage, convId: string) => {
+    if (!user) return;
+
+    await supabase.from('chat_messages').insert({
+      user_id: user.id,
+      conversation_id: convId,
+      role: message.role,
+      content: message.content,
+    });
+
+    // Update conversation timestamp
+    await supabase
+      .from('conversations')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', convId);
+  };
+
+  // Create a new interview conversation
+  const createInterviewConversation = async (): Promise<string | null> => {
+    if (!user) return null;
+
+    const { data, error } = await supabase
+      .from('conversations')
+      .insert({
+        user_id: user.id,
+        title: `${INTERVIEW_CONVERSATION_PREFIX} Goal Interview`,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Failed to create interview conversation:', error);
+      return null;
+    }
+
+    return data.id;
+  };
 
   const buildContext = useCallback(() => ({
     vision: vision?.vision_3_year || vision?.vision_long_term,
@@ -97,11 +202,28 @@ export function useGoalInterview(options: UseGoalInterviewOptions = {}) {
   };
 
   const startInterview = useCallback(async () => {
+    // Delete old interview conversation and start fresh
+    if (conversationId) {
+      await supabase
+        .from('conversations')
+        .delete()
+        .eq('id', conversationId);
+    }
+
     setMessages([]);
     setPhase('vision');
     setError(null);
     setExtractedGoal(null);
     setIsLoading(true);
+
+    // Create new conversation
+    const newConvId = await createInterviewConversation();
+    if (!newConvId) {
+      setError('Failed to create interview session');
+      setIsLoading(false);
+      return '';
+    }
+    setConversationId(newConvId);
 
     abortRef.current = new AbortController();
 
@@ -129,7 +251,12 @@ export function useGoalInterview(options: UseGoalInterviewOptions = {}) {
         setMessages([{ role: 'assistant', content: text }]);
       });
 
-      setMessages([{ role: 'assistant', content }]);
+      const assistantMsg: InterviewMessage = { role: 'assistant', content };
+      setMessages([assistantMsg]);
+      
+      // Save to database
+      await saveMessage(assistantMsg, newConvId);
+
       return content;
     } catch (e) {
       if (e instanceof Error && e.name === 'AbortError') return '';
@@ -139,16 +266,19 @@ export function useGoalInterview(options: UseGoalInterviewOptions = {}) {
     } finally {
       setIsLoading(false);
     }
-  }, [buildContext]);
+  }, [buildContext, conversationId, user]);
 
   const sendMessage = useCallback(async (text: string): Promise<string> => {
-    if (!text.trim()) return '';
+    if (!text.trim() || !conversationId) return '';
 
     const userMsg: InterviewMessage = { role: 'user', content: text };
     const updatedMessages = [...messages, userMsg];
     setMessages(updatedMessages);
     setIsLoading(true);
     setError(null);
+
+    // Save user message immediately
+    await saveMessage(userMsg, conversationId);
 
     abortRef.current = new AbortController();
 
@@ -175,15 +305,15 @@ export function useGoalInterview(options: UseGoalInterviewOptions = {}) {
         setMessages([...updatedMessages, { role: 'assistant', content: text }]);
       });
 
-      setMessages([...updatedMessages, { role: 'assistant', content }]);
+      const assistantMsg: InterviewMessage = { role: 'assistant', content };
+      const finalMessages = [...updatedMessages, assistantMsg];
+      setMessages(finalMessages);
       
-      // Simple phase progression based on message count
-      const totalMessages = updatedMessages.length + 1;
-      if (totalMessages >= 10) setPhase('complete');
-      else if (totalMessages >= 8) setPhase('tactics');
-      else if (totalMessages >= 6) setPhase('milestones');
-      else if (totalMessages >= 4) setPhase('motivation');
-      else if (totalMessages >= 2) setPhase('metrics');
+      // Save assistant message
+      await saveMessage(assistantMsg, conversationId);
+      
+      // Update phase based on message count
+      setPhase(calculatePhase(finalMessages.length));
 
       return content;
     } catch (e) {
@@ -195,26 +325,42 @@ export function useGoalInterview(options: UseGoalInterviewOptions = {}) {
     } finally {
       setIsLoading(false);
     }
-  }, [messages, phase, buildContext]);
+  }, [messages, phase, buildContext, conversationId, user]);
 
-  const reset = useCallback(() => {
+  const reset = useCallback(async () => {
     abortRef.current?.abort();
+    
+    // Delete the conversation from database
+    if (conversationId) {
+      await supabase
+        .from('conversations')
+        .delete()
+        .eq('id', conversationId);
+    }
+
     setMessages([]);
     setPhase('vision');
     setError(null);
     setExtractedGoal(null);
     setIsLoading(false);
-  }, []);
+    setConversationId(null);
+  }, [conversationId]);
+
+  // Check if there's a resumable interview
+  const hasExistingInterview = messages.length > 0 && !isLoadingHistory;
 
   return {
     messages,
     phase,
     isLoading,
+    isLoadingHistory,
     error,
     extractedGoal,
     startInterview,
     sendMessage,
     reset,
     isComplete: phase === 'complete',
+    hasExistingInterview,
+    conversationId,
   };
 }

@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Mic, MicOff, Send, Volume2, VolumeX, MessageSquare, Loader2 } from 'lucide-react';
+import { Mic, MicOff, Send, Volume2, VolumeX, MessageSquare, Loader2, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -84,6 +84,13 @@ export function InterviewMode({ cycleId, onComplete, onCancel }: InterviewModePr
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [interview.messages]);
 
+  // Auto-resume if there's an existing interview
+  useEffect(() => {
+    if (interview.hasExistingInterview && !hasStarted) {
+      setHasStarted(true);
+    }
+  }, [interview.hasExistingInterview, hasStarted]);
+
   // Focus input when switching to text mode
   useEffect(() => {
     if (!isVoiceMode && inputRef.current && hasStarted) {
@@ -125,6 +132,20 @@ export function InterviewMode({ cycleId, onComplete, onCancel }: InterviewModePr
       voiceInput.startListening();
     }
   };
+
+  // Show loading while checking for existing interview
+  if (interview.isLoadingHistory) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-6">
+        <div className="space-y-3 w-full max-w-sm">
+          <Skeleton className="h-6 w-32 mx-auto" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-3/4 mx-auto" />
+          <Skeleton className="h-10 w-full mt-4" />
+        </div>
+      </div>
+    );
+  }
 
   if (!hasStarted) {
     return (
@@ -199,6 +220,18 @@ export function InterviewMode({ cycleId, onComplete, onCancel }: InterviewModePr
             ) : (
               <Mic className="h-4 w-4" />
             )}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => {
+              interview.reset();
+              setHasStarted(false);
+            }}
+            title="Start over"
+          >
+            <RotateCcw className="h-4 w-4" />
           </Button>
         </div>
       </div>

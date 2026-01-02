@@ -392,12 +392,13 @@ export function InterviewMode({ cycleId, onComplete, onCancel }: InterviewModePr
             </div>
           )}
 
-          {/* Create Goal button when enough conversation */}
-          {interview.messages.length >= 8 && !interview.isLoading && (
+          {/* Create Goal button - always available after some conversation */}
+          {interview.messages.length >= 4 && !interview.isLoading && (
             <div className="flex justify-center pt-4">
               <Button
                 onClick={handleCreateGoal}
                 disabled={isCreatingGoal}
+                variant={interview.messages.length >= 8 ? 'default' : 'outline'}
                 className="gap-2"
               >
                 {isCreatingGoal ? (

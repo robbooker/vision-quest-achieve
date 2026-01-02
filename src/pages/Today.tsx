@@ -11,8 +11,10 @@ import { HabitItem } from '@/components/dashboard/HabitItem';
 import { DailyScoreLogger } from '@/components/dashboard/DailyScoreLogger';
 import { QuickTaskList } from '@/components/dashboard/QuickTaskList';
 import { TodaySchedule } from '@/components/dashboard/TodaySchedule';
+import { AddCalendarEventDialog } from '@/components/dashboard/AddCalendarEventDialog';
 import { useQuickTasks } from '@/hooks/useQuickTasks';
 import { useCalendarConnection, useCalendarEvents } from '@/hooks/useCalendar';
+import { supabase } from '@/integrations/supabase/client';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { 
   Plus,
@@ -47,7 +49,7 @@ export default function Today() {
   // Calendar integration
   const { isConnected, isLoading: calendarConnecting, connect } = useCalendarConnection();
   const today = new Date();
-  const { events: calendarEvents, isLoading: eventsLoading } = useCalendarEvents(
+  const { events: calendarEvents, isLoading: eventsLoading, refetch: refetchEvents } = useCalendarEvents(
     startOfDay(today).toISOString(),
     endOfDay(today).toISOString()
   );
@@ -60,6 +62,8 @@ export default function Today() {
   const { logs, upsertLog, getLogForTactic, getStreak } = useTacticLogs();
 
   const [addTaskOpen, setAddTaskOpen] = useState(false);
+  const [addCalendarEventOpen, setAddCalendarEventOpen] = useState(false);
+  const [isCreatingEvent, setIsCreatingEvent] = useState(false);
   const [newQuickTask, setNewQuickTask] = useState({
     title: '',
     category: 'personal' as 'personal' | 'business',
@@ -94,6 +98,35 @@ export default function Today() {
       setNewQuickTask({ title: '', category: 'personal' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to add task', variant: 'destructive' });
+    }
+  };
+
+  const handleCreateCalendarEvent = async (eventData: { title: string; startTime: string; endTime: string }) => {
+    const todayStr = format(today, 'yyyy-MM-dd');
+    const startDateTime = new Date(`${todayStr}T${eventData.startTime}:00`).toISOString();
+    const endDateTime = new Date(`${todayStr}T${eventData.endTime}:00`).toISOString();
+
+    setIsCreatingEvent(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('google-calendar-create-event', {
+        body: {
+          action: 'create',
+          title: eventData.title,
+          startTime: startDateTime,
+          endTime: endDateTime,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({ title: 'Event added to calendar' });
+      setAddCalendarEventOpen(false);
+      refetchEvents();
+    } catch (error) {
+      console.error('Failed to create calendar event:', error);
+      toast({ title: 'Error', description: 'Failed to add event', variant: 'destructive' });
+    } finally {
+      setIsCreatingEvent(false);
     }
   };
 
@@ -251,6 +284,7 @@ export default function Today() {
             isLoading={eventsLoading || calendarConnecting}
             isConnected={isConnected}
             onConnect={connect}
+            onAddEvent={isConnected ? () => setAddCalendarEventOpen(true) : undefined}
           />
         </div>
 
@@ -305,6 +339,14 @@ export default function Today() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Add Calendar Event Dialog */}
+      <AddCalendarEventDialog
+        open={addCalendarEventOpen}
+        onOpenChange={setAddCalendarEventOpen}
+        onSubmit={handleCreateCalendarEvent}
+        isLoading={isCreatingEvent}
+      />
     </DashboardLayout>
   );
 }

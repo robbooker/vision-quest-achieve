@@ -167,7 +167,7 @@ export function FriendManagement() {
                       className="flex items-center justify-between p-2 bg-muted/50 rounded-md"
                     >
                       <span className="text-sm truncate flex-1">
-                        {friendship.requester_id}
+                        {friendship.friend_name || friendship.friend_email || 'Unknown'}
                       </span>
                       <div className="flex gap-1">
                         <Button 
@@ -207,7 +207,7 @@ export function FriendManagement() {
                       className="flex items-center justify-between p-2 bg-muted/30 rounded-md"
                     >
                       <span className="text-sm text-muted-foreground truncate flex-1">
-                        {friendship.addressee_id}
+                        {friendship.friend_name || friendship.friend_email || 'Unknown'}
                       </span>
                       <Badge variant="outline" className="text-xs">Pending</Badge>
                     </div>

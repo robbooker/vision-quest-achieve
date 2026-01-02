@@ -468,6 +468,44 @@ export type Database = {
         }
         Relationships: []
       }
+      tactic_logs: {
+        Row: {
+          completed_count: number
+          created_at: string
+          id: string
+          logged_date: string
+          notes: string | null
+          tactic_id: string
+          user_id: string
+        }
+        Insert: {
+          completed_count?: number
+          created_at?: string
+          id?: string
+          logged_date: string
+          notes?: string | null
+          tactic_id: string
+          user_id: string
+        }
+        Update: {
+          completed_count?: number
+          created_at?: string
+          id?: string
+          logged_date?: string
+          notes?: string | null
+          tactic_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tactic_logs_tactic_id_fkey"
+            columns: ["tactic_id"]
+            isOneToOne: false
+            referencedRelation: "goal_tactics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_instances: {
         Row: {
           calendar_event_id: string | null

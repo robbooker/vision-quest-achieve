@@ -1015,7 +1015,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_shared_task_owner: { Args: { task_id: string }; Returns: boolean }
+      is_task_shared_with_me: { Args: { task_id: string }; Returns: boolean }
     }
     Enums: {
       cycle_status: "planning" | "active" | "review" | "completed"

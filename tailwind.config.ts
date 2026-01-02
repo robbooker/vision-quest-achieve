@@ -17,7 +17,7 @@ export default {
         sans: ['IBM Plex Sans', 'sans-serif'],
         heading: ['IBM Plex Sans Condensed', 'IBM Plex Sans', 'sans-serif'],
         mono: ['IBM Plex Mono', 'monospace'],
-        logo: ['Amarante', 'cursive'],
+        logo: ['Bungee', 'cursive'],
       },
       fontWeight: {
         normal: '500',

@@ -17,6 +17,7 @@ import Settings from "./pages/Settings";
 import Today from "./pages/Today";
 import Reports from "./pages/Reports";
 import Vision from "./pages/Vision";
+import BigTen from "./pages/BigTen";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -56,6 +57,7 @@ const App = () => (
                 <Route path="/today" element={<ProtectedRoute><Today /></ProtectedRoute>} />
                 <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
                 <Route path="/vision" element={<ProtectedRoute><Vision /></ProtectedRoute>} />
+                <Route path="/big-ten" element={<ProtectedRoute><BigTen /></ProtectedRoute>} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

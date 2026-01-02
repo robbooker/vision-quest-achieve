@@ -1,0 +1,231 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './useAuth';
+import { toast } from 'sonner';
+
+export interface BigTenTask {
+  id: string;
+  project_id: string;
+  user_id: string;
+  title: string;
+  completed: boolean;
+  position: number;
+  created_at: string;
+}
+
+export interface BigTenProject {
+  id: string;
+  user_id: string;
+  title: string;
+  target_date: string | null;
+  position: number;
+  created_at: string;
+  updated_at: string;
+  tasks?: BigTenTask[];
+}
+
+export function useBigTen() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const { data: projects = [], isLoading } = useQuery({
+    queryKey: ['big-ten-projects', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+
+      const { data: projectsData, error: projectsError } = await supabase
+        .from('big_ten_projects')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('position', { ascending: true });
+
+      if (projectsError) throw projectsError;
+
+      const { data: tasksData, error: tasksError } = await supabase
+        .from('big_ten_tasks')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('position', { ascending: true });
+
+      if (tasksError) throw tasksError;
+
+      // Map tasks to their projects
+      const projectsWithTasks = (projectsData || []).map((project) => ({
+        ...project,
+        tasks: (tasksData || []).filter((task) => task.project_id === project.id),
+      }));
+
+      return projectsWithTasks as BigTenProject[];
+    },
+    enabled: !!user?.id,
+  });
+
+  const createProject = useMutation({
+    mutationFn: async ({ title, position }: { title: string; position: number }) => {
+      if (!user?.id) throw new Error('Not authenticated');
+
+      const { data, error } = await supabase
+        .from('big_ten_projects')
+        .insert({
+          user_id: user.id,
+          title,
+          position,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['big-ten-projects'] });
+    },
+    onError: (error) => {
+      toast.error('Failed to create project');
+      console.error(error);
+    },
+  });
+
+  const updateProject = useMutation({
+    mutationFn: async ({
+      id,
+      title,
+      target_date,
+    }: {
+      id: string;
+      title?: string;
+      target_date?: string | null;
+    }) => {
+      const updates: Record<string, unknown> = {};
+      if (title !== undefined) updates.title = title;
+      if (target_date !== undefined) updates.target_date = target_date;
+
+      const { error } = await supabase
+        .from('big_ten_projects')
+        .update(updates)
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['big-ten-projects'] });
+    },
+    onError: (error) => {
+      toast.error('Failed to update project');
+      console.error(error);
+    },
+  });
+
+  const deleteProject = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('big_ten_projects')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['big-ten-projects'] });
+      toast.success('Project deleted');
+    },
+    onError: (error) => {
+      toast.error('Failed to delete project');
+      console.error(error);
+    },
+  });
+
+  const createTask = useMutation({
+    mutationFn: async ({
+      project_id,
+      title,
+      position,
+    }: {
+      project_id: string;
+      title: string;
+      position: number;
+    }) => {
+      if (!user?.id) throw new Error('Not authenticated');
+
+      const { data, error } = await supabase
+        .from('big_ten_tasks')
+        .insert({
+          user_id: user.id,
+          project_id,
+          title,
+          position,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['big-ten-projects'] });
+    },
+    onError: (error) => {
+      toast.error('Failed to add task');
+      console.error(error);
+    },
+  });
+
+  const updateTask = useMutation({
+    mutationFn: async ({
+      id,
+      title,
+      completed,
+    }: {
+      id: string;
+      title?: string;
+      completed?: boolean;
+    }) => {
+      const updates: Record<string, unknown> = {};
+      if (title !== undefined) updates.title = title;
+      if (completed !== undefined) updates.completed = completed;
+
+      const { error } = await supabase
+        .from('big_ten_tasks')
+        .update(updates)
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['big-ten-projects'] });
+    },
+    onError: (error) => {
+      toast.error('Failed to update task');
+      console.error(error);
+    },
+  });
+
+  const deleteTask = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('big_ten_tasks')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['big-ten-projects'] });
+    },
+    onError: (error) => {
+      toast.error('Failed to delete task');
+      console.error(error);
+    },
+  });
+
+  return {
+    projects,
+    isLoading,
+    createProject,
+    updateProject,
+    deleteProject,
+    createTask,
+    updateTask,
+    deleteTask,
+  };
+}

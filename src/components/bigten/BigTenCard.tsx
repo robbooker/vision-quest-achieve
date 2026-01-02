@@ -1,0 +1,258 @@
+import { useState } from 'react';
+import { format } from 'date-fns';
+import { Calendar, Plus, Trash2, Check, X } from 'lucide-react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+import { BigTenProject, BigTenTask } from '@/hooks/useBigTen';
+
+interface BigTenCardProps {
+  project?: BigTenProject;
+  position: number;
+  onCreateProject: (title: string, position: number) => void;
+  onUpdateProject: (id: string, title?: string, target_date?: string | null) => void;
+  onDeleteProject: (id: string) => void;
+  onCreateTask: (project_id: string, title: string, position: number) => void;
+  onUpdateTask: (id: string, title?: string, completed?: boolean) => void;
+  onDeleteTask: (id: string) => void;
+}
+
+export function BigTenCard({
+  project,
+  position,
+  onCreateProject,
+  onUpdateProject,
+  onDeleteProject,
+  onCreateTask,
+  onUpdateTask,
+  onDeleteTask,
+}: BigTenCardProps) {
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editedTitle, setEditedTitle] = useState(project?.title || '');
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [isAddingTask, setIsAddingTask] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editedTaskTitle, setEditedTaskTitle] = useState('');
+
+  const tasks = project?.tasks || [];
+  const canAddTask = tasks.length < 5;
+
+  const handleCreateProject = () => {
+    onCreateProject('New Project', position);
+  };
+
+  const handleSaveTitle = () => {
+    if (project && editedTitle.trim()) {
+      onUpdateProject(project.id, editedTitle.trim());
+    }
+    setIsEditingTitle(false);
+  };
+
+  const handleDateChange = (date: Date | undefined) => {
+    if (project) {
+      onUpdateProject(project.id, undefined, date ? format(date, 'yyyy-MM-dd') : null);
+    }
+  };
+
+  const handleAddTask = () => {
+    if (project && newTaskTitle.trim()) {
+      const nextPosition = tasks.length + 1;
+      onCreateTask(project.id, newTaskTitle.trim(), nextPosition);
+      setNewTaskTitle('');
+      setIsAddingTask(false);
+    }
+  };
+
+  const handleToggleTask = (task: BigTenTask) => {
+    onUpdateTask(task.id, undefined, !task.completed);
+  };
+
+  const handleSaveTaskTitle = (taskId: string) => {
+    if (editedTaskTitle.trim()) {
+      onUpdateTask(taskId, editedTaskTitle.trim());
+    }
+    setEditingTaskId(null);
+  };
+
+  // Empty card state
+  if (!project) {
+    return (
+      <Card
+        className="border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 transition-colors cursor-pointer min-h-[200px] flex items-center justify-center"
+        onClick={handleCreateProject}
+      >
+        <div className="flex flex-col items-center gap-2 text-muted-foreground">
+          <Plus className="h-8 w-8" />
+          <span className="text-sm font-medium">Add a Big 10 Project</span>
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="min-h-[200px] flex flex-col">
+      <CardHeader className="pb-2 flex flex-row items-start justify-between gap-2">
+        <div className="flex-1">
+          {isEditingTitle ? (
+            <div className="flex items-center gap-2">
+              <Input
+                value={editedTitle}
+                onChange={(e) => setEditedTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSaveTitle();
+                  if (e.key === 'Escape') setIsEditingTitle(false);
+                }}
+                autoFocus
+                className="text-lg font-semibold"
+              />
+              <Button size="icon" variant="ghost" onClick={handleSaveTitle}>
+                <Check className="h-4 w-4" />
+              </Button>
+              <Button size="icon" variant="ghost" onClick={() => setIsEditingTitle(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <h3
+              className="text-lg font-semibold cursor-pointer hover:text-primary transition-colors"
+              onClick={() => {
+                setEditedTitle(project.title);
+                setIsEditingTitle(true);
+              }}
+            >
+              {project.title}
+            </h3>
+          )}
+        </div>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+          onClick={() => onDeleteProject(project.id)}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </CardHeader>
+      <CardContent className="flex-1 flex flex-col gap-3">
+        {/* Tasks list */}
+        <div className="space-y-2 flex-1">
+          {tasks.map((task) => (
+            <div key={task.id} className="flex items-center gap-2 group">
+              <Checkbox
+                checked={task.completed}
+                onCheckedChange={() => handleToggleTask(task)}
+              />
+              {editingTaskId === task.id ? (
+                <div className="flex items-center gap-1 flex-1">
+                  <Input
+                    value={editedTaskTitle}
+                    onChange={(e) => setEditedTaskTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveTaskTitle(task.id);
+                      if (e.key === 'Escape') setEditingTaskId(null);
+                    }}
+                    autoFocus
+                    className="h-7 text-sm"
+                  />
+                  <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleSaveTaskTitle(task.id)}>
+                    <Check className="h-3 w-3" />
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <span
+                    className={cn(
+                      'text-sm flex-1 cursor-pointer hover:text-primary transition-colors',
+                      task.completed && 'line-through text-muted-foreground'
+                    )}
+                    onClick={() => {
+                      setEditedTaskTitle(task.title);
+                      setEditingTaskId(task.id);
+                    }}
+                  >
+                    {task.title}
+                  </span>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                    onClick={() => onDeleteTask(task.id)}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </>
+              )}
+            </div>
+          ))}
+
+          {/* Add task input */}
+          {isAddingTask ? (
+            <div className="flex items-center gap-2">
+              <Input
+                value={newTaskTitle}
+                onChange={(e) => setNewTaskTitle(e.target.value)}
+                placeholder="Task description..."
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleAddTask();
+                  if (e.key === 'Escape') setIsAddingTask(false);
+                }}
+                autoFocus
+                className="h-8 text-sm"
+              />
+              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={handleAddTask}>
+                <Check className="h-4 w-4" />
+              </Button>
+              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setIsAddingTask(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : canAddTask ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start text-muted-foreground hover:text-foreground"
+              onClick={() => setIsAddingTask(true)}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add task
+            </Button>
+          ) : null}
+        </div>
+
+        {/* Target date */}
+        <div className="pt-2 border-t border-border">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  'w-full justify-start text-sm',
+                  !project.target_date && 'text-muted-foreground'
+                )}
+              >
+                <Calendar className="h-4 w-4 mr-2" />
+                {project.target_date
+                  ? format(new Date(project.target_date), 'PPP')
+                  : 'Set target date'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <CalendarComponent
+                mode="single"
+                selected={project.target_date ? new Date(project.target_date) : undefined}
+                onSelect={handleDateChange}
+                initialFocus
+                className="p-3 pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

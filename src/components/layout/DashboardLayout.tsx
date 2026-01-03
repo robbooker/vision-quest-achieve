@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useTerminalMode } from '@/hooks/useTerminalMode';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useSiteTour } from '@/hooks/useSiteTour';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -19,18 +20,20 @@ import { cn } from '@/lib/utils';
 import { Footer } from '@/components/layout/Footer';
 import gpLogo from '@/assets/gp-logo.png';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { TourHelpButton } from '@/components/tour/TourHelpButton';
+import { SiteTour } from '@/components/tour/SiteTour';
 
 interface DashboardLayoutProps {
   children: ReactNode;
 }
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/today', label: 'Today', icon: CheckSquare },
-  { href: '/big-ten', label: 'Big 10', icon: Star },
-  { href: '/reset', label: 'Reset', icon: RotateCcw },
-  { href: '/reports', label: 'Reports', icon: BarChart3 },
-  { href: '/settings', label: 'Settings', icon: Settings },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, tourId: 'dashboard' },
+  { href: '/today', label: 'Today', icon: CheckSquare, tourId: 'today' },
+  { href: '/big-ten', label: 'Big 10', icon: Star, tourId: 'bigten' },
+  { href: '/reset', label: 'Reset', icon: RotateCcw, tourId: 'reset' },
+  { href: '/reports', label: 'Reports', icon: BarChart3, tourId: 'reports' },
+  { href: '/settings', label: 'Settings', icon: Settings, tourId: 'settings' },
 ];
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
@@ -38,6 +41,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { isTerminal, labels } = useTerminalMode();
   const { isAdmin } = useUserRole();
   const location = useLocation();
+  const { isTourRunning, tourStep, startTour, endTour, goToStep } = useSiteTour();
 
   const userInitials = user?.email
     ? user.email.substring(0, 2).toUpperCase()
@@ -81,7 +85,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 const Icon = item.icon;
                 const isActive = location.pathname === item.href;
                 return (
-                  <Link key={item.href} to={item.href}>
+                  <Link key={item.href} to={item.href} data-tour={item.tourId}>
                     <Button
                       variant={isActive ? 'secondary' : 'ghost'}
                       size="sm"
@@ -102,8 +106,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
 
           <div className="flex items-center gap-2">
-            <NotificationBell />
-            <ThemeToggle />
+            <TourHelpButton onClick={startTour} isTerminal={isTerminal} />
+            <span data-tour="notifications">
+              <NotificationBell />
+            </span>
+            <span data-tour="theme-toggle">
+              <ThemeToggle />
+            </span>
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -193,6 +202,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </main>
 
       <Footer />
+
+      {/* Site Tour */}
+      <SiteTour
+        isRunning={isTourRunning}
+        onEnd={endTour}
+        stepIndex={tourStep}
+        onStepChange={goToStep}
+      />
     </div>
   );
 }

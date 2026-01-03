@@ -11,8 +11,9 @@ import { HabitItem } from '@/components/dashboard/HabitItem';
 import { DailyScoreLogger } from '@/components/dashboard/DailyScoreLogger';
 import { QuickTaskList } from '@/components/dashboard/QuickTaskList';
 
-import { TodaySchedule } from '@/components/dashboard/TodaySchedule';
+import { TodaySchedule, CalendarEventData } from '@/components/dashboard/TodaySchedule';
 import { AddCalendarEventDialog } from '@/components/dashboard/AddCalendarEventDialog';
+import { EditCalendarEventDialog } from '@/components/dashboard/EditCalendarEventDialog';
 import { useQuickTasks } from '@/hooks/useQuickTasks';
 import { useCalendarConnection, useCalendarEvents } from '@/hooks/useCalendar';
 import { supabase } from '@/integrations/supabase/client';
@@ -69,7 +70,10 @@ export default function Today() {
 
   const [addTaskOpen, setAddTaskOpen] = useState(false);
   const [addCalendarEventOpen, setAddCalendarEventOpen] = useState(false);
+  const [editCalendarEventOpen, setEditCalendarEventOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<CalendarEventData | null>(null);
   const [isCreatingEvent, setIsCreatingEvent] = useState(false);
+  const [isUpdatingEvent, setIsUpdatingEvent] = useState(false);
   const [newQuickTask, setNewQuickTask] = useState({
     title: '',
     category: 'personal' as 'personal' | 'business',
@@ -133,6 +137,66 @@ export default function Today() {
       toast({ title: 'Error', description: 'Failed to add event', variant: 'destructive' });
     } finally {
       setIsCreatingEvent(false);
+    }
+  };
+
+  const handleEditEvent = (event: CalendarEventData) => {
+    setEditingEvent(event);
+    setEditCalendarEventOpen(true);
+  };
+
+  const handleUpdateCalendarEvent = async (eventId: string, eventData: { title: string; date: Date; startTime: string; endTime: string }) => {
+    const dateStr = format(eventData.date, 'yyyy-MM-dd');
+    const startDateTime = new Date(`${dateStr}T${eventData.startTime}:00`).toISOString();
+    const endDateTime = new Date(`${dateStr}T${eventData.endTime}:00`).toISOString();
+
+    setIsUpdatingEvent(true);
+    try {
+      const { error } = await supabase.functions.invoke('google-calendar-create-event', {
+        body: {
+          action: 'update',
+          eventId,
+          title: eventData.title,
+          startTime: startDateTime,
+          endTime: endDateTime,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({ title: 'Event updated' });
+      setEditCalendarEventOpen(false);
+      setEditingEvent(null);
+      refetchEvents();
+    } catch (error) {
+      console.error('Failed to update calendar event:', error);
+      toast({ title: 'Error', description: 'Failed to update event', variant: 'destructive' });
+    } finally {
+      setIsUpdatingEvent(false);
+    }
+  };
+
+  const handleDeleteCalendarEvent = async (eventId: string) => {
+    setIsUpdatingEvent(true);
+    try {
+      const { error } = await supabase.functions.invoke('google-calendar-create-event', {
+        body: {
+          action: 'delete',
+          eventId,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({ title: 'Event deleted' });
+      setEditCalendarEventOpen(false);
+      setEditingEvent(null);
+      refetchEvents();
+    } catch (error) {
+      console.error('Failed to delete calendar event:', error);
+      toast({ title: 'Error', description: 'Failed to delete event', variant: 'destructive' });
+    } finally {
+      setIsUpdatingEvent(false);
     }
   };
 
@@ -293,6 +357,8 @@ export default function Today() {
             onAddEvent={isConnected ? () => setAddCalendarEventOpen(true) : undefined}
             showTomorrow={showTomorrow}
             onToggleDay={() => setShowTomorrow(!showTomorrow)}
+            onEditEvent={isConnected ? handleEditEvent : undefined}
+            onDeleteEvent={isConnected ? handleDeleteCalendarEvent : undefined}
           />
         </div>
 
@@ -354,6 +420,16 @@ export default function Today() {
         onOpenChange={setAddCalendarEventOpen}
         onSubmit={handleCreateCalendarEvent}
         isLoading={isCreatingEvent}
+      />
+
+      {/* Edit Calendar Event Dialog */}
+      <EditCalendarEventDialog
+        open={editCalendarEventOpen}
+        onOpenChange={setEditCalendarEventOpen}
+        event={editingEvent}
+        onUpdate={handleUpdateCalendarEvent}
+        onDelete={handleDeleteCalendarEvent}
+        isLoading={isUpdatingEvent}
       />
     </DashboardLayout>
   );

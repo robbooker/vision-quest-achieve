@@ -3,6 +3,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { CalendarSettings } from '@/components/settings/CalendarSettings';
 import { NotificationSettings } from '@/components/settings/NotificationSettings';
 import { DisplaySettings } from '@/components/settings/DisplaySettings';
+import { HardQuestions } from '@/components/settings/HardQuestions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Sparkles, ChevronRight } from 'lucide-react';
@@ -37,6 +38,8 @@ export default function Settings() {
             </Button>
           </CardContent>
         </Card>
+
+        <HardQuestions />
 
         <DisplaySettings />
         <NotificationSettings />

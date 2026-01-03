@@ -63,10 +63,10 @@ export function CreateGoalDialog({
       return;
     }
 
-    if (existingGoalsCount >= 3) {
+    if (existingGoalsCount >= 6) {
       toast({
         title: 'Maximum goals reached',
-        description: 'You can have a maximum of 3 goals per cycle. Focus is key!',
+        description: 'You can have a maximum of 6 goals per cycle.',
         variant: 'destructive',
       });
       return;

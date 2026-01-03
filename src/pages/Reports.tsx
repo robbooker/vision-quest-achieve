@@ -30,8 +30,11 @@ import { useWeekReviews } from '@/hooks/useWeekReviews';
 import { useMilestones } from '@/hooks/useMilestones';
 import { useBigTen } from '@/hooks/useBigTen';
 import { useQuickTasks } from '@/hooks/useQuickTasks';
-import { TrendingUp, BarChart3, Target, AlertTriangle, Calendar, CheckSquare, FolderKanban, ListTodo } from 'lucide-react';
+import { TrendingUp, BarChart3, Target, AlertTriangle, Calendar, CheckSquare, FolderKanban, ListTodo, RotateCcw, Flame, Trophy, Zap } from 'lucide-react';
 import { HabitChainCalendar } from '@/components/reports/HabitChainCalendar';
+import { AuditStrip } from '@/components/reset/AuditStrip';
+import { useResetAudits } from '@/hooks/useResetAudits';
+import { useResetPreference } from '@/hooks/useResetPreference';
 import { format, subDays, startOfDay, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek } from 'date-fns';
 
 export default function Reports() {
@@ -44,6 +47,8 @@ export default function Reports() {
   const { reviews } = useWeekReviews(activeCycle?.id);
   const { projects: bigTenProjects } = useBigTen();
   const { tasks: quickTasks } = useQuickTasks();
+  const { audits, getScore, getStreak, getPerfectDays, getAverageScore, getBestScore } = useResetAudits();
+  const { isResetActive, resetStartedAt } = useResetPreference();
 
   // Generate execution score data for all weeks (6-week cycle)
   const executionScoreData = useMemo(() => {
@@ -162,6 +167,15 @@ export default function Reports() {
     };
   }, [quickTasks]);
 
+  // Reset stats for the chart
+  const resetChartData = useMemo(() => {
+    return audits.map(audit => ({
+      day: format(new Date(audit.audit_date), 'EEE'),
+      date: audit.audit_date,
+      score: getScore(audit),
+    }));
+  }, [audits, getScore]);
+
   const chartConfig = {
     score: { label: 'Execution Score', color: 'hsl(var(--primary))' },
     target: { label: 'Target (80%)', color: 'hsl(var(--muted-foreground))' },
@@ -173,6 +187,7 @@ export default function Reports() {
     goalTarget: { label: 'Target', color: 'hsl(var(--muted-foreground))' },
     personal: { label: 'Personal', color: 'hsl(var(--primary))' },
     business: { label: 'Business', color: 'hsl(var(--secondary))' },
+    resetScore: { label: 'Score', color: 'hsl(var(--primary))' },
   };
 
   if (cyclesLoading) {
@@ -370,6 +385,99 @@ export default function Reports() {
 
         {/* Habit Chains Section */}
         <HabitChainCalendar />
+
+        {/* 7-Day Reset Section - Only show if user has reset data */}
+        {(audits.length > 0 || isResetActive) && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <RotateCcw className="h-5 w-5 text-primary" />
+              7-Day Reset
+            </h2>
+            
+            {/* Reset Stats Cards */}
+            <div className="grid gap-4 md:grid-cols-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-2">
+                    <Flame className="h-4 w-4 text-primary" />
+                    <span className="text-sm text-muted-foreground">Current Streak</span>
+                  </div>
+                  <p className="text-2xl font-bold mt-1">{getStreak()} days</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-2">
+                    <Trophy className="h-4 w-4 text-primary" />
+                    <span className="text-sm text-muted-foreground">Perfect Days</span>
+                  </div>
+                  <p className="text-2xl font-bold mt-1">{getPerfectDays()}</p>
+                  <p className="text-xs text-muted-foreground mt-1">8/8 score</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-primary" />
+                    <span className="text-sm text-muted-foreground">Average Score</span>
+                  </div>
+                  <p className="text-2xl font-bold mt-1">{getAverageScore()}/8</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-primary" />
+                    <span className="text-sm text-muted-foreground">Best Score</span>
+                  </div>
+                  <p className="text-2xl font-bold mt-1">{getBestScore()}/8</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Audit Strip and Chart */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    7-Day Audit Strip
+                  </CardTitle>
+                  <CardDescription>Your daily performance at a glance</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <AuditStrip audits={audits} />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4" />
+                    Daily Scores
+                  </CardTitle>
+                  <CardDescription>Rules completed each day</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer config={chartConfig} className="h-[150px]">
+                    <BarChart data={resetChartData} margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis dataKey="day" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                      <YAxis domain={[0, 8]} tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <ReferenceLine y={8} stroke="hsl(160 88% 63%)" strokeDasharray="3 3" />
+                      <Bar
+                        dataKey="score"
+                        radius={[4, 4, 0, 0]}
+                        fill="hsl(var(--primary))"
+                      />
+                    </BarChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
 
         {/* Big 10 & Quick Tasks Section */}
         <div className="space-y-4">

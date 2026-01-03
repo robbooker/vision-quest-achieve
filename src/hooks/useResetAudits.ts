@@ -99,6 +99,43 @@ export function useResetAudits() {
     return streak > 0 ? PHASES[Math.min(streak - 1, 6)] : PHASES[0];
   };
 
+  // Calculate current streak of consecutive engaged days
+  const getStreak = (): number => {
+    let streak = 0;
+    const sortedAudits = [...audits].sort((a, b) => 
+      parseISO(b.audit_date).getTime() - parseISO(a.audit_date).getTime()
+    );
+    
+    for (let i = 0; i < 7; i++) {
+      const checkDate = format(subDays(new Date(), i), 'yyyy-MM-dd');
+      const audit = sortedAudits.find(a => a.audit_date === checkDate);
+      if (audit && getScore(audit) > 0) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+    return streak;
+  };
+
+  // Count perfect 8/8 days
+  const getPerfectDays = (): number => {
+    return audits.filter(audit => getScore(audit) === 8).length;
+  };
+
+  // Calculate average score across all audits
+  const getAverageScore = (): number => {
+    if (audits.length === 0) return 0;
+    const totalScore = audits.reduce((sum, audit) => sum + getScore(audit), 0);
+    return Math.round((totalScore / audits.length) * 10) / 10;
+  };
+
+  // Get the best score
+  const getBestScore = (): number => {
+    if (audits.length === 0) return 0;
+    return Math.max(...audits.map(audit => getScore(audit)));
+  };
+
   // Toggle a rule for today
   const toggleRule = useMutation({
     mutationFn: async ({ ruleKey, value }: { ruleKey: RuleKey; value: boolean }) => {
@@ -162,6 +199,10 @@ export function useResetAudits() {
     error,
     getScore,
     getCurrentPhase,
+    getStreak,
+    getPerfectDays,
+    getAverageScore,
+    getBestScore,
     toggleRule,
     updateNote,
     RULES,

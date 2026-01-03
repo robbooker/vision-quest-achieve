@@ -1,18 +1,26 @@
 import { useState, useRef, useEffect } from 'react';
-import { Plus, User, Briefcase, X } from 'lucide-react';
+import { Plus, User, Briefcase, X, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
+type TaskCategory = 'personal' | 'business' | 'shared';
+
 interface MobileCommandBarProps {
-  onAddTask: (title: string, category: 'personal' | 'business') => Promise<void>;
+  onAddTask: (title: string, category: TaskCategory) => Promise<void>;
+  currentCategory?: TaskCategory;
+  onCategoryChange?: (category: TaskCategory) => void;
 }
 
-export function MobileCommandBar({ onAddTask }: MobileCommandBarProps) {
+export function MobileCommandBar({ onAddTask, currentCategory = 'personal', onCategoryChange }: MobileCommandBarProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState<'personal' | 'business'>('personal');
+  const [category, setCategory] = useState<TaskCategory>(currentCategory);
   const [showSuccess, setShowSuccess] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setCategory(currentCategory);
+  }, [currentCategory]);
 
   useEffect(() => {
     if (isExpanded && inputRef.current) {
@@ -39,6 +47,11 @@ export function MobileCommandBar({ onAddTask }: MobileCommandBarProps) {
     setTitle('');
   };
 
+  const handleCategoryChange = (newCategory: TaskCategory) => {
+    setCategory(newCategory);
+    onCategoryChange?.(newCategory);
+  };
+
   return (
     <>
       {/* Overlay to dim background */}
@@ -61,36 +74,51 @@ export function MobileCommandBar({ onAddTask }: MobileCommandBarProps) {
         {/* Category toggle when expanded */}
         {isExpanded && (
           <div className="flex items-center justify-between px-3 pt-3 pb-1 border-b border-[hsl(0_0%_20%)]">
-            <div className="flex gap-2">
+            <div className="flex gap-1">
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  "h-8 px-3 font-mono text-xs",
+                  "h-8 px-2 font-mono text-xs",
                   category === 'personal' 
                     ? "bg-[hsl(32_95%_54%)] text-black hover:bg-[hsl(32_95%_54%)]" 
                     : "text-[hsl(32_95%_54%/0.6)] hover:text-[hsl(32_95%_54%)] hover:bg-transparent"
                 )}
-                onClick={() => setCategory('personal')}
+                onClick={() => handleCategoryChange('personal')}
               >
                 <User className="h-3 w-3 mr-1" />
-                PERSONAL
+                P
               </Button>
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  "h-8 px-3 font-mono text-xs",
+                  "h-8 px-2 font-mono text-xs",
                   category === 'business' 
                     ? "bg-[hsl(32_95%_54%)] text-black hover:bg-[hsl(32_95%_54%)]" 
                     : "text-[hsl(32_95%_54%/0.6)] hover:text-[hsl(32_95%_54%)] hover:bg-transparent"
                 )}
-                onClick={() => setCategory('business')}
+                onClick={() => handleCategoryChange('business')}
               >
                 <Briefcase className="h-3 w-3 mr-1" />
-                BUSINESS
+                B
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "h-8 px-2 font-mono text-xs",
+                  category === 'shared' 
+                    ? "bg-[hsl(32_95%_54%)] text-black hover:bg-[hsl(32_95%_54%)]" 
+                    : "text-[hsl(32_95%_54%/0.6)] hover:text-[hsl(32_95%_54%)] hover:bg-transparent"
+                )}
+                onClick={() => handleCategoryChange('shared')}
+              >
+                <Share2 className="h-3 w-3 mr-1" />
+                S
               </Button>
             </div>
             <Button
@@ -139,4 +167,5 @@ export function MobileCommandBar({ onAddTask }: MobileCommandBarProps) {
     </>
   );
 }
+
 

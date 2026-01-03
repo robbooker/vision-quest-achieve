@@ -108,7 +108,7 @@ function SortableTaskItem({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-center gap-2 sm:gap-3 py-3 px-2 sm:px-3 rounded-md group hover:bg-muted/50 transition-colors",
+        "flex items-center gap-3 py-3 px-3 rounded-md group hover:bg-muted/50 transition-colors",
         task.completed && "opacity-60",
         isDragging && "opacity-50 bg-muted shadow-lg z-10",
         isCompleting && "task-completing",
@@ -119,72 +119,66 @@ function SortableTaskItem({
         <button
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
+          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none shrink-0"
         >
           <GripVertical className="h-4 w-4" />
         </button>
       )}
-      {(task.completed || isCompleting) && <div className="w-4" />}
+      {(task.completed || isCompleting) && <div className="w-4 shrink-0" />}
       
       <Checkbox
         checked={task.completed || isCompleting}
         onCheckedChange={() => onToggleComplete(task)}
-        className={cn("h-5 w-5 rounded-sm border-2", isCompleting && "task-checkbox")}
+        className={cn("h-5 w-5 shrink-0 rounded-sm border-2", isCompleting && "task-checkbox")}
         disabled={isCompleting}
       />
       
       {isEditing ? (
-        <div className="flex-1 flex items-center gap-2">
+        <div className="flex-1 flex items-center gap-2 min-w-0">
           <Input
             value={editTitle}
             onChange={(e) => onEditTitleChange(e.target.value)}
-            className="h-8"
+            className="h-8 flex-1 min-w-0"
             autoFocus
             onKeyDown={(e) => {
               if (e.key === 'Enter') onSaveEdit(task.id);
               if (e.key === 'Escape') onCancelEdit();
             }}
           />
-          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onSaveEdit(task.id)}>
+          <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => onSaveEdit(task.id)}>
             <Check className="h-4 w-4" />
           </Button>
-          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onCancelEdit}>
+          <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={onCancelEdit}>
             <X className="h-4 w-4" />
           </Button>
         </div>
       ) : (
         <>
           <span className={cn(
-            "flex-1 text-sm leading-snug",
+            "flex-1 text-sm leading-relaxed min-w-0",
             task.completed && "line-through text-muted-foreground",
             isCompleting && "task-text text-muted-foreground"
           )}>
             {task.title}
           </span>
           
-          <Badge variant="outline" className="text-xs shrink-0 hidden sm:flex">
-            {task.category === 'personal' ? (
-              <><User className="h-3 w-3 mr-1" />Personal</>
-            ) : (
-              <><Briefcase className="h-3 w-3 mr-1" />Business</>
-            )}
-          </Badge>
-
-          {/* Mobile: show icon only */}
-          <Badge variant="outline" className="text-xs shrink-0 flex sm:hidden p-1.5">
-            {task.category === 'personal' ? (
-              <User className="h-3.5 w-3.5" />
-            ) : (
-              <Briefcase className="h-3.5 w-3.5" />
-            )}
-          </Badge>
-          
-          <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-            <Button size="icon" variant="ghost" className="h-8 w-8 sm:h-7 sm:w-7" onClick={() => onStartEdit(task)}>
-              <Pencil className="h-4 w-4 sm:h-3 sm:w-3" />
+          {/* Desktop: show actions on hover */}
+          <div className="hidden sm:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onStartEdit(task)}>
+              <Pencil className="h-3 w-3" />
             </Button>
-            <Button size="icon" variant="ghost" className="h-8 w-8 sm:h-7 sm:w-7 text-destructive" onClick={() => onDelete(task.id)}>
-              <Trash2 className="h-4 w-4 sm:h-3 sm:w-3" />
+            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => onDelete(task.id)}>
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          </div>
+
+          {/* Mobile: show compact actions */}
+          <div className="flex sm:hidden items-center gap-0.5 shrink-0">
+            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => onStartEdit(task)}>
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => onDelete(task.id)}>
+              <Trash2 className="h-4 w-4" />
             </Button>
           </div>
         </>
@@ -253,7 +247,7 @@ function SortableSharedTaskItem({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-center gap-2 sm:gap-3 py-3 px-2 sm:px-3 rounded-md group hover:bg-muted/50 transition-colors",
+        "flex items-center gap-3 py-3 px-3 rounded-md group hover:bg-muted/50 transition-colors",
         task.completed && "opacity-60",
         isDragging && "opacity-50 bg-muted shadow-lg z-10",
         isCompleting && "task-completing",
@@ -264,51 +258,51 @@ function SortableSharedTaskItem({
         <button
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
+          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none shrink-0"
         >
           <GripVertical className="h-4 w-4" />
         </button>
       )}
-      {(!task.is_owner || task.completed || isCompleting) && <div className="w-4" />}
+      {(!task.is_owner || task.completed || isCompleting) && <div className="w-4 shrink-0" />}
       
       <Checkbox
         checked={task.completed || isCompleting}
         onCheckedChange={() => onToggleComplete(task)}
-        className={cn("h-5 w-5 rounded-sm border-2", isCompleting && "task-checkbox")}
+        className={cn("h-5 w-5 shrink-0 rounded-sm border-2", isCompleting && "task-checkbox")}
         disabled={isCompleting}
       />
       
       {isEditing ? (
-        <div className="flex-1 flex items-center gap-2">
+        <div className="flex-1 flex items-center gap-2 min-w-0">
           <Input
             value={editTitle}
             onChange={(e) => onEditTitleChange(e.target.value)}
-            className="h-8"
+            className="h-8 flex-1 min-w-0"
             autoFocus
             onKeyDown={(e) => {
               if (e.key === 'Enter') onSaveEdit(task.id);
               if (e.key === 'Escape') onCancelEdit();
             }}
           />
-          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onSaveEdit(task.id)}>
+          <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => onSaveEdit(task.id)}>
             <Check className="h-4 w-4" />
           </Button>
-          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onCancelEdit}>
+          <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={onCancelEdit}>
             <X className="h-4 w-4" />
           </Button>
         </div>
       ) : (
         <>
           <span className={cn(
-            "flex-1 text-sm leading-snug",
+            "flex-1 text-sm leading-relaxed min-w-0",
             task.completed && "line-through text-muted-foreground",
             isCompleting && "task-text text-muted-foreground"
           )}>
             {task.title}
           </span>
           
-          {/* Owner indicator */}
-          <Badge variant={task.is_owner ? "default" : "secondary"} className="text-xs shrink-0">
+          {/* Owner indicator - desktop */}
+          <Badge variant={task.is_owner ? "default" : "secondary"} className="text-xs shrink-0 hidden sm:flex">
             {task.is_owner ? (
               <><User className="h-3 w-3 mr-1" />You</>
             ) : (
@@ -351,14 +345,29 @@ function SortableSharedTaskItem({
             </Popover>
           )}
           
-          <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+          {/* Desktop: show actions on hover */}
+          <div className="hidden sm:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
             {task.is_owner && (
               <>
-                <Button size="icon" variant="ghost" className="h-8 w-8 sm:h-7 sm:w-7" onClick={() => onStartEdit(task)}>
-                  <Pencil className="h-4 w-4 sm:h-3 sm:w-3" />
+                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onStartEdit(task)}>
+                  <Pencil className="h-3 w-3" />
                 </Button>
-                <Button size="icon" variant="ghost" className="h-8 w-8 sm:h-7 sm:w-7 text-destructive" onClick={() => onDelete(task.id)}>
-                  <Trash2 className="h-4 w-4 sm:h-3 sm:w-3" />
+                <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => onDelete(task.id)}>
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </>
+            )}
+          </div>
+
+          {/* Mobile: show compact actions */}
+          <div className="flex sm:hidden items-center gap-0.5 shrink-0">
+            {task.is_owner && (
+              <>
+                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => onStartEdit(task)}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => onDelete(task.id)}>
+                  <Trash2 className="h-4 w-4" />
                 </Button>
               </>
             )}
@@ -660,6 +669,57 @@ export function QuickTaskList() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Mobile category filter tabs */}
+          {isMobile && (
+            <div className="flex gap-1 p-1 bg-muted/50 rounded-lg">
+              <button
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-md text-xs font-medium transition-colors",
+                  filter === 'personal' 
+                    ? "bg-background text-foreground shadow-sm" 
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                onClick={() => {
+                  setNewTaskCategory('personal');
+                  setFilter('personal');
+                }}
+              >
+                <User className="h-3.5 w-3.5" />
+                Personal
+              </button>
+              <button
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-md text-xs font-medium transition-colors",
+                  filter === 'business' 
+                    ? "bg-background text-foreground shadow-sm" 
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                onClick={() => {
+                  setNewTaskCategory('business');
+                  setFilter('business');
+                }}
+              >
+                <Briefcase className="h-3.5 w-3.5" />
+                Business
+              </button>
+              <button
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-md text-xs font-medium transition-colors",
+                  filter === 'shared' 
+                    ? "bg-background text-foreground shadow-sm" 
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                onClick={() => {
+                  setNewTaskCategory('shared');
+                  setFilter('shared');
+                }}
+              >
+                <Share2 className="h-3.5 w-3.5" />
+                Shared
+              </button>
+            </div>
+          )}
+
           {/* Add task form - desktop only */}
           {!isMobile && (
             <div className="space-y-2">
@@ -942,7 +1002,14 @@ export function QuickTaskList() {
 
       {/* Mobile Command Bar */}
       {isMobile && (
-        <MobileCommandBar onAddTask={handleAddTask} />
+        <MobileCommandBar 
+          onAddTask={handleAddTask} 
+          currentCategory={filter}
+          onCategoryChange={(category) => {
+            setNewTaskCategory(category);
+            setFilter(category);
+          }}
+        />
       )}
     </>
   );

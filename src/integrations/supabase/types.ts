@@ -625,28 +625,49 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          consent_email: boolean | null
+          consent_sms: boolean | null
+          consent_timestamp: string | null
+          consent_whatsapp: boolean | null
           created_at: string
           display_name: string | null
           email: string | null
           id: string
+          onboarding_completed: boolean | null
+          phone_us: string | null
+          phone_whatsapp: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           avatar_url?: string | null
+          consent_email?: boolean | null
+          consent_sms?: boolean | null
+          consent_timestamp?: string | null
+          consent_whatsapp?: boolean | null
           created_at?: string
           display_name?: string | null
           email?: string | null
           id?: string
+          onboarding_completed?: boolean | null
+          phone_us?: string | null
+          phone_whatsapp?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           avatar_url?: string | null
+          consent_email?: boolean | null
+          consent_sms?: boolean | null
+          consent_timestamp?: string | null
+          consent_whatsapp?: boolean | null
           created_at?: string
           display_name?: string | null
           email?: string | null
           id?: string
+          onboarding_completed?: boolean | null
+          phone_us?: string | null
+          phone_whatsapp?: string | null
           updated_at?: string
           user_id?: string
         }

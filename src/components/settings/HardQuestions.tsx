@@ -22,7 +22,7 @@ const HARD_QUESTIONS = [
   },
   {
     key: 'sacrifice',
-    question: 'What are you willing to sacrifice to achieve your goals?',
+    question: 'What are you willing to sacrifice to achieve your goals? What are you NOT willing to sacrifice?',
   },
   {
     key: 'regret',

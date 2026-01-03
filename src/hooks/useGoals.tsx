@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
-export type GoalType = 'standard' | 'time_mastery' | 'score' | 'habit';
+export type GoalType = 'standard' | 'time_mastery' | 'habit';
 export type HabitDirection = 'start' | 'stop' | 'replace';
 
 export interface Goal {

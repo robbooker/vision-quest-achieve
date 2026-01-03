@@ -27,6 +27,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import Blog from "./pages/Blog";
 import HabitGoalsBlog from "./pages/HabitGoalsBlog";
+import ResetBlog from "./pages/ResetBlog";
 import Reset from "./pages/Reset";
 import NotFound from "./pages/NotFound";
 
@@ -67,6 +68,7 @@ const App = () => (
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/blog" element={<Blog />} />
                   <Route path="/blog/habit-goals" element={<HabitGoalsBlog />} />
+                  <Route path="/blog/reset" element={<ResetBlog />} />
                   <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                   <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                   <Route path="/today" element={<ProtectedRoute><Today /></ProtectedRoute>} />

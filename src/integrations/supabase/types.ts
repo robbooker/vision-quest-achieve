@@ -1017,6 +1017,8 @@ export type Database = {
           created_at: string | null
           id: string
           min_task_block_minutes: number | null
+          reset_active: boolean | null
+          reset_started_at: string | null
           text_size: string | null
           timezone: string | null
           updated_at: string | null
@@ -1029,6 +1031,8 @@ export type Database = {
           created_at?: string | null
           id?: string
           min_task_block_minutes?: number | null
+          reset_active?: boolean | null
+          reset_started_at?: string | null
           text_size?: string | null
           timezone?: string | null
           updated_at?: string | null
@@ -1041,6 +1045,8 @@ export type Database = {
           created_at?: string | null
           id?: string
           min_task_block_minutes?: number | null
+          reset_active?: boolean | null
+          reset_started_at?: string | null
           text_size?: string | null
           timezone?: string | null
           updated_at?: string | null

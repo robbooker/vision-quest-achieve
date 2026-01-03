@@ -18,7 +18,7 @@ export function HabitItem({ tactic, log, streak, goalTitle, onToggle }: HabitIte
   const isMultiple = tactic.target_count > 1;
 
   const handleIncrement = () => {
-    onToggle(tactic.id, Math.min(currentCount + 1, tactic.target_count));
+    onToggle(tactic.id, currentCount + 1);
   };
 
   const handleDecrement = () => {
@@ -53,7 +53,6 @@ export function HabitItem({ tactic, log, streak, goalTitle, onToggle }: HabitIte
             size="sm"
             className="h-7 w-7 p-0"
             onClick={handleIncrement}
-            disabled={isComplete}
           >
             <Plus className="h-4 w-4" />
           </Button>

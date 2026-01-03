@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Button } from '@/components/ui/button';
-import { Type, RotateCcw, Mail, Loader2 } from 'lucide-react';
+import { Type, RotateCcw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -22,7 +22,6 @@ export function DisplaySettings() {
   const { startTour } = useSiteTour();
   const [textSize, setTextSize] = useState<TextSize>('medium');
   const [loading, setLoading] = useState(true);
-  const [sendingTestEmail, setSendingTestEmail] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -81,28 +80,6 @@ export function DisplaySettings() {
     setTimeout(() => startTour(), 500);
   };
 
-  const handleTestEmail = async () => {
-    setSendingTestEmail(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('test-email');
-      
-      if (error) {
-        throw error;
-      }
-      
-      if (data?.success) {
-        toast.success('Test email sent! Check your inbox.');
-      } else {
-        throw new Error(data?.error || 'Failed to send test email');
-      }
-    } catch (error: any) {
-      console.error('Test email error:', error);
-      toast.error(error.message || 'Failed to send test email');
-    } finally {
-      setSendingTestEmail(false);
-    }
-  };
-
   return (
     <Card>
       <CardHeader>
@@ -155,26 +132,6 @@ export function DisplaySettings() {
           <Button variant="outline" onClick={handleRestartTour} className="gap-2">
             <RotateCcw className="h-4 w-4" />
             Restart Site Tour
-          </Button>
-        </div>
-
-        <div className="border-t pt-4 space-y-3">
-          <Label>Email Integration</Label>
-          <p className="text-sm text-muted-foreground">
-            Test if email notifications are working correctly.
-          </p>
-          <Button 
-            variant="outline" 
-            onClick={handleTestEmail} 
-            disabled={sendingTestEmail}
-            className="gap-2"
-          >
-            {sendingTestEmail ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Mail className="h-4 w-4" />
-            )}
-            {sendingTestEmail ? 'Sending...' : 'Send Test Email'}
           </Button>
         </div>
       </CardContent>

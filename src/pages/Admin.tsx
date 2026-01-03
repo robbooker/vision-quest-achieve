@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Users, Shield, Trash2, ShieldCheck, ShieldX } from 'lucide-react';
+import { Users, Shield, Trash2, ShieldCheck, ShieldX, Mail, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface UserProfile {
@@ -23,6 +23,7 @@ interface UserProfile {
 export default function Admin() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sendingTestEmail, setSendingTestEmail] = useState(false);
   const { toast } = useToast();
 
   const fetchUsers = async () => {
@@ -134,6 +135,33 @@ export default function Admin() {
     }
   };
 
+  const handleTestEmail = async () => {
+    setSendingTestEmail(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('test-email');
+      
+      if (error) throw error;
+      
+      if (data?.success) {
+        toast({
+          title: 'Test email sent!',
+          description: 'Check your inbox to verify it arrived.',
+        });
+      } else {
+        throw new Error(data?.error || 'Failed to send test email');
+      }
+    } catch (error: any) {
+      console.error('Test email error:', error);
+      toast({
+        title: 'Email test failed',
+        description: error.message || 'Failed to send test email',
+        variant: 'destructive',
+      });
+    } finally {
+      setSendingTestEmail(false);
+    }
+  };
+
   const adminCount = users.filter(u => u.isAdmin).length;
 
   return (
@@ -166,6 +194,28 @@ export default function Admin() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{adminCount}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Email Integration</CardTitle>
+                <Mail className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleTestEmail} 
+                  disabled={sendingTestEmail}
+                  className="gap-2"
+                >
+                  {sendingTestEmail ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Mail className="h-4 w-4" />
+                  )}
+                  {sendingTestEmail ? 'Sending...' : 'Send Test Email'}
+                </Button>
               </CardContent>
             </Card>
           </div>

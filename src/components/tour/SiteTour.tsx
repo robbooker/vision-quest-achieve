@@ -110,6 +110,9 @@ export function SiteTour({ isRunning, onEnd, stepIndex, onStepChange }: SiteTour
       onEnd(true);
     } else if (status === STATUS.SKIPPED) {
       onEnd(false);
+    } else if (action === "close") {
+      // Handle X button click
+      onEnd(false);
     } else if (type === "step:after") {
       // Advance step after user clicks Next or Back
       if (action === "next") {

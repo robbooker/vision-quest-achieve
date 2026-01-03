@@ -7,8 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Users, Shield, Trash2, ShieldCheck, ShieldX, Mail, Loader2 } from 'lucide-react';
+import { Users, Shield, Trash2, ShieldCheck, ShieldX, Mail, Loader2, Send, Megaphone } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface UserProfile {
@@ -18,12 +20,16 @@ interface UserProfile {
   display_name: string | null;
   created_at: string;
   isAdmin?: boolean;
+  consent_email?: boolean;
 }
 
 export default function Admin() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [sendingTestEmail, setSendingTestEmail] = useState(false);
+  const [sendingBroadcast, setSendingBroadcast] = useState(false);
+  const [broadcastSubject, setBroadcastSubject] = useState('');
+  const [broadcastMessage, setBroadcastMessage] = useState('');
   const { toast } = useToast();
 
   const fetchUsers = async () => {
@@ -31,6 +37,7 @@ export default function Admin() {
       // Fetch all profiles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
+        .select('*, consent_email')
         .select('*')
         .order('created_at', { ascending: true });
 
@@ -47,7 +54,12 @@ export default function Admin() {
       const adminUserIds = new Set(adminRoles?.map(r => r.user_id) || []);
 
       const usersWithRoles = (profiles || []).map(profile => ({
-        ...profile,
+        id: profile.id,
+        user_id: profile.user_id,
+        email: profile.email,
+        display_name: profile.display_name,
+        created_at: profile.created_at,
+        consent_email: profile.consent_email,
         isAdmin: adminUserIds.has(profile.user_id),
       }));
 
@@ -162,7 +174,51 @@ export default function Admin() {
     }
   };
 
+  const handleSendBroadcast = async () => {
+    if (!broadcastSubject.trim() || !broadcastMessage.trim()) {
+      toast({
+        title: 'Missing fields',
+        description: 'Please enter both subject and message',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSendingBroadcast(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-broadcast', {
+        body: {
+          subject: broadcastSubject,
+          message: broadcastMessage,
+        },
+      });
+      
+      if (error) throw error;
+      
+      if (data?.success) {
+        toast({
+          title: 'Broadcast sent!',
+          description: `Email sent to ${data.sentCount} user(s)`,
+        });
+        setBroadcastSubject('');
+        setBroadcastMessage('');
+      } else {
+        throw new Error(data?.error || 'Failed to send broadcast');
+      }
+    } catch (error: any) {
+      console.error('Broadcast error:', error);
+      toast({
+        title: 'Broadcast failed',
+        description: error.message || 'Failed to send broadcast',
+        variant: 'destructive',
+      });
+    } finally {
+      setSendingBroadcast(false);
+    }
+  };
+
   const adminCount = users.filter(u => u.isAdmin).length;
+  const emailOptInCount = users.filter(u => u.consent_email).length;
 
   return (
     <>
@@ -220,7 +276,69 @@ export default function Admin() {
             </Card>
           </div>
 
-          {/* User Management */}
+          {/* Email Broadcast */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Megaphone className="h-5 w-5" />
+                Send Broadcast Email
+              </CardTitle>
+              <CardDescription>
+                Send an email to all users who have opted in to email communications ({emailOptInCount} user{emailOptInCount !== 1 ? 's' : ''})
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Subject</label>
+                <Input
+                  placeholder="Enter email subject..."
+                  value={broadcastSubject}
+                  onChange={(e) => setBroadcastSubject(e.target.value)}
+                  disabled={sendingBroadcast}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Message</label>
+                <Textarea
+                  placeholder="Enter your message..."
+                  value={broadcastMessage}
+                  onChange={(e) => setBroadcastMessage(e.target.value)}
+                  rows={5}
+                  disabled={sendingBroadcast}
+                />
+              </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    disabled={sendingBroadcast || !broadcastSubject.trim() || !broadcastMessage.trim() || emailOptInCount === 0}
+                    className="gap-2"
+                  >
+                    {sendingBroadcast ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                    {sendingBroadcast ? 'Sending...' : `Send to ${emailOptInCount} User${emailOptInCount !== 1 ? 's' : ''}`}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Send Broadcast Email?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will send an email to {emailOptInCount} user{emailOptInCount !== 1 ? 's' : ''} who have opted in to email communications.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleSendBroadcast}>
+                      Send Email
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>User Management</CardTitle>

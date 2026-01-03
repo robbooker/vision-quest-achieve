@@ -9,24 +9,12 @@ import { toast } from 'sonner';
 
 const HARD_QUESTIONS = [
   {
-    key: 'avoiding',
-    question: 'What important thing are you avoiding right now, and why?',
+    key: 'massive_problem',
+    question: 'What is the one massive, scary problem I am avoiding, that if I finally solved it, would make all my other smaller problems disappear?',
   },
   {
-    key: 'fear',
-    question: 'What would you do if you knew you couldn\'t fail?',
-  },
-  {
-    key: 'holding_back',
-    question: 'What belief or habit is holding you back the most?',
-  },
-  {
-    key: 'sacrifice',
-    question: 'What are you willing to sacrifice to achieve your goals? What are you NOT willing to sacrifice?',
-  },
-  {
-    key: 'regret',
-    question: 'What will you regret not doing in 5 years?',
+    key: 'leverage_action',
+    question: 'What one thing, if I did it, would make everything else in my life easier?',
   },
 ];
 

@@ -919,6 +919,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_vision: {
         Row: {
           core_values: string | null
@@ -1042,10 +1063,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       is_shared_task_owner: { Args: { task_id: string }; Returns: boolean }
       is_task_shared_with_me: { Args: { task_id: string }; Returns: boolean }
     }
     Enums: {
+      app_role: "admin" | "user"
       cycle_status: "planning" | "active" | "review" | "completed"
       task_status:
         | "pending"
@@ -1180,6 +1209,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "user"],
       cycle_status: ["planning", "active", "review", "completed"],
       task_status: [
         "pending",

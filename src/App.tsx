@@ -8,6 +8,7 @@ import { ThemeProvider } from "next-themes";
 import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { AdminRoute } from "@/components/auth/AdminRoute";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { TerminalModeProvider } from "@/hooks/useTerminalMode";
 import { GlobalChatProvider } from "@/hooks/useGlobalChat";
@@ -21,6 +22,7 @@ import Today from "./pages/Today";
 import Reports from "./pages/Reports";
 import Vision from "./pages/Vision";
 import BigTen from "./pages/BigTen";
+import Admin from "./pages/Admin";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import Blog from "./pages/Blog";
@@ -68,6 +70,7 @@ const App = () => (
                   <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
                   <Route path="/vision" element={<ProtectedRoute><Vision /></ProtectedRoute>} />
                   <Route path="/big-ten" element={<ProtectedRoute><BigTen /></ProtectedRoute>} />
+                  <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
                   <Route path="/privacy" element={<PrivacyPolicy />} />
                   <Route path="/terms" element={<TermsOfService />} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

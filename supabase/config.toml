@@ -41,3 +41,9 @@ verify_jwt = false
 
 [functions.goal-help]
 verify_jwt = false
+
+[functions.test-email]
+verify_jwt = false
+
+[functions.send-broadcast]
+verify_jwt = false

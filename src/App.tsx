@@ -27,6 +27,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import Blog from "./pages/Blog";
 import HabitGoalsBlog from "./pages/HabitGoalsBlog";
+import Reset from "./pages/Reset";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -72,6 +73,7 @@ const App = () => (
                   <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
                   <Route path="/vision" element={<ProtectedRoute><Vision /></ProtectedRoute>} />
                   <Route path="/big-ten" element={<ProtectedRoute><BigTen /></ProtectedRoute>} />
+                  <Route path="/reset" element={<ProtectedRoute><Reset /></ProtectedRoute>} />
                   <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
                   <Route path="/privacy" element={<PrivacyPolicy />} />
                   <Route path="/terms" element={<TermsOfService />} />

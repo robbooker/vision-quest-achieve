@@ -91,6 +91,12 @@ const ResetBlog = () => {
               Each rule targets a fundamental pillar of human performance. There are no bonus points for exceeding the minimum. The only measure is: Did you hit all 8? Binary. Pass or fail.
             </p>
 
+            <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 my-6">
+              <p className="text-foreground/90 font-medium">
+                <strong>How It Works:</strong> When you initiate your Reset, a compact checklist banner will appear at the top of your Today page. Each day, you simply check off the rules you've completed. Your 7-day progress is visualized in real-time, and your performance is automatically tracked in your Reports.
+              </p>
+            </div>
+
             <div className="space-y-6 my-8">
               <Card className="border-primary/20">
                 <CardContent className="pt-6">
@@ -99,7 +105,7 @@ const ResetBlog = () => {
                   </h3>
                   <p className="text-sm text-muted-foreground mt-1">Metric: ±15 minutes of target time</p>
                   <p className="text-foreground/90 mt-3">
-                    Your circadian rhythm is the master clock. When you wake at random times, you signal to your body that there is no schedule. Cortisol, melatonin, and every downstream hormone falls out of sync. Consistency is the foundation.
+                    Your circadian rhythm is the master clock. <strong>You decide what time to wake up every day.</strong> Check this one as done if your feet hit the floor before that time and you do not go back to bed. Afternoon naps of less than an hour are perfectly acceptable and don't break this rule.
                   </p>
                 </CardContent>
               </Card>
@@ -111,7 +117,7 @@ const ResetBlog = () => {
                   </h3>
                   <p className="text-sm text-muted-foreground mt-1">Metric: 30 minutes intentional movement</p>
                   <p className="text-foreground/90 mt-3">
-                    Not exercise for aesthetics. Movement for neurochemistry. A 30-minute walk, a workout, yoga—anything that elevates heart rate and moves the body through space. This is non-negotiable for mood regulation and cognitive function.
+                    Not exercise for aesthetics. Movement for neurochemistry. A 30-minute walk, a workout, yoga—anything that elevates heart rate and moves the body through space. This can be split (e.g., two 15-minute sessions) as long as the total is met. This is non-negotiable for mood regulation and cognitive function.
                   </p>
                 </CardContent>
               </Card>
@@ -135,7 +141,7 @@ const ResetBlog = () => {
                   </h3>
                   <p className="text-sm text-muted-foreground mt-1">Metric: 10 pages of a book</p>
                   <p className="text-foreground/90 mt-3">
-                    Not articles. Not Twitter threads. A physical or e-book with sustained narrative or argument. Ten pages forces your brain to engage with long-form content—a muscle that atrophies quickly in the age of infinite scroll.
+                    Not articles. Not Twitter threads. A physical or e-book with sustained narrative or argument. Audiobooks count—the goal is long-form content, not the medium. Ten pages (or equivalent) forces your brain to engage with extended ideas—a muscle that atrophies quickly in the age of infinite scroll.
                   </p>
                 </CardContent>
               </Card>
@@ -147,7 +153,7 @@ const ResetBlog = () => {
                   </h3>
                   <p className="text-sm text-muted-foreground mt-1">Metric: No junk media consumption</p>
                   <p className="text-foreground/90 mt-3">
-                    Junk input creates junk output. For 7 days, ruthlessly curate what enters your mind. No doomscrolling. No rage-bait. No empty calories for the brain. If it doesn't teach, inspire, or genuinely entertain, it's out.
+                    Junk input creates junk output. For 7 days, ruthlessly curate what enters your mind. No doomscrolling, rage-bait, or empty calories for the brain. Acceptable: documentaries, quality podcasts, educational content. Not acceptable: mindless scrolling, outrage content, algorithm-fed feeds. If it doesn't teach, inspire, or genuinely entertain, it's out.
                   </p>
                 </CardContent>
               </Card>
@@ -159,7 +165,7 @@ const ResetBlog = () => {
                   </h3>
                   <p className="text-sm text-muted-foreground mt-1">Metric: In bed by target bedtime</p>
                   <p className="text-foreground/90 mt-3">
-                    Sleep is the force multiplier. Every other rule becomes harder without adequate rest. Set a bedtime. Honor it. The goal isn't a specific number of hours—it's the discipline of a consistent wind-down.
+                    Sleep is the force multiplier. <strong>You choose your target bedtime</strong>—pick a time that allows for adequate rest and honor it. The goal isn't a specific number of hours; it's the discipline of a consistent wind-down. <strong>Weekends are not different.</strong> Your circadian rhythm doesn't know it's Saturday. Seven days means seven days.
                   </p>
                 </CardContent>
               </Card>

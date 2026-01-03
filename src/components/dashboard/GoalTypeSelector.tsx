@@ -1,7 +1,8 @@
-import { Target, Clock, BarChart3 } from 'lucide-react';
+import { Target, Clock, BarChart3, Repeat, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Link } from 'react-router-dom';
 
-export type GoalType = 'standard' | 'time_mastery' | 'score';
+export type GoalType = 'standard' | 'time_mastery' | 'score' | 'habit';
 
 interface GoalTypeSelectorProps {
   onSelect: (type: GoalType) => void;
@@ -30,6 +31,14 @@ const goalTypes = [
     icon: BarChart3,
     example: 'Daily energy level, meditation quality, focus score',
   },
+  {
+    type: 'habit' as GoalType,
+    title: 'Habit-Based Goal',
+    description: 'Start, stop, or replace a habit using the Cue-Routine-Reward loop',
+    icon: Repeat,
+    example: 'Quit social media scrolling, start morning exercise',
+    learnMore: '/blog/habit-goals',
+  },
 ];
 
 export function GoalTypeSelector({ onSelect, onClose }: GoalTypeSelectorProps) {
@@ -46,28 +55,38 @@ export function GoalTypeSelector({ onSelect, onClose }: GoalTypeSelectorProps) {
         {goalTypes.map((goalType) => {
           const Icon = goalType.icon;
           return (
-            <button
-              key={goalType.type}
-              onClick={() => onSelect(goalType.type)}
-              className={cn(
-                "flex items-start gap-4 p-4 rounded-lg border text-left transition-all",
-                "hover:border-primary hover:bg-accent/50",
-                "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-              )}
-            >
-              <div className="rounded-lg bg-primary/10 p-2.5 text-primary">
-                <Icon className="h-5 w-5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="font-medium text-foreground">{goalType.title}</h4>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  {goalType.description}
-                </p>
-                <p className="text-xs text-muted-foreground/70 mt-1 italic">
-                  e.g., {goalType.example}
-                </p>
-              </div>
-            </button>
+            <div key={goalType.type} className="relative">
+              <button
+                onClick={() => onSelect(goalType.type)}
+                className={cn(
+                  "flex items-start gap-4 p-4 rounded-lg border text-left transition-all w-full",
+                  "hover:border-primary hover:bg-accent/50",
+                  "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                )}
+              >
+                <div className="rounded-lg bg-primary/10 p-2.5 text-primary">
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-medium text-foreground">{goalType.title}</h4>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    {goalType.description}
+                  </p>
+                  <p className="text-xs text-muted-foreground/70 mt-1 italic">
+                    e.g., {goalType.example}
+                  </p>
+                  {'learnMore' in goalType && goalType.learnMore && (
+                    <Link 
+                      to={goalType.learnMore} 
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-2"
+                    >
+                      Learn about this approach <ArrowRight className="h-3 w-3" />
+                    </Link>
+                  )}
+                </div>
+              </button>
+            </div>
           );
         })}
       </div>

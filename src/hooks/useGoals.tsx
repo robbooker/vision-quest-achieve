@@ -2,7 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
-export type GoalType = 'standard' | 'time_mastery' | 'score';
+export type GoalType = 'standard' | 'time_mastery' | 'score' | 'habit';
+export type HabitDirection = 'start' | 'stop' | 'replace';
 
 export interface Goal {
   id: string;
@@ -15,6 +16,17 @@ export interface Goal {
   goal_type: GoalType;
   created_at: string;
   updated_at: string;
+  // Habit-based goal fields
+  habit_direction?: HabitDirection | null;
+  habit_cue?: string | null;
+  habit_current_routine?: string | null;
+  habit_new_routine?: string | null;
+  habit_reward?: string | null;
+  habit_craving?: string | null;
+  habit_environment_change?: string | null;
+  implementation_intention?: string | null;
+  is_keystone_habit?: boolean | null;
+  accountability_partner_email?: string | null;
 }
 
 export interface CreateGoalInput {
@@ -24,6 +36,17 @@ export interface CreateGoalInput {
   target_value: number;
   why?: string;
   goal_type?: GoalType;
+  // Habit-based goal fields
+  habit_direction?: HabitDirection;
+  habit_cue?: string;
+  habit_current_routine?: string;
+  habit_new_routine?: string;
+  habit_reward?: string;
+  habit_craving?: string;
+  habit_environment_change?: string;
+  implementation_intention?: string;
+  is_keystone_habit?: boolean;
+  accountability_partner_email?: string;
 }
 
 export function useGoals(cycleId?: string) {

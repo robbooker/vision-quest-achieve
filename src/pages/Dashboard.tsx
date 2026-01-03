@@ -6,6 +6,7 @@ import { EmptyState } from '@/components/dashboard/EmptyState';
 import { CreateCycleDialog } from '@/components/dashboard/CreateCycleDialog';
 import { CreateGoalDialog } from '@/components/dashboard/CreateGoalDialog';
 import { CreateTimeMasteryGoalDialog } from '@/components/dashboard/CreateTimeMasteryGoalDialog';
+import { CreateHabitGoalDialog } from '@/components/dashboard/CreateHabitGoalDialog';
 import { GoalTypeSelector, GoalType } from '@/components/dashboard/GoalTypeSelector';
 import { MilestonePlannerDialog } from '@/components/dashboard/MilestonePlannerDialog';
 import { TacticsManagerDialog } from '@/components/dashboard/TacticsManagerDialog';
@@ -52,6 +53,7 @@ export default function Dashboard() {
   const [goalTypeSelectorOpen, setGoalTypeSelectorOpen] = useState(false);
   const [createGoalOpen, setCreateGoalOpen] = useState(false);
   const [createTimeMasteryOpen, setCreateTimeMasteryOpen] = useState(false);
+  const [createHabitOpen, setCreateHabitOpen] = useState(false);
   const [milestonePlannerGoal, setMilestonePlannerGoal] = useState<Goal | null>(null);
   const [tacticsManagerGoal, setTacticsManagerGoal] = useState<Goal | null>(null);
   
@@ -106,6 +108,8 @@ export default function Dashboard() {
     setGoalTypeSelectorOpen(false);
     if (type === 'time_mastery') {
       setCreateTimeMasteryOpen(true);
+    } else if (type === 'habit') {
+      setCreateHabitOpen(true);
     } else {
       // Standard and score goals use the standard dialog for now
       setCreateGoalOpen(true);
@@ -387,6 +391,14 @@ export default function Dashboard() {
         <CreateTimeMasteryGoalDialog
           open={createTimeMasteryOpen}
           onOpenChange={setCreateTimeMasteryOpen}
+          cycleId={activeCycle.id}
+          existingGoalsCount={goals.length}
+        />
+      )}
+      {activeCycle && (
+        <CreateHabitGoalDialog
+          open={createHabitOpen}
+          onOpenChange={setCreateHabitOpen}
           cycleId={activeCycle.id}
           existingGoalsCount={goals.length}
         />

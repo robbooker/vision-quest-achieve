@@ -367,6 +367,33 @@ export type Database = {
           },
         ]
       }
+      hard_question_answers: {
+        Row: {
+          answer: string | null
+          created_at: string
+          id: string
+          question_key: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          answer?: string | null
+          created_at?: string
+          id?: string
+          question_key: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          answer?: string | null
+          created_at?: string
+          id?: string
+          question_key?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       indicator_logs: {
         Row: {
           created_at: string

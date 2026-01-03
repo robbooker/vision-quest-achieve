@@ -122,9 +122,10 @@ export function useQuickTasks() {
     .filter(t => !t.completed)
     .sort((a, b) => a.position - b.position);
   
-  // Get completed tasks sorted by completion date (most recent first)
+  // Get completed tasks from last 24 hours, sorted by completion date (most recent first)
+  const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
   const completedTasks = (tasksQuery.data || [])
-    .filter(t => t.completed)
+    .filter(t => t.completed && t.completed_at && new Date(t.completed_at).getTime() > twentyFourHoursAgo)
     .sort((a, b) => new Date(b.completed_at || 0).getTime() - new Date(a.completed_at || 0).getTime());
 
   return {

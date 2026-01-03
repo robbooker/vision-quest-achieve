@@ -245,15 +245,15 @@ export default function Today() {
           </Button>
         </div>
 
-        {/* Daily Habits + Calendar Schedule Grid */}
+        {/* Daily Steps + Calendar Schedule Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Daily Habits Section */}
+          {/* Daily Steps Section */}
           {allTactics.length > 0 ? (
             <Card className="border-primary/20">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Repeat className="h-4 w-4 text-primary" />
-                  Daily Habits ({allTactics.filter(t => {
+                  Daily Steps ({allTactics.filter(t => {
                     const log = getLogForTactic(t.id);
                     return log && log.completed_count >= t.target_count;
                   }).length}/{allTactics.length})
@@ -279,7 +279,7 @@ export default function Today() {
             <Card className="border-dashed">
               <CardContent className="flex flex-col items-center justify-center py-8 text-center">
                 <Repeat className="h-8 w-8 text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">No daily habits set up yet</p>
+                <p className="text-sm text-muted-foreground">No daily steps set up yet</p>
               </CardContent>
             </Card>
           )}

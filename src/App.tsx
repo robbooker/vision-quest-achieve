@@ -16,6 +16,7 @@ import { ToastProvider } from "@/components/notifications/ToastProvider";
 import { NotificationListener } from "@/components/notifications/NotificationListener";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import Settings from "./pages/Settings";
 import Today from "./pages/Today";
@@ -66,6 +67,7 @@ const App = () => (
                 <Routes>
                   <Route path="/" element={<Index />} />
                   <Route path="/auth" element={<Auth />} />
+                  <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
                   <Route path="/blog" element={<Blog />} />
                   <Route path="/blog/habit-goals" element={<HabitGoalsBlog />} />
                   <Route path="/blog/reset" element={<ResetBlog />} />

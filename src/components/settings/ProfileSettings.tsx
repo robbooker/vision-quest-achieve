@@ -3,17 +3,47 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { User, Check, Loader2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Separator } from '@/components/ui/separator';
+import { User, Check, Loader2, Phone, MessageSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
+interface ProfileData {
+  display_name: string | null;
+  phone_us: string | null;
+  phone_whatsapp: string | null;
+  consent_email: boolean | null;
+  consent_sms: boolean | null;
+  consent_whatsapp: boolean | null;
+}
+
 export function ProfileSettings() {
   const { user } = useAuth();
   const [displayName, setDisplayName] = useState('');
-  const [originalName, setOriginalName] = useState('');
+  const [phoneUs, setPhoneUs] = useState('');
+  const [phoneWhatsapp, setPhoneWhatsapp] = useState('');
+  const [consentEmail, setConsentEmail] = useState(false);
+  const [consentSms, setConsentSms] = useState(false);
+  const [consentWhatsapp, setConsentWhatsapp] = useState(false);
+  
+  const [originalData, setOriginalData] = useState<ProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+
+  const formatUsPhone = (value: string) => {
+    const digits = value.replace(/\D/g, "").slice(0, 10);
+    if (digits.length === 0) return "";
+    if (digits.length <= 3) return `(${digits}`;
+    if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  };
+
+  const formatStoredPhone = (digits: string | null) => {
+    if (!digits) return '';
+    return formatUsPhone(digits);
+  };
 
   useEffect(() => {
     async function fetchProfile() {
@@ -21,7 +51,7 @@ export function ProfileSettings() {
       
       const { data, error } = await supabase
         .from('profiles')
-        .select('display_name')
+        .select('display_name, phone_us, phone_whatsapp, consent_email, consent_sms, consent_whatsapp')
         .eq('user_id', user.id)
         .single();
       
@@ -29,7 +59,12 @@ export function ProfileSettings() {
         console.error('Error fetching profile:', error);
       } else if (data) {
         setDisplayName(data.display_name || '');
-        setOriginalName(data.display_name || '');
+        setPhoneUs(formatStoredPhone(data.phone_us));
+        setPhoneWhatsapp(data.phone_whatsapp || '');
+        setConsentEmail(data.consent_email || false);
+        setConsentSms(data.consent_sms || false);
+        setConsentWhatsapp(data.consent_whatsapp || false);
+        setOriginalData(data);
       }
       setIsLoading(false);
     }
@@ -37,26 +72,57 @@ export function ProfileSettings() {
     fetchProfile();
   }, [user]);
 
+  const hasChanges = () => {
+    if (!originalData) return false;
+    const currentPhoneDigits = phoneUs.replace(/\D/g, '');
+    return (
+      displayName !== (originalData.display_name || '') ||
+      currentPhoneDigits !== (originalData.phone_us || '') ||
+      phoneWhatsapp !== (originalData.phone_whatsapp || '') ||
+      consentEmail !== (originalData.consent_email || false) ||
+      consentSms !== (originalData.consent_sms || false) ||
+      consentWhatsapp !== (originalData.consent_whatsapp || false)
+    );
+  };
+
   const handleSave = async () => {
-    if (!user || displayName === originalName) return;
+    if (!user || !hasChanges()) return;
     
     setIsSaving(true);
+    
+    const phoneUsDigits = phoneUs.replace(/\D/g, '') || null;
+    const phoneWhatsappValue = phoneWhatsapp.trim() || null;
+    const hasAnyConsent = consentEmail || consentSms || consentWhatsapp;
+    
     const { error } = await supabase
       .from('profiles')
-      .update({ display_name: displayName.trim() })
+      .update({ 
+        display_name: displayName.trim(),
+        phone_us: phoneUsDigits,
+        phone_whatsapp: phoneWhatsappValue,
+        consent_email: consentEmail,
+        consent_sms: consentSms,
+        consent_whatsapp: consentWhatsapp,
+        consent_timestamp: hasAnyConsent ? new Date().toISOString() : null,
+      })
       .eq('user_id', user.id);
     
     if (error) {
-      toast.error('Failed to update name');
+      toast.error('Failed to update profile');
       console.error('Error updating profile:', error);
     } else {
-      setOriginalName(displayName.trim());
-      toast.success('Name updated');
+      setOriginalData({
+        display_name: displayName.trim(),
+        phone_us: phoneUsDigits,
+        phone_whatsapp: phoneWhatsappValue,
+        consent_email: consentEmail,
+        consent_sms: consentSms,
+        consent_whatsapp: consentWhatsapp,
+      });
+      toast.success('Profile updated');
     }
     setIsSaving(false);
   };
-
-  const hasChanges = displayName !== originalName;
 
   return (
     <Card>
@@ -66,33 +132,23 @@ export function ProfileSettings() {
           Profile
         </CardTitle>
         <CardDescription>
-          Your display name and account information.
+          Your display name, contact info, and communication preferences.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6">
+        {/* Display Name */}
         <div className="space-y-2">
           <Label htmlFor="displayName">Display Name</Label>
           {isLoading ? (
             <div className="h-10 bg-muted animate-pulse rounded-md" />
           ) : (
-            <div className="flex gap-2">
-              <Input
-                id="displayName"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Your name"
-                className="max-w-xs"
-              />
-              {hasChanges && (
-                <Button onClick={handleSave} disabled={isSaving} size="icon">
-                  {isSaving ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Check className="h-4 w-4" />
-                  )}
-                </Button>
-              )}
-            </div>
+            <Input
+              id="displayName"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="Your name"
+              className="max-w-xs"
+            />
           )}
         </div>
         
@@ -100,6 +156,132 @@ export function ProfileSettings() {
           <Label>Email</Label>
           <p className="text-sm text-muted-foreground">{user?.email}</p>
         </div>
+
+        <Separator />
+
+        {/* Phone Numbers */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Phone className="h-4 w-4 text-primary" />
+            <Label className="text-base font-medium">Phone Numbers</Label>
+          </div>
+          
+          {isLoading ? (
+            <div className="space-y-3">
+              <div className="h-10 bg-muted animate-pulse rounded-md max-w-xs" />
+              <div className="h-10 bg-muted animate-pulse rounded-md max-w-xs" />
+            </div>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="phoneUs" className="text-sm text-muted-foreground">
+                  US Phone (for SMS reminders)
+                </Label>
+                <div className="flex items-center gap-2 max-w-xs">
+                  <span className="text-muted-foreground text-sm">+1</span>
+                  <Input
+                    id="phoneUs"
+                    value={phoneUs}
+                    onChange={(e) => setPhoneUs(formatUsPhone(e.target.value))}
+                    placeholder="(555) 123-4567"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="phoneWhatsapp" className="text-sm text-muted-foreground">
+                  WhatsApp Number (include country code)
+                </Label>
+                <Input
+                  id="phoneWhatsapp"
+                  value={phoneWhatsapp}
+                  onChange={(e) => setPhoneWhatsapp(e.target.value)}
+                  placeholder="+1 555 123 4567"
+                  className="max-w-xs"
+                />
+              </div>
+            </>
+          )}
+        </div>
+
+        <Separator />
+
+        {/* Communication Preferences */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="h-4 w-4 text-primary" />
+            <Label className="text-base font-medium">Communication Preferences</Label>
+          </div>
+          
+          {isLoading ? (
+            <div className="space-y-3">
+              <div className="h-6 bg-muted animate-pulse rounded-md w-48" />
+              <div className="h-6 bg-muted animate-pulse rounded-md w-48" />
+              <div className="h-6 bg-muted animate-pulse rounded-md w-48" />
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-start space-x-3">
+                <Checkbox
+                  id="consentEmail"
+                  checked={consentEmail}
+                  onCheckedChange={(checked) => setConsentEmail(checked === true)}
+                />
+                <label htmlFor="consentEmail" className="text-sm leading-tight cursor-pointer">
+                  <span className="font-medium">Email reminders</span>
+                  <p className="text-muted-foreground text-xs">Weekly reviews and goal updates</p>
+                </label>
+              </div>
+
+              <div className="flex items-start space-x-3">
+                <Checkbox
+                  id="consentSms"
+                  checked={consentSms}
+                  onCheckedChange={(checked) => setConsentSms(checked === true)}
+                  disabled={!phoneUs}
+                />
+                <label htmlFor="consentSms" className="text-sm leading-tight cursor-pointer">
+                  <span className="font-medium">SMS text messages</span>
+                  <p className="text-muted-foreground text-xs">
+                    {phoneUs ? "Quick reminders to your phone" : "Add a US phone number to enable"}
+                  </p>
+                </label>
+              </div>
+
+              <div className="flex items-start space-x-3">
+                <Checkbox
+                  id="consentWhatsapp"
+                  checked={consentWhatsapp}
+                  onCheckedChange={(checked) => setConsentWhatsapp(checked === true)}
+                  disabled={!phoneWhatsapp}
+                />
+                <label htmlFor="consentWhatsapp" className="text-sm leading-tight cursor-pointer">
+                  <span className="font-medium">WhatsApp messages</span>
+                  <p className="text-muted-foreground text-xs">
+                    {phoneWhatsapp ? "Reminders via WhatsApp" : "Add a WhatsApp number to enable"}
+                  </p>
+                </label>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Save Button */}
+        {hasChanges() && (
+          <Button onClick={handleSave} disabled={isSaving} className="mt-4">
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Check className="mr-2 h-4 w-4" />
+                Save Changes
+              </>
+            )}
+          </Button>
+        )}
       </CardContent>
     </Card>
   );

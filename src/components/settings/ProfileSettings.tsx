@@ -324,7 +324,8 @@ export function ProfileSettings() {
                     if (!user) return;
                     setIsDeleting(true);
                     try {
-                      const { error } = await supabase.rpc('delete_user_account');
+                      // Use type assertion since the function was just created and types haven't been regenerated
+                      const { error } = await (supabase.rpc as any)('delete_user_account');
                       if (error) throw error;
                       toast.success('Account deleted successfully');
                       await signOut();

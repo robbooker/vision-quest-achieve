@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ChevronLeft, ChevronRight, Flame, Link2 } from 'lucide-react';
-import { format, addMonths, subMonths, startOfMonth, getDay, isSameDay, isFuture } from 'date-fns';
+import { format, addMonths, subMonths, startOfMonth, getDay, isSameDay, isFuture, isBefore, startOfDay } from 'date-fns';
 import { useHabitChainData, GoalHabitChain, HabitDayStatus } from '@/hooks/useHabitChainData';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -100,6 +100,9 @@ function GoalChainCard({ chain, streak }: GoalChainCardProps) {
   const monthStart = startOfMonth(chain.days[0]?.date || new Date());
   const firstDayOfWeek = getDay(monthStart);
   
+  // Get the date the goal was created (start of that day for comparison)
+  const goalStartDate = startOfDay(chain.goalCreatedAt);
+  
   // Pad the beginning with empty cells
   const paddedDays: (HabitDayStatus | null)[] = [
     ...Array(firstDayOfWeek).fill(null),
@@ -149,6 +152,7 @@ function GoalChainCard({ chain, streak }: GoalChainCardProps) {
               day={day}
               isToday={day ? isSameDay(day.date, today) : false}
               isFutureDay={day ? isFuture(day.date) : false}
+              isBeforeGoal={day ? isBefore(startOfDay(day.date), goalStartDate) : false}
               tacticCount={chain.tactics.length}
             />
           ))}
@@ -178,15 +182,32 @@ interface DayCellProps {
   day: HabitDayStatus | null;
   isToday: boolean;
   isFutureDay: boolean;
+  isBeforeGoal: boolean;
   tacticCount: number;
 }
 
-function DayCell({ day, isToday, isFutureDay, tacticCount }: DayCellProps) {
+function DayCell({ day, isToday, isFutureDay, isBeforeGoal, tacticCount }: DayCellProps) {
   if (!day) {
     return <div className="aspect-square" />;
   }
 
   const dayNumber = format(day.date, 'd');
+
+  // For days before the goal was created, show neutral gray (not penalized)
+  if (isBeforeGoal) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="aspect-square rounded-sm bg-muted/50 flex items-center justify-center">
+            <span className="text-[10px] text-muted-foreground/50">{dayNumber}</span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p className="text-xs">{format(day.date, 'MMM d')} - Goal not yet created</p>
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
 
   // For future days, show neutral
   if (isFutureDay && !isToday) {

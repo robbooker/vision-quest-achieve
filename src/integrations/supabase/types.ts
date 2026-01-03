@@ -718,6 +718,57 @@ export type Database = {
         }
         Relationships: []
       }
+      reset_audits: {
+        Row: {
+          audit_date: string
+          created_at: string
+          id: string
+          post_op_note: string | null
+          rule_fuel: boolean
+          rule_input: boolean
+          rule_move: boolean
+          rule_read: boolean
+          rule_reset: boolean
+          rule_sleep: boolean
+          rule_wake: boolean
+          rule_work: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          audit_date: string
+          created_at?: string
+          id?: string
+          post_op_note?: string | null
+          rule_fuel?: boolean
+          rule_input?: boolean
+          rule_move?: boolean
+          rule_read?: boolean
+          rule_reset?: boolean
+          rule_sleep?: boolean
+          rule_wake?: boolean
+          rule_work?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          audit_date?: string
+          created_at?: string
+          id?: string
+          post_op_note?: string | null
+          rule_fuel?: boolean
+          rule_input?: boolean
+          rule_move?: boolean
+          rule_read?: boolean
+          rule_reset?: boolean
+          rule_sleep?: boolean
+          rule_wake?: boolean
+          rule_work?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       scheduled_notifications: {
         Row: {
           created_at: string | null

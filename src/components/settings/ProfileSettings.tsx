@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
-import { User, Check, Loader2, Phone, MessageSquare } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { User, Check, Loader2, Phone, MessageSquare, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -20,7 +21,7 @@ interface ProfileData {
 }
 
 export function ProfileSettings() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const [displayName, setDisplayName] = useState('');
   const [phoneUs, setPhoneUs] = useState('');
   const [phoneWhatsapp, setPhoneWhatsapp] = useState('');
@@ -31,6 +32,7 @@ export function ProfileSettings() {
   const [originalData, setOriginalData] = useState<ProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const formatUsPhone = (value: string) => {
     const digits = value.replace(/\D/g, "").slice(0, 10);
@@ -282,6 +284,64 @@ export function ProfileSettings() {
             )}
           </Button>
         )}
+
+        <Separator className="mt-6" />
+
+        {/* Delete Account */}
+        <div className="space-y-2 pt-4">
+          <Label className="text-destructive font-medium">Danger Zone</Label>
+          <p className="text-sm text-muted-foreground">
+            Permanently delete your account and all associated data.
+          </p>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" disabled={isDeleting}>
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Account
+                  </>
+                )}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete your account
+                  and remove all your data including goals, cycles, tasks, and preferences.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={async () => {
+                    if (!user) return;
+                    setIsDeleting(true);
+                    try {
+                      const { error } = await supabase.rpc('delete_user_account');
+                      if (error) throw error;
+                      toast.success('Account deleted successfully');
+                      await signOut();
+                    } catch (error) {
+                      console.error('Error deleting account:', error);
+                      toast.error('Failed to delete account');
+                      setIsDeleting(false);
+                    }
+                  }}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Delete Account
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </CardContent>
     </Card>
   );

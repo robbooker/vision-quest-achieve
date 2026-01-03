@@ -21,6 +21,7 @@ export interface HabitDayStatus {
 export interface GoalHabitChain {
   goalId: string;
   goalTitle: string;
+  goalCreatedAt: Date;
   tactics: {
     id: string;
     title: string;
@@ -52,7 +53,8 @@ export function useHabitChainData(month: Date = new Date()) {
           is_active,
           goals!inner (
             id,
-            title
+            title,
+            created_at
           )
         `)
         .eq('is_active', true)
@@ -92,15 +94,17 @@ export function useHabitChainData(month: Date = new Date()) {
     const goalMap = new Map<string, {
       goalId: string;
       goalTitle: string;
+      goalCreatedAt: Date;
       tactics: typeof tactics;
     }>();
 
     tactics.forEach(tactic => {
-      const goal = tactic.goals as { id: string; title: string };
+      const goal = tactic.goals as { id: string; title: string; created_at: string };
       if (!goalMap.has(goal.id)) {
         goalMap.set(goal.id, {
           goalId: goal.id,
           goalTitle: goal.title,
+          goalCreatedAt: new Date(goal.created_at),
           tactics: [],
         });
       }
@@ -108,7 +112,7 @@ export function useHabitChainData(month: Date = new Date()) {
     });
 
     // Build chains for each goal
-    return Array.from(goalMap.values()).map(({ goalId, goalTitle, tactics: goalTactics }) => {
+    return Array.from(goalMap.values()).map(({ goalId, goalTitle, goalCreatedAt, tactics: goalTactics }) => {
       const dayStatuses: HabitDayStatus[] = days.map(date => {
         const dateString = format(date, 'yyyy-MM-dd');
         
@@ -143,6 +147,7 @@ export function useHabitChainData(month: Date = new Date()) {
       return {
         goalId,
         goalTitle,
+        goalCreatedAt,
         tactics: goalTactics.map(t => ({
           id: t.id,
           title: t.title,

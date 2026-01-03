@@ -361,10 +361,20 @@ export type Database = {
       goals: {
         Row: {
           accountability_partner: string | null
+          accountability_partner_email: string | null
           created_at: string
           cycle_id: string
           goal_type: string
+          habit_craving: string | null
+          habit_cue: string | null
+          habit_current_routine: string | null
+          habit_direction: string | null
+          habit_environment_change: string | null
+          habit_new_routine: string | null
+          habit_reward: string | null
           id: string
+          implementation_intention: string | null
+          is_keystone_habit: boolean | null
           metric_type: string
           obstacles: string | null
           strategies: string | null
@@ -377,10 +387,20 @@ export type Database = {
         }
         Insert: {
           accountability_partner?: string | null
+          accountability_partner_email?: string | null
           created_at?: string
           cycle_id: string
           goal_type?: string
+          habit_craving?: string | null
+          habit_cue?: string | null
+          habit_current_routine?: string | null
+          habit_direction?: string | null
+          habit_environment_change?: string | null
+          habit_new_routine?: string | null
+          habit_reward?: string | null
           id?: string
+          implementation_intention?: string | null
+          is_keystone_habit?: boolean | null
           metric_type: string
           obstacles?: string | null
           strategies?: string | null
@@ -393,10 +413,20 @@ export type Database = {
         }
         Update: {
           accountability_partner?: string | null
+          accountability_partner_email?: string | null
           created_at?: string
           cycle_id?: string
           goal_type?: string
+          habit_craving?: string | null
+          habit_cue?: string | null
+          habit_current_routine?: string | null
+          habit_direction?: string | null
+          habit_environment_change?: string | null
+          habit_new_routine?: string | null
+          habit_reward?: string | null
           id?: string
+          implementation_intention?: string | null
+          is_keystone_habit?: boolean | null
           metric_type?: string
           obstacles?: string | null
           strategies?: string | null

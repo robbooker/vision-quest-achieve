@@ -1,6 +1,6 @@
 import { Goal } from '@/hooks/useGoals';
 import { Badge } from '@/components/ui/badge';
-import { Target, MoreVertical, Trash2, Edit, CalendarCheck, Zap, Clock } from 'lucide-react';
+import { Target, MoreVertical, Trash2, Edit, CalendarCheck, Zap, Clock, Repeat, Star, Play, StopCircle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,9 +35,25 @@ export function GoalCard({ goal, index, onEdit, onDelete, onPlanMilestones, onMa
   const { schedules, isLoading: schedulesLoading } = useGoalSchedules(goal.id);
   
   const isTimeMastery = goal.goal_type === 'time_mastery';
+  const isHabit = goal.goal_type === 'habit';
   // Support both old 12-week cycles and new 6-week cycles
   const hasMilestones = milestones.length >= 6 || (isTimeMastery && milestones.length >= 3);
   const activeTactics = tactics.filter(t => t.is_active);
+
+  const getGoalIcon = () => {
+    if (isTimeMastery) return Clock;
+    if (isHabit) return Repeat;
+    return Target;
+  };
+
+  const getHabitDirectionIcon = () => {
+    if (goal.habit_direction === 'start') return Play;
+    if (goal.habit_direction === 'stop') return StopCircle;
+    return Repeat;
+  };
+
+  const GoalIcon = getGoalIcon();
+  const HabitDirectionIcon = getHabitDirectionIcon();
 
   return (
     <div className="goal-card relative">
@@ -81,16 +97,28 @@ export function GoalCard({ goal, index, onEdit, onDelete, onPlanMilestones, onMa
       </div>
 
       {/* Header with icon */}
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
         <div className="rounded p-1.5 bg-accent/20 text-accent">
-          {isTimeMastery ? <Clock className="h-4 w-4" /> : <Target className="h-4 w-4" />}
+          <GoalIcon className="h-4 w-4" />
         </div>
         {isTimeMastery && (
           <Badge variant="outline" className="text-xs uppercase tracking-wide border-primary/50 text-primary">
             Time-Mastery
           </Badge>
         )}
-        {!isLoading && (
+        {isHabit && (
+          <Badge variant="outline" className="text-xs uppercase tracking-wide border-amber-500/50 text-amber-600 dark:text-amber-400 gap-1">
+            <HabitDirectionIcon className="h-3 w-3" />
+            {goal.habit_direction?.toUpperCase()}
+          </Badge>
+        )}
+        {isHabit && goal.is_keystone_habit && (
+          <Badge variant="outline" className="text-xs uppercase tracking-wide border-amber-500/50 text-amber-500 gap-1">
+            <Star className="h-3 w-3" />
+            Keystone
+          </Badge>
+        )}
+        {!isLoading && !isHabit && (
           <Badge variant={hasMilestones ? 'default' : 'secondary'} className="text-xs uppercase tracking-wide">
             {hasMilestones ? 'Planned' : 'Not planned'}
           </Badge>
@@ -146,7 +174,24 @@ export function GoalCard({ goal, index, onEdit, onDelete, onPlanMilestones, onMa
         </div>
       )}
 
-      {!hasMilestones && !isLoading && onPlanMilestones && !isTimeMastery && (
+      {/* Habit-based goal loop display */}
+      {isHabit && (goal.habit_cue || goal.habit_new_routine || goal.habit_reward) && (
+        <div className="space-y-2 mb-4 text-sm">
+          {goal.habit_cue && (
+            <div className="flex items-start gap-2">
+              <span className="text-xs text-muted-foreground uppercase shrink-0">Cue:</span>
+              <span className="text-foreground">{goal.habit_cue.length > 50 ? goal.habit_cue.slice(0, 50) + '...' : goal.habit_cue}</span>
+            </div>
+          )}
+          {goal.implementation_intention && (
+            <div className="rounded bg-primary/10 p-2 text-xs italic text-muted-foreground">
+              "{goal.implementation_intention}"
+            </div>
+          )}
+        </div>
+      )}
+
+      {!hasMilestones && !isLoading && onPlanMilestones && !isTimeMastery && !isHabit && (
         <Button 
           variant="outline" 
           size="sm" 

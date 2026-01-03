@@ -75,7 +75,8 @@ export default function Onboarding() {
     
     const { error } = await supabase
       .from("profiles")
-      .update({
+      .upsert({
+        user_id: user.id,
         display_name: displayName.trim(),
         phone_us: phoneUs.replace(/\D/g, "") || null,
         phone_whatsapp: phoneWhatsapp.trim() || null,
@@ -84,8 +85,7 @@ export default function Onboarding() {
         consent_whatsapp: consentWhatsapp,
         consent_timestamp: hasAnyConsent ? new Date().toISOString() : null,
         onboarding_completed: true,
-      })
-      .eq("user_id", user.id);
+      }, { onConflict: "user_id" });
 
     setIsSaving(false);
 

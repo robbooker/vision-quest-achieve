@@ -9,9 +9,11 @@ import { useGoals } from '@/hooks/useGoals';
 import { useDailyTactics } from '@/hooks/useDailyTactics';
 import { useTacticLogs } from '@/hooks/useTacticLogs';
 import { useTodaySchedules } from '@/hooks/useGoalSchedules';
+import { useResetPreference } from '@/hooks/useResetPreference';
 import { HabitItem } from '@/components/dashboard/HabitItem';
 import { DailyScoreLogger } from '@/components/dashboard/DailyScoreLogger';
 import { QuickTaskList } from '@/components/dashboard/QuickTaskList';
+import { CompactResetCard } from '@/components/reset/CompactResetCard';
 
 import { TodaySchedule, CalendarEventData } from '@/components/dashboard/TodaySchedule';
 import { AddCalendarEventDialog } from '@/components/dashboard/AddCalendarEventDialog';
@@ -52,6 +54,9 @@ export default function Today() {
   
   const { goals } = useGoals(activeCycle?.id);
   const { toast } = useToast();
+  
+  // Reset preference
+  const { isResetActive } = useResetPreference();
 
   // Calendar integration
   const { isConnected, isLoading: calendarConnecting, connect } = useCalendarConnection();
@@ -335,6 +340,9 @@ export default function Today() {
             Add Task
           </Button>
         </div>
+
+        {/* Compact Reset Card - when reset is active */}
+        {isResetActive && <CompactResetCard />}
 
         {/* Daily Steps + Calendar Schedule Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

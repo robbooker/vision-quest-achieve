@@ -1,28 +1,41 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { useTerminalMode } from '@/hooks/useTerminalMode';
 import { useResetAudits } from '@/hooks/useResetAudits';
+import { useResetPreference } from '@/hooks/useResetPreference';
 import { AuditStrip } from '@/components/reset/AuditStrip';
 import { DailyAuditChecklist } from '@/components/reset/DailyAuditChecklist';
 import { PhaseIndicator } from '@/components/reset/PhaseIndicator';
 import { cn } from '@/lib/utils';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, BookOpen, X } from 'lucide-react';
 
 export default function Reset() {
   const { isTerminal } = useTerminalMode();
   const { 
     audits, 
     todayAudit, 
-    isLoading, 
     getScore, 
     getCurrentPhase, 
     toggleRule, 
     updateNote 
   } = useResetAudits();
+  const { isResetActive, startReset, endReset, isLoading: prefLoading } = useResetPreference();
 
   const [note, setNote] = useState('');
   const [noteSaved, setNoteSaved] = useState(false);
@@ -46,6 +59,82 @@ export default function Reset() {
   const phase = getCurrentPhase();
   const todayScore = getScore(todayAudit);
 
+  // Opt-in screen when reset is not active
+  if (!prefLoading && !isResetActive) {
+    return (
+      <DashboardLayout>
+        <Helmet>
+          <title>7-Day Reset | GP 🌸</title>
+          <meta name="description" content="The 7-Day Reset - A system stabilization protocol for pure reliability." />
+        </Helmet>
+
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Card className={cn(
+            "max-w-md w-full",
+            isTerminal && "border-[hsl(0,0%,20%)] rounded-none"
+          )}>
+            <CardHeader className="text-center pb-4">
+              <div className="flex justify-center mb-4">
+                <div className={cn(
+                  "w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center",
+                  isTerminal && "rounded-none"
+                )}>
+                  <RotateCcw className="h-8 w-8 text-primary" />
+                </div>
+              </div>
+              <CardTitle className={cn(
+                "text-2xl",
+                isTerminal && "font-mono text-[hsl(34,100%,58%)]"
+              )}>
+                {isTerminal ? 'INITIATE 7-DAY RESET' : 'The 7-Day Reset'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <p className="text-center text-muted-foreground">
+                A system stabilization protocol for pure reliability. 8 rules. 7 days. No negotiation.
+              </p>
+              
+              <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground space-y-2">
+                <p><strong>01.</strong> WAKE — ±15 min target</p>
+                <p><strong>02.</strong> MOVE — 30m intentional</p>
+                <p><strong>03.</strong> WORK — 45m focused</p>
+                <p><strong>04.</strong> READ — 10 pages</p>
+                <p><strong>05.</strong> INPUT — No junk</p>
+                <p><strong>06.</strong> SLEEP — Target bedtime</p>
+                <p><strong>07.</strong> FUEL — 3 meals / protein</p>
+                <p><strong>08.</strong> RESET — 0 sugar / 0 alc</p>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <Button 
+                  size="lg" 
+                  onClick={() => startReset.mutate()}
+                  disabled={startReset.isPending}
+                  className={cn("w-full", isTerminal && "rounded-none")}
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  {startReset.isPending ? 'Starting...' : 'Initiate Reset'}
+                </Button>
+                
+                <Link to="/blog/reset" className="w-full">
+                  <Button 
+                    variant="outline" 
+                    size="lg" 
+                    className={cn("w-full", isTerminal && "rounded-none")}
+                  >
+                    <BookOpen className="h-4 w-4 mr-2" />
+                    Learn More
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Active reset view
   return (
     <DashboardLayout>
       <Helmet>
@@ -70,6 +159,37 @@ export default function Reset() {
               ? 'OPERATIONAL AUDIT • 8/8 OR THE DAY DOESN\'T COUNT'
               : 'System stabilization protocol. 8/8 or the day doesn\'t count.'}
           </p>
+          
+          {/* Exit Reset button */}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-muted-foreground hover:text-destructive"
+              >
+                <X className="h-4 w-4 mr-1" />
+                Exit Reset
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Exit the 7-Day Reset?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Your progress will be saved, but the Reset will no longer appear on your Today page. You can restart anytime.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Continue Reset</AlertDialogCancel>
+                <AlertDialogAction 
+                  onClick={() => endReset.mutate()}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Exit Reset
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
 
         {/* Phase Indicator */}

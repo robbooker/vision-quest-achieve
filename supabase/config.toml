@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.extract-goal]
 verify_jwt = false
+
+[functions.goal-help]
+verify_jwt = false

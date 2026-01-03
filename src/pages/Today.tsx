@@ -3,10 +3,12 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 import { useCycles } from '@/hooks/useCycles';
 import { useGoals } from '@/hooks/useGoals';
 import { useDailyTactics } from '@/hooks/useDailyTactics';
 import { useTacticLogs } from '@/hooks/useTacticLogs';
+import { useTodaySchedules } from '@/hooks/useGoalSchedules';
 import { HabitItem } from '@/components/dashboard/HabitItem';
 import { DailyScoreLogger } from '@/components/dashboard/DailyScoreLogger';
 import { QuickTaskList } from '@/components/dashboard/QuickTaskList';
@@ -21,7 +23,10 @@ import { format, startOfDay, endOfDay } from 'date-fns';
 import { 
   Plus,
   Calendar,
-  Repeat
+  Repeat,
+  Clock,
+  CheckCircle2,
+  Circle
 } from 'lucide-react';
 import {
   Dialog,
@@ -65,8 +70,30 @@ export default function Today() {
   const goalIds = useMemo(() => goals.map(g => g.id), [goals]);
   const { data: allTactics = [] } = useDailyTactics(goalIds);
   
+  // Get today's scheduled practice blocks (time-mastery goals)
+  const { data: todaySchedules = [], isLoading: schedulesLoading } = useTodaySchedules();
+  
   // Get today's tactic logs
   const { logs, upsertLog, getLogForTactic, getStreak } = useTacticLogs();
+  
+  // State for time-mastery practice completion (stored per-schedule in localStorage for now)
+  const [practiceCompleted, setPracticeCompleted] = useState<Record<string, boolean>>(() => {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const stored = localStorage.getItem(`practice_${today}`);
+    return stored ? JSON.parse(stored) : {};
+  });
+
+  const handlePracticeToggle = (scheduleId: string) => {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const newState = { ...practiceCompleted, [scheduleId]: !practiceCompleted[scheduleId] };
+    setPracticeCompleted(newState);
+    localStorage.setItem(`practice_${today}`, JSON.stringify(newState));
+    
+    const schedule = todaySchedules.find((s: any) => s.id === scheduleId);
+    if (newState[scheduleId] && schedule?.goals?.title) {
+      toast({ title: 'Practice session complete!', description: schedule.goals.title });
+    }
+  };
 
   const [addTaskOpen, setAddTaskOpen] = useState(false);
   const [addCalendarEventOpen, setAddCalendarEventOpen] = useState(false);
@@ -312,18 +339,63 @@ export default function Today() {
         {/* Daily Steps + Calendar Schedule Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Daily Steps Section */}
-          {allTactics.length > 0 ? (
+          {(allTactics.length > 0 || todaySchedules.length > 0) ? (
             <Card className="border-primary/20">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Repeat className="h-4 w-4 text-primary" />
-                  Daily Steps ({allTactics.filter(t => {
-                    const log = getLogForTactic(t.id);
-                    return log && log.completed_count >= t.target_count;
-                  }).length}/{allTactics.length})
+                  Daily Steps
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="space-y-3">
+                {/* Time-Mastery Practice Blocks */}
+                {!schedulesLoading && todaySchedules.length > 0 && (
+                  <div className="space-y-2">
+                    {todaySchedules.map((schedule: any) => {
+                      const isComplete = practiceCompleted[schedule.id];
+                      return (
+                        <div 
+                          key={schedule.id}
+                          className={`flex items-center gap-3 p-3 rounded-lg border ${
+                            isComplete ? 'bg-green-500/10 border-green-500/30' : 'bg-card hover:bg-muted/50'
+                          } transition-colors`}
+                        >
+                          <button
+                            onClick={() => handlePracticeToggle(schedule.id)}
+                            className="flex-shrink-0"
+                          >
+                            {isComplete ? (
+                              <CheckCircle2 className="h-5 w-5 text-green-500" />
+                            ) : (
+                              <Circle className="h-5 w-5 text-muted-foreground hover:text-primary" />
+                            )}
+                          </button>
+                          <div className="flex-1 min-w-0">
+                            <p className={`font-medium text-sm ${isComplete ? 'text-green-700 dark:text-green-400' : ''}`}>
+                              {schedule.duration_minutes} min practice
+                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge variant="outline" className="text-xs border-primary/50 text-primary">
+                                <Clock className="h-3 w-3 mr-1" />
+                                Time-Mastery
+                              </Badge>
+                              <Badge variant="secondary" className="text-xs">
+                                {schedule.goals?.title || 'Goal'}
+                              </Badge>
+                            </div>
+                          </div>
+                          {schedule.start_time && (
+                            <span className="text-xs text-muted-foreground">
+                              {schedule.start_time.slice(0, 5)}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Regular Daily Tactics */}
                 {allTactics.map(tactic => {
                   const goal = goals.find(g => g.id === tactic.goal_id);
                   return (

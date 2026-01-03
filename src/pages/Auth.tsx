@@ -20,7 +20,7 @@ const authSchema = z.object({
 });
 
 export default function Auth() {
-  const { user, signInWithGoogle, signInWithEmail, signUpWithEmail, loading } = useAuth();
+  const { user, signInWithGoogle, signInWithEmail, signUpWithEmail, resetPassword, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -30,6 +30,7 @@ export default function Auth() {
     return localStorage.getItem('rememberMe') === 'true';
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
 
   useEffect(() => {
     if (user && !loading) {
@@ -65,6 +66,45 @@ export default function Auth() {
           : error.message,
         variant: 'destructive',
       });
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!email) {
+      toast({
+        title: 'Email Required',
+        description: 'Please enter your email address to reset your password.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const emailValidation = z.string().email().safeParse(email);
+    if (!emailValidation.success) {
+      toast({
+        title: 'Invalid Email',
+        description: 'Please enter a valid email address.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    const { error } = await resetPassword(email);
+    setIsSubmitting(false);
+
+    if (error) {
+      toast({
+        title: 'Reset Failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Check Your Email',
+        description: 'We sent you a password reset link. Check your inbox!',
+      });
+      setShowResetPassword(false);
     }
   };
 
@@ -279,15 +319,24 @@ export default function Auth() {
                     onChange={(e) => setPassword(e.target.value)}
                   />
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox 
-                    id="remember-me" 
-                    checked={rememberMe}
-                    onCheckedChange={handleRememberMeChange}
-                  />
-                  <Label htmlFor="remember-me" className="text-sm text-muted-foreground cursor-pointer">
-                    Keep me signed in for 30 days
-                  </Label>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="remember-me" 
+                      checked={rememberMe}
+                      onCheckedChange={handleRememberMeChange}
+                    />
+                    <Label htmlFor="remember-me" className="text-sm text-muted-foreground cursor-pointer">
+                      Keep me signed in for 30 days
+                    </Label>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowResetPassword(true)}
+                    className="text-sm text-primary hover:underline"
+                  >
+                    Forgot password?
+                  </button>
                 </div>
                 <Button 
                   className="w-full" 
@@ -328,6 +377,48 @@ export default function Auth() {
                 </Button>
               </TabsContent>
             </Tabs>
+
+            {/* Password Reset Modal */}
+            {showResetPassword && (
+              <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
+                <Card className="w-full max-w-md mx-4">
+                  <CardHeader>
+                    <CardTitle>Reset Password</CardTitle>
+                    <CardDescription>
+                      Enter your email address and we'll send you a link to reset your password.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="reset-email">Email</Label>
+                      <Input
+                        id="reset-email"
+                        type="email"
+                        placeholder="you@example.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => setShowResetPassword(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        className="flex-1"
+                        onClick={handleResetPassword}
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? 'Sending...' : 'Send Reset Link'}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </CardContent>
         </Card>
         </div>

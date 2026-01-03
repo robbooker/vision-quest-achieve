@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Type } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Type, RotateCcw, Mail, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { useSiteTour } from '@/hooks/useSiteTour';
 
 type TextSize = 'small' | 'medium' | 'large';
 
@@ -17,8 +19,10 @@ const TEXT_SIZE_CLASSES: Record<TextSize, string> = {
 
 export function DisplaySettings() {
   const { user } = useAuth();
+  const { startTour } = useSiteTour();
   const [textSize, setTextSize] = useState<TextSize>('medium');
   const [loading, setLoading] = useState(true);
+  const [sendingTestEmail, setSendingTestEmail] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -69,6 +73,36 @@ export function DisplaySettings() {
     }
   };
 
+  const handleRestartTour = () => {
+    // Clear the tour completed flag
+    localStorage.removeItem('groovy-planning-tour-completed');
+    toast.success('Tour reset! Navigate to any page to start the tour.');
+    // Start tour immediately if on a supported page
+    setTimeout(() => startTour(), 500);
+  };
+
+  const handleTestEmail = async () => {
+    setSendingTestEmail(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('test-email');
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (data?.success) {
+        toast.success('Test email sent! Check your inbox.');
+      } else {
+        throw new Error(data?.error || 'Failed to send test email');
+      }
+    } catch (error: any) {
+      console.error('Test email error:', error);
+      toast.error(error.message || 'Failed to send test email');
+    } finally {
+      setSendingTestEmail(false);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -111,6 +145,37 @@ export function DisplaySettings() {
           <p className={`text-muted-foreground ${TEXT_SIZE_CLASSES[textSize]}`}>
             Preview: This is how your text will appear.
           </p>
+        </div>
+
+        <div className="border-t pt-4 space-y-3">
+          <Label>Toasty's Site Tour</Label>
+          <p className="text-sm text-muted-foreground">
+            Want to see Toasty's guided tour of the app again?
+          </p>
+          <Button variant="outline" onClick={handleRestartTour} className="gap-2">
+            <RotateCcw className="h-4 w-4" />
+            Restart Site Tour
+          </Button>
+        </div>
+
+        <div className="border-t pt-4 space-y-3">
+          <Label>Email Integration</Label>
+          <p className="text-sm text-muted-foreground">
+            Test if email notifications are working correctly.
+          </p>
+          <Button 
+            variant="outline" 
+            onClick={handleTestEmail} 
+            disabled={sendingTestEmail}
+            className="gap-2"
+          >
+            {sendingTestEmail ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Mail className="h-4 w-4" />
+            )}
+            {sendingTestEmail ? 'Sending...' : 'Send Test Email'}
+          </Button>
         </div>
       </CardContent>
     </Card>

@@ -49,10 +49,15 @@ export default function Today() {
 
   // Calendar integration
   const { isConnected, isLoading: calendarConnecting, connect } = useCalendarConnection();
+  const [showTomorrow, setShowTomorrow] = useState(false);
   const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const selectedDate = showTomorrow ? tomorrow : today;
+  
   const { events: calendarEvents, isLoading: eventsLoading, refetch: refetchEvents } = useCalendarEvents(
-    startOfDay(today).toISOString(),
-    endOfDay(today).toISOString()
+    startOfDay(selectedDate).toISOString(),
+    endOfDay(selectedDate).toISOString()
   );
 
   // Get all daily tactics for goals in this cycle
@@ -279,13 +284,15 @@ export default function Today() {
             </Card>
           )}
 
-          {/* Today's Schedule */}
+          {/* Today's/Tomorrow's Schedule */}
           <TodaySchedule
             events={calendarEvents}
             isLoading={eventsLoading || calendarConnecting}
             isConnected={isConnected}
             onConnect={connect}
             onAddEvent={isConnected ? () => setAddCalendarEventOpen(true) : undefined}
+            showTomorrow={showTomorrow}
+            onToggleDay={() => setShowTomorrow(!showTomorrow)}
           />
         </div>
 

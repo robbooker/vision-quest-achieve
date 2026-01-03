@@ -19,16 +19,20 @@ interface TodayScheduleProps {
   isConnected: boolean;
   onConnect: () => void;
   onAddEvent?: () => void;
+  showTomorrow?: boolean;
+  onToggleDay?: () => void;
 }
 
-export function TodaySchedule({ events, isLoading, isConnected, onConnect, onAddEvent }: TodayScheduleProps) {
+export function TodaySchedule({ events, isLoading, isConnected, onConnect, onAddEvent, showTomorrow = false, onToggleDay }: TodayScheduleProps) {
+  const scheduleLabel = showTomorrow ? "Tomorrow's Schedule" : "Today's Schedule";
+  
   if (!isConnected) {
     return (
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-medium flex items-center gap-2">
             <Calendar className="h-4 w-4" />
-            Today's Schedule
+            {scheduleLabel}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -51,7 +55,7 @@ export function TodaySchedule({ events, isLoading, isConnected, onConnect, onAdd
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-medium flex items-center gap-2">
             <Calendar className="h-4 w-4" />
-            Today's Schedule
+            {scheduleLabel}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -79,20 +83,29 @@ export function TodaySchedule({ events, isLoading, isConnected, onConnect, onAdd
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-medium flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            Today's Schedule
-            {events.length > 0 && (
-              <span className="text-xs text-muted-foreground font-normal">
-                ({events.length} event{events.length !== 1 ? 's' : ''})
-              </span>
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-base font-medium flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              {scheduleLabel}
+              {events.length > 0 && (
+                <span className="text-xs text-muted-foreground font-normal">
+                  ({events.length} event{events.length !== 1 ? 's' : ''})
+                </span>
+              )}
+            </CardTitle>
+          </div>
+          <div className="flex items-center gap-1">
+            {onToggleDay && (
+              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onToggleDay}>
+                {showTomorrow ? "Today" : "Tomorrow"}
+              </Button>
             )}
-          </CardTitle>
-          {onAddEvent && (
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onAddEvent}>
-              <Plus className="h-4 w-4" />
-            </Button>
-          )}
+            {onAddEvent && (
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onAddEvent}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent>

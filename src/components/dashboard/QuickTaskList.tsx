@@ -89,6 +89,7 @@ function SortableTaskItem({
   onStartEdit,
   onDelete,
 }: SortableTaskItemProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const {
     attributes,
     listeners,
@@ -103,85 +104,132 @@ function SortableTaskItem({
     transition,
   };
 
+  const handleRowClick = (e: React.MouseEvent) => {
+    // Don't expand if clicking on checkbox, buttons, or input
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('input') || target.closest('[role="checkbox"]')) {
+      return;
+    }
+    setIsExpanded(!isExpanded);
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-center gap-3 py-3 px-3 rounded-md group hover:bg-muted/50 transition-colors",
+        "flex flex-col rounded-md group hover:bg-muted/50 transition-colors",
         task.completed && "opacity-60",
         isDragging && "opacity-50 bg-muted shadow-lg z-10",
         isCompleting && "task-completing",
         isExiting && "task-exit"
       )}
     >
-      {!task.completed && !isCompleting && (
-        <button
-          {...attributes}
-          {...listeners}
-          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none shrink-0"
-        >
-          <GripVertical className="h-4 w-4" />
-        </button>
-      )}
-      {(task.completed || isCompleting) && <div className="w-4 shrink-0" />}
-      
-      <Checkbox
-        checked={task.completed || isCompleting}
-        onCheckedChange={() => onToggleComplete(task)}
-        className={cn("h-5 w-5 shrink-0 rounded-sm border-2", isCompleting && "task-checkbox")}
-        disabled={isCompleting}
-      />
-      
-      {isEditing ? (
-        <div className="flex-1 flex items-center gap-2 min-w-0">
-          <Input
-            value={editTitle}
-            onChange={(e) => onEditTitleChange(e.target.value)}
-            className="h-8 flex-1 min-w-0"
-            autoFocus
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') onSaveEdit(task.id);
-              if (e.key === 'Escape') onCancelEdit();
+      <div 
+        className={cn(
+          "flex items-center gap-2 py-2 px-2 sm:gap-3 sm:py-3 sm:px-3",
+          !isEditing && "cursor-pointer sm:cursor-default"
+        )}
+        onClick={handleRowClick}
+      >
+        {/* Drag handle - desktop only */}
+        {!task.completed && !isCompleting && (
+          <button
+            {...attributes}
+            {...listeners}
+            className="hidden sm:block cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none shrink-0"
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+        )}
+        {(task.completed || isCompleting) && <div className="hidden sm:block w-4 shrink-0" />}
+        
+        {/* Circular checkbox on mobile, square on desktop */}
+        <Checkbox
+          checked={task.completed || isCompleting}
+          onCheckedChange={() => onToggleComplete(task)}
+          className={cn(
+            "shrink-0 border-2",
+            "h-5 w-5 sm:h-5 sm:w-5 rounded-full sm:rounded-sm",
+            isCompleting && "task-checkbox"
+          )}
+          disabled={isCompleting}
+        />
+        
+        {isEditing ? (
+          <div className="flex-1 flex items-center gap-2 min-w-0">
+            <Input
+              value={editTitle}
+              onChange={(e) => onEditTitleChange(e.target.value)}
+              className="h-8 flex-1 min-w-0"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') onSaveEdit(task.id);
+                if (e.key === 'Escape') onCancelEdit();
+              }}
+            />
+            <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => onSaveEdit(task.id)}>
+              <Check className="h-4 w-4" />
+            </Button>
+            <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={onCancelEdit}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        ) : (
+          <>
+            <span className={cn(
+              "flex-1 text-sm leading-snug min-w-0 text-left",
+              "line-clamp-2 sm:line-clamp-none",
+              task.completed && "line-through text-muted-foreground",
+              isCompleting && "task-text text-muted-foreground"
+            )}>
+              {task.title}
+            </span>
+            
+            {/* Desktop: show actions on hover */}
+            <div className="hidden sm:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onStartEdit(task)}>
+                <Pencil className="h-3 w-3" />
+              </Button>
+              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => onDelete(task.id)}>
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </div>
+
+            {/* Mobile: show chevron indicator for expand */}
+            <ChevronDown className={cn(
+              "h-4 w-4 text-muted-foreground shrink-0 sm:hidden transition-transform",
+              isExpanded && "rotate-180"
+            )} />
+          </>
+        )}
+      </div>
+
+      {/* Mobile expanded actions */}
+      {isExpanded && !isEditing && (
+        <div className="flex items-center gap-2 px-2 pb-2 sm:hidden animate-in fade-in slide-in-from-top-1 duration-150">
+          <Button 
+            size="sm" 
+            variant="outline" 
+            className="flex-1 h-8 text-xs"
+            onClick={() => {
+              onStartEdit(task);
+              setIsExpanded(false);
             }}
-          />
-          <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => onSaveEdit(task.id)}>
-            <Check className="h-4 w-4" />
+          >
+            <Pencil className="h-3 w-3 mr-1.5" />
+            Edit
           </Button>
-          <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={onCancelEdit}>
-            <X className="h-4 w-4" />
+          <Button 
+            size="sm" 
+            variant="outline" 
+            className="flex-1 h-8 text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
+            onClick={() => onDelete(task.id)}
+          >
+            <Trash2 className="h-3 w-3 mr-1.5" />
+            Delete
           </Button>
         </div>
-      ) : (
-        <>
-          <span className={cn(
-            "flex-1 text-sm leading-relaxed min-w-0",
-            task.completed && "line-through text-muted-foreground",
-            isCompleting && "task-text text-muted-foreground"
-          )}>
-            {task.title}
-          </span>
-          
-          {/* Desktop: show actions on hover */}
-          <div className="hidden sm:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onStartEdit(task)}>
-              <Pencil className="h-3 w-3" />
-            </Button>
-            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => onDelete(task.id)}>
-              <Trash2 className="h-3 w-3" />
-            </Button>
-          </div>
-
-          {/* Mobile: show compact actions */}
-          <div className="flex sm:hidden items-center gap-0.5 shrink-0">
-            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => onStartEdit(task)}>
-              <Pencil className="h-4 w-4" />
-            </Button>
-            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => onDelete(task.id)}>
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        </>
       )}
     </div>
   );
@@ -218,6 +266,7 @@ function SortableSharedTaskItem({
   onDelete,
   onUpdateShares,
 }: SortableSharedTaskItemProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const {
     attributes,
     listeners,
@@ -242,137 +291,226 @@ function SortableSharedTaskItem({
     onUpdateShares(task.id, newSelection);
   };
 
+  const handleRowClick = (e: React.MouseEvent) => {
+    // Don't expand if clicking on checkbox, buttons, or input
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('input') || target.closest('[role="checkbox"]')) {
+      return;
+    }
+    setIsExpanded(!isExpanded);
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-center gap-3 py-3 px-3 rounded-md group hover:bg-muted/50 transition-colors",
+        "flex flex-col rounded-md group hover:bg-muted/50 transition-colors",
+        !task.is_owner && "border-l-2 border-l-primary/30",
         task.completed && "opacity-60",
         isDragging && "opacity-50 bg-muted shadow-lg z-10",
         isCompleting && "task-completing",
         isExiting && "task-exit"
       )}
     >
-      {task.is_owner && !task.completed && !isCompleting && (
-        <button
-          {...attributes}
-          {...listeners}
-          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none shrink-0"
-        >
-          <GripVertical className="h-4 w-4" />
-        </button>
-      )}
-      {(!task.is_owner || task.completed || isCompleting) && <div className="w-4 shrink-0" />}
-      
-      <Checkbox
-        checked={task.completed || isCompleting}
-        onCheckedChange={() => onToggleComplete(task)}
-        className={cn("h-5 w-5 shrink-0 rounded-sm border-2", isCompleting && "task-checkbox")}
-        disabled={isCompleting}
-      />
-      
-      {isEditing ? (
-        <div className="flex-1 flex items-center gap-2 min-w-0">
-          <Input
-            value={editTitle}
-            onChange={(e) => onEditTitleChange(e.target.value)}
-            className="h-8 flex-1 min-w-0"
-            autoFocus
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') onSaveEdit(task.id);
-              if (e.key === 'Escape') onCancelEdit();
-            }}
-          />
-          <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => onSaveEdit(task.id)}>
-            <Check className="h-4 w-4" />
-          </Button>
-          <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={onCancelEdit}>
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      ) : (
-        <>
-          <span className={cn(
-            "flex-1 text-sm leading-relaxed min-w-0",
-            task.completed && "line-through text-muted-foreground",
-            isCompleting && "task-text text-muted-foreground"
-          )}>
-            {task.title}
-          </span>
-          
-          {/* Owner indicator - desktop */}
-          <Badge variant={task.is_owner ? "default" : "secondary"} className="text-xs shrink-0 hidden sm:flex">
-            {task.is_owner ? (
-              <><User className="h-3 w-3 mr-1" />You</>
-            ) : (
-              <><Share2 className="h-3 w-3 mr-1" />Shared</>
-            )}
-          </Badge>
-
-          {/* Share selector for owned tasks */}
-          {task.is_owner && friends.length > 0 && (
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0 relative">
-                  <Users className="h-4 w-4" />
-                  {task.shared_with.length > 0 && (
-                    <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-xs text-primary-foreground flex items-center justify-center">
-                      {task.shared_with.length}
-                    </span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-48 p-2" align="end">
-                <p className="text-xs font-medium mb-2">Share with:</p>
-                <div className="space-y-1">
-                  {friends.map(friend => (
-                    <label
-                      key={friend.id}
-                      className="flex items-center gap-2 p-1.5 rounded hover:bg-muted cursor-pointer"
-                    >
-                      <Checkbox
-                        checked={selectedFriends.includes(friend.user_id)}
-                        onCheckedChange={() => toggleFriend(friend.user_id)}
-                      />
-                      <span className="text-sm truncate">
-                        {friend.display_name || friend.email}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
+      <div 
+        className={cn(
+          "flex items-center gap-2 py-2 px-2 sm:gap-3 sm:py-3 sm:px-3",
+          !isEditing && "cursor-pointer sm:cursor-default"
+        )}
+        onClick={handleRowClick}
+      >
+        {/* Drag handle - desktop only, owner only */}
+        {task.is_owner && !task.completed && !isCompleting && (
+          <button
+            {...attributes}
+            {...listeners}
+            className="hidden sm:block cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none shrink-0"
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+        )}
+        {(!task.is_owner || task.completed || isCompleting) && <div className="hidden sm:block w-4 shrink-0" />}
+        
+        {/* Circular checkbox on mobile, square on desktop */}
+        <Checkbox
+          checked={task.completed || isCompleting}
+          onCheckedChange={() => onToggleComplete(task)}
+          className={cn(
+            "shrink-0 border-2",
+            "h-5 w-5 sm:h-5 sm:w-5 rounded-full sm:rounded-sm",
+            isCompleting && "task-checkbox"
           )}
-          
-          {/* Desktop: show actions on hover */}
-          <div className="hidden sm:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-            {task.is_owner && (
-              <>
-                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onStartEdit(task)}>
-                  <Pencil className="h-3 w-3" />
-                </Button>
-                <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => onDelete(task.id)}>
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </>
-            )}
+          disabled={isCompleting}
+        />
+        
+        {isEditing ? (
+          <div className="flex-1 flex items-center gap-2 min-w-0">
+            <Input
+              value={editTitle}
+              onChange={(e) => onEditTitleChange(e.target.value)}
+              className="h-8 flex-1 min-w-0"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') onSaveEdit(task.id);
+                if (e.key === 'Escape') onCancelEdit();
+              }}
+            />
+            <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => onSaveEdit(task.id)}>
+              <Check className="h-4 w-4" />
+            </Button>
+            <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={onCancelEdit}>
+              <X className="h-4 w-4" />
+            </Button>
           </div>
+        ) : (
+          <>
+            <span className={cn(
+              "flex-1 text-sm leading-snug min-w-0 text-left",
+              "line-clamp-2 sm:line-clamp-none",
+              task.completed && "line-through text-muted-foreground",
+              isCompleting && "task-text text-muted-foreground"
+            )}>
+              {task.title}
+            </span>
+            
+            {/* Owner indicator - desktop only */}
+            <Badge variant={task.is_owner ? "default" : "secondary"} className="text-xs shrink-0 hidden sm:flex">
+              {task.is_owner ? (
+                <><User className="h-3 w-3 mr-1" />You</>
+              ) : (
+                <><Share2 className="h-3 w-3 mr-1" />Shared</>
+              )}
+            </Badge>
 
-          {/* Mobile: show compact actions */}
-          <div className="flex sm:hidden items-center gap-0.5 shrink-0">
-            {task.is_owner && (
-              <>
-                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => onStartEdit(task)}>
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => onDelete(task.id)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </>
+            {/* Share selector for owned tasks - desktop */}
+            {task.is_owner && friends.length > 0 && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0 relative hidden sm:flex">
+                    <Users className="h-4 w-4" />
+                    {task.shared_with.length > 0 && (
+                      <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-xs text-primary-foreground flex items-center justify-center">
+                        {task.shared_with.length}
+                      </span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-48 p-2" align="end">
+                  <p className="text-xs font-medium mb-2">Share with:</p>
+                  <div className="space-y-1">
+                    {friends.map(friend => (
+                      <label
+                        key={friend.id}
+                        className="flex items-center gap-2 p-1.5 rounded hover:bg-muted cursor-pointer"
+                      >
+                        <Checkbox
+                          checked={selectedFriends.includes(friend.user_id)}
+                          onCheckedChange={() => toggleFriend(friend.user_id)}
+                        />
+                        <span className="text-sm truncate">
+                          {friend.display_name || friend.email}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
             )}
-          </div>
-        </>
+            
+            {/* Desktop: show actions on hover */}
+            <div className="hidden sm:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+              {task.is_owner && (
+                <>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onStartEdit(task)}>
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => onDelete(task.id)}>
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </>
+              )}
+            </div>
+
+            {/* Mobile: show chevron indicator for expand */}
+            <ChevronDown className={cn(
+              "h-4 w-4 text-muted-foreground shrink-0 sm:hidden transition-transform",
+              isExpanded && "rotate-180"
+            )} />
+          </>
+        )}
+      </div>
+
+      {/* Mobile expanded actions */}
+      {isExpanded && !isEditing && (
+        <div className="flex flex-wrap items-center gap-2 px-2 pb-2 sm:hidden animate-in fade-in slide-in-from-top-1 duration-150">
+          {/* Owner badge on mobile */}
+          <Badge variant={task.is_owner ? "default" : "secondary"} className="text-xs">
+            {task.is_owner ? "You" : "Shared"}
+          </Badge>
+          
+          {task.is_owner && (
+            <>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="flex-1 h-8 text-xs"
+                onClick={() => {
+                  onStartEdit(task);
+                  setIsExpanded(false);
+                }}
+              >
+                <Pencil className="h-3 w-3 mr-1.5" />
+                Edit
+              </Button>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="flex-1 h-8 text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
+                onClick={() => onDelete(task.id)}
+              >
+                <Trash2 className="h-3 w-3 mr-1.5" />
+                Delete
+              </Button>
+              
+              {/* Share selector for mobile */}
+              {friends.length > 0 && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button size="sm" variant="outline" className="h-8 text-xs relative">
+                      <Users className="h-3 w-3 mr-1.5" />
+                      Share
+                      {task.shared_with.length > 0 && (
+                        <span className="ml-1.5 h-4 w-4 rounded-full bg-primary text-xs text-primary-foreground flex items-center justify-center">
+                          {task.shared_with.length}
+                        </span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-48 p-2" align="start">
+                    <p className="text-xs font-medium mb-2">Share with:</p>
+                    <div className="space-y-1">
+                      {friends.map(friend => (
+                        <label
+                          key={friend.id}
+                          className="flex items-center gap-2 p-1.5 rounded hover:bg-muted cursor-pointer"
+                        >
+                          <Checkbox
+                            checked={selectedFriends.includes(friend.user_id)}
+                            onCheckedChange={() => toggleFriend(friend.user_id)}
+                          />
+                          <span className="text-sm truncate">
+                            {friend.display_name || friend.email}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )}
+            </>
+          )}
+        </div>
       )}
     </div>
   );

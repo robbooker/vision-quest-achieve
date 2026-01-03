@@ -1,10 +1,16 @@
 import { format } from "date-fns";
-import { Calendar, Clock, ExternalLink, Plus } from "lucide-react";
+import { Calendar, Clock, ExternalLink, Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
-interface CalendarEventData {
+export interface CalendarEventData {
   id: string;
   title: string;
   start: string;
@@ -21,9 +27,11 @@ interface TodayScheduleProps {
   onAddEvent?: () => void;
   showTomorrow?: boolean;
   onToggleDay?: () => void;
+  onEditEvent?: (event: CalendarEventData) => void;
+  onDeleteEvent?: (eventId: string) => void;
 }
 
-export function TodaySchedule({ events, isLoading, isConnected, onConnect, onAddEvent, showTomorrow = false, onToggleDay }: TodayScheduleProps) {
+export function TodaySchedule({ events, isLoading, isConnected, onConnect, onAddEvent, showTomorrow = false, onToggleDay, onEditEvent, onDeleteEvent }: TodayScheduleProps) {
   const scheduleLabel = showTomorrow ? "Tomorrow's Schedule" : "Today's Schedule";
   
   if (!isConnected) {
@@ -120,18 +128,41 @@ export function TodaySchedule({ events, isLoading, isConnected, onConnect, onAdd
                 {allDayEvents.map((event) => (
                   <div
                     key={event.id}
-                    className="flex items-center gap-2 py-1.5 px-2 rounded-md bg-muted/50 text-sm"
+                    className="flex items-center gap-2 py-1.5 px-2 rounded-md bg-muted/50 text-sm group"
                   >
                     <span className="text-xs text-muted-foreground font-medium">All day</span>
-                    <span className="truncate">{event.title}</span>
+                    <span className="truncate flex-1">{event.title}</span>
+                    {(onEditEvent || onDeleteEvent) && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <MoreHorizontal className="h-3 w-3" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {onEditEvent && (
+                            <DropdownMenuItem onClick={() => onEditEvent(event)}>
+                              <Pencil className="h-3 w-3 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                          )}
+                          {onDeleteEvent && (
+                            <DropdownMenuItem onClick={() => onDeleteEvent(event.id)} className="text-destructive focus:text-destructive">
+                              <Trash2 className="h-3 w-3 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </div>
                 ))}
               </div>
             )}
             
             {timedEvents.map((event) => {
-              const startTime = format(new Date(event.start), "h:mm a");
-              const endTime = format(new Date(event.end), "h:mm a");
+              const startTimeStr = format(new Date(event.start), "h:mm a");
+              const endTimeStr = format(new Date(event.end), "h:mm a");
               
               return (
                 <div
@@ -140,24 +171,48 @@ export function TodaySchedule({ events, isLoading, isConnected, onConnect, onAdd
                 >
                   <div className="flex items-center gap-1 text-xs text-muted-foreground min-w-[70px]">
                     <Clock className="h-3 w-3" />
-                    {startTime}
+                    {startTimeStr}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm truncate">{event.title}</p>
                     <p className="text-xs text-muted-foreground">
-                      {startTime} - {endTime}
+                      {startTimeStr} - {endTimeStr}
                     </p>
                   </div>
-                  {event.htmlLink && (
-                    <a
-                      href={event.htmlLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <ExternalLink className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                    </a>
-                  )}
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {event.htmlLink && (
+                      <a
+                        href={event.htmlLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <ExternalLink className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                      </a>
+                    )}
+                    {(onEditEvent || onDeleteEvent) && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6">
+                            <MoreHorizontal className="h-3 w-3" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {onEditEvent && (
+                            <DropdownMenuItem onClick={() => onEditEvent(event)}>
+                              <Pencil className="h-3 w-3 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                          )}
+                          {onDeleteEvent && (
+                            <DropdownMenuItem onClick={() => onDeleteEvent(event.id)} className="text-destructive focus:text-destructive">
+                              <Trash2 className="h-3 w-3 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
                 </div>
               );
             })}

@@ -1,8 +1,8 @@
-import { Target, Clock, BarChart3, Repeat, ArrowRight } from 'lucide-react';
+import { Target, Clock, Repeat, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 
-export type GoalType = 'standard' | 'time_mastery' | 'score' | 'habit';
+export type GoalType = 'standard' | 'time_mastery' | 'habit';
 
 interface GoalTypeSelectorProps {
   onSelect: (type: GoalType) => void;
@@ -23,13 +23,6 @@ const goalTypes = [
     description: 'Build a skill through consistent daily practice',
     icon: Clock,
     example: 'Learn Spanish, master guitar, become a better writer',
-  },
-  {
-    type: 'score' as GoalType,
-    title: 'Score-Based Goal',
-    description: 'Track daily performance on a 1-10 scale',
-    icon: BarChart3,
-    example: 'Daily energy level, meditation quality, focus score',
   },
   {
     type: 'habit' as GoalType,

@@ -264,6 +264,53 @@ export type Database = {
           },
         ]
       }
+      goal_schedules: {
+        Row: {
+          calendar_event_id: string | null
+          created_at: string
+          day_of_week: number
+          duration_minutes: number
+          end_time: string | null
+          goal_id: string
+          id: string
+          start_time: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          calendar_event_id?: string | null
+          created_at?: string
+          day_of_week: number
+          duration_minutes?: number
+          end_time?: string | null
+          goal_id: string
+          id?: string
+          start_time?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          calendar_event_id?: string | null
+          created_at?: string
+          day_of_week?: number
+          duration_minutes?: number
+          end_time?: string | null
+          goal_id?: string
+          id?: string
+          start_time?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_schedules_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       goal_tactics: {
         Row: {
           created_at: string
@@ -316,6 +363,7 @@ export type Database = {
           accountability_partner: string | null
           created_at: string
           cycle_id: string
+          goal_type: string
           id: string
           metric_type: string
           obstacles: string | null
@@ -331,6 +379,7 @@ export type Database = {
           accountability_partner?: string | null
           created_at?: string
           cycle_id: string
+          goal_type?: string
           id?: string
           metric_type: string
           obstacles?: string | null
@@ -346,6 +395,7 @@ export type Database = {
           accountability_partner?: string | null
           created_at?: string
           cycle_id?: string
+          goal_type?: string
           id?: string
           metric_type?: string
           obstacles?: string | null

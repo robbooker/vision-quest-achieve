@@ -5,6 +5,8 @@ import { GoalCard } from '@/components/dashboard/GoalCard';
 import { EmptyState } from '@/components/dashboard/EmptyState';
 import { CreateCycleDialog } from '@/components/dashboard/CreateCycleDialog';
 import { CreateGoalDialog } from '@/components/dashboard/CreateGoalDialog';
+import { CreateTimeMasteryGoalDialog } from '@/components/dashboard/CreateTimeMasteryGoalDialog';
+import { GoalTypeSelector, GoalType } from '@/components/dashboard/GoalTypeSelector';
 import { MilestonePlannerDialog } from '@/components/dashboard/MilestonePlannerDialog';
 import { TacticsManagerDialog } from '@/components/dashboard/TacticsManagerDialog';
 import { WeekView } from '@/components/dashboard/WeekView';
@@ -38,12 +40,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Dashboard() {
   const [createCycleOpen, setCreateCycleOpen] = useState(false);
+  const [goalTypeSelectorOpen, setGoalTypeSelectorOpen] = useState(false);
   const [createGoalOpen, setCreateGoalOpen] = useState(false);
+  const [createTimeMasteryOpen, setCreateTimeMasteryOpen] = useState(false);
   const [milestonePlannerGoal, setMilestonePlannerGoal] = useState<Goal | null>(null);
   const [tacticsManagerGoal, setTacticsManagerGoal] = useState<Goal | null>(null);
   
@@ -92,6 +100,20 @@ export default function Dashboard() {
         variant: 'destructive',
       });
     }
+  };
+
+  const handleGoalTypeSelect = (type: GoalType) => {
+    setGoalTypeSelectorOpen(false);
+    if (type === 'time_mastery') {
+      setCreateTimeMasteryOpen(true);
+    } else {
+      // Standard and score goals use the standard dialog for now
+      setCreateGoalOpen(true);
+    }
+  };
+
+  const handleAddGoalClick = () => {
+    setGoalTypeSelectorOpen(true);
   };
 
   const handlePlanMilestones = (goal: Goal) => {
@@ -251,7 +273,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-foreground">Goals</h2>
             {goals.length > 0 && goals.length < 3 && (
-              <Button variant="outline" size="sm" onClick={() => setCreateGoalOpen(true)}>
+              <Button variant="outline" size="sm" onClick={handleAddGoalClick}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Goal ({goals.length}/3)
               </Button>
@@ -267,7 +289,7 @@ export default function Dashboard() {
           ) : goals.length === 0 ? (
             <EmptyState 
               type="goal" 
-              onAction={() => setCreateGoalOpen(true)} 
+              onAction={handleAddGoalClick} 
               onChatAction={() => openToTab('interview')}
             />
           ) : (
@@ -286,7 +308,7 @@ export default function Dashboard() {
               {/* Add goal card when less than 3 */}
               {goals.length < 3 && (
                 <button
-                  onClick={() => setCreateGoalOpen(true)}
+                  onClick={handleAddGoalClick}
                   className="flex flex-col items-center justify-center min-h-[180px] rounded-lg border-2 border-dashed border-muted-foreground/25 hover:border-muted-foreground/50 transition-colors"
                 >
                   <Plus className="h-8 w-8 text-muted-foreground mb-2" />
@@ -342,10 +364,29 @@ export default function Dashboard() {
       </div>
 
       <CreateCycleDialog open={createCycleOpen} onOpenChange={setCreateCycleOpen} />
+      
+      {/* Goal Type Selector Dialog */}
+      <Dialog open={goalTypeSelectorOpen} onOpenChange={setGoalTypeSelectorOpen}>
+        <DialogContent className="sm:max-w-[450px]">
+          <GoalTypeSelector 
+            onSelect={handleGoalTypeSelect} 
+            onClose={() => setGoalTypeSelectorOpen(false)} 
+          />
+        </DialogContent>
+      </Dialog>
+
       {activeCycle && (
         <CreateGoalDialog
           open={createGoalOpen}
           onOpenChange={setCreateGoalOpen}
+          cycleId={activeCycle.id}
+          existingGoalsCount={goals.length}
+        />
+      )}
+      {activeCycle && (
+        <CreateTimeMasteryGoalDialog
+          open={createTimeMasteryOpen}
+          onOpenChange={setCreateTimeMasteryOpen}
           cycleId={activeCycle.id}
           existingGoalsCount={goals.length}
         />

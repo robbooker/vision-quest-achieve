@@ -1,6 +1,6 @@
 import { Goal } from '@/hooks/useGoals';
 import { Badge } from '@/components/ui/badge';
-import { Target, MoreVertical, Trash2, Edit, CalendarCheck, Zap } from 'lucide-react';
+import { Target, MoreVertical, Trash2, Edit, CalendarCheck, Zap, Clock } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { useMilestones } from '@/hooks/useMilestones';
 import { useTactics } from '@/hooks/useTactics';
 import { useGoalProgress } from '@/hooks/useGoalProgress';
+import { useGoalSchedules } from '@/hooks/useGoalSchedules';
 
 interface GoalCardProps {
   goal: Goal;
@@ -21,6 +22,8 @@ interface GoalCardProps {
   onManageTactics?: (goal: Goal) => void;
 }
 
+const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
 export function GoalCard({ goal, index, onEdit, onDelete, onPlanMilestones, onManageTactics }: GoalCardProps) {
   const { milestones, isLoading } = useMilestones(goal.id);
   const { tactics, isLoading: tacticsLoading } = useTactics(goal.id);
@@ -29,8 +32,11 @@ export function GoalCard({ goal, index, onEdit, onDelete, onPlanMilestones, onMa
     goal.target_value, 
     goal.metric_type
   );
+  const { schedules, isLoading: schedulesLoading } = useGoalSchedules(goal.id);
+  
+  const isTimeMastery = goal.goal_type === 'time_mastery';
   // Support both old 12-week cycles and new 6-week cycles
-  const hasMilestones = milestones.length >= 6;
+  const hasMilestones = milestones.length >= 6 || (isTimeMastery && milestones.length >= 3);
   const activeTactics = tactics.filter(t => t.is_active);
 
   return (
@@ -77,8 +83,13 @@ export function GoalCard({ goal, index, onEdit, onDelete, onPlanMilestones, onMa
       {/* Header with icon */}
       <div className="flex items-center gap-2 mb-3">
         <div className="rounded p-1.5 bg-accent/20 text-accent">
-          <Target className="h-4 w-4" />
+          {isTimeMastery ? <Clock className="h-4 w-4" /> : <Target className="h-4 w-4" />}
         </div>
+        {isTimeMastery && (
+          <Badge variant="outline" className="text-xs uppercase tracking-wide border-primary/50 text-primary">
+            Time-Mastery
+          </Badge>
+        )}
         {!isLoading && (
           <Badge variant={hasMilestones ? 'default' : 'secondary'} className="text-xs uppercase tracking-wide">
             {hasMilestones ? 'Planned' : 'Not planned'}
@@ -89,10 +100,22 @@ export function GoalCard({ goal, index, onEdit, onDelete, onPlanMilestones, onMa
       {/* Title in bold typewriter style */}
       <h3 className="text-lg font-bold mb-4 pr-16 leading-6">{goal.title}</h3>
       
-      {/* Target value in nixie tube style */}
-      <div className="nixie-display text-sm mb-4">
-        {goal.target_value.toLocaleString()} {goal.metric_type}
-      </div>
+      {/* Time-Mastery schedule display */}
+      {isTimeMastery && !schedulesLoading && schedules.length > 0 && (
+        <div className="text-sm mb-4 flex items-center gap-2">
+          <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-muted-foreground">
+            {schedules[0]?.duration_minutes}min/day on {schedules.map(s => DAYS_OF_WEEK[s.day_of_week]).join(', ')}
+          </span>
+        </div>
+      )}
+
+      {/* Target value in nixie tube style - only for standard goals */}
+      {!isTimeMastery && (
+        <div className="nixie-display text-sm mb-4">
+          {goal.target_value.toLocaleString()} {goal.metric_type}
+        </div>
+      )}
       
       {goal.why && (
         <div className="text-sm mb-4 italic">
@@ -123,7 +146,7 @@ export function GoalCard({ goal, index, onEdit, onDelete, onPlanMilestones, onMa
         </div>
       )}
 
-      {!hasMilestones && !isLoading && onPlanMilestones && (
+      {!hasMilestones && !isLoading && onPlanMilestones && !isTimeMastery && (
         <Button 
           variant="outline" 
           size="sm" 
@@ -135,7 +158,23 @@ export function GoalCard({ goal, index, onEdit, onDelete, onPlanMilestones, onMa
         </Button>
       )}
 
-      {hasMilestones && (
+      {/* Time-Mastery milestones display */}
+      {isTimeMastery && hasMilestones && (
+        <div className="pt-2 space-y-2">
+          <div className="text-xs text-muted-foreground uppercase tracking-wide">Milestones</div>
+          <div className="space-y-1.5">
+            {milestones.map((milestone, i) => (
+              <div key={milestone.id} className="flex items-start gap-2 text-sm">
+                <span className="text-muted-foreground shrink-0">W{milestone.week_number}:</span>
+                <span className="text-foreground">{milestone.description || `Target: ${milestone.target_value}`}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Standard goal progress display */}
+      {!isTimeMastery && hasMilestones && (
         <div className="pt-2">
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-2 uppercase tracking-wide">
             <span>Progress</span>

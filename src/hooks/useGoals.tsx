@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
+export type GoalType = 'standard' | 'time_mastery' | 'score';
+
 export interface Goal {
   id: string;
   cycle_id: string;
@@ -10,6 +12,7 @@ export interface Goal {
   metric_type: string;
   target_value: number;
   why: string | null;
+  goal_type: GoalType;
   created_at: string;
   updated_at: string;
 }
@@ -20,6 +23,7 @@ export interface CreateGoalInput {
   metric_type: string;
   target_value: number;
   why?: string;
+  goal_type?: GoalType;
 }
 
 export function useGoals(cycleId?: string) {

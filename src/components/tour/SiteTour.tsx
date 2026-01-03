@@ -104,14 +104,19 @@ export function SiteTour({ isRunning, onEnd, stepIndex, onStepChange }: SiteTour
   const { isTerminal } = useTerminalMode();
 
   const handleCallback = (data: CallBackProps) => {
-    const { status, index, action } = data;
+    const { status, action, type } = data;
 
     if (status === STATUS.FINISHED) {
       onEnd(true);
     } else if (status === STATUS.SKIPPED) {
       onEnd(false);
-    } else if (action === "next" || action === "prev") {
-      onStepChange(index);
+    } else if (type === "step:after") {
+      // Advance step after user clicks Next or Back
+      if (action === "next") {
+        onStepChange(stepIndex + 1);
+      } else if (action === "prev") {
+        onStepChange(stepIndex - 1);
+      }
     }
   };
 

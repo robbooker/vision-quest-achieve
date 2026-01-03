@@ -3,6 +3,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { CalendarSettings } from '@/components/settings/CalendarSettings';
 import { NotificationSettings } from '@/components/settings/NotificationSettings';
 import { DisplaySettings } from '@/components/settings/DisplaySettings';
+import { ProfileSettings } from '@/components/settings/ProfileSettings';
 import { HardQuestions } from '@/components/settings/HardQuestions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,8 @@ export default function Settings() {
             Manage your calendar integration, notifications, and preferences.
           </p>
         </div>
+
+        <ProfileSettings />
 
         <Card>
           <CardHeader>

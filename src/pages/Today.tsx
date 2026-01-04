@@ -443,7 +443,9 @@ export default function Today() {
         </div>
 
         {/* Task List - Full Width */}
-        <QuickTaskList />
+        <div data-tour="quick-tasks">
+          <QuickTaskList />
+        </div>
 
         {/* Daily Score Logger */}
         <DailyScoreLogger goals={goals} />

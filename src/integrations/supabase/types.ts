@@ -512,6 +512,75 @@ export type Database = {
           },
         ]
       }
+      journal_entries: {
+        Row: {
+          completed_habits: Json | null
+          completed_tasks: Json | null
+          created_at: string
+          entry_date: string
+          id: string
+          image_prompt: string | null
+          image_url: string | null
+          updated_at: string
+          user_id: string
+          user_notes: string | null
+        }
+        Insert: {
+          completed_habits?: Json | null
+          completed_tasks?: Json | null
+          created_at?: string
+          entry_date: string
+          id?: string
+          image_prompt?: string | null
+          image_url?: string | null
+          updated_at?: string
+          user_id: string
+          user_notes?: string | null
+        }
+        Update: {
+          completed_habits?: Json | null
+          completed_tasks?: Json | null
+          created_at?: string
+          entry_date?: string
+          id?: string
+          image_prompt?: string | null
+          image_url?: string | null
+          updated_at?: string
+          user_id?: string
+          user_notes?: string | null
+        }
+        Relationships: []
+      }
+      journal_settings: {
+        Row: {
+          art_style: string | null
+          color_palette: string | null
+          created_at: string
+          id: string
+          theme_instructions: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          art_style?: string | null
+          color_palette?: string | null
+          created_at?: string
+          id?: string
+          theme_instructions?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          art_style?: string | null
+          color_palette?: string | null
+          created_at?: string
+          id?: string
+          theme_instructions?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       milestones: {
         Row: {
           created_at: string

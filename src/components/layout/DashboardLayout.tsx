@@ -15,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LogOut, Settings, User, LayoutDashboard, CheckSquare, BarChart3, Star, Shield, RotateCcw } from 'lucide-react';
+import { LogOut, Settings, User, LayoutDashboard, CheckSquare, BarChart3, Star, Shield, RotateCcw, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Footer } from '@/components/layout/Footer';
 import gpLogo from '@/assets/gp-logo.png';
@@ -31,6 +31,7 @@ const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, tourId: 'dashboard' },
   { href: '/today', label: 'Today', icon: CheckSquare, tourId: 'today' },
   { href: '/big-ten', label: 'Big 10', icon: Star, tourId: 'bigten' },
+  { href: '/journal', label: 'Journal', icon: BookOpen, tourId: 'journal' },
   { href: '/reset', label: 'Reset', icon: RotateCcw, tourId: 'reset' },
   { href: '/reports', label: 'Reports', icon: BarChart3, tourId: 'reports' },
   { href: '/settings', label: 'Settings', icon: Settings, tourId: 'settings' },

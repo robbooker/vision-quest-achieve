@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.send-broadcast]
 verify_jwt = false
+
+[functions.generate-journal-image]
+verify_jwt = false

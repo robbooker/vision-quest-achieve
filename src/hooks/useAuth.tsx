@@ -88,9 +88,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    // Navigation will be handled by the auth state change listener
-    // and the ProtectedRoute component
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error('Sign out error:', error);
+    } finally {
+      // Force clear local state and redirect regardless of API response
+      // This ensures Safari works even if session is already invalid
+      setSession(null);
+      setUser(null);
+      localStorage.removeItem('sessionExpiry');
+      window.location.href = '/auth';
+    }
   };
 
   return (

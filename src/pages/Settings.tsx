@@ -5,6 +5,7 @@ import { NotificationSettings } from '@/components/settings/NotificationSettings
 import { DisplaySettings } from '@/components/settings/DisplaySettings';
 import { ProfileSettings } from '@/components/settings/ProfileSettings';
 import { HardQuestions } from '@/components/settings/HardQuestions';
+import { JournalSettings } from '@/components/settings/JournalSettings';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Sparkles, ChevronRight } from 'lucide-react';
@@ -60,6 +61,10 @@ export default function Settings() {
         
         <div data-tour="settings-calendar">
           <CalendarSettings />
+        </div>
+
+        <div data-tour="settings-journal">
+          <JournalSettings />
         </div>
       </div>
     </DashboardLayout>

@@ -51,6 +51,14 @@ const tourSteps: Step[] = [
     data: { expression: "thinking" },
   },
   {
+    target: '[data-tour="journal"]',
+    placement: "bottom",
+    disableBeacon: true,
+    title: "Journal",
+    content: "Your daily accomplishments turned into art! AI generates beautiful images based on your completed tasks and habits. 📔",
+    data: { expression: "happy" },
+  },
+  {
     target: '[data-tour="reset"]',
     placement: "bottom",
     disableBeacon: true,
@@ -112,6 +120,14 @@ const tourSteps: Step[] = [
     disableBeacon: true,
     title: "Calendar Integration",
     content: "Connect your Google Calendar to see your schedule right in Groovy Planning. Super handy for time-blocking!",
+    data: { expression: "happy" },
+  },
+  {
+    target: '[data-tour="settings-journal"]',
+    placement: "top",
+    disableBeacon: true,
+    title: "Journal Settings",
+    content: "Customize your journal image style! Choose art styles, themes, and color palettes for your daily AI-generated art. 🎨",
     data: { expression: "happy" },
   },
   {

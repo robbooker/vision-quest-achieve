@@ -1,7 +1,10 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
+import { PaywallModal } from '@/components/paywall/PaywallModal';
+import { TrialBanner } from '@/components/subscription/TrialBanner';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -9,6 +12,7 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
+  const { isSubscribed, isLoading: subLoading } = useSubscription();
   const location = useLocation();
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
@@ -37,7 +41,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     }
   }, [user, loading]);
 
-  if (loading || checkingOnboarding) {
+  if (loading || checkingOnboarding || subLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="nixie-display animate-pulse">LOADING...</div>
@@ -54,5 +58,16 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Navigate to="/onboarding" replace />;
   }
 
-  return <>{children}</>;
+  // Show paywall if not subscribed (but allow onboarding and settings pages)
+  const allowWithoutSubscription = ['/onboarding', '/settings'];
+  if (!isSubscribed && !allowWithoutSubscription.includes(location.pathname)) {
+    return <PaywallModal />;
+  }
+
+  return (
+    <>
+      <TrialBanner />
+      {children}
+    </>
+  );
 }

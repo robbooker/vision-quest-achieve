@@ -118,7 +118,7 @@ serve(async (req: Request): Promise<Response> => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from: "Groovy Planning <onboarding@resend.dev>",
+            from: "Groovy Plans <hello@updates.groovyplans.ai>",
             to: [email],
             subject: subject,
             html: `

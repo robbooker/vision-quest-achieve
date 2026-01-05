@@ -101,8 +101,15 @@ serve(async (req: Request): Promise<Response> => {
     let successCount = 0;
     let failCount = 0;
 
-    // Send emails one by one to respect Resend limits and get individual status
-    for (const email of emails) {
+    // Send emails with delay to respect Resend rate limits (2 requests/second)
+    for (let i = 0; i < emails.length; i++) {
+      const email = emails[i];
+      
+      // Add 600ms delay between requests to stay under 2 req/sec limit
+      if (i > 0) {
+        await new Promise(resolve => setTimeout(resolve, 600));
+      }
+      
       try {
         const emailResponse = await fetch("https://api.resend.com/emails", {
           method: "POST",

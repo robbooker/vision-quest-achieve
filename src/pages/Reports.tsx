@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   ChartContainer,
   ChartTooltip,
@@ -30,8 +31,9 @@ import { useWeekReviews } from '@/hooks/useWeekReviews';
 import { useMilestones } from '@/hooks/useMilestones';
 import { useBigTen } from '@/hooks/useBigTen';
 import { useQuickTasks } from '@/hooks/useQuickTasks';
-import { TrendingUp, BarChart3, Target, AlertTriangle, Calendar, CheckSquare, FolderKanban, ListTodo, RotateCcw, Flame, Trophy, Zap, Clock, Timer } from 'lucide-react';
+import { TrendingUp, BarChart3, Target, AlertTriangle, Calendar, CheckSquare, FolderKanban, ListTodo, RotateCcw, Flame, Trophy, Zap, Clock, Timer, Globe } from 'lucide-react';
 import { HabitChainCalendar } from '@/components/reports/HabitChainCalendar';
+import { SitewideStats } from '@/components/reports/SitewideStats';
 import { AuditStrip } from '@/components/reset/AuditStrip';
 import { useResetAudits } from '@/hooks/useResetAudits';
 import { useResetPreference } from '@/hooks/useResetPreference';
@@ -230,12 +232,28 @@ export default function Reports() {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Reports</h1>
-          <p className="text-muted-foreground">
-            {activeCycle.name} • Week {currentWeek} of 6
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Reports</h1>
+            <p className="text-muted-foreground">
+              {activeCycle.name} • Week {currentWeek} of 6
+            </p>
+          </div>
         </div>
+
+        <Tabs defaultValue="personal" className="w-full">
+          <TabsList>
+            <TabsTrigger value="personal" className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              My Stats
+            </TabsTrigger>
+            <TabsTrigger value="sitewide" className="flex items-center gap-2">
+              <Globe className="h-4 w-4" />
+              Sitewide
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="personal" className="space-y-6 mt-6">
 
         {/* Summary Cards */}
         <div className="grid gap-4 md:grid-cols-4">
@@ -688,6 +706,13 @@ export default function Reports() {
             </CardContent>
           </Card>
         </div>
+
+          </TabsContent>
+
+          <TabsContent value="sitewide" className="mt-6">
+            <SitewideStats />
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );

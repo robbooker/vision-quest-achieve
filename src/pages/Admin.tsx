@@ -9,9 +9,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Users, Shield, Trash2, ShieldCheck, ShieldX, Mail, Loader2, Send, Megaphone, MessageSquare } from 'lucide-react';
-import { format } from 'date-fns';
+import { Users, Shield, Trash2, ShieldCheck, ShieldX, Mail, Loader2, Send, Megaphone, MessageSquare, Gift, Crown, Clock } from 'lucide-react';
+import { format, addMonths, addYears } from 'date-fns';
 
 interface UserProfile {
   id: string;
@@ -22,6 +23,8 @@ interface UserProfile {
   isAdmin?: boolean;
   consent_email?: boolean;
   consent_sms?: boolean;
+  subscription_status?: string | null;
+  subscription_end?: string | null;
 }
 
 type BroadcastMode = 'email' | 'sms';
@@ -35,6 +38,12 @@ export default function Admin() {
   const [broadcastMode, setBroadcastMode] = useState<BroadcastMode>('email');
   const [broadcastSubject, setBroadcastSubject] = useState('');
   const [broadcastMessage, setBroadcastMessage] = useState('');
+  
+  // Grant access state
+  const [grantEmail, setGrantEmail] = useState('');
+  const [grantDuration, setGrantDuration] = useState('1year');
+  const [granting, setGranting] = useState(false);
+  
   const { toast } = useToast();
 
   const fetchUsers = async () => {
@@ -53,18 +62,29 @@ export default function Admin() {
 
       if (rolesError) throw rolesError;
 
-      const adminUserIds = new Set(adminRoles?.map(r => r.user_id) || []);
+      // Fetch subscriptions
+      const { data: subscriptions } = await supabase
+        .from('subscriptions')
+        .select('user_id, status, subscription_end');
 
-      const usersWithRoles = (profiles || []).map(profile => ({
-        id: profile.id,
-        user_id: profile.user_id,
-        email: profile.email,
-        display_name: profile.display_name,
-        created_at: profile.created_at,
-        consent_email: profile.consent_email,
-        consent_sms: profile.consent_sms,
-        isAdmin: adminUserIds.has(profile.user_id),
-      }));
+      const adminUserIds = new Set(adminRoles?.map(r => r.user_id) || []);
+      const subMap = new Map(subscriptions?.map(s => [s.user_id, s]) || []);
+
+      const usersWithRoles = (profiles || []).map(profile => {
+        const sub = subMap.get(profile.user_id);
+        return {
+          id: profile.id,
+          user_id: profile.user_id,
+          email: profile.email,
+          display_name: profile.display_name,
+          created_at: profile.created_at,
+          consent_email: profile.consent_email,
+          consent_sms: profile.consent_sms,
+          isAdmin: adminUserIds.has(profile.user_id),
+          subscription_status: sub?.status || null,
+          subscription_end: sub?.subscription_end || null,
+        };
+      });
 
       setUsers(usersWithRoles);
     } catch (error) {
@@ -144,6 +164,77 @@ export default function Admin() {
         description: 'Failed to update admin role',
         variant: 'destructive',
       });
+    }
+  };
+
+  const handleGrantAccess = async () => {
+    if (!grantEmail.trim()) {
+      toast({
+        title: 'Missing email',
+        description: 'Please enter an email address',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setGranting(true);
+    try {
+      // Find user by email
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('user_id')
+        .eq('email', grantEmail.trim())
+        .single();
+
+      if (profileError || !profile) {
+        throw new Error('User not found with that email');
+      }
+
+      // Calculate end date
+      const now = new Date();
+      let endDate: Date;
+      switch (grantDuration) {
+        case '1month':
+          endDate = addMonths(now, 1);
+          break;
+        case '6months':
+          endDate = addMonths(now, 6);
+          break;
+        case '1year':
+        default:
+          endDate = addYears(now, 1);
+          break;
+      }
+
+      // Upsert subscription
+      const { error: subError } = await supabase
+        .from('subscriptions')
+        .upsert({
+          user_id: profile.user_id,
+          status: 'admin_granted',
+          subscription_end: endDate.toISOString(),
+          granted_by_admin: true,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' });
+
+      if (subError) throw subError;
+
+      toast({
+        title: 'Access granted',
+        description: `${grantEmail} now has access until ${format(endDate, 'MMMM d, yyyy')}`,
+      });
+
+      setGrantEmail('');
+      fetchUsers();
+    } catch (error: any) {
+      console.error('Error granting access:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to grant access',
+        variant: 'destructive',
+      });
+    } finally {
+      setGranting(false);
     }
   };
 
@@ -275,10 +366,40 @@ export default function Admin() {
     }
   };
 
+  const getSubscriptionBadge = (status: string | null, endDate: string | null) => {
+    if (!status) {
+      return <Badge variant="outline">None</Badge>;
+    }
+    
+    const isExpired = endDate && new Date(endDate) < new Date();
+    
+    if (isExpired) {
+      return <Badge variant="outline">Expired</Badge>;
+    }
+    
+    switch (status) {
+      case 'active':
+        return <Badge className="gap-1"><Crown className="h-3 w-3" />Active</Badge>;
+      case 'trialing':
+        return <Badge variant="secondary" className="gap-1"><Clock className="h-3 w-3" />Trial</Badge>;
+      case 'admin_granted':
+        return <Badge variant="secondary" className="gap-1"><Gift className="h-3 w-3" />Free</Badge>;
+      case 'canceled':
+        return <Badge variant="outline">Canceled</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
   const adminCount = users.filter(u => u.isAdmin).length;
   const emailOptInCount = users.filter(u => u.consent_email).length;
   const smsOptInCount = users.filter(u => u.consent_sms).length;
   const currentRecipientCount = broadcastMode === 'email' ? emailOptInCount : smsOptInCount;
+
+  // Subscription stats
+  const activeSubCount = users.filter(u => u.subscription_status === 'active').length;
+  const trialCount = users.filter(u => u.subscription_status === 'trialing').length;
+  const adminGrantedCount = users.filter(u => u.subscription_status === 'admin_granted').length;
 
   const canSendBroadcast = broadcastMode === 'email' 
     ? broadcastSubject.trim() && broadcastMessage.trim() && emailOptInCount > 0
@@ -293,7 +414,7 @@ export default function Admin() {
         <div className="space-y-6">
           <div>
             <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-            <p className="text-muted-foreground">Manage users and system settings</p>
+            <p className="text-muted-foreground">Manage users, subscriptions, and system settings</p>
           </div>
 
           {/* Stats */}
@@ -307,6 +428,84 @@ export default function Admin() {
                 <div className="text-2xl font-bold">{users.length}</div>
               </CardContent>
             </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Active Subscribers</CardTitle>
+                <Crown className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{activeSubCount}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">In Trial</CardTitle>
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{trialCount}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Admin Granted</CardTitle>
+                <Gift className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{adminGrantedCount}</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Grant Free Access */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Gift className="h-5 w-5" />
+                Grant Free Access
+              </CardTitle>
+              <CardDescription>
+                Give a user complimentary access to GroovyPlanning
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Input
+                  placeholder="user@example.com"
+                  value={grantEmail}
+                  onChange={(e) => setGrantEmail(e.target.value)}
+                  className="flex-1"
+                  disabled={granting}
+                />
+                <Select value={grantDuration} onValueChange={setGrantDuration} disabled={granting}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1month">1 Month</SelectItem>
+                    <SelectItem value="6months">6 Months</SelectItem>
+                    <SelectItem value="1year">1 Year</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button onClick={handleGrantAccess} disabled={granting || !grantEmail.trim()}>
+                  {granting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Granting...
+                    </>
+                  ) : (
+                    <>
+                      <Gift className="mr-2 h-4 w-4" />
+                      Grant Access
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Test Cards */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Admins</CardTitle>
@@ -488,6 +687,7 @@ export default function Admin() {
                     <TableRow>
                       <TableHead>Email</TableHead>
                       <TableHead>Display Name</TableHead>
+                      <TableHead>Subscription</TableHead>
                       <TableHead>Role</TableHead>
                       <TableHead>Joined</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -498,6 +698,9 @@ export default function Admin() {
                       <TableRow key={user.id}>
                         <TableCell className="font-medium">{user.email || 'N/A'}</TableCell>
                         <TableCell>{user.display_name || '—'}</TableCell>
+                        <TableCell>
+                          {getSubscriptionBadge(user.subscription_status, user.subscription_end)}
+                        </TableCell>
                         <TableCell>
                           {user.isAdmin ? (
                             <Badge variant="default">Admin</Badge>

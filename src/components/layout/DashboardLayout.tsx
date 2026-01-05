@@ -35,7 +35,6 @@ const navItems = [
   { href: '/journal', label: 'Journal', icon: BookOpen, tourId: 'journal' },
   { href: '/reset', label: 'Reset', icon: RotateCcw, tourId: 'reset' },
   { href: '/reports', label: 'Reports', icon: BarChart3, tourId: 'reports' },
-  { href: '/settings', label: 'Settings', icon: Settings, tourId: 'settings' },
 ];
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {

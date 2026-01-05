@@ -95,41 +95,41 @@ export function FocusHistory({ sessions, todayMinutes, todayCount, streak, onUpd
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
-                        <p className="font-medium truncate">{session.objective}</p>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <Badge
-                            variant={session.status === 'completed' ? 'default' : 'secondary'}
-                            className={cn(
-                              "text-xs",
-                              session.status === 'abandoned' && "bg-destructive/10 text-destructive"
-                            )}
+                        <p className="font-medium break-words">{session.objective}</p>
+                        {session.status !== 'active' && onUpdateSession && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 shrink-0"
+                            onClick={() => setEditingSession(session)}
                           >
-                            {session.status}
-                          </Badge>
-                          {session.status !== 'active' && onUpdateSession && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => setEditingSession(session)}
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-                        </div>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                        <span>{format(new Date(session.started_at), 'h:mm a')}</span>
-                        <span>•</span>
-                        <span>
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
+                        <Badge
+                          variant={session.status === 'completed' ? 'default' : 'secondary'}
+                          className={cn(
+                            "text-xs",
+                            session.status === 'abandoned' && "bg-destructive/10 text-destructive"
+                          )}
+                        >
+                          {session.status}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {format(new Date(session.started_at), 'h:mm a')}
+                        </span>
+                        <span className="text-xs text-muted-foreground">•</span>
+                        <span className="text-xs text-muted-foreground">
                           {session.actual_duration_minutes 
                             ? `${session.actual_duration_minutes}m` 
                             : `${session.planned_duration_minutes}m planned`}
                         </span>
                         {(session as any).rating && (
                           <>
-                            <span>•</span>
-                            <span className="capitalize">{(session as any).rating}</span>
+                            <span className="text-xs text-muted-foreground">•</span>
+                            <span className="text-xs text-muted-foreground capitalize">{(session as any).rating}</span>
                           </>
                         )}
                       </div>

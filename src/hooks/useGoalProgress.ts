@@ -47,16 +47,15 @@ export function useGoalProgress(goalId: string, targetValue: number, metricType:
       // First get tactics for this goal
       const { data: tactics, error: tacticsError } = await supabase
         .from('goal_tactics')
-        .select('id, target_count')
+        .select('id, target_count, title')
         .eq('goal_id', goalId)
         .eq('frequency', 'daily')
         .eq('is_active', true);
 
       if (tacticsError) throw tacticsError;
-      if (!tactics?.length) return { daysCompleted: 0, totalDays: 0 };
+      if (!tactics?.length) return { daysCompleted: 0, totalDays: 0, cumulativeValue: 0 };
 
       const tacticIds = tactics.map(t => t.id);
-      const tacticMap = new Map(tactics.map(t => [t.id, t.target_count]));
 
       // Get logs from last 84 days (12 weeks)
       const startDate = format(subDays(new Date(), 84), 'yyyy-MM-dd');
@@ -88,7 +87,20 @@ export function useGoalProgress(goalId: string, targetValue: number, metricType:
         if (allComplete) daysCompleted++;
       });
 
-      return { daysCompleted, totalDays: logsByDate.size };
+      // Calculate cumulative value by summing completed_count * unit value from title
+      // Extract number from tactic title (e.g., "Do 10 pushups" -> 10)
+      let cumulativeValue = 0;
+      logs?.forEach(log => {
+        const tactic = tactics.find(t => t.id === log.tactic_id);
+        if (tactic) {
+          // Try to extract a number from the tactic title
+          const match = tactic.title.match(/\d+/);
+          const unitValue = match ? parseInt(match[0], 10) : 1;
+          cumulativeValue += log.completed_count * unitValue;
+        }
+      });
+
+      return { daysCompleted, totalDays: logsByDate.size, cumulativeValue };
     },
     enabled: !!user && !!goalId && !metricType.toLowerCase().includes('score'),
   });
@@ -111,12 +123,18 @@ export function useGoalProgress(goalId: string, targetValue: number, metricType:
       logCount: logs.length,
     };
   } else {
-    const { daysCompleted = 0, totalDays = 0 } = tacticLogsQuery.data ?? {};
-    // For habit goals, progress is days completed vs target days
-    const progressPercent = targetValue > 0 ? Math.round((daysCompleted / targetValue) * 100) : 0;
+    const { daysCompleted = 0, totalDays = 0, cumulativeValue = 0 } = tacticLogsQuery.data ?? {};
+    
+    // For goals with high targets (like 1200 pushups), use cumulative value
+    // For habit-style goals (like "exercise 42 days"), use days completed
+    const isHighTargetGoal = targetValue > 100;
+    const actualVal = isHighTargetGoal ? cumulativeValue : daysCompleted;
+    
+    // Progress is actual value vs target
+    const progressPercent = targetValue > 0 ? Math.round((actualVal / targetValue) * 100) : 0;
     
     return {
-      actualValue: daysCompleted,
+      actualValue: actualVal,
       progressPercent: Math.min(progressPercent, 100),
       isLoading: tacticLogsQuery.isLoading,
       logCount: totalDays,

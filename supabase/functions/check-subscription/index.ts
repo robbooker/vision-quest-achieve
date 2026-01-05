@@ -111,9 +111,15 @@ serve(async (req) => {
       });
     }
 
-    const subscriptionEnd = new Date(activeSub.current_period_end * 1000).toISOString();
-    const trialEnd = activeSub.trial_end ? new Date(activeSub.trial_end * 1000).toISOString() : null;
-    const canceledAt = activeSub.canceled_at ? new Date(activeSub.canceled_at * 1000).toISOString() : null;
+    const subscriptionEnd = activeSub.current_period_end 
+      ? new Date(activeSub.current_period_end * 1000).toISOString() 
+      : null;
+    const trialEnd = activeSub.trial_end 
+      ? new Date(activeSub.trial_end * 1000).toISOString() 
+      : null;
+    const canceledAt = activeSub.canceled_at 
+      ? new Date(activeSub.canceled_at * 1000).toISOString() 
+      : null;
 
     logStep("Active subscription found", {
       subscriptionId: activeSub.id,

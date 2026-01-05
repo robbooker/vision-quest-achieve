@@ -83,18 +83,41 @@ export function FocusHistory({ sessions, todayMinutes, todayCount, streak, onUpd
                 todaySessions.map(session => (
                   <div
                     key={session.id}
-                    className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 group"
+                    className="flex items-start gap-3 p-3 rounded-lg bg-muted/50"
                   >
                     {session.status === 'completed' ? (
-                      <CheckCircle2 className="h-5 w-5 text-chart-2 mt-0.5" />
+                      <CheckCircle2 className="h-5 w-5 text-chart-2 mt-0.5 shrink-0" />
                     ) : session.status === 'abandoned' ? (
-                      <XCircle className="h-5 w-5 text-destructive mt-0.5" />
+                      <XCircle className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
                     ) : (
-                      <Target className="h-5 w-5 text-primary animate-pulse mt-0.5" />
+                      <Target className="h-5 w-5 text-primary animate-pulse mt-0.5 shrink-0" />
                     )}
 
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{session.objective}</p>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-medium truncate">{session.objective}</p>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Badge
+                            variant={session.status === 'completed' ? 'default' : 'secondary'}
+                            className={cn(
+                              "text-xs",
+                              session.status === 'abandoned' && "bg-destructive/10 text-destructive"
+                            )}
+                          >
+                            {session.status}
+                          </Badge>
+                          {session.status !== 'active' && onUpdateSession && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => setEditingSession(session)}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
                       <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                         <span>{format(new Date(session.started_at), 'h:mm a')}</span>
                         <span>•</span>
@@ -114,28 +137,6 @@ export function FocusHistory({ sessions, todayMinutes, todayCount, streak, onUpd
                         <p className="text-xs text-muted-foreground mt-1 italic">
                           "{session.notes}"
                         </p>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant={session.status === 'completed' ? 'default' : 'secondary'}
-                        className={cn(
-                          "text-xs",
-                          session.status === 'abandoned' && "bg-destructive/10 text-destructive"
-                        )}
-                      >
-                        {session.status}
-                      </Badge>
-                      {session.status !== 'active' && onUpdateSession && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => setEditingSession(session)}
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
                       )}
                     </div>
                   </div>

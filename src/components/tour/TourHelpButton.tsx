@@ -6,6 +6,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useToastSound } from "@/hooks/useToastSound";
 
 interface TourHelpButtonProps {
   onClick: () => void;
@@ -13,6 +14,13 @@ interface TourHelpButtonProps {
 }
 
 export function TourHelpButton({ onClick, isTerminal = false }: TourHelpButtonProps) {
+  const { playToastPop } = useToastSound();
+
+  const handleClick = () => {
+    playToastPop();
+    onClick();
+  };
+
   return (
     <TooltipProvider>
       <Tooltip>
@@ -20,7 +28,7 @@ export function TourHelpButton({ onClick, isTerminal = false }: TourHelpButtonPr
           <Button
             variant="ghost"
             size="icon"
-            onClick={onClick}
+            onClick={handleClick}
             className={
               isTerminal 
                 ? "text-orange-400 hover:text-orange-300 hover:bg-orange-500/20" 

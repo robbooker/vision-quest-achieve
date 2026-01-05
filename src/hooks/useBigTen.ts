@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
+export type BigTenCategory = 'opportunity' | 'challenge';
+
 export interface BigTenTask {
   id: string;
   project_id: string;
@@ -23,6 +25,7 @@ export interface BigTenProject {
   completed_at: string | null;
   created_at: string;
   updated_at: string;
+  category: BigTenCategory | null;
   tasks?: BigTenTask[];
 }
 
@@ -63,7 +66,7 @@ export function useBigTen() {
   });
 
   const createProject = useMutation({
-    mutationFn: async ({ title, position }: { title: string; position: number }) => {
+    mutationFn: async ({ title, position, category }: { title: string; position: number; category?: BigTenCategory }) => {
       if (!user?.id) throw new Error('Not authenticated');
 
       const { data, error } = await supabase
@@ -72,6 +75,7 @@ export function useBigTen() {
           user_id: user.id,
           title,
           position,
+          category: category || null,
         })
         .select()
         .single();
@@ -94,11 +98,13 @@ export function useBigTen() {
       title,
       target_date,
       completed,
+      category,
     }: {
       id: string;
       title?: string;
       target_date?: string | null;
       completed?: boolean;
+      category?: BigTenCategory | null;
     }) => {
       const updates: Record<string, unknown> = {};
       if (title !== undefined) updates.title = title;
@@ -107,6 +113,7 @@ export function useBigTen() {
         updates.completed = completed;
         updates.completed_at = completed ? new Date().toISOString() : null;
       }
+      if (category !== undefined) updates.category = category;
 
       const { error } = await supabase
         .from('big_ten_projects')

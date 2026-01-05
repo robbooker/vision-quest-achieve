@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { Calendar, Plus, Trash2, Check, X, CheckCircle2 } from 'lucide-react';
+import { Calendar, Plus, Trash2, Check, X, CheckCircle2, Rocket, Mountain } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,14 +8,15 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import { BigTenProject, BigTenTask } from '@/hooks/useBigTen';
+import { BigTenProject, BigTenTask, BigTenCategory } from '@/hooks/useBigTen';
 
 interface BigTenCardProps {
   project?: BigTenProject;
   position: number;
   showAddButton?: boolean;
+  showCategoryPicker?: boolean;
   onCreateProject: (title: string, position: number) => void;
-  onUpdateProject: (id: string, title?: string, target_date?: string | null, completed?: boolean) => void;
+  onUpdateProject: (id: string, title?: string, target_date?: string | null, completed?: boolean, category?: BigTenCategory | null) => void;
   onDeleteProject: (id: string) => void;
   onCreateTask: (project_id: string, title: string, position: number) => void;
   onUpdateTask: (id: string, title?: string, completed?: boolean) => void;
@@ -26,6 +27,7 @@ export function BigTenCard({
   project,
   position,
   showAddButton = true,
+  showCategoryPicker = false,
   onCreateProject,
   onUpdateProject,
   onDeleteProject,
@@ -59,6 +61,12 @@ export function BigTenCard({
   const handleDateChange = (date: Date | undefined) => {
     if (project) {
       onUpdateProject(project.id, undefined, date ? format(date, 'yyyy-MM-dd') : null);
+    }
+  };
+
+  const handleCategoryChange = (category: BigTenCategory) => {
+    if (project) {
+      onUpdateProject(project.id, undefined, undefined, undefined, category);
     }
   };
 
@@ -117,6 +125,12 @@ export function BigTenCard({
     onUpdateProject(project.id, undefined, undefined, true);
   };
 
+  const categoryIcon = project.category === 'opportunity' 
+    ? <Rocket className="h-4 w-4 text-primary" />
+    : project.category === 'challenge'
+    ? <Mountain className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+    : null;
+
   return (
     <Card className="min-h-[200px] flex flex-col">
       <CardHeader className="pb-2 flex flex-row items-start justify-between gap-2">
@@ -142,6 +156,7 @@ export function BigTenCard({
             </div>
           ) : (
             <div className="flex items-center gap-2">
+              {categoryIcon}
               <h3
                 className={cn(
                   'text-lg font-semibold cursor-pointer hover:text-primary transition-colors',
@@ -180,6 +195,30 @@ export function BigTenCard({
         </Button>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col gap-3">
+        {/* Category picker for uncategorized projects */}
+        {showCategoryPicker && !project.category && (
+          <div className="flex gap-2 pb-2 border-b border-border">
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1 gap-2 border-primary/30 hover:bg-primary/10"
+              onClick={() => handleCategoryChange('opportunity')}
+            >
+              <Rocket className="h-4 w-4" />
+              Opportunity
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1 gap-2 border-orange-500/30 hover:bg-orange-500/10"
+              onClick={() => handleCategoryChange('challenge')}
+            >
+              <Mountain className="h-4 w-4" />
+              Challenge
+            </Button>
+          </div>
+        )}
+
         {/* Tasks list */}
         <div className="space-y-2 flex-1">
           {tasks.map((task) => (

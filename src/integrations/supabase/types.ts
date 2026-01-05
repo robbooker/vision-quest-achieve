@@ -196,6 +196,85 @@ export type Database = {
         }
         Relationships: []
       }
+      focus_sessions: {
+        Row: {
+          actual_duration_minutes: number | null
+          ambient_sound: string | null
+          break_duration_minutes: number | null
+          completed_at: string | null
+          created_at: string
+          id: string
+          linked_big_ten_task_id: string | null
+          linked_goal_id: string | null
+          linked_task_id: string | null
+          notes: string | null
+          objective: string
+          planned_duration_minutes: number
+          started_at: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          actual_duration_minutes?: number | null
+          ambient_sound?: string | null
+          break_duration_minutes?: number | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          linked_big_ten_task_id?: string | null
+          linked_goal_id?: string | null
+          linked_task_id?: string | null
+          notes?: string | null
+          objective: string
+          planned_duration_minutes?: number
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          actual_duration_minutes?: number | null
+          ambient_sound?: string | null
+          break_duration_minutes?: number | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          linked_big_ten_task_id?: string | null
+          linked_goal_id?: string | null
+          linked_task_id?: string | null
+          notes?: string | null
+          objective?: string
+          planned_duration_minutes?: number
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "focus_sessions_linked_big_ten_task_id_fkey"
+            columns: ["linked_big_ten_task_id"]
+            isOneToOne: false
+            referencedRelation: "big_ten_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "focus_sessions_linked_goal_id_fkey"
+            columns: ["linked_goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "focus_sessions_linked_task_id_fkey"
+            columns: ["linked_task_id"]
+            isOneToOne: false
+            referencedRelation: "quick_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       friendships: {
         Row: {
           addressee_id: string

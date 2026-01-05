@@ -31,6 +31,7 @@ import HabitGoalsBlog from "./pages/HabitGoalsBlog";
 import ResetBlog from "./pages/ResetBlog";
 import Reset from "./pages/Reset";
 import Journal from "./pages/Journal";
+import Focus from "./pages/Focus";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -78,6 +79,7 @@ const App = () => (
                   <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
                   <Route path="/vision" element={<ProtectedRoute><Vision /></ProtectedRoute>} />
                   <Route path="/big-ten" element={<ProtectedRoute><BigTen /></ProtectedRoute>} />
+                  <Route path="/focus" element={<ProtectedRoute><Focus /></ProtectedRoute>} />
                   <Route path="/reset" element={<ProtectedRoute><Reset /></ProtectedRoute>} />
                   <Route path="/journal" element={<ProtectedRoute><Journal /></ProtectedRoute>} />
                   <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />

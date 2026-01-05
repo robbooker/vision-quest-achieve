@@ -12,6 +12,7 @@ type JournalContext = {
   pendingTasks: any[];
   recentHabits: any[];
   journalEntries: any[];
+  focusSessions: any[];
 };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/journal-chat`;
@@ -24,7 +25,7 @@ export const useJournalChat = () => {
   const fetchContext = useCallback(async (): Promise<JournalContext> => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      return { recentTasks: [], pendingTasks: [], recentHabits: [], journalEntries: [] };
+      return { recentTasks: [], pendingTasks: [], recentHabits: [], journalEntries: [], focusSessions: [] };
     }
 
     const sevenDaysAgo = format(subDays(new Date(), 7), 'yyyy-MM-dd');
@@ -76,11 +77,21 @@ export const useJournalChat = () => {
       .order('entry_date', { ascending: false })
       .limit(5);
 
+    // Fetch recent focus sessions
+    const { data: focusSessions } = await supabase
+      .from('focus_sessions')
+      .select('objective, actual_duration_minutes, planned_duration_minutes, status, started_at')
+      .eq('user_id', user.id)
+      .gte('started_at', sevenDaysAgo)
+      .order('started_at', { ascending: false })
+      .limit(10);
+
     return {
       recentTasks: recentTasks || [],
       pendingTasks: pendingTasks || [],
       recentHabits: habitsWithTitles,
       journalEntries: journalEntries || [],
+      focusSessions: focusSessions || [],
     };
   }, []);
 

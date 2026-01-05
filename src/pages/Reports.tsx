@@ -30,12 +30,14 @@ import { useWeekReviews } from '@/hooks/useWeekReviews';
 import { useMilestones } from '@/hooks/useMilestones';
 import { useBigTen } from '@/hooks/useBigTen';
 import { useQuickTasks } from '@/hooks/useQuickTasks';
-import { TrendingUp, BarChart3, Target, AlertTriangle, Calendar, CheckSquare, FolderKanban, ListTodo, RotateCcw, Flame, Trophy, Zap } from 'lucide-react';
+import { TrendingUp, BarChart3, Target, AlertTriangle, Calendar, CheckSquare, FolderKanban, ListTodo, RotateCcw, Flame, Trophy, Zap, Clock, Timer } from 'lucide-react';
 import { HabitChainCalendar } from '@/components/reports/HabitChainCalendar';
 import { AuditStrip } from '@/components/reset/AuditStrip';
 import { useResetAudits } from '@/hooks/useResetAudits';
 import { useResetPreference } from '@/hooks/useResetPreference';
+import { useFocusSessions } from '@/hooks/useFocusSessions';
 import { format, subDays, startOfDay, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek } from 'date-fns';
+import { PieChart, Pie, Cell } from 'recharts';
 
 export default function Reports() {
   const { getActiveCycle, getCurrentWeekNumber, isLoading: cyclesLoading } = useCycles();
@@ -49,6 +51,7 @@ export default function Reports() {
   const { tasks: quickTasks } = useQuickTasks();
   const { audits, getScore, getStreak, getPerfectDays, getAverageScore, getBestScore } = useResetAudits();
   const { isResetActive, resetStartedAt } = useResetPreference();
+  const { sessions: focusSessions, weeklyStats: focusWeeklyStats, timeOfDayStats, streak: focusStreak } = useFocusSessions();
 
   // Generate execution score data for all weeks (6-week cycle)
   const executionScoreData = useMemo(() => {
@@ -188,6 +191,11 @@ export default function Reports() {
     personal: { label: 'Personal', color: 'hsl(var(--primary))' },
     business: { label: 'Business', color: 'hsl(var(--secondary))' },
     resetScore: { label: 'Score', color: 'hsl(var(--primary))' },
+    focusMinutes: { label: 'Minutes', color: 'hsl(var(--primary))' },
+    morning: { label: 'Morning', color: 'hsl(199 89% 48%)' },
+    afternoon: { label: 'Afternoon', color: 'hsl(45 93% 47%)' },
+    evening: { label: 'Evening', color: 'hsl(280 65% 60%)' },
+    night: { label: 'Night', color: 'hsl(215 25% 27%)' },
   };
 
   if (cyclesLoading) {
@@ -385,6 +393,125 @@ export default function Reports() {
 
         {/* Habit Chains Section */}
         <HabitChainCalendar />
+
+        {/* Focus Sessions Section */}
+        {focusSessions.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" />
+              Focused Work
+            </h2>
+            
+            {/* Focus Stats Cards */}
+            <div className="grid gap-4 md:grid-cols-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-primary" />
+                    <span className="text-sm text-muted-foreground">Last 7 Days</span>
+                  </div>
+                  <p className="text-2xl font-bold mt-1">{focusWeeklyStats.totalMinutes}m</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {focusWeeklyStats.sessionCount} sessions
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-2">
+                    <Timer className="h-4 w-4 text-primary" />
+                    <span className="text-sm text-muted-foreground">Avg Duration</span>
+                  </div>
+                  <p className="text-2xl font-bold mt-1">{focusWeeklyStats.avgDuration}m</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-2">
+                    <Flame className="h-4 w-4 text-primary" />
+                    <span className="text-sm text-muted-foreground">Focus Streak</span>
+                  </div>
+                  <p className="text-2xl font-bold mt-1">{focusStreak} days</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-2">
+                    <Trophy className="h-4 w-4 text-primary" />
+                    <span className="text-sm text-muted-foreground">Total Sessions</span>
+                  </div>
+                  <p className="text-2xl font-bold mt-1">
+                    {focusSessions.filter(s => s.status === 'completed').length}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Focus Charts */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4" />
+                    Daily Focus Minutes (Last 7 Days)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer config={chartConfig} className="h-[200px]">
+                    <BarChart data={focusWeeklyStats.dailyStats} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis dataKey="date" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                      <YAxis tick={{ fontSize: 12 }} tickLine={false} axisLine={false} unit="m" />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="minutes" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Time of Day Distribution
+                  </CardTitle>
+                  <CardDescription>When do you focus best?</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer config={chartConfig} className="h-[200px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={timeOfDayStats.filter(d => d.minutes > 0)}
+                          dataKey="minutes"
+                          nameKey="time"
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={70}
+                          label={({ time, minutes }) => `${time}: ${minutes}m`}
+                          labelLine={false}
+                        >
+                          {timeOfDayStats.map((entry, index) => (
+                            <Cell 
+                              key={entry.time} 
+                              fill={
+                                entry.time === 'Morning' ? 'hsl(199 89% 48%)' :
+                                entry.time === 'Afternoon' ? 'hsl(45 93% 47%)' :
+                                entry.time === 'Evening' ? 'hsl(280 65% 60%)' :
+                                'hsl(215 25% 27%)'
+                              } 
+                            />
+                          ))}
+                        </Pie>
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
 
         {/* 7-Day Reset Section - Only show if user has reset data */}
         {(audits.length > 0 || isResetActive) && (

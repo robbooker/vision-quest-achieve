@@ -38,6 +38,13 @@ type CompleteSessionInput = {
   rating?: 'bad' | 'good' | 'great' | null;
 };
 
+type UpdateSessionInput = {
+  id: string;
+  status?: 'completed' | 'abandoned';
+  rating?: 'bad' | 'good' | 'great' | null;
+  notes?: string | null;
+};
+
 export const useFocusSessions = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -182,6 +189,31 @@ export const useFocusSessions = () => {
     },
   });
 
+  // Update existing session
+  const updateSession = useMutation({
+    mutationFn: async (input: UpdateSessionInput) => {
+      const updateData: Record<string, unknown> = {};
+      if (input.status !== undefined) updateData.status = input.status;
+      if (input.rating !== undefined) updateData.rating = input.rating;
+      if (input.notes !== undefined) updateData.notes = input.notes;
+
+      const { data, error } = await supabase
+        .from('focus_sessions')
+        .update(updateData)
+        .eq('id', input.id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data as FocusSession;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['focus-sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['focus-sessions-today'] });
+      queryClient.invalidateQueries({ queryKey: ['focus-session-active'] });
+    },
+  });
+
   // Calculate stats
   const todayMinutes = todaySessions
     .filter(s => s.status === 'completed')
@@ -273,6 +305,7 @@ export const useFocusSessions = () => {
     createSession,
     completeSession,
     abandonSession,
+    updateSession,
     todayMinutes,
     todayCompletedCount,
     streak: calculateStreak(),

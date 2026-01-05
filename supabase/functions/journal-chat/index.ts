@@ -74,6 +74,16 @@ serve(async (req) => {
           contextMessage += "\n";
         });
       }
+
+      // Add focus session context
+      if (context.focusSessions && context.focusSessions.length > 0) {
+        const totalMinutes = context.focusSessions.reduce((sum: number, s: any) => sum + (s.actual_duration_minutes || 0), 0);
+        contextMessage += "\n\n**Recent Focus Sessions (last 7 days):**\n";
+        contextMessage += `- Total focused time: ${totalMinutes} minutes across ${context.focusSessions.length} sessions\n`;
+        context.focusSessions.slice(0, 5).forEach((session: any) => {
+          contextMessage += `- "${session.objective}": ${session.actual_duration_minutes || session.planned_duration_minutes}m (${session.status})\n`;
+        });
+      }
     }
 
     const systemContent = SYSTEM_PROMPT + (contextMessage ? `\n\n**User's Recent Activity Context:**${contextMessage}` : "");

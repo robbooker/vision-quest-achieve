@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { format, parseISO } from 'date-fns';
 import { 
   ImageIcon, 
@@ -9,7 +9,9 @@ import {
   X, 
   ChevronDown, 
   ChevronUp,
-  Sparkles 
+  Sparkles,
+  Camera,
+  Plus
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,7 +33,9 @@ import {
   JournalEntry, 
   useUpdateJournalNotes, 
   useGenerateJournalImage, 
-  useDeleteJournalImage 
+  useDeleteJournalImage,
+  useUploadJournalPhoto,
+  useDeleteJournalPhoto
 } from '@/hooks/useJournal';
 
 interface JournalEntryCardProps {
@@ -42,13 +46,34 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notes, setNotes] = useState(entry.user_notes || '');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const updateNotes = useUpdateJournalNotes();
   const generateImage = useGenerateJournalImage();
   const deleteImage = useDeleteJournalImage();
+  const uploadPhoto = useUploadJournalPhoto();
+  const deletePhoto = useDeleteJournalPhoto();
 
   const isGenerating = generateImage.isPending;
   const isDeleting = deleteImage.isPending;
+  const isUploading = uploadPhoto.isPending;
+
+  const userPhotos = entry.user_photos || [];
+  const canAddMorePhotos = userPhotos.length < 2;
+
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        return;
+      }
+      uploadPhoto.mutate({ entryId: entry.id, file });
+    }
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const handleSaveNotes = () => {
     updateNotes.mutate({ entryId: entry.id, notes });
@@ -144,6 +169,82 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
               {totalAccomplishments === 0 && (
                 <p className="text-xs text-muted-foreground">No accomplishments to visualize</p>
               )}
+            </div>
+          )}
+        </div>
+
+        {/* User Photos Section */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-medium flex items-center gap-2">
+              <Camera className="w-4 h-4" />
+              Your Photos ({userPhotos.length}/2)
+            </h4>
+            {canAddMorePhotos && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoSelect}
+                  className="hidden"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                >
+                  {isUploading ? (
+                    <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
+                  ) : (
+                    <Plus className="w-4 h-4 mr-1" />
+                  )}
+                  Add Photo
+                </Button>
+              </>
+            )}
+          </div>
+          
+          {userPhotos.length > 0 && (
+            <div className="grid grid-cols-2 gap-2">
+              {userPhotos.map((photo, index) => (
+                <div key={photo.path} className="relative aspect-square rounded-lg overflow-hidden group">
+                  <img
+                    src={photo.url}
+                    alt={`User photo ${index + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        size="icon"
+                        variant="destructive"
+                        className="absolute top-1 right-1 w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                        disabled={deletePhoto.isPending}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Photo?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will permanently remove this photo from your journal entry.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction 
+                          onClick={() => deletePhoto.mutate({ entryId: entry.id, photoPath: photo.path })}
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              ))}
             </div>
           )}
         </div>

@@ -524,6 +524,7 @@ export type Database = {
           updated_at: string
           user_id: string
           user_notes: string | null
+          user_photos: Json | null
         }
         Insert: {
           completed_habits?: Json | null
@@ -536,6 +537,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           user_notes?: string | null
+          user_photos?: Json | null
         }
         Update: {
           completed_habits?: Json | null
@@ -548,6 +550,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           user_notes?: string | null
+          user_photos?: Json | null
         }
         Relationships: []
       }

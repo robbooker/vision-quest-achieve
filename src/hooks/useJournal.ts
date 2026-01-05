@@ -18,6 +18,12 @@ export interface CompletedHabit {
   goal_title: string;
 }
 
+export interface UserPhoto {
+  url: string;
+  path: string;
+  uploaded_at: string;
+}
+
 export interface JournalEntry {
   id: string;
   user_id: string;
@@ -27,6 +33,7 @@ export interface JournalEntry {
   image_url: string | null;
   image_prompt: string | null;
   user_notes: string | null;
+  user_photos: UserPhoto[];
   created_at: string;
   updated_at: string;
 }
@@ -52,6 +59,7 @@ export const useJournalEntries = (limit: number = 3) => {
         ...entry,
         completed_tasks: (entry.completed_tasks || []) as unknown as CompletedTask[],
         completed_habits: (entry.completed_habits || []) as unknown as CompletedHabit[],
+        user_photos: (entry.user_photos || []) as unknown as UserPhoto[],
       })) as JournalEntry[];
     },
     enabled: !!user?.id,
@@ -130,6 +138,7 @@ export const useCreateJournalEntry = () => {
         ...data,
         completed_tasks: completedTasks,
         completed_habits: completedHabits,
+        user_photos: [] as UserPhoto[],
       } as JournalEntry;
     },
     onSuccess: () => {
@@ -235,6 +244,116 @@ export const useDeleteJournalImage = () => {
     onError: (error) => {
       console.error('Failed to delete image:', error);
       toast.error('Failed to delete image');
+    },
+  });
+};
+
+export const useUploadJournalPhoto = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ entryId, file }: { entryId: string; file: File }) => {
+      if (!user?.id) throw new Error('Not authenticated');
+
+      // Get current entry to check photo count
+      const { data: entry } = await supabase
+        .from('journal_entries')
+        .select('user_photos')
+        .eq('id', entryId)
+        .single();
+
+      const currentPhotos = (entry?.user_photos || []) as unknown as UserPhoto[];
+      if (currentPhotos.length >= 2) {
+        throw new Error('Maximum 2 photos allowed per entry');
+      }
+
+      // Upload to storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/photos/${entryId}-${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('journal-images')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('journal-images')
+        .getPublicUrl(fileName);
+
+      const newPhoto: UserPhoto = {
+        url: urlData.publicUrl,
+        path: fileName,
+        uploaded_at: new Date().toISOString(),
+      };
+
+      // Update entry with new photo
+      const { error: updateError } = await supabase
+        .from('journal_entries')
+        .update({ 
+          user_photos: [...currentPhotos, newPhoto] as unknown as any
+        })
+        .eq('id', entryId)
+        .eq('user_id', user.id);
+
+      if (updateError) throw updateError;
+
+      return newPhoto;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['journal-entries'] });
+      toast.success('Photo uploaded!');
+    },
+    onError: (error) => {
+      console.error('Failed to upload photo:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to upload photo');
+    },
+  });
+};
+
+export const useDeleteJournalPhoto = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ entryId, photoPath }: { entryId: string; photoPath: string }) => {
+      if (!user?.id) throw new Error('Not authenticated');
+
+      // Delete from storage
+      const { error: deleteError } = await supabase.storage
+        .from('journal-images')
+        .remove([photoPath]);
+
+      if (deleteError) throw deleteError;
+
+      // Get current entry
+      const { data: entry } = await supabase
+        .from('journal_entries')
+        .select('user_photos')
+        .eq('id', entryId)
+        .single();
+
+      const currentPhotos = (entry?.user_photos || []) as unknown as UserPhoto[];
+      const updatedPhotos = currentPhotos.filter(p => p.path !== photoPath);
+
+      // Update entry
+      const { error: updateError } = await supabase
+        .from('journal_entries')
+        .update({ user_photos: updatedPhotos as unknown as any })
+        .eq('id', entryId)
+        .eq('user_id', user.id);
+
+      if (updateError) throw updateError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['journal-entries'] });
+      toast.success('Photo deleted');
+    },
+    onError: (error) => {
+      console.error('Failed to delete photo:', error);
+      toast.error('Failed to delete photo');
     },
   });
 };

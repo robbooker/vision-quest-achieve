@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, Square, Plus } from 'lucide-react';
+import { Play, Pause, CheckCircle, X, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -7,11 +7,11 @@ interface FocusTimerProps {
   plannedMinutes: number;
   objective: string;
   onComplete: (actualMinutes: number) => void;
-  onAbandon: (elapsedMinutes: number) => void;
+  onCancel: () => void;
   startTime: Date;
 }
 
-export function FocusTimer({ plannedMinutes, objective, onComplete, onAbandon, startTime }: FocusTimerProps) {
+export function FocusTimer({ plannedMinutes, objective, onComplete, onCancel, startTime }: FocusTimerProps) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [extendedMinutes, setExtendedMinutes] = useState(0);
@@ -76,11 +76,6 @@ export function FocusTimer({ plannedMinutes, objective, onComplete, onAbandon, s
     const actualMinutes = Math.ceil(elapsedSeconds / 60);
     onComplete(actualMinutes);
   }, [elapsedSeconds, onComplete]);
-
-  const handleAbandon = useCallback(() => {
-    const actualMinutes = Math.ceil(elapsedSeconds / 60);
-    onAbandon(actualMinutes);
-  }, [elapsedSeconds, onAbandon]);
 
   const handleExtend = (minutes: number) => {
     setExtendedMinutes(prev => prev + minutes);
@@ -168,17 +163,18 @@ export function FocusTimer({ plannedMinutes, objective, onComplete, onAbandon, s
           onClick={handleComplete}
           className="gap-2"
         >
-          Complete Session
+          <CheckCircle className="h-5 w-5" />
+          End Session
         </Button>
 
         <Button
           variant="ghost"
           size="lg"
-          onClick={handleAbandon}
-          className="gap-2 text-destructive hover:text-destructive"
+          onClick={onCancel}
+          className="gap-2 text-muted-foreground hover:text-destructive"
         >
-          <Square className="h-4 w-4" />
-          End
+          <X className="h-4 w-4" />
+          Cancel
         </Button>
       </div>
 

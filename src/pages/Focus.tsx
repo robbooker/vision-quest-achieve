@@ -82,7 +82,7 @@ export default function Focus() {
     setViewState('complete');
   };
 
-  const handleSaveNotes = async (notes: string) => {
+  const handleSaveNotes = async (notes: string, rating: 'bad' | 'good' | 'great') => {
     if (!activeSession || !completedSessionData) return;
 
     try {
@@ -90,6 +90,7 @@ export default function Focus() {
         id: activeSession.id,
         actual_duration_minutes: completedSessionData.actualMinutes,
         notes: notes || null,
+        rating,
       });
       toast({
         title: 'Session saved!',
@@ -105,21 +106,19 @@ export default function Focus() {
     setViewState('break');
   };
 
-  const handleAbandonSession = async (elapsedMinutes: number) => {
+  const handleCancelSession = async () => {
     if (!activeSession) return;
 
     try {
       await abandonSession.mutateAsync(activeSession.id);
       setViewState('setup');
-      if (elapsedMinutes >= 5) {
-        toast({
-          title: 'Session ended',
-          description: `${elapsedMinutes} minutes logged.`,
-        });
-      }
+      toast({
+        title: 'Session cancelled',
+        description: 'No worries, you can start a new session anytime.',
+      });
     } catch (error) {
       toast({
-        title: 'Failed to end session',
+        title: 'Failed to cancel session',
         variant: 'destructive',
       });
     }
@@ -192,7 +191,7 @@ export default function Focus() {
                     objective={activeSession.objective}
                     startTime={new Date(activeSession.started_at)}
                     onComplete={handleCompleteSession}
-                    onAbandon={handleAbandonSession}
+                    onCancel={handleCancelSession}
                   />
                   
                   {/* Ambient Sounds */}

@@ -210,6 +210,7 @@ export type Database = {
           notes: string | null
           objective: string
           planned_duration_minutes: number
+          rating: string | null
           started_at: string
           status: string
           updated_at: string
@@ -228,6 +229,7 @@ export type Database = {
           notes?: string | null
           objective: string
           planned_duration_minutes?: number
+          rating?: string | null
           started_at?: string
           status?: string
           updated_at?: string
@@ -246,6 +248,7 @@ export type Database = {
           notes?: string | null
           objective?: string
           planned_duration_minutes?: number
+          rating?: string | null
           started_at?: string
           status?: string
           updated_at?: string

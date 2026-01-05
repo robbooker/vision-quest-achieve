@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { Trophy, Clock, PenLine, PartyPopper } from 'lucide-react';
+import { Trophy, Clock, PenLine, PartyPopper, Frown, Smile, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+
+type Rating = 'bad' | 'good' | 'great';
 
 interface SessionCompleteProps {
   objective: string;
@@ -13,7 +15,7 @@ interface SessionCompleteProps {
   todayMinutes: number;
   todaySessions: number;
   streak: number;
-  onSave: (notes: string) => void;
+  onSave: (notes: string, rating: Rating) => void;
   onClose: () => void;
 }
 
@@ -28,9 +30,10 @@ export function SessionComplete({
   onClose,
 }: SessionCompleteProps) {
   const [notes, setNotes] = useState('');
+  const [rating, setRating] = useState<Rating>('good');
 
   const handleSave = () => {
-    onSave(notes);
+    onSave(notes, rating);
     onClose();
   };
 
@@ -40,6 +43,12 @@ export function SessionComplete({
     const mins = minutes % 60;
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
   };
+
+  const ratingOptions: { value: Rating; label: string; icon: React.ReactNode; color: string }[] = [
+    { value: 'bad', label: 'Bad', icon: <Frown className="h-6 w-6" />, color: 'text-destructive' },
+    { value: 'good', label: 'Good', icon: <Smile className="h-6 w-6" />, color: 'text-chart-3' },
+    { value: 'great', label: 'Great', icon: <Star className="h-6 w-6" />, color: 'text-chart-2' },
+  ];
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -92,6 +101,28 @@ export function SessionComplete({
             </div>
           )}
 
+          {/* Rating */}
+          <div className="space-y-2">
+            <Label className="text-center block">How was your focus?</Label>
+            <div className="flex justify-center gap-4">
+              {ratingOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setRating(option.value)}
+                  className={cn(
+                    "flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-all",
+                    rating === option.value
+                      ? `border-primary bg-primary/10 ${option.color}`
+                      : "border-transparent hover:border-muted-foreground/20 text-muted-foreground"
+                  )}
+                >
+                  {option.icon}
+                  <span className="text-xs font-medium">{option.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Notes */}
           <div className="space-y-2">
             <Label className="flex items-center gap-2">
@@ -108,7 +139,7 @@ export function SessionComplete({
 
           {/* Actions */}
           <div className="flex gap-3">
-            <Button variant="outline" className="flex-1" onClick={onClose}>
+            <Button variant="outline" className="flex-1" onClick={() => { onSave('', rating); onClose(); }}>
               Skip Notes
             </Button>
             <Button className="flex-1" onClick={handleSave}>

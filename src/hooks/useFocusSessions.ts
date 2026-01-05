@@ -35,6 +35,7 @@ type CompleteSessionInput = {
   id: string;
   actual_duration_minutes: number;
   notes?: string | null;
+  rating?: 'bad' | 'good' | 'great' | null;
 };
 
 export const useFocusSessions = () => {
@@ -136,6 +137,7 @@ export const useFocusSessions = () => {
           actual_duration_minutes: input.actual_duration_minutes,
           completed_at: new Date().toISOString(),
           notes: input.notes || null,
+          rating: input.rating || null,
         })
         .eq('id', input.id)
         .select()

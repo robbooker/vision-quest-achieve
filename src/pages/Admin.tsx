@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Users, Shield, Trash2, ShieldCheck, ShieldX, Mail, Loader2, Send, Megaphone } from 'lucide-react';
+import { Users, Shield, Trash2, ShieldCheck, ShieldX, Mail, Loader2, Send, Megaphone, MessageSquare } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface UserProfile {
@@ -21,29 +21,31 @@ interface UserProfile {
   created_at: string;
   isAdmin?: boolean;
   consent_email?: boolean;
+  consent_sms?: boolean;
 }
+
+type BroadcastMode = 'email' | 'sms';
 
 export default function Admin() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [sendingTestEmail, setSendingTestEmail] = useState(false);
+  const [sendingTestSms, setSendingTestSms] = useState(false);
   const [sendingBroadcast, setSendingBroadcast] = useState(false);
+  const [broadcastMode, setBroadcastMode] = useState<BroadcastMode>('email');
   const [broadcastSubject, setBroadcastSubject] = useState('');
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const { toast } = useToast();
 
   const fetchUsers = async () => {
     try {
-      // Fetch all profiles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('*, consent_email')
         .select('*')
         .order('created_at', { ascending: true });
 
       if (profilesError) throw profilesError;
 
-      // Fetch all admin roles
       const { data: adminRoles, error: rolesError } = await supabase
         .from('user_roles')
         .select('user_id')
@@ -60,6 +62,7 @@ export default function Admin() {
         display_name: profile.display_name,
         created_at: profile.created_at,
         consent_email: profile.consent_email,
+        consent_sms: profile.consent_sms,
         isAdmin: adminUserIds.has(profile.user_id),
       }));
 
@@ -82,7 +85,6 @@ export default function Admin() {
 
   const handleDeleteUser = async (userId: string, email: string | null) => {
     try {
-      // Delete from profiles (cascade will handle related data)
       const { error } = await supabase
         .from('profiles')
         .delete()
@@ -109,7 +111,6 @@ export default function Admin() {
   const handleToggleAdmin = async (userId: string, email: string | null, currentlyAdmin: boolean) => {
     try {
       if (currentlyAdmin) {
-        // Remove admin role
         const { error } = await supabase
           .from('user_roles')
           .delete()
@@ -123,7 +124,6 @@ export default function Admin() {
           description: `${email || 'User'} is no longer an admin`,
         });
       } else {
-        // Add admin role
         const { error } = await supabase
           .from('user_roles')
           .insert({ user_id: userId, role: 'admin' });
@@ -174,36 +174,94 @@ export default function Admin() {
     }
   };
 
-  const handleSendBroadcast = async () => {
-    if (!broadcastSubject.trim() || !broadcastMessage.trim()) {
-      toast({
-        title: 'Missing fields',
-        description: 'Please enter both subject and message',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setSendingBroadcast(true);
+  const handleTestSms = async () => {
+    setSendingTestSms(true);
     try {
-      const { data, error } = await supabase.functions.invoke('send-broadcast', {
-        body: {
-          subject: broadcastSubject,
-          message: broadcastMessage,
-        },
-      });
+      const { data, error } = await supabase.functions.invoke('test-sms');
       
       if (error) throw error;
       
       if (data?.success) {
         toast({
-          title: 'Broadcast sent!',
-          description: `Email sent to ${data.sentCount} user(s)`,
+          title: 'Test SMS sent!',
+          description: 'Check your phone to verify it arrived.',
         });
-        setBroadcastSubject('');
-        setBroadcastMessage('');
       } else {
-        throw new Error(data?.error || 'Failed to send broadcast');
+        throw new Error(data?.error || 'Failed to send test SMS');
+      }
+    } catch (error: any) {
+      console.error('Test SMS error:', error);
+      toast({
+        title: 'SMS test failed',
+        description: error.message || 'Failed to send test SMS',
+        variant: 'destructive',
+      });
+    } finally {
+      setSendingTestSms(false);
+    }
+  };
+
+  const handleSendBroadcast = async () => {
+    if (broadcastMode === 'email') {
+      if (!broadcastSubject.trim() || !broadcastMessage.trim()) {
+        toast({
+          title: 'Missing fields',
+          description: 'Please enter both subject and message',
+          variant: 'destructive',
+        });
+        return;
+      }
+    } else {
+      if (!broadcastMessage.trim()) {
+        toast({
+          title: 'Missing message',
+          description: 'Please enter a message',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
+    setSendingBroadcast(true);
+    try {
+      if (broadcastMode === 'email') {
+        const { data, error } = await supabase.functions.invoke('send-broadcast', {
+          body: {
+            subject: broadcastSubject,
+            message: broadcastMessage,
+          },
+        });
+        
+        if (error) throw error;
+        
+        if (data?.success) {
+          toast({
+            title: 'Broadcast sent!',
+            description: `Email sent to ${data.sentCount} user(s)`,
+          });
+          setBroadcastSubject('');
+          setBroadcastMessage('');
+        } else {
+          throw new Error(data?.error || 'Failed to send broadcast');
+        }
+      } else {
+        const { data, error } = await supabase.functions.invoke('send-sms-broadcast', {
+          body: {
+            message: broadcastMessage,
+          },
+        });
+        
+        if (error) throw error;
+        
+        if (data?.success) {
+          toast({
+            title: 'SMS Broadcast sent!',
+            description: `SMS sent to ${data.sentCount} user(s)${data.failedCount > 0 ? `, ${data.failedCount} failed` : ''}`,
+          });
+          setBroadcastMessage('');
+        } else {
+          throw new Error(data?.error || 'Failed to send SMS broadcast');
+        }
       }
     } catch (error: any) {
       console.error('Broadcast error:', error);
@@ -219,6 +277,12 @@ export default function Admin() {
 
   const adminCount = users.filter(u => u.isAdmin).length;
   const emailOptInCount = users.filter(u => u.consent_email).length;
+  const smsOptInCount = users.filter(u => u.consent_sms).length;
+  const currentRecipientCount = broadcastMode === 'email' ? emailOptInCount : smsOptInCount;
+
+  const canSendBroadcast = broadcastMode === 'email' 
+    ? broadcastSubject.trim() && broadcastMessage.trim() && emailOptInCount > 0
+    : broadcastMessage.trim() && smsOptInCount > 0;
 
   return (
     <>
@@ -233,7 +297,7 @@ export default function Admin() {
           </div>
 
           {/* Stats */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Users</CardTitle>
@@ -254,7 +318,7 @@ export default function Admin() {
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Email Integration</CardTitle>
+                <CardTitle className="text-sm font-medium">Email Test</CardTitle>
                 <Mail className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -270,47 +334,105 @@ export default function Admin() {
                   ) : (
                     <Mail className="h-4 w-4" />
                   )}
-                  {sendingTestEmail ? 'Sending...' : 'Send Test Email'}
+                  {sendingTestEmail ? 'Sending...' : 'Send Test'}
+                </Button>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">SMS Test</CardTitle>
+                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleTestSms} 
+                  disabled={sendingTestSms}
+                  className="gap-2"
+                >
+                  {sendingTestSms ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <MessageSquare className="h-4 w-4" />
+                  )}
+                  {sendingTestSms ? 'Sending...' : 'Send Test'}
                 </Button>
               </CardContent>
             </Card>
           </div>
 
-          {/* Email Broadcast */}
+          {/* Broadcast */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Megaphone className="h-5 w-5" />
-                Send Broadcast Email
+                Send Broadcast
               </CardTitle>
               <CardDescription>
-                Send an email to all users who have opted in to email communications ({emailOptInCount} user{emailOptInCount !== 1 ? 's' : ''})
+                Send a message to all users who have opted in
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Subject</label>
-                <Input
-                  placeholder="Enter email subject..."
-                  value={broadcastSubject}
-                  onChange={(e) => setBroadcastSubject(e.target.value)}
-                  disabled={sendingBroadcast}
-                />
+              {/* Mode Toggle */}
+              <div className="flex gap-2">
+                <Button
+                  variant={broadcastMode === 'email' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setBroadcastMode('email')}
+                  className="gap-2"
+                >
+                  <Mail className="h-4 w-4" />
+                  Email ({emailOptInCount})
+                </Button>
+                <Button
+                  variant={broadcastMode === 'sms' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setBroadcastMode('sms')}
+                  className="gap-2"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  SMS ({smsOptInCount})
+                </Button>
               </div>
+
+              {/* Email Subject (only for email mode) */}
+              {broadcastMode === 'email' && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Subject</label>
+                  <Input
+                    placeholder="Enter email subject..."
+                    value={broadcastSubject}
+                    onChange={(e) => setBroadcastSubject(e.target.value)}
+                    disabled={sendingBroadcast}
+                  />
+                </div>
+              )}
+
+              {/* Message */}
               <div className="space-y-2">
-                <label className="text-sm font-medium">Message</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">Message</label>
+                  {broadcastMode === 'sms' && (
+                    <span className={`text-xs ${broadcastMessage.length > 160 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                      {broadcastMessage.length}/160
+                    </span>
+                  )}
+                </div>
                 <Textarea
-                  placeholder="Enter your message..."
+                  placeholder={broadcastMode === 'email' ? 'Enter your message...' : 'Enter SMS message (160 char recommended)...'}
                   value={broadcastMessage}
                   onChange={(e) => setBroadcastMessage(e.target.value)}
-                  rows={5}
+                  rows={broadcastMode === 'email' ? 5 : 3}
                   disabled={sendingBroadcast}
                 />
               </div>
+
+              {/* Send Button with Confirmation */}
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button 
-                    disabled={sendingBroadcast || !broadcastSubject.trim() || !broadcastMessage.trim() || emailOptInCount === 0}
+                    disabled={sendingBroadcast || !canSendBroadcast}
                     className="gap-2"
                   >
                     {sendingBroadcast ? (
@@ -318,20 +440,30 @@ export default function Admin() {
                     ) : (
                       <Send className="h-4 w-4" />
                     )}
-                    {sendingBroadcast ? 'Sending...' : `Send to ${emailOptInCount} User${emailOptInCount !== 1 ? 's' : ''}`}
+                    {sendingBroadcast 
+                      ? 'Sending...' 
+                      : `Send ${broadcastMode === 'email' ? 'Email' : 'SMS'} to ${currentRecipientCount} User${currentRecipientCount !== 1 ? 's' : ''}`
+                    }
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Send Broadcast Email?</AlertDialogTitle>
+                    <AlertDialogTitle>
+                      Send {broadcastMode === 'email' ? 'Email' : 'SMS'} Broadcast?
+                    </AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will send an email to {emailOptInCount} user{emailOptInCount !== 1 ? 's' : ''} who have opted in to email communications.
+                      This will send {broadcastMode === 'email' ? 'an email' : 'an SMS'} to {currentRecipientCount} user{currentRecipientCount !== 1 ? 's' : ''} who have opted in.
+                      {broadcastMode === 'sms' && broadcastMessage.length > 160 && (
+                        <span className="block mt-2 text-destructive">
+                          Warning: Your message exceeds 160 characters and may be split into multiple SMS messages.
+                        </span>
+                      )}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                     <AlertDialogAction onClick={handleSendBroadcast}>
-                      Send Email
+                      Send {broadcastMode === 'email' ? 'Email' : 'SMS'}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -339,6 +471,7 @@ export default function Admin() {
             </CardContent>
           </Card>
 
+          {/* User Management Table */}
           <Card>
             <CardHeader>
               <CardTitle>User Management</CardTitle>

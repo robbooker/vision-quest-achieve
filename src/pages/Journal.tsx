@@ -6,6 +6,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { JournalEntryCard } from '@/components/journal/JournalEntryCard';
 import { JournalEmptyState } from '@/components/journal/JournalEmptyState';
+import { JournalChat } from '@/components/journal/JournalChat';
 import { 
   useJournalEntries, 
   useCreateJournalEntry, 
@@ -100,6 +101,8 @@ const Journal = () => {
           </div>
         )}
       </div>
+      
+      <JournalChat />
     </DashboardLayout>
   );
 };

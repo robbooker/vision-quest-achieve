@@ -42,7 +42,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   }, [user, loading]);
 
   // Pages that don't require subscription check to complete
-  const bypassSubscriptionLoading = ['/onboarding', '/settings'];
+  const bypassSubscriptionLoading = ['/onboarding', '/settings', '/checkout/success'];
   const shouldWaitForSub = !bypassSubscriptionLoading.includes(location.pathname);
 
   if (loading || checkingOnboarding || (subLoading && shouldWaitForSub)) {
@@ -62,9 +62,9 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Navigate to="/onboarding" replace />;
   }
 
-  // Show paywall if not subscribed (but allow onboarding and settings pages)
+  // Show paywall if not subscribed (but allow onboarding, settings, and checkout success pages)
   // Also skip paywall if subscription status is still loading or null (error case)
-  const allowWithoutSubscription = ['/onboarding', '/settings'];
+  const allowWithoutSubscription = ['/onboarding', '/settings', '/checkout/success'];
   if (!isSubscribed && !subLoading && status !== null && !allowWithoutSubscription.includes(location.pathname)) {
     return <PaywallModal />;
   }

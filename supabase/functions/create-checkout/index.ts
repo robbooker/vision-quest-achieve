@@ -64,7 +64,7 @@ serve(async (req) => {
       subscription_data: {
         trial_period_days: 7,
       },
-      success_url: `${origin}/today?checkout=success`,
+      success_url: `${origin}/checkout/success`,
       cancel_url: `${origin}/today`,
     });
 

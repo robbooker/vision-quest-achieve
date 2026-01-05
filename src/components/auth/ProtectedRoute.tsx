@@ -12,7 +12,7 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
-  const { isSubscribed, isLoading: subLoading } = useSubscription();
+  const { isSubscribed, isLoading: subLoading, status } = useSubscription();
   const location = useLocation();
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
@@ -41,7 +41,11 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     }
   }, [user, loading]);
 
-  if (loading || checkingOnboarding || subLoading) {
+  // Pages that don't require subscription check to complete
+  const bypassSubscriptionLoading = ['/onboarding', '/settings'];
+  const shouldWaitForSub = !bypassSubscriptionLoading.includes(location.pathname);
+
+  if (loading || checkingOnboarding || (subLoading && shouldWaitForSub)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="nixie-display animate-pulse">LOADING...</div>
@@ -59,8 +63,9 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   // Show paywall if not subscribed (but allow onboarding and settings pages)
+  // Also skip paywall if subscription status is still loading or null (error case)
   const allowWithoutSubscription = ['/onboarding', '/settings'];
-  if (!isSubscribed && !allowWithoutSubscription.includes(location.pathname)) {
+  if (!isSubscribed && !subLoading && status !== null && !allowWithoutSubscription.includes(location.pathname)) {
     return <PaywallModal />;
   }
 

@@ -32,6 +32,7 @@ export default function Focus() {
     createSession,
     completeSession,
     abandonSession,
+    updateSession,
     isLoading,
   } = useFocusSessions();
 
@@ -132,6 +133,29 @@ export default function Focus() {
     });
   };
 
+  const handleUpdateSession = async (
+    id: string, 
+    data: { status: 'completed' | 'abandoned'; rating: 'bad' | 'good' | 'great' | null; notes: string | null }
+  ) => {
+    try {
+      await updateSession.mutateAsync({
+        id,
+        status: data.status,
+        rating: data.rating,
+        notes: data.notes,
+      });
+      toast({
+        title: 'Session updated',
+        description: 'Your changes have been saved.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Failed to update session',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <DashboardLayout>
       <Helmet>
@@ -223,6 +247,7 @@ export default function Focus() {
               todayMinutes={todayMinutes}
               todayCount={todayCompletedCount}
               streak={streak}
+              onUpdateSession={handleUpdateSession}
             />
 
             {/* Tips Card */}

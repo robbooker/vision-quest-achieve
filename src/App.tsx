@@ -69,13 +69,13 @@ const App = () => (
               <NotificationListener />
               <BrowserRouter>
                 <Routes>
-                  <Route path="/" element={<Index />} />
+                <Route path="/" element={<Pricing />} />
+                  <Route path="/pricing" element={<Pricing />} />
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
                   <Route path="/blog" element={<Blog />} />
                   <Route path="/blog/habit-goals" element={<HabitGoalsBlog />} />
                   <Route path="/blog/reset" element={<ResetBlog />} />
-                  <Route path="/pricing" element={<Pricing />} />
                   <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                   <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                   <Route path="/today" element={<ProtectedRoute><Today /></ProtectedRoute>} />

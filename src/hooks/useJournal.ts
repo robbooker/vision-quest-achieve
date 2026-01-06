@@ -18,6 +18,14 @@ export interface CompletedHabit {
   goal_title: string;
 }
 
+export interface CompletedFocusSession {
+  id: string;
+  objective: string;
+  actual_duration_minutes: number;
+  rating: string | null;
+  completed_at: string;
+}
+
 export interface UserPhoto {
   url: string;
   path: string;
@@ -30,6 +38,7 @@ export interface JournalEntry {
   entry_date: string;
   completed_tasks: CompletedTask[];
   completed_habits: CompletedHabit[];
+  completed_focus_sessions: CompletedFocusSession[];
   image_url: string | null;
   image_prompt: string | null;
   user_notes: string | null;
@@ -59,6 +68,7 @@ export const useJournalEntries = (limit: number = 3) => {
         ...entry,
         completed_tasks: (entry.completed_tasks || []) as unknown as CompletedTask[],
         completed_habits: (entry.completed_habits || []) as unknown as CompletedHabit[],
+        completed_focus_sessions: ((entry as any).completed_focus_sessions || []) as unknown as CompletedFocusSession[],
         user_photos: (entry.user_photos || []) as unknown as UserPhoto[],
       })) as JournalEntry[];
     },
@@ -107,6 +117,15 @@ export const useCreateJournalEntry = () => {
         .eq('logged_date', date)
         .gt('completed_count', 0);
 
+      // Fetch completed focus sessions for that date
+      const { data: focusSessions } = await supabase
+        .from('focus_sessions')
+        .select('id, objective, actual_duration_minutes, rating, completed_at')
+        .eq('user_id', user.id)
+        .eq('status', 'completed')
+        .gte('completed_at', startOfDay)
+        .lte('completed_at', endOfDay);
+
       const completedTasks: CompletedTask[] = (tasks || []).map(t => ({
         id: t.id,
         title: t.title,
@@ -121,6 +140,14 @@ export const useCreateJournalEntry = () => {
         goal_title: log.goal_tactics?.goals?.title || '',
       }));
 
+      const completedFocusSessions: CompletedFocusSession[] = (focusSessions || []).map(s => ({
+        id: s.id,
+        objective: s.objective,
+        actual_duration_minutes: s.actual_duration_minutes || 0,
+        rating: s.rating,
+        completed_at: s.completed_at || '',
+      }));
+
       // Create the journal entry
       const { data, error } = await supabase
         .from('journal_entries')
@@ -129,6 +156,7 @@ export const useCreateJournalEntry = () => {
           entry_date: date,
           completed_tasks: completedTasks as unknown as any,
           completed_habits: completedHabits as unknown as any,
+          completed_focus_sessions: completedFocusSessions as unknown as any,
         })
         .select()
         .single();
@@ -138,6 +166,7 @@ export const useCreateJournalEntry = () => {
         ...data,
         completed_tasks: completedTasks,
         completed_habits: completedHabits,
+        completed_focus_sessions: completedFocusSessions,
         user_photos: [] as UserPhoto[],
       } as JournalEntry;
     },
@@ -410,8 +439,17 @@ export const useYesterdayActivity = () => {
         .gt('completed_count', 0)
         .limit(1);
 
+      const { data: focusSessions } = await supabase
+        .from('focus_sessions')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('status', 'completed')
+        .gte('completed_at', startOfDay)
+        .lte('completed_at', endOfDay)
+        .limit(1);
+
       return {
-        hasActivity: (tasks?.length || 0) > 0 || (habits?.length || 0) > 0,
+        hasActivity: (tasks?.length || 0) > 0 || (habits?.length || 0) > 0 || (focusSessions?.length || 0) > 0,
         date: yesterday,
       };
     },

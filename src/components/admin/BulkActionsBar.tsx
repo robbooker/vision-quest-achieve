@@ -30,14 +30,16 @@ export function BulkActionsBar({
   if (selectedCount === 0) return null;
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-card border border-border rounded-lg shadow-lg p-4 flex items-center gap-3">
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-card border border-border rounded-lg shadow-lg p-4 flex items-center gap-4">
       <span className="text-sm font-medium">
         {selectedCount} user{selectedCount !== 1 ? 's' : ''} selected
       </span>
       
       <div className="h-6 w-px bg-border" />
       
+      {/* Subscription Actions */}
       <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground font-medium">Subscription:</span>
         <Select value={grantDuration} onValueChange={setGrantDuration} disabled={isProcessing}>
           <SelectTrigger className="w-[110px] h-8">
             <SelectValue />
@@ -55,43 +57,71 @@ export function BulkActionsBar({
           disabled={isProcessing}
         >
           {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Gift className="h-4 w-4 mr-1" />}
-          Grant
+          Grant Access
+        </Button>
+        <Button 
+          size="sm" 
+          variant="outline" 
+          onClick={onBulkRevokeAccess}
+          disabled={isProcessing}
+        >
+          Revoke Access
         </Button>
       </div>
       
-      <Button 
-        size="sm" 
-        variant="outline" 
-        onClick={onBulkRevokeAccess}
-        disabled={isProcessing}
-      >
-        Revoke
-      </Button>
+      <div className="h-6 w-px bg-border" />
+      
+      {/* Admin Actions - Requires Confirmation */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground font-medium">Admin Role:</span>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button 
+              size="sm" 
+              variant="outline"
+              className="border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
+              disabled={isProcessing}
+            >
+              <ShieldCheck className="h-4 w-4 mr-1" />
+              Make Admin
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>⚠️ Make {selectedCount} User{selectedCount !== 1 ? 's' : ''} Admin?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will grant full administrative privileges to the selected users. 
+                Admins can access sensitive user data and modify system settings.
+                <br /><br />
+                <strong>Are you absolutely sure?</strong>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={onBulkMakeAdmin}
+                className="bg-amber-600 text-white hover:bg-amber-700"
+              >
+                Yes, Make Admin
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        
+        <Button 
+          size="sm" 
+          variant="outline" 
+          onClick={onBulkRemoveAdmin}
+          disabled={isProcessing}
+        >
+          <ShieldX className="h-4 w-4 mr-1" />
+          Remove Admin
+        </Button>
+      </div>
       
       <div className="h-6 w-px bg-border" />
       
-      <Button 
-        size="sm" 
-        variant="outline" 
-        onClick={onBulkMakeAdmin}
-        disabled={isProcessing}
-      >
-        <ShieldCheck className="h-4 w-4 mr-1" />
-        Admin
-      </Button>
-      
-      <Button 
-        size="sm" 
-        variant="outline" 
-        onClick={onBulkRemoveAdmin}
-        disabled={isProcessing}
-      >
-        <ShieldX className="h-4 w-4 mr-1" />
-        Remove
-      </Button>
-      
-      <div className="h-6 w-px bg-border" />
-      
+      {/* Delete Action */}
       <AlertDialog>
         <AlertDialogTrigger asChild>
           <Button size="sm" variant="destructive" disabled={isProcessing}>

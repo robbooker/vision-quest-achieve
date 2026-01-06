@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
+import Pricing from "./pages/Pricing";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -74,6 +75,7 @@ const App = () => (
                   <Route path="/blog" element={<Blog />} />
                   <Route path="/blog/habit-goals" element={<HabitGoalsBlog />} />
                   <Route path="/blog/reset" element={<ResetBlog />} />
+                  <Route path="/pricing" element={<Pricing />} />
                   <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                   <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                   <Route path="/today" element={<ProtectedRoute><Today /></ProtectedRoute>} />

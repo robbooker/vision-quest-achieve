@@ -599,6 +599,7 @@ export type Database = {
       }
       journal_entries: {
         Row: {
+          completed_focus_sessions: Json | null
           completed_habits: Json | null
           completed_tasks: Json | null
           created_at: string
@@ -612,6 +613,7 @@ export type Database = {
           user_photos: Json | null
         }
         Insert: {
+          completed_focus_sessions?: Json | null
           completed_habits?: Json | null
           completed_tasks?: Json | null
           created_at?: string
@@ -625,6 +627,7 @@ export type Database = {
           user_photos?: Json | null
         }
         Update: {
+          completed_focus_sessions?: Json | null
           completed_habits?: Json | null
           completed_tasks?: Json | null
           created_at?: string

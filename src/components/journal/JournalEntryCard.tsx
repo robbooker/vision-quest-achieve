@@ -11,7 +11,8 @@ import {
   ChevronUp,
   Sparkles,
   Camera,
-  Plus
+  Plus,
+  Timer
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -90,15 +91,26 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
 
   const formattedDate = format(parseISO(entry.entry_date), 'EEEE, MMMM d, yyyy');
 
-  const totalAccomplishments = entry.completed_tasks.length + entry.completed_habits.length;
+  const focusSessions = entry.completed_focus_sessions || [];
+  const totalAccomplishments = entry.completed_tasks.length + entry.completed_habits.length + focusSessions.length;
+
+  const formatFocusDuration = (minutes: number) => {
+    if (minutes < 60) return `${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+  };
 
   return (
     <Card className="overflow-hidden">
       <CardHeader className="pb-2">
         <CardTitle className="text-lg font-medium">{formattedDate}</CardTitle>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
           <Badge variant="secondary">{entry.completed_tasks.length} tasks</Badge>
           <Badge variant="secondary">{entry.completed_habits.length} habits</Badge>
+          {focusSessions.length > 0 && (
+            <Badge variant="secondary">{focusSessions.length} focus sessions</Badge>
+          )}
         </div>
       </CardHeader>
       
@@ -285,6 +297,28 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
                         <Check className="w-3 h-3 text-primary" />
                         <span>{habit.title}</span>
                         <span className="text-muted-foreground">×{habit.completed_count}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              {focusSessions.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-1">Focus Sessions</h4>
+                  <ul className="space-y-1">
+                    {focusSessions.map((session) => (
+                      <li key={session.id} className="text-sm flex items-center gap-2">
+                        <Timer className="w-3 h-3 text-primary" />
+                        <span>{session.objective}</span>
+                        <Badge variant="outline" className="text-xs">
+                          {formatFocusDuration(session.actual_duration_minutes)}
+                        </Badge>
+                        {session.rating && (
+                          <span className="text-xs text-muted-foreground capitalize">
+                            {session.rating}
+                          </span>
+                        )}
                       </li>
                     ))}
                   </ul>

@@ -25,6 +25,8 @@ import Reports from "./pages/Reports";
 import Vision from "./pages/Vision";
 import BigTen from "./pages/BigTen";
 import Admin from "./pages/Admin";
+import AdminUsers from "./pages/AdminUsers";
+import AdminBroadcasts from "./pages/AdminBroadcasts";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import Blog from "./pages/Blog";
@@ -87,6 +89,8 @@ const App = () => (
                   <Route path="/journal" element={<ProtectedRoute><Journal /></ProtectedRoute>} />
                   <Route path="/checkout/success" element={<ProtectedRoute><CheckoutSuccess /></ProtectedRoute>} />
                   <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+                  <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
+                  <Route path="/admin/broadcasts" element={<AdminRoute><AdminBroadcasts /></AdminRoute>} />
                   <Route path="/privacy" element={<PrivacyPolicy />} />
                   <Route path="/terms" element={<TermsOfService />} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

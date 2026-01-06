@@ -239,6 +239,8 @@ export default function AdminUsers() {
   // Bulk actions
   const handleBulkGrantAccess = async (duration: string) => {
     setIsProcessing(true);
+    let successCount = 0;
+    let errorCount = 0;
     try {
       const now = new Date();
       let endDate: Date;
@@ -249,16 +251,31 @@ export default function AdminUsers() {
       }
 
       for (const userId of selectedIds) {
-        await supabase.from('subscriptions').upsert({
+        const { error } = await supabase.from('subscriptions').upsert({
           user_id: userId,
           status: 'admin_granted',
           subscription_end: endDate.toISOString(),
           granted_by_admin: true,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'user_id' });
+        
+        if (error) {
+          console.error(`Error granting access to ${userId}:`, error);
+          errorCount++;
+        } else {
+          successCount++;
+        }
       }
 
-      toast({ title: 'Access granted', description: `Granted access to ${selectedIds.size} user(s)` });
+      if (errorCount > 0) {
+        toast({ 
+          title: 'Partial success', 
+          description: `Granted access to ${successCount} user(s), ${errorCount} failed`, 
+          variant: 'destructive' 
+        });
+      } else {
+        toast({ title: 'Access granted', description: `Granted access to ${successCount} user(s)` });
+      }
       setSelectedIds(new Set());
       fetchUsers();
     } catch (error) {

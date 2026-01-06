@@ -203,23 +203,46 @@ export function UserTable({
                 <TableCell>{format(new Date(user.created_at), 'MMM d, yyyy')}</TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onToggleAdmin(user.user_id, user.email, user.isAdmin || false)}
-                    >
-                      {user.isAdmin ? (
-                        <>
-                          <ShieldX className="h-4 w-4 mr-1" />
-                          Remove
-                        </>
-                      ) : (
-                        <>
-                          <ShieldCheck className="h-4 w-4 mr-1" />
-                          Admin
-                        </>
-                      )}
-                    </Button>
+                    {user.isAdmin ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onToggleAdmin(user.user_id, user.email, true)}
+                      >
+                        <ShieldX className="h-4 w-4 mr-1" />
+                        Remove Admin
+                      </Button>
+                    ) : (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            <ShieldCheck className="h-4 w-4 mr-1" />
+                            Make Admin
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>⚠️ Grant Admin Access?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will give {user.email || 'this user'} full administrative privileges including access to all user data and system settings.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => onToggleAdmin(user.user_id, user.email, false)}
+                              className="bg-amber-600 text-white hover:bg-amber-700"
+                            >
+                              Yes, Make Admin
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button variant="destructive" size="icon" className="h-8 w-8">

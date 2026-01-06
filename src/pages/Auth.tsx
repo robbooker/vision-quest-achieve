@@ -251,7 +251,10 @@ export default function Auth() {
             <CardHeader className="text-center">
               <CardTitle className="text-2xl">Welcome</CardTitle>
             <CardDescription>
-              Sign in to start your groovy planning journey
+              Sign in to start your groovy planning journey.{' '}
+              <Link to="/pricing" className="text-primary hover:underline">
+                View pricing →
+              </Link>
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">

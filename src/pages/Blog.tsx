@@ -260,7 +260,7 @@ const Blog = () => {
             </p>
 
             <p className="text-foreground/90">
-              Around the turn of the millennium, two German researchers—Peter Gollwitzer and Gabriele Oettingen (a married couple working at NYU and the University of Hamburg)—provided the answers that closed the loop on Locke and Latham's work.
+              Around the turn of the millennium, two German researchers—Peter Gollwitzer and <Link to="/blog/woop" className="text-primary underline underline-offset-4 hover:text-primary/80">Gabriele Oettingen</Link> (a married couple working at NYU and the University of Hamburg)—provided the answers that closed the loop on Locke and Latham's work.
             </p>
 
             <p className="text-foreground/90">

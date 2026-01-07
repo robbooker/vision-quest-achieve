@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { MessageCircle, X, Send, Sparkles, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useJournalChat } from '@/hooks/useJournalChat';
+import { useGlobalChat } from '@/hooks/useGlobalChat';
 import ReactMarkdown from 'react-markdown';
 
 const PRESET_QUESTIONS = [
@@ -16,7 +17,7 @@ const PRESET_QUESTIONS = [
 ];
 
 export const JournalChat = () => {
-  const [isOpen, setIsOpen] = useState(false);
+  const { isOpen, setIsOpen } = useGlobalChat();
   const [input, setInput] = useState('');
   const { messages, isLoading, error, sendMessage, clearChat } = useJournalChat();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -58,6 +59,7 @@ export const JournalChat = () => {
         onClick={() => setIsOpen(true)}
         className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50"
         size="icon"
+        title="Reflection Assistant (⌘K)"
       >
         <MessageCircle className="h-6 w-6" />
       </Button>

@@ -15,6 +15,7 @@ import { TerminalModeProvider } from "@/hooks/useTerminalMode";
 import { GlobalChatProvider } from "@/hooks/useGlobalChat";
 import { ToastProvider } from "@/components/notifications/ToastProvider";
 import { NotificationListener } from "@/components/notifications/NotificationListener";
+import { JournalChat } from "@/components/journal/JournalChat";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
@@ -96,6 +97,7 @@ const App = () => (
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>
+                <JournalChat />
               </BrowserRouter>
               <InstallPrompt />
             </TooltipProvider>

@@ -16,9 +16,10 @@ interface FocusHistoryProps {
   todayCount: number;
   streak: number;
   onUpdateSession?: (id: string, data: { status: 'completed' | 'abandoned'; rating: 'bad' | 'good' | 'great' | null; notes: string | null }) => void;
+  onResumeSession?: () => void;
 }
 
-export function FocusHistory({ sessions, todayMinutes, todayCount, streak, onUpdateSession }: FocusHistoryProps) {
+export function FocusHistory({ sessions, todayMinutes, todayCount, streak, onUpdateSession, onResumeSession }: FocusHistoryProps) {
   const navigate = useNavigate();
   const [editingSession, setEditingSession] = useState<FocusSession | null>(null);
   
@@ -89,7 +90,15 @@ export function FocusHistory({ sessions, todayMinutes, todayCount, streak, onUpd
                       "flex items-start gap-3 p-3 rounded-lg bg-muted/50",
                       session.status === 'active' && "cursor-pointer hover:bg-muted transition-colors"
                     )}
-                    onClick={() => session.status === 'active' && navigate('/focus')}
+                    onClick={() => {
+                      if (session.status === 'active') {
+                        if (onResumeSession) {
+                          onResumeSession();
+                        } else {
+                          navigate('/focus');
+                        }
+                      }
+                    }}
                   >
                     {session.status === 'completed' ? (
                       <CheckCircle2 className="h-5 w-5 text-chart-2 mt-0.5 shrink-0" />

@@ -83,20 +83,27 @@ export function AmbientSounds({ onSoundChange, isBreakMode = false, shouldStop =
     }, stepDuration);
   }, [clearFade]);
 
-  // Setup audio context and analyser
+  // Setup audio context and analyser for a new audio element
   const setupAudioContext = useCallback((audio: HTMLAudioElement) => {
-    if (!audioContextRef.current) {
-      audioContextRef.current = new AudioContext();
-    }
-    
-    // Only create source if not already connected
-    if (!sourceRef.current) {
-      sourceRef.current = audioContextRef.current.createMediaElementSource(audio);
-      const analyserNode = audioContextRef.current.createAnalyser();
+    try {
+      // Close existing context and create a fresh one for each new audio
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(() => {});
+      }
+      
+      const ctx = new AudioContext();
+      audioContextRef.current = ctx;
+      
+      const source = ctx.createMediaElementSource(audio);
+      sourceRef.current = source;
+      
+      const analyserNode = ctx.createAnalyser();
       analyserNode.fftSize = 64;
-      sourceRef.current.connect(analyserNode);
-      analyserNode.connect(audioContextRef.current.destination);
+      source.connect(analyserNode);
+      analyserNode.connect(ctx.destination);
       setAnalyser(analyserNode);
+    } catch (e) {
+      console.log('Audio context setup failed:', e);
     }
   }, []);
 
@@ -143,12 +150,6 @@ export function AmbientSounds({ onSoundChange, isBreakMode = false, shouldStop =
       // Resume audio context if suspended
       if (audioContextRef.current?.state === 'suspended') {
         await audioContextRef.current.resume();
-      }
-      
-      // Disconnect old source
-      if (sourceRef.current) {
-        sourceRef.current.disconnect();
-        sourceRef.current = null;
       }
       
       audioRef.current = newAudio;

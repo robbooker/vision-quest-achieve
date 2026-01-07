@@ -1473,6 +1473,25 @@ export type Database = {
       }
       is_shared_task_owner: { Args: { task_id: string }; Returns: boolean }
       is_task_shared_with_me: { Args: { task_id: string }; Returns: boolean }
+      match_activity_embeddings: {
+        Args: {
+          filter_date_from?: string
+          filter_date_to?: string
+          filter_source_types?: string[]
+          filter_user_id?: string
+          match_count?: number
+          match_threshold?: number
+          query_embedding: string
+        }
+        Returns: {
+          activity_date: string
+          content_text: string
+          metadata: Json
+          similarity: number
+          source_id: string
+          source_type: string
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "user"

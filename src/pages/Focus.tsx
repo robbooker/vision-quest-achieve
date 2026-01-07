@@ -202,10 +202,24 @@ export default function Focus() {
           {/* Main Panel */}
           <div className="lg:col-span-2 space-y-6">
             {viewState === 'setup' && (
-              <SessionSetup
-                onStart={handleStartSession}
-                isStarting={createSession.isPending}
-              />
+              <>
+                <SessionSetup
+                  onStart={handleStartSession}
+                  isStarting={createSession.isPending}
+                />
+                
+                {/* Ambient Sounds - available anytime */}
+                <Card>
+                  <CardContent className="pt-4 pb-4">
+                    <AudioErrorBoundary fallback={<div className="text-sm text-muted-foreground">Audio temporarily unavailable</div>}>
+                      <AmbientSounds 
+                        isBreakMode={false}
+                        shouldStop={false}
+                      />
+                    </AudioErrorBoundary>
+                  </CardContent>
+                </Card>
+              </>
             )}
 
             {viewState === 'active' && activeSession && (

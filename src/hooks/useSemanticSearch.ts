@@ -1,9 +1,20 @@
 import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+type SourceType = 
+  | "journal_entry" 
+  | "quick_task" 
+  | "habit_log" 
+  | "focus_session"
+  | "goal"
+  | "week_review"
+  | "vision"
+  | "big_ten_project"
+  | "reset_audit";
+
 interface SearchOptions {
   limit?: number;
-  sourceTypes?: ("journal_entry" | "quick_task" | "habit_log" | "focus_session")[];
+  sourceTypes?: SourceType[];
   dateRange?: { from: string; to: string };
 }
 
@@ -85,6 +96,31 @@ export function useSemanticSearch() {
     if (grouped.focus_session?.length) {
       sections.push("**Related Focus Sessions:**\n" + 
         grouped.focus_session.map(r => `- ${r.activityDate}: ${r.contentText}`).join("\n"));
+    }
+
+    if (grouped.goal?.length) {
+      sections.push("**Related Goals:**\n" + 
+        grouped.goal.map(r => `- ${r.activityDate}: ${r.contentText}`).join("\n"));
+    }
+
+    if (grouped.week_review?.length) {
+      sections.push("**Past Weekly Reviews:**\n" + 
+        grouped.week_review.map(r => `- ${r.activityDate}: ${r.contentText}`).join("\n"));
+    }
+
+    if (grouped.vision?.length) {
+      sections.push("**User's Vision & Values:**\n" + 
+        grouped.vision.map(r => r.contentText).join("\n"));
+    }
+
+    if (grouped.big_ten_project?.length) {
+      sections.push("**Big Ten Projects:**\n" + 
+        grouped.big_ten_project.map(r => `- ${r.activityDate}: ${r.contentText}`).join("\n"));
+    }
+
+    if (grouped.reset_audit?.length) {
+      sections.push("**Reset/Wellness Audits:**\n" + 
+        grouped.reset_audit.map(r => `- ${r.activityDate}: ${r.contentText}`).join("\n"));
     }
 
     return sections.join("\n\n");

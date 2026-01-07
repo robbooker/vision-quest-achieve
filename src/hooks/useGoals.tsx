@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { useActivityEmbeddings } from './useActivityEmbeddings';
 
 export type GoalType = 'standard' | 'time_mastery' | 'habit';
 export type HabitDirection = 'start' | 'stop' | 'replace';
@@ -52,6 +53,7 @@ export interface CreateGoalInput {
 export function useGoals(cycleId?: string) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { embedGoal } = useActivityEmbeddings();
 
   const goalsQuery = useQuery({
     queryKey: ['goals', cycleId],
@@ -84,8 +86,10 @@ export function useGoals(cycleId?: string) {
       if (error) throw error;
       return data as Goal;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
+      // Generate embedding for the new goal
+      embedGoal(data).catch(console.error);
     },
   });
 
@@ -101,8 +105,10 @@ export function useGoals(cycleId?: string) {
       if (error) throw error;
       return data as Goal;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
+      // Update embedding for the goal
+      embedGoal(data).catch(console.error);
     },
   });
 

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { useActivityEmbeddings } from './useActivityEmbeddings';
 
 export interface WeekReview {
   id: string;
@@ -38,6 +39,7 @@ export interface UpdateWeekReviewInput {
 export function useWeekReviews(cycleId?: string) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { embedWeekReview } = useActivityEmbeddings();
 
   const reviewsQuery = useQuery({
     queryKey: ['week_reviews', cycleId],
@@ -98,8 +100,10 @@ export function useWeekReviews(cycleId?: string) {
         return data as WeekReview;
       }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['week_reviews'] });
+      // Generate embedding for the review
+      embedWeekReview(data).catch(console.error);
     },
   });
 

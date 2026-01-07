@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { format, subDays, startOfDay, parseISO } from 'date-fns';
+import { format, subDays, parseISO } from 'date-fns';
+import { useActivityEmbeddings } from './useActivityEmbeddings';
 
 export interface ResetAudit {
   id: string;
@@ -46,7 +47,9 @@ export const PHASES = [
 export function useResetAudits() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { embedResetAudit } = useActivityEmbeddings();
   const today = format(new Date(), 'yyyy-MM-dd');
+
 
   // Fetch last 7 days of audits
   const { data: audits = [], isLoading, error } = useQuery({
@@ -171,26 +174,37 @@ export function useResetAudits() {
       if (!user?.id) throw new Error('Not authenticated');
 
       if (todayAudit) {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('reset_audits')
           .update({ post_op_note: note })
-          .eq('id', todayAudit.id);
+          .eq('id', todayAudit.id)
+          .select()
+          .single();
         if (error) throw error;
+        return data;
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('reset_audits')
           .insert({
             user_id: user.id,
             audit_date: today,
             post_op_note: note,
-          });
+          })
+          .select()
+          .single();
         if (error) throw error;
+        return data;
       }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['reset-audits'] });
+      // Generate embedding if there's a note
+      if (data?.post_op_note) {
+        embedResetAudit(data).catch(console.error);
+      }
     },
   });
+
 
   return {
     audits,

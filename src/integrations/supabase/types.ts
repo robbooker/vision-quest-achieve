@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_embeddings: {
+        Row: {
+          activity_date: string
+          content_text: string
+          created_at: string | null
+          embedding: string | null
+          id: string
+          metadata: Json | null
+          source_id: string
+          source_type: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          activity_date: string
+          content_text: string
+          created_at?: string | null
+          embedding?: string | null
+          id?: string
+          metadata?: Json | null
+          source_id: string
+          source_type: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          activity_date?: string
+          content_text?: string
+          created_at?: string | null
+          embedding?: string | null
+          id?: string
+          metadata?: Json | null
+          source_id?: string
+          source_type?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       big_ten_projects: {
         Row: {
           category: string | null

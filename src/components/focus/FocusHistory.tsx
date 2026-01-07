@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { Clock, CheckCircle2, XCircle, Target, Pencil } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +19,7 @@ interface FocusHistoryProps {
 }
 
 export function FocusHistory({ sessions, todayMinutes, todayCount, streak, onUpdateSession }: FocusHistoryProps) {
+  const navigate = useNavigate();
   const [editingSession, setEditingSession] = useState<FocusSession | null>(null);
   
   const formatDuration = (minutes: number) => {
@@ -83,7 +85,11 @@ export function FocusHistory({ sessions, todayMinutes, todayCount, streak, onUpd
                 todaySessions.map(session => (
                   <div
                     key={session.id}
-                    className="flex items-start gap-3 p-3 rounded-lg bg-muted/50"
+                    className={cn(
+                      "flex items-start gap-3 p-3 rounded-lg bg-muted/50",
+                      session.status === 'active' && "cursor-pointer hover:bg-muted transition-colors"
+                    )}
+                    onClick={() => session.status === 'active' && navigate('/focus')}
                   >
                     {session.status === 'completed' ? (
                       <CheckCircle2 className="h-5 w-5 text-chart-2 mt-0.5 shrink-0" />

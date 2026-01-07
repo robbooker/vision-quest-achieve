@@ -32,6 +32,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import Blog from "./pages/Blog";
 import HabitGoalsBlog from "./pages/HabitGoalsBlog";
+import WoopBlog from "./pages/WoopBlog";
 import ResetBlog from "./pages/ResetBlog";
 import Reset from "./pages/Reset";
 import Journal from "./pages/Journal";
@@ -78,6 +79,7 @@ const App = () => (
                   <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
                   <Route path="/blog" element={<Blog />} />
                   <Route path="/blog/habit-goals" element={<HabitGoalsBlog />} />
+                  <Route path="/blog/woop" element={<WoopBlog />} />
                   <Route path="/blog/reset" element={<ResetBlog />} />
                   <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                   <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />

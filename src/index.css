@@ -388,7 +388,89 @@
     transform: translate(-2px, -2px);
     box-shadow: 6px 6px 0 hsl(var(--muted));
   }
-}
+  }
+
+  /* Yellow Legal Pad styling for Book Dossier notes */
+  .legal-pad-container {
+    background-color: hsl(50 100% 85%);
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .legal-pad {
+    background-color: hsl(50 100% 85%);
+    background-image: 
+      repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 23px,
+        hsl(210 40% 80%) 23px,
+        hsl(210 40% 80%) 24px
+      ),
+      linear-gradient(
+        90deg, 
+        transparent 0px, 
+        transparent 40px, 
+        hsl(0 70% 60%) 40px, 
+        hsl(0 70% 60%) 42px, 
+        transparent 42px
+      );
+    line-height: 24px;
+    padding: 0 12px 12px 52px;
+    font-family: 'IBM Plex Mono', 'Courier Prime', monospace;
+    color: hsl(220 20% 25%);
+    min-height: 200px;
+    resize: vertical;
+  }
+
+  .legal-pad::placeholder {
+    color: hsl(220 10% 50%);
+  }
+
+  .dark .legal-pad-container {
+    background-color: hsl(45 30% 20%);
+    border-color: hsl(var(--border));
+  }
+
+  .dark .legal-pad {
+    background-color: hsl(45 30% 20%);
+    background-image: 
+      repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 23px,
+        hsl(45 20% 30%) 23px,
+        hsl(45 20% 30%) 24px
+      ),
+      linear-gradient(
+        90deg, 
+        transparent 0px, 
+        transparent 40px, 
+        hsl(0 50% 40%) 40px, 
+        hsl(0 50% 40%) 42px, 
+        transparent 42px
+      );
+    color: hsl(45 80% 70%);
+  }
+
+  .dark .legal-pad::placeholder {
+    color: hsl(45 30% 45%);
+  }
+
+  /* Typewriter text for archived book cards */
+  .typewriter-text {
+    font-family: 'IBM Plex Mono', 'Courier Prime', 'Courier New', monospace;
+    letter-spacing: 0.02em;
+  }
+
+  /* Nixie glow color utility */
+  .text-nixie-glow {
+    color: hsl(var(--nixie-glow));
+    text-shadow: 
+      0 0 5px hsl(var(--nixie-glow)),
+      0 0 10px hsl(var(--nixie-glow) / 0.5);
+  }
 
 @layer utilities {
   /* Glow effects for nixie aesthetic */

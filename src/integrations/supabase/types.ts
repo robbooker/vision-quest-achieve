@@ -130,6 +130,57 @@ export type Database = {
           },
         ]
       }
+      books: {
+        Row: {
+          author: string
+          category: string | null
+          created_at: string
+          finished_at: string | null
+          id: string
+          notes: string | null
+          operational_change: string | null
+          ranking: number | null
+          started_at: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+          year_published: number | null
+        }
+        Insert: {
+          author: string
+          category?: string | null
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          notes?: string | null
+          operational_change?: string | null
+          ranking?: number | null
+          started_at?: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+          year_published?: number | null
+        }
+        Update: {
+          author?: string
+          category?: string | null
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          notes?: string | null
+          operational_change?: string | null
+          ranking?: number | null
+          started_at?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          year_published?: number | null
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           content: string

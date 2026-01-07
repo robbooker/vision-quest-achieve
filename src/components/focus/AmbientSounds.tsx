@@ -83,10 +83,13 @@ export function AmbientSounds({ onSoundChange, isBreakMode = false, shouldStop =
     }, stepDuration);
   }, [clearFade]);
 
-  // Setup audio context and analyser for a new audio element
+  // Setup audio context and analyser for visualization (optional - audio plays without it)
   const setupAudioContext = useCallback((audio: HTMLAudioElement) => {
+    // Reset analyser first
+    setAnalyser(null);
+    
     try {
-      // Disconnect old source if exists
+      // Clean up old source completely
       if (sourceRef.current) {
         try {
           sourceRef.current.disconnect();
@@ -96,23 +99,37 @@ export function AmbientSounds({ onSoundChange, isBreakMode = false, shouldStop =
         sourceRef.current = null;
       }
       
-      // Reuse existing context or create new one (don't close/recreate)
-      if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
-        audioContextRef.current = new AudioContext();
+      // Close old context completely before creating new one
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        try {
+          audioContextRef.current.close();
+        } catch (e) {
+          // Ignore close errors
+        }
+        audioContextRef.current = null;
       }
       
-      const ctx = audioContextRef.current;
-      const source = ctx.createMediaElementSource(audio);
-      sourceRef.current = source;
-      
-      const analyserNode = ctx.createAnalyser();
-      analyserNode.fftSize = 64;
-      source.connect(analyserNode);
-      analyserNode.connect(ctx.destination);
-      setAnalyser(analyserNode);
+      // Create fresh context after a small delay to ensure cleanup
+      setTimeout(() => {
+        try {
+          const ctx = new AudioContext();
+          audioContextRef.current = ctx;
+          
+          const source = ctx.createMediaElementSource(audio);
+          sourceRef.current = source;
+          
+          const analyserNode = ctx.createAnalyser();
+          analyserNode.fftSize = 64;
+          source.connect(analyserNode);
+          analyserNode.connect(ctx.destination);
+          setAnalyser(analyserNode);
+        } catch (e) {
+          console.log('Waveform setup failed (audio still plays):', e);
+          // Audio still plays through normal audio element output
+        }
+      }, 50);
     } catch (e) {
-      console.log('Audio context setup failed:', e);
-      setAnalyser(null);
+      console.log('Audio context cleanup failed:', e);
     }
   }, []);
 
@@ -154,24 +171,21 @@ export function AmbientSounds({ onSoundChange, isBreakMode = false, shouldStop =
     newAudio.volume = 0;
     audioRef.current = newAudio;
     
-    // Setup audio context BEFORE playing (required by Web Audio API)
-    setupAudioContext(newAudio);
-    
     try {
-      // Resume audio context if suspended (user gesture requirement)
-      if (audioContextRef.current?.state === 'suspended') {
-        await audioContextRef.current.resume();
-      }
-      
+      // Play audio FIRST - this always works
       await newAudio.play();
       
-      // Fade in
+      // Fade in (happens regardless of waveform)
       const targetVolume = isMuted ? 0 : volume / 100;
       fadeVolume(newAudio, 0, targetVolume, CROSSFADE_DURATION);
       
       setActiveSound(soundId);
       setIsPlaying(true);
       onSoundChange?.(soundId);
+      
+      // THEN try to set up waveform visualization (optional, async)
+      setupAudioContext(newAudio);
+      
     } catch (e) {
       console.log('Audio playback failed:', e);
       setActiveSound(null);

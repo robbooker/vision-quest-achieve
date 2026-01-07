@@ -8,6 +8,7 @@ import { FocusTimer } from '@/components/focus/FocusTimer';
 import { SessionComplete } from '@/components/focus/SessionComplete';
 import { FocusHistory } from '@/components/focus/FocusHistory';
 import { AmbientSounds } from '@/components/focus/AmbientSounds';
+import { AudioErrorBoundary } from '@/components/focus/AudioErrorBoundary';
 import { BreakTimer } from '@/components/focus/BreakTimer';
 import { useFocusSessions } from '@/hooks/useFocusSessions';
 import { useToast } from '@/hooks/use-toast';
@@ -220,10 +221,12 @@ export default function Focus() {
                   
                   {/* Ambient Sounds */}
                   <div className="mt-6 pt-6 border-t">
-                    <AmbientSounds 
-                      isBreakMode={false}
-                      shouldStop={false}
-                    />
+                    <AudioErrorBoundary fallback={<div className="text-sm text-muted-foreground">Audio temporarily unavailable</div>}>
+                      <AmbientSounds 
+                        isBreakMode={false}
+                        shouldStop={false}
+                      />
+                    </AudioErrorBoundary>
                   </div>
                 </CardContent>
               </Card>
@@ -233,10 +236,12 @@ export default function Focus() {
             {viewState === 'break' && (
               <Card className="mb-4">
                 <CardContent className="pt-4 pb-4">
-                  <AmbientSounds 
-                    isBreakMode={true}
-                    shouldStop={false}
-                  />
+                  <AudioErrorBoundary fallback={<div className="text-sm text-muted-foreground">Audio temporarily unavailable</div>}>
+                    <AmbientSounds 
+                      isBreakMode={true}
+                      shouldStop={false}
+                    />
+                  </AudioErrorBoundary>
                 </CardContent>
               </Card>
             )}

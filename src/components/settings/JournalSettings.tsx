@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BookOpen, Palette, Sparkles } from 'lucide-react';
+import { BookOpen, Palette, Sparkles, Database, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -7,6 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { useJournalSettings } from '@/hooks/useJournalSettings';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const ART_STYLES = [
   { value: 'watercolor', label: 'Watercolor' },
@@ -28,6 +30,31 @@ export const JournalSettings = () => {
   const [artStyle, setArtStyle] = useState('watercolor');
   const [colorPalette, setColorPalette] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
+  const [isBackfilling, setIsBackfilling] = useState(false);
+
+  const handleBackfillEmbeddings = async () => {
+    setIsBackfilling(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Please sign in to run backfill');
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('backfill-embeddings', {
+        headers: { Authorization: `Bearer ${session.access_token}` }
+      });
+
+      if (error) throw error;
+
+      toast.success(data.message || 'Embeddings generated successfully!');
+    } catch (err) {
+      console.error('Backfill error:', err);
+      toast.error('Failed to generate embeddings');
+    } finally {
+      setIsBackfilling(false);
+    }
+  };
 
   useEffect(() => {
     if (settings) {
@@ -146,6 +173,31 @@ export const JournalSettings = () => {
         >
           {upsertSettings.isPending ? 'Saving...' : 'Save Journal Settings'}
         </Button>
+
+        <div className="pt-4 border-t">
+          <Label className="flex items-center gap-2 mb-2">
+            <Database className="w-4 h-4" />
+            Reflection Assistant Data
+          </Label>
+          <p className="text-xs text-muted-foreground mb-3">
+            Generate searchable embeddings for your historical activities so the Reflection Assistant can find patterns across your journal entries, tasks, habits, and focus sessions.
+          </p>
+          <Button 
+            variant="outline"
+            onClick={handleBackfillEmbeddings} 
+            disabled={isBackfilling}
+            className="w-full"
+          >
+            {isBackfilling ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Generating Embeddings...
+              </>
+            ) : (
+              'Generate Historical Embeddings'
+            )}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

@@ -29,7 +29,41 @@ When analyzing their data:
 - Gently surface things they may have forgotten about
 - Suggest connections between activities and goals
 
+**TASK CREATION:**
+When the user wants to add, create, or remind themselves about a task, use the create_task tool to add it to their task list. Examples:
+- "Add 'call mom' to my tasks" → use create_task with title "call mom"
+- "Remind me to review the budget" → use create_task with title "review the budget"
+- "Add 'prepare presentation' to my business tasks" → use create_task with title "prepare presentation" and category "business"
+
+If they don't specify a category, default to "personal". After creating, confirm what you added.
+
 Keep responses conversational and supportive. You're here to help them reflect on their journey, not to lecture.`;
+
+const tools = [
+  {
+    type: "function",
+    function: {
+      name: "create_task",
+      description: "Create a new task in the user's Quick Tasks list",
+      parameters: {
+        type: "object",
+        properties: {
+          title: {
+            type: "string",
+            description: "The title/name of the task to create"
+          },
+          category: {
+            type: "string",
+            enum: ["personal", "business"],
+            description: "The category of the task. Defaults to 'personal' if not specified."
+          }
+        },
+        required: ["title"],
+        additionalProperties: false
+      }
+    }
+  }
+];
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -42,6 +76,20 @@ serve(async (req) => {
     
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
+    }
+
+    // Get user from auth header for task creation
+    const authHeader = req.headers.get("Authorization");
+    let userId: string | null = null;
+    
+    if (authHeader) {
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const { data: { user } } = await supabase.auth.getUser();
+      userId = user?.id ?? null;
     }
 
     // Build context message from user data
@@ -120,12 +168,13 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-pro-preview",
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemContent },
           ...messages,
         ],
-        stream: true,
+        tools,
+        stream: false, // Disable streaming to handle tool calls properly
       }),
     });
 
@@ -150,9 +199,101 @@ serve(async (req) => {
       });
     }
 
-    return new Response(response.body, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+    const aiResponse = await response.json();
+    const choice = aiResponse.choices?.[0];
+    
+    // Check if there are tool calls
+    if (choice?.message?.tool_calls && choice.message.tool_calls.length > 0) {
+      const toolResults: { taskCreated?: { title: string; category: string } } = {};
+      
+      for (const toolCall of choice.message.tool_calls) {
+        if (toolCall.function.name === "create_task") {
+          const args = JSON.parse(toolCall.function.arguments);
+          const title = args.title;
+          const category = args.category || "personal";
+          
+          if (userId) {
+            // Get max position
+            const supabase = createClient(
+              Deno.env.get("SUPABASE_URL") ?? "",
+              Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+            );
+            
+            const { data: maxPosData } = await supabase
+              .from("quick_tasks")
+              .select("position")
+              .eq("user_id", userId)
+              .order("position", { ascending: false })
+              .limit(1);
+            
+            const nextPosition = (maxPosData?.[0]?.position ?? -1) + 1;
+            
+            // Create the task
+            const { error: insertError } = await supabase
+              .from("quick_tasks")
+              .insert({
+                user_id: userId,
+                title,
+                category,
+                position: nextPosition,
+                completed: false,
+              });
+            
+            if (insertError) {
+              console.error("Error creating task:", insertError);
+            } else {
+              toolResults.taskCreated = { title, category };
+              console.log("Task created:", title, category);
+            }
+          }
+        }
+      }
+      
+      // Get a follow-up response with the tool result
+      const followUpMessages = [
+        { role: "system", content: systemContent },
+        ...messages,
+        choice.message,
+        {
+          role: "tool",
+          tool_call_id: choice.message.tool_calls[0].id,
+          content: toolResults.taskCreated 
+            ? `Task created successfully: "${toolResults.taskCreated.title}" in ${toolResults.taskCreated.category} category`
+            : "Failed to create task - user not authenticated"
+        }
+      ];
+      
+      const followUpResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: followUpMessages,
+          stream: false,
+        }),
+      });
+      
+      const followUpData = await followUpResponse.json();
+      const finalContent = followUpData.choices?.[0]?.message?.content || "Done!";
+      
+      return new Response(JSON.stringify({ 
+        content: finalContent,
+        taskCreated: toolResults.taskCreated 
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    
+    // No tool calls, return the content directly
+    return new Response(JSON.stringify({ 
+      content: choice?.message?.content || "I'm here to help!" 
+    }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+    
   } catch (error) {
     console.error("Journal chat error:", error);
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {

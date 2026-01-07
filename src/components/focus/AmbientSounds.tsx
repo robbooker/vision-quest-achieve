@@ -6,11 +6,14 @@ import { cn } from '@/lib/utils';
 // AudioWaveform disabled due to Web Audio API crashes
 import { useTerminalMode } from '@/hooks/useTerminalMode';
 
+import { Moon } from 'lucide-react';
+
 const SOUNDS = [
   { id: 'newer-wave', label: 'Newer Wave', icon: Music, url: '/sounds/newer-wave.mp3' },
   { id: 'chill-study-1', label: 'Chill Study', icon: Headphones, url: '/sounds/chill-study-1.mp3' },
   { id: 'frequency', label: 'Focus Frequency', icon: Radio, url: '/sounds/focus-frequency.mp3' },
   { id: 'chill-study-2', label: 'Deep Focus', icon: AudioLines, url: '/sounds/chill-study-2.mp3' },
+  { id: 'good-night', label: 'Good Night', icon: Moon, url: '/sounds/good-night-lofi.mp3' },
 ];
 
 const VOLUME_STORAGE_KEY = 'focus-audio-volume';

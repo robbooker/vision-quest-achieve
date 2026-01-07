@@ -31,12 +31,19 @@ export default function Auth() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
+  const [isReturningVisitor] = useState(() => {
+    return localStorage.getItem('gp_visited') === 'true';
+  });
 
   useEffect(() => {
     if (user && !loading) {
       navigate('/today');
     }
   }, [user, loading, navigate]);
+
+  useEffect(() => {
+    localStorage.setItem('gp_visited', 'true');
+  }, []);
 
   const handleRememberMeChange = (checked: boolean) => {
     setRememberMe(checked);
@@ -249,7 +256,7 @@ export default function Auth() {
           
           <Card className="w-full">
             <CardHeader className="text-center">
-              <CardTitle className="text-2xl">Welcome</CardTitle>
+              <CardTitle className="text-2xl">{isReturningVisitor ? 'Welcome back!' : 'Welcome'}</CardTitle>
             <CardDescription>
               Sign in to start your groovy planning journey.{' '}
               <Link to="/pricing" className="text-primary hover:underline">

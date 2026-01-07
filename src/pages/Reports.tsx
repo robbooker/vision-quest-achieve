@@ -255,7 +255,10 @@ export default function Reports() {
 
           <TabsContent value="personal" className="space-y-6 mt-6">
 
-        {/* Projects & Tasks Section - First Priority */}
+        {/* Habit Chains Section - Top Priority */}
+        <HabitChainCalendar />
+
+        {/* Projects & Tasks Section */}
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-foreground">Projects & Tasks</h2>
           
@@ -611,8 +614,6 @@ export default function Reports() {
           </Card>
         </div>
 
-        {/* Habit Chains Section */}
-        <HabitChainCalendar />
 
         {/* 7-Day Reset Section - Only show if user has reset data */}
         {(audits.length > 0 || isResetActive) && (

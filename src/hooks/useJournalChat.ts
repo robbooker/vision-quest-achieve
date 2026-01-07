@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { subDays, format } from 'date-fns';
 import { useSemanticSearch } from './useSemanticSearch';
+import { useQueryClient } from '@tanstack/react-query';
 
 export type ChatMessage = {
   role: 'user' | 'assistant';
@@ -32,6 +33,7 @@ export const useJournalChat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { search } = useSemanticSearch();
+  const queryClient = useQueryClient();
 
   const fetchContext = useCallback(async (): Promise<JournalContext> => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -137,77 +139,45 @@ export const useJournalChat = () => {
 
       console.log('Semantic context found:', semanticContext.length, 'results');
 
+      // Get auth token for the request
+      const { data: { session } } = await supabase.auth.getSession();
+
       const response = await fetch(CHAT_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({
           messages: [...messages, userMsg],
           context,
-          semanticContext, // Add semantic search results
+          semanticContext,
         }),
       });
 
-      if (!response.ok || !response.body) {
+      if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || 'Failed to get response');
       }
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let assistantContent = '';
-      let textBuffer = '';
-
-      // Add empty assistant message that we'll update
-      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        textBuffer += decoder.decode(value, { stream: true });
-
-        let newlineIndex: number;
-        while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
-          let line = textBuffer.slice(0, newlineIndex);
-          textBuffer = textBuffer.slice(newlineIndex + 1);
-
-          if (line.endsWith('\r')) line = line.slice(0, -1);
-          if (line.startsWith(':') || line.trim() === '') continue;
-          if (!line.startsWith('data: ')) continue;
-
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === '[DONE]') break;
-
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) {
-              assistantContent += content;
-              setMessages(prev => {
-                const updated = [...prev];
-                updated[updated.length - 1] = { role: 'assistant', content: assistantContent };
-                return updated;
-              });
-            }
-          } catch {
-            // Incomplete JSON, put back and wait
-            textBuffer = line + '\n' + textBuffer;
-            break;
-          }
-        }
+      const data = await response.json();
+      
+      // If a task was created, refresh the task list
+      if (data.taskCreated) {
+        console.log('Task created via chat:', data.taskCreated);
+        queryClient.invalidateQueries({ queryKey: ['quick-tasks'] });
       }
+
+      // Add assistant message
+      setMessages(prev => [...prev, { role: 'assistant', content: data.content }]);
+
     } catch (err) {
       console.error('Journal chat error:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
-      // Remove the empty assistant message on error
-      setMessages(prev => prev.filter(m => m.content !== ''));
     } finally {
       setIsLoading(false);
     }
-  }, [messages, fetchContext, fetchSemanticContext]);
+  }, [messages, fetchContext, fetchSemanticContext, queryClient]);
 
   const clearChat = useCallback(() => {
     setMessages([]);

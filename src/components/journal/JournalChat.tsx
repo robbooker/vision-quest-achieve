@@ -8,6 +8,7 @@ import { useGlobalChat } from '@/hooks/useGlobalChat';
 import ReactMarkdown from 'react-markdown';
 
 const PRESET_QUESTIONS = [
+  { label: "Add a task", prompt: "Add a task to my list" },
   { label: "Recent progress", prompt: "What have I accomplished in the last few days?" },
   { label: "Long-term patterns", prompt: "What patterns do you see across my entire history?" },
   { label: "Focus insights", prompt: "When am I most productive based on my focus sessions?" },

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Target, Timer, Flame } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -37,11 +37,11 @@ export default function Focus() {
   } = useFocusSessions();
 
   // If there's an active session on load, show the timer
-  useState(() => {
-    if (activeSession) {
+  useEffect(() => {
+    if (activeSession && viewState === 'setup') {
       setViewState('active');
     }
-  });
+  }, [activeSession, viewState]);
 
   const handleStartSession = async (data: {
     objective: string;
@@ -263,6 +263,7 @@ export default function Focus() {
               todayCount={todayCompletedCount}
               streak={streak}
               onUpdateSession={handleUpdateSession}
+              onResumeSession={() => setViewState('active')}
             />
 
             {/* Tips Card */}

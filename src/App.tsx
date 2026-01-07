@@ -16,6 +16,7 @@ import { GlobalChatProvider } from "@/hooks/useGlobalChat";
 import { ToastProvider } from "@/components/notifications/ToastProvider";
 import { NotificationListener } from "@/components/notifications/NotificationListener";
 import { JournalChat } from "@/components/journal/JournalChat";
+import { MiamiModeProvider } from "@/hooks/useMiamiMode";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
@@ -38,6 +39,7 @@ import Reset from "./pages/Reset";
 import Journal from "./pages/Journal";
 import Focus from "./pages/Focus";
 import CheckoutSuccess from "./pages/CheckoutSuccess";
+import Secret from "./pages/Secret";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -63,6 +65,7 @@ const App = () => (
         themes={['light', 'dark', 'terminal']}
       >
         <AuthProvider>
+          <MiamiModeProvider>
           <TerminalModeProvider>
             <GlobalChatProvider>
             <ToastProvider>
@@ -96,6 +99,7 @@ const App = () => (
                   <Route path="/admin/broadcasts" element={<AdminRoute><AdminBroadcasts /></AdminRoute>} />
                   <Route path="/privacy" element={<PrivacyPolicy />} />
                   <Route path="/terms" element={<TermsOfService />} />
+                  <Route path="/secret" element={<Secret />} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>
@@ -106,6 +110,7 @@ const App = () => (
             </ToastProvider>
             </GlobalChatProvider>
           </TerminalModeProvider>
+          </MiamiModeProvider>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>

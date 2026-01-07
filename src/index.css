@@ -624,3 +624,163 @@ html.text-size-large {
     animation: success-flash 0.3s ease;
   }
 }
+
+/* Miami Mode - Vice City Aesthetic */
+.miami-mode {
+  /* Miami sunset background - deep purple to pink to orange */
+  --background: 280 60% 15%;
+  --foreground: 180 100% 80%;
+
+  /* Card - dark teal with glow */
+  --card: 280 50% 12%;
+  --card-foreground: 180 100% 80%;
+
+  --popover: 280 50% 12%;
+  --popover-foreground: 180 100% 80%;
+
+  /* Primary: Hot pink neon */
+  --primary: 330 100% 60%;
+  --primary-foreground: 280 60% 10%;
+
+  /* Secondary: Dark purple */
+  --secondary: 280 40% 20%;
+  --secondary-foreground: 180 100% 80%;
+
+  /* Muted: Darker purple */
+  --muted: 280 30% 18%;
+  --muted-foreground: 180 60% 60%;
+
+  /* Accent: Electric cyan */
+  --accent: 180 100% 50%;
+  --accent-foreground: 280 60% 10%;
+
+  /* Destructive: Bright coral */
+  --destructive: 350 100% 60%;
+  --destructive-foreground: 0 0% 100%;
+
+  /* Borders: Neon pink glow */
+  --border: 330 60% 40%;
+  --input: 280 40% 20%;
+  --ring: 330 100% 60%;
+
+  --radius: 8px;
+
+  /* Sidebar: Deep purple with pink accent */
+  --sidebar-background: 280 60% 8%;
+  --sidebar-foreground: 330 100% 70%;
+  --sidebar-primary: 330 100% 60%;
+  --sidebar-primary-foreground: 280 60% 10%;
+  --sidebar-accent: 280 50% 15%;
+  --sidebar-accent-foreground: 180 100% 80%;
+  --sidebar-border: 330 60% 30%;
+  --sidebar-ring: 330 100% 60%;
+
+  /* Chart colors - Miami neon palette */
+  --chart-1: 330 100% 60%;  /* Hot pink */
+  --chart-2: 180 100% 50%;  /* Electric cyan */
+  --chart-3: 45 100% 60%;   /* Sunset orange */
+  --chart-4: 280 80% 60%;   /* Purple */
+  --chart-5: 200 100% 50%;  /* Blue */
+
+  /* Miami-specific tokens */
+  --index-card-bg: 280 50% 12%;
+  --index-card-lines: 280 40% 18%;
+  --index-card-margin: 330 100% 60%;
+  --nixie-bg: 280 60% 8%;
+  --nixie-glow: 330 100% 60%;
+  --nixie-glow-alt: 180 100% 50%;
+  --chiclet-light: 280 40% 25%;
+  --chiclet-dark: 280 50% 15%;
+  --chiclet-shadow: 280 60% 8%;
+}
+
+.miami-mode body {
+  background: linear-gradient(
+    180deg,
+    hsl(280 60% 15%) 0%,
+    hsl(300 50% 20%) 30%,
+    hsl(330 60% 25%) 60%,
+    hsl(20 70% 30%) 100%
+  ) !important;
+  background-attachment: fixed !important;
+  background-image: none !important;
+}
+
+/* Miami sun effect */
+.miami-mode::before {
+  content: '';
+  position: fixed;
+  bottom: -50vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 150vw;
+  height: 100vh;
+  background: radial-gradient(
+    ellipse at center,
+    hsl(45 100% 60% / 0.3) 0%,
+    hsl(330 100% 60% / 0.1) 40%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Miami grid lines */
+.miami-mode::after {
+  content: '';
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40vh;
+  background: 
+    linear-gradient(90deg, hsl(330 100% 60% / 0.1) 1px, transparent 1px),
+    linear-gradient(hsl(330 100% 60% / 0.1) 1px, transparent 1px);
+  background-size: 60px 30px;
+  transform: perspective(200px) rotateX(60deg);
+  transform-origin: bottom;
+  pointer-events: none;
+  z-index: 0;
+  mask-image: linear-gradient(to top, black, transparent);
+}
+
+.miami-mode .goal-card,
+.miami-mode .retro-card {
+  background: hsl(280 50% 12% / 0.9) !important;
+  border: 1px solid hsl(330 100% 60% / 0.3) !important;
+  box-shadow: 
+    0 0 20px hsl(330 100% 60% / 0.2),
+    inset 0 0 30px hsl(280 60% 8% / 0.5) !important;
+}
+
+.miami-mode .goal-card:hover,
+.miami-mode .retro-card:hover {
+  border-color: hsl(330 100% 60% / 0.6) !important;
+  box-shadow: 
+    0 0 30px hsl(330 100% 60% / 0.3),
+    inset 0 0 30px hsl(280 60% 8% / 0.5) !important;
+}
+
+/* Miami neon text glow */
+.miami-mode h1,
+.miami-mode h2,
+.miami-mode h3 {
+  text-shadow: 
+    0 0 10px hsl(330 100% 60% / 0.5),
+    0 0 20px hsl(330 100% 60% / 0.3);
+}
+
+/* Miami button glow */
+.miami-mode .chiclet-button {
+  background: linear-gradient(145deg, hsl(330 100% 60%), hsl(280 80% 50%)) !important;
+  color: white !important;
+  box-shadow: 
+    0 4px 0 hsl(280 60% 20%),
+    0 0 20px hsl(330 100% 60% / 0.4) !important;
+}
+
+.miami-mode .chiclet-button:hover {
+  box-shadow: 
+    0 4px 0 hsl(280 60% 20%),
+    0 0 30px hsl(330 100% 60% / 0.6) !important;
+}

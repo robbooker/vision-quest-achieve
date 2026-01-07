@@ -7,11 +7,12 @@ import { useJournalChat } from '@/hooks/useJournalChat';
 import ReactMarkdown from 'react-markdown';
 
 const PRESET_QUESTIONS = [
-  { label: "Last few days", prompt: "How did my last few days look?" },
-  { label: "Recent progress", prompt: "What have I gotten done lately?" },
-  { label: "Top tasks", prompt: "What are the top tasks on my lists?" },
-  { label: "Habit streaks", prompt: "What habits am I maintaining well?" },
-  { label: "Patterns", prompt: "What patterns do you see in my activity?" },
+  { label: "Recent progress", prompt: "What have I accomplished in the last few days?" },
+  { label: "Long-term patterns", prompt: "What patterns do you see across my entire history?" },
+  { label: "Focus insights", prompt: "When am I most productive based on my focus sessions?" },
+  { label: "Habit consistency", prompt: "Which habits have I been most consistent with over time?" },
+  { label: "What am I avoiding?", prompt: "Are there any goals or tasks I seem to be avoiding?" },
+  { label: "Best days", prompt: "What do my most productive days have in common?" },
 ];
 
 export const JournalChat = () => {

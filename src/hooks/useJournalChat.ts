@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { subDays, format } from 'date-fns';
+import { useSemanticSearch } from './useSemanticSearch';
 
 export type ChatMessage = {
   role: 'user' | 'assistant';
@@ -15,12 +16,22 @@ type JournalContext = {
   focusSessions: any[];
 };
 
+type SemanticResult = {
+  sourceType: string;
+  sourceId: string;
+  contentText: string;
+  activityDate: string;
+  similarity: number;
+  metadata: Record<string, unknown>;
+};
+
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/journal-chat`;
 
 export const useJournalChat = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { search } = useSemanticSearch();
 
   const fetchContext = useCallback(async (): Promise<JournalContext> => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -95,6 +106,21 @@ export const useJournalChat = () => {
     };
   }, []);
 
+  const fetchSemanticContext = useCallback(async (query: string): Promise<SemanticResult[]> => {
+    try {
+      // Search for relevant historical activities
+      const { results, error } = await search(query, { limit: 8 });
+      if (error) {
+        console.log('Semantic search error (non-blocking):', error);
+        return [];
+      }
+      return results;
+    } catch (err) {
+      console.log('Semantic search failed (non-blocking):', err);
+      return [];
+    }
+  }, [search]);
+
   const sendMessage = useCallback(async (userMessage: string) => {
     setIsLoading(true);
     setError(null);
@@ -103,8 +129,13 @@ export const useJournalChat = () => {
     setMessages(prev => [...prev, userMsg]);
 
     try {
-      // Fetch fresh context
-      const context = await fetchContext();
+      // Fetch fresh context and semantic search in parallel
+      const [context, semanticContext] = await Promise.all([
+        fetchContext(),
+        fetchSemanticContext(userMessage),
+      ]);
+
+      console.log('Semantic context found:', semanticContext.length, 'results');
 
       const response = await fetch(CHAT_URL, {
         method: 'POST',
@@ -115,6 +146,7 @@ export const useJournalChat = () => {
         body: JSON.stringify({
           messages: [...messages, userMsg],
           context,
+          semanticContext, // Add semantic search results
         }),
       });
 
@@ -175,7 +207,7 @@ export const useJournalChat = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [messages, fetchContext]);
+  }, [messages, fetchContext, fetchSemanticContext]);
 
   const clearChat = useCallback(() => {
     setMessages([]);

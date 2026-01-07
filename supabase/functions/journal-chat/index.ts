@@ -1,27 +1,35 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SYSTEM_PROMPT = `You are a thoughtful reflection assistant helping users understand their recent accomplishments and habits.
+const SYSTEM_PROMPT = `You are a thoughtful reflection assistant with access to the user's ENTIRE history of activities through semantic search.
 
 Your communication style:
 - Warm and encouraging, celebrating wins both big and small
-- Observant - you notice patterns in their activity
+- Observant - you notice patterns and connections across their history
 - Helpful with gentle suggestions, never preachy
-- Specific - reference actual tasks and habits by name when available
-- Brief but insightful (2-3 paragraphs max unless asked for more)
+- Specific - reference actual tasks, habits, and focus sessions by name
+- Insightful - draw connections between past and present activities
+- Brief but meaningful (2-3 paragraphs max unless asked for more)
+
+You have access to two types of context:
+1. **Recent Activity (last 7 days)** - A structured summary of recent tasks, habits, and focus sessions
+2. **Semantic Search Results** - Relevant historical activities found by searching their entire history based on what they're asking about
+
+When the user asks about patterns, habits, or "when did I...?" questions, pay special attention to the semantic search results as they contain relevant historical context beyond just the last 7 days.
 
 When analyzing their data:
-- Highlight completed tasks and habits from recent days
-- Identify streaks or consistent patterns
-- Note any gaps without judgment
+- Connect current activities to past patterns you find in the search results
+- Identify long-term trends, not just recent activity
+- Celebrate consistency you notice across weeks or months
+- Gently surface things they may have forgotten about
 - Suggest connections between activities and goals
-- Encourage reflection with follow-up questions
 
-Keep responses conversational and supportive. You're here to help them reflect, not to lecture.`;
+Keep responses conversational and supportive. You're here to help them reflect on their journey, not to lecture.`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -29,7 +37,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, context } = await req.json();
+    const { messages, context, semanticContext } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
@@ -38,6 +46,21 @@ serve(async (req) => {
 
     // Build context message from user data
     let contextMessage = "";
+    
+    // Add semantic search results first (most relevant historical context)
+    if (semanticContext && semanticContext.length > 0) {
+      contextMessage += "\n\n**📚 Relevant Historical Context (from semantic search):**\n";
+      const emojiMap: Record<string, string> = {
+        'journal_entry': '📔',
+        'quick_task': '✅',
+        'habit_log': '🔄',
+        'focus_session': '🎯'
+      };
+      semanticContext.forEach((result: { sourceType: string; activityDate: string; contentText: string }) => {
+        const sourceEmoji = emojiMap[result.sourceType] || '📌';
+        contextMessage += `${sourceEmoji} ${result.activityDate}: ${result.contentText}\n`;
+      });
+    }
     
     if (context) {
       if (context.recentTasks && context.recentTasks.length > 0) {
@@ -86,9 +109,9 @@ serve(async (req) => {
       }
     }
 
-    const systemContent = SYSTEM_PROMPT + (contextMessage ? `\n\n**User's Recent Activity Context:**${contextMessage}` : "");
+    const systemContent = SYSTEM_PROMPT + (contextMessage ? `\n\n**User's Activity Context:**${contextMessage}` : "");
 
-    console.log("Journal chat - sending request with context length:", contextMessage.length);
+    console.log("Journal chat - context length:", contextMessage.length, "semantic results:", semanticContext?.length || 0);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

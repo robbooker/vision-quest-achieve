@@ -236,10 +236,14 @@ serve(async (req) => {
       parts.push(`Type: ${goal.goal_type}`);
       if (goal.why) parts.push(`Why: ${goal.why}`);
       if (goal.implementation_intention) parts.push(`Implementation intention: ${goal.implementation_intention}`);
+      // Habit fields
       if (goal.habit_direction) parts.push(`Habit direction: ${goal.habit_direction}`);
       if (goal.habit_cue) parts.push(`Cue: ${goal.habit_cue}`);
       if (goal.habit_new_routine) parts.push(`New routine: ${goal.habit_new_routine}`);
       if (goal.habit_reward) parts.push(`Reward: ${goal.habit_reward}`);
+      // WOOP fields
+      if (goal.outcome_visualization) parts.push(`Best outcome visualization: ${goal.outcome_visualization}`);
+      if (goal.primary_obstacle) parts.push(`Internal obstacle: ${goal.primary_obstacle}`);
 
       const activityDate = goal.created_at.split("T")[0];
 
@@ -248,7 +252,7 @@ serve(async (req) => {
         goal.id,
         parts.join(" "),
         activityDate,
-        { goalType: goal.goal_type, hasWhy: !!goal.why }
+        { goalType: goal.goal_type, hasWhy: !!goal.why, isWoop: goal.goal_type === 'woop' }
       );
       processed.goals++;
       await new Promise(r => setTimeout(r, 50));

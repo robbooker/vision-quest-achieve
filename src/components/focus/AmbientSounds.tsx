@@ -86,14 +86,22 @@ export function AmbientSounds({ onSoundChange, isBreakMode = false, shouldStop =
   // Setup audio context and analyser for a new audio element
   const setupAudioContext = useCallback((audio: HTMLAudioElement) => {
     try {
-      // Close existing context and create a fresh one for each new audio
-      if (audioContextRef.current) {
-        audioContextRef.current.close().catch(() => {});
+      // Disconnect old source if exists
+      if (sourceRef.current) {
+        try {
+          sourceRef.current.disconnect();
+        } catch (e) {
+          // Ignore - may already be disconnected
+        }
+        sourceRef.current = null;
       }
       
-      const ctx = new AudioContext();
-      audioContextRef.current = ctx;
+      // Reuse existing context or create new one (don't close/recreate)
+      if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+        audioContextRef.current = new AudioContext();
+      }
       
+      const ctx = audioContextRef.current;
       const source = ctx.createMediaElementSource(audio);
       sourceRef.current = source;
       
@@ -104,6 +112,7 @@ export function AmbientSounds({ onSoundChange, isBreakMode = false, shouldStop =
       setAnalyser(analyserNode);
     } catch (e) {
       console.log('Audio context setup failed:', e);
+      setAnalyser(null);
     }
   }, []);
 
@@ -143,17 +152,18 @@ export function AmbientSounds({ onSoundChange, isBreakMode = false, shouldStop =
     const newAudio = new Audio(sound.url);
     newAudio.loop = true;
     newAudio.volume = 0;
+    audioRef.current = newAudio;
+    
+    // Setup audio context BEFORE playing (required by Web Audio API)
+    setupAudioContext(newAudio);
     
     try {
-      await newAudio.play();
-      
-      // Resume audio context if suspended
+      // Resume audio context if suspended (user gesture requirement)
       if (audioContextRef.current?.state === 'suspended') {
         await audioContextRef.current.resume();
       }
       
-      audioRef.current = newAudio;
-      setupAudioContext(newAudio);
+      await newAudio.play();
       
       // Fade in
       const targetVolume = isMuted ? 0 : volume / 100;

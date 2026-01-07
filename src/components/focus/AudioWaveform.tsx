@@ -59,7 +59,12 @@ export function AudioWaveform({ analyser, isPlaying, className }: AudioWaveformP
 
         ctx.fillStyle = gradient;
         ctx.beginPath();
-        ctx.roundRect(x, y, barWidth, barHeight, 2);
+        // roundRect fallback for older browsers
+        if (ctx.roundRect) {
+          ctx.roundRect(x, y, barWidth, barHeight, 2);
+        } else {
+          ctx.rect(x, y, barWidth, barHeight);
+        }
         ctx.fill();
       }
     };

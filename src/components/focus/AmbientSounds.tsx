@@ -3,7 +3,7 @@ import { Volume2, VolumeX, Music, Headphones, Radio, AudioLines } from 'lucide-r
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
-import { AudioWaveform } from './AudioWaveform';
+// AudioWaveform disabled due to Web Audio API crashes
 import { useTerminalMode } from '@/hooks/useTerminalMode';
 
 const SOUNDS = [
@@ -35,12 +35,9 @@ export function AmbientSounds({ onSoundChange, isBreakMode = false, shouldStop =
   const [activeSound, setActiveSound] = useState<string | null>(null);
   const [volume, setVolume] = useState(getSavedVolume);
   const [isMuted, setIsMuted] = useState(false);
-  const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const fadeIntervalRef = useRef<number | null>(null);
   const pausedForBreakRef = useRef(false);
 
@@ -83,55 +80,8 @@ export function AmbientSounds({ onSoundChange, isBreakMode = false, shouldStop =
     }, stepDuration);
   }, [clearFade]);
 
-  // Setup audio context and analyser for visualization (optional - audio plays without it)
-  const setupAudioContext = useCallback((audio: HTMLAudioElement) => {
-    // Reset analyser first
-    setAnalyser(null);
-    
-    try {
-      // Clean up old source completely
-      if (sourceRef.current) {
-        try {
-          sourceRef.current.disconnect();
-        } catch (e) {
-          // Ignore - may already be disconnected
-        }
-        sourceRef.current = null;
-      }
-      
-      // Close old context completely before creating new one
-      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-        try {
-          audioContextRef.current.close();
-        } catch (e) {
-          // Ignore close errors
-        }
-        audioContextRef.current = null;
-      }
-      
-      // Create fresh context after a small delay to ensure cleanup
-      setTimeout(() => {
-        try {
-          const ctx = new AudioContext();
-          audioContextRef.current = ctx;
-          
-          const source = ctx.createMediaElementSource(audio);
-          sourceRef.current = source;
-          
-          const analyserNode = ctx.createAnalyser();
-          analyserNode.fftSize = 64;
-          source.connect(analyserNode);
-          analyserNode.connect(ctx.destination);
-          setAnalyser(analyserNode);
-        } catch (e) {
-          console.log('Waveform setup failed (audio still plays):', e);
-          // Audio still plays through normal audio element output
-        }
-      }, 50);
-    } catch (e) {
-      console.log('Audio context cleanup failed:', e);
-    }
-  }, []);
+  // Web Audio API waveform visualization removed due to crashes
+  // Audio plays fine through standard HTMLAudioElement
 
   // Handle sound selection with crossfade
   const handleSoundToggle = useCallback(async (soundId: string) => {
@@ -172,10 +122,9 @@ export function AmbientSounds({ onSoundChange, isBreakMode = false, shouldStop =
     audioRef.current = newAudio;
     
     try {
-      // Play audio FIRST - this always works
       await newAudio.play();
       
-      // Fade in (happens regardless of waveform)
+      // Fade in
       const targetVolume = isMuted ? 0 : volume / 100;
       fadeVolume(newAudio, 0, targetVolume, CROSSFADE_DURATION);
       
@@ -183,15 +132,12 @@ export function AmbientSounds({ onSoundChange, isBreakMode = false, shouldStop =
       setIsPlaying(true);
       onSoundChange?.(soundId);
       
-      // THEN try to set up waveform visualization (optional, async)
-      setupAudioContext(newAudio);
-      
     } catch (e) {
       console.log('Audio playback failed:', e);
       setActiveSound(null);
       setIsPlaying(false);
     }
-  }, [activeSound, volume, isMuted, fadeVolume, setupAudioContext, onSoundChange]);
+  }, [activeSound, volume, isMuted, fadeVolume, onSoundChange]);
 
   // Handle volume changes
   useEffect(() => {
@@ -243,9 +189,6 @@ export function AmbientSounds({ onSoundChange, isBreakMode = false, shouldStop =
       if (audioRef.current) {
         audioRef.current.pause();
       }
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
-      }
     };
   }, [clearFade]);
 
@@ -293,13 +236,9 @@ export function AmbientSounds({ onSoundChange, isBreakMode = false, shouldStop =
         })}
       </div>
 
-      {/* Waveform and Now Playing */}
+      {/* Now Playing indicator (waveform disabled) */}
       {isPlaying && activeSoundData && (
         <div className="flex flex-col items-center gap-2 py-2">
-          <AudioWaveform 
-            analyser={analyser} 
-            isPlaying={isPlaying && !isMuted}
-          />
           <div className={cn(
             "text-xs text-muted-foreground flex items-center gap-1.5",
             isTerminal && "font-mono uppercase tracking-wider"

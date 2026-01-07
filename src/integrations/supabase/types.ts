@@ -501,6 +501,8 @@ export type Database = {
           is_keystone_habit: boolean | null
           metric_type: string
           obstacles: string | null
+          outcome_visualization: string | null
+          primary_obstacle: string | null
           strategies: string | null
           target_value: number
           title: string
@@ -527,6 +529,8 @@ export type Database = {
           is_keystone_habit?: boolean | null
           metric_type: string
           obstacles?: string | null
+          outcome_visualization?: string | null
+          primary_obstacle?: string | null
           strategies?: string | null
           target_value: number
           title: string
@@ -553,6 +557,8 @@ export type Database = {
           is_keystone_habit?: boolean | null
           metric_type?: string
           obstacles?: string | null
+          outcome_visualization?: string | null
+          primary_obstacle?: string | null
           strategies?: string | null
           target_value?: number
           title?: string

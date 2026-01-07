@@ -1,6 +1,6 @@
 import { Goal } from '@/hooks/useGoals';
 import { Badge } from '@/components/ui/badge';
-import { Target, MoreVertical, Trash2, Edit, CalendarCheck, Zap, Clock, Repeat, Star, Play, StopCircle } from 'lucide-react';
+import { Target, MoreVertical, Trash2, Edit, CalendarCheck, Zap, Clock, Repeat, Star, Play, StopCircle, Brain } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,6 +36,7 @@ export function GoalCard({ goal, index, onEdit, onDelete, onPlanMilestones, onMa
   
   const isTimeMastery = goal.goal_type === 'time_mastery';
   const isHabit = goal.goal_type === 'habit';
+  const isWoop = goal.goal_type === 'woop';
   // Support both old 12-week cycles and new 6-week cycles
   const hasMilestones = milestones.length >= 6 || (isTimeMastery && milestones.length >= 3);
   const activeTactics = tactics.filter(t => t.is_active);
@@ -43,6 +44,7 @@ export function GoalCard({ goal, index, onEdit, onDelete, onPlanMilestones, onMa
   const getGoalIcon = () => {
     if (isTimeMastery) return Clock;
     if (isHabit) return Repeat;
+    if (isWoop) return Brain;
     return Target;
   };
 
@@ -106,6 +108,11 @@ export function GoalCard({ goal, index, onEdit, onDelete, onPlanMilestones, onMa
             Time-Mastery
           </Badge>
         )}
+        {isWoop && (
+          <Badge variant="outline" className="text-xs uppercase tracking-wide border-violet-500/50 text-violet-600 dark:text-violet-400">
+            WOOP
+          </Badge>
+        )}
         {isHabit && (
           <Badge variant="outline" className="text-xs uppercase tracking-wide border-amber-500/50 text-amber-600 dark:text-amber-400 gap-1">
             <HabitDirectionIcon className="h-3 w-3" />
@@ -118,7 +125,7 @@ export function GoalCard({ goal, index, onEdit, onDelete, onPlanMilestones, onMa
             Keystone
           </Badge>
         )}
-        {!isLoading && !isHabit && (
+        {!isLoading && !isHabit && !isWoop && (
           <Badge variant={hasMilestones ? 'default' : 'secondary'} className="text-xs uppercase tracking-wide">
             {hasMilestones ? 'Planned' : 'Not planned'}
           </Badge>
@@ -185,6 +192,29 @@ export function GoalCard({ goal, index, onEdit, onDelete, onPlanMilestones, onMa
           )}
           {goal.implementation_intention && (
             <div className="rounded bg-primary/10 p-2 text-xs italic text-muted-foreground">
+              "{goal.implementation_intention}"
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* WOOP goal display */}
+      {isWoop && (
+        <div className="space-y-2 mb-4 text-sm">
+          {goal.outcome_visualization && (
+            <div className="flex items-start gap-2">
+              <span className="text-xs text-muted-foreground uppercase shrink-0">Outcome:</span>
+              <span className="text-foreground">{goal.outcome_visualization.length > 80 ? goal.outcome_visualization.slice(0, 80) + '...' : goal.outcome_visualization}</span>
+            </div>
+          )}
+          {goal.primary_obstacle && (
+            <div className="flex items-start gap-2">
+              <span className="text-xs text-muted-foreground uppercase shrink-0">Obstacle:</span>
+              <span className="text-foreground">{goal.primary_obstacle.length > 80 ? goal.primary_obstacle.slice(0, 80) + '...' : goal.primary_obstacle}</span>
+            </div>
+          )}
+          {goal.implementation_intention && (
+            <div className="rounded bg-violet-500/10 p-2 text-xs italic text-muted-foreground">
               "{goal.implementation_intention}"
             </div>
           )}

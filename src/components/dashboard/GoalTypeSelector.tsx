@@ -1,8 +1,8 @@
-import { Target, Clock, Repeat, ArrowRight } from 'lucide-react';
+import { Target, Clock, Repeat, ArrowRight, Brain } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 
-export type GoalType = 'standard' | 'time_mastery' | 'habit';
+export type GoalType = 'standard' | 'time_mastery' | 'habit' | 'woop';
 
 interface GoalTypeSelectorProps {
   onSelect: (type: GoalType) => void;
@@ -31,6 +31,14 @@ const goalTypes = [
     icon: Repeat,
     example: 'Quit social media scrolling, start morning exercise',
     learnMore: '/blog/habit-goals',
+  },
+  {
+    type: 'woop' as GoalType,
+    title: 'WOOP Goal',
+    description: 'Use mental contrasting and implementation intentions to overcome obstacles',
+    icon: Brain,
+    example: 'Finish my book, launch my business, run a marathon',
+    learnMore: '/blog/woop',
   },
 ];
 

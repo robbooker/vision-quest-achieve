@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useActivityEmbeddings } from './useActivityEmbeddings';
 
-export type GoalType = 'standard' | 'time_mastery' | 'habit';
+export type GoalType = 'standard' | 'time_mastery' | 'habit' | 'woop';
 export type HabitDirection = 'start' | 'stop' | 'replace';
 
 export interface Goal {
@@ -28,6 +28,9 @@ export interface Goal {
   implementation_intention?: string | null;
   is_keystone_habit?: boolean | null;
   accountability_partner_email?: string | null;
+  // WOOP goal fields
+  outcome_visualization?: string | null;
+  primary_obstacle?: string | null;
 }
 
 export interface CreateGoalInput {
@@ -48,6 +51,9 @@ export interface CreateGoalInput {
   implementation_intention?: string;
   is_keystone_habit?: boolean;
   accountability_partner_email?: string;
+  // WOOP goal fields
+  outcome_visualization?: string;
+  primary_obstacle?: string;
 }
 
 export function useGoals(cycleId?: string) {

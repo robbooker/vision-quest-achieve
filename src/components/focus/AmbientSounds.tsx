@@ -1,71 +1,240 @@
-import { useState, useRef, useEffect } from 'react';
-import { Volume2, VolumeX, CloudRain, Coffee, Wind, Music } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Volume2, VolumeX, Music, Headphones, Radio, AudioLines } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
+import { AudioWaveform } from './AudioWaveform';
+import { useTerminalMode } from '@/hooks/useTerminalMode';
 
 const SOUNDS = [
-  { id: 'rain', label: 'Rain', icon: CloudRain, url: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_3b8e6d0a4f.mp3' },
-  { id: 'cafe', label: 'Café', icon: Coffee, url: 'https://cdn.pixabay.com/download/audio/2021/08/09/audio_d4b4a8c2bd.mp3' },
-  { id: 'wind', label: 'Wind', icon: Wind, url: 'https://cdn.pixabay.com/download/audio/2022/10/25/audio_c4b1a4e5b9.mp3' },
-  { id: 'lofi', label: 'Lo-Fi', icon: Music, url: 'https://cdn.pixabay.com/download/audio/2022/05/13/audio_257112243c.mp3' },
+  { id: 'newer-wave', label: 'Newer Wave', icon: Music, url: '/sounds/newer-wave.mp3' },
+  { id: 'chill-study-1', label: 'Chill Study', icon: Headphones, url: '/sounds/chill-study-1.mp3' },
+  { id: 'frequency', label: 'Focus Frequency', icon: Radio, url: '/sounds/focus-frequency.mp3' },
+  { id: 'chill-study-2', label: 'Deep Focus', icon: AudioLines, url: '/sounds/chill-study-2.mp3' },
 ];
+
+const VOLUME_STORAGE_KEY = 'focus-audio-volume';
+const CROSSFADE_DURATION = 300;
+const FADEOUT_DURATION = 500;
 
 interface AmbientSoundsProps {
   onSoundChange?: (soundId: string | null) => void;
+  isBreakMode?: boolean;
+  shouldStop?: boolean;
 }
 
-export function AmbientSounds({ onSoundChange }: AmbientSoundsProps) {
-  const [activeSound, setActiveSound] = useState<string | null>(null);
-  const [volume, setVolume] = useState(50);
-  const [isMuted, setIsMuted] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+export function AmbientSounds({ onSoundChange, isBreakMode = false, shouldStop = false }: AmbientSoundsProps) {
+  const { isTerminal } = useTerminalMode();
+  
+  // Load saved volume from localStorage
+  const getSavedVolume = () => {
+    const saved = localStorage.getItem(VOLUME_STORAGE_KEY);
+    return saved ? parseInt(saved, 10) : 50;
+  };
 
+  const [activeSound, setActiveSound] = useState<string | null>(null);
+  const [volume, setVolume] = useState(getSavedVolume);
+  const [isMuted, setIsMuted] = useState(false);
+  const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const fadeIntervalRef = useRef<number | null>(null);
+  const pausedForBreakRef = useRef(false);
+
+  // Save volume to localStorage when it changes
   useEffect(() => {
-    if (activeSound) {
-      const sound = SOUNDS.find(s => s.id === activeSound);
-      if (sound) {
-        if (audioRef.current) {
-          audioRef.current.pause();
-        }
-        audioRef.current = new Audio(sound.url);
-        audioRef.current.loop = true;
-        audioRef.current.volume = isMuted ? 0 : volume / 100;
-        audioRef.current.play().catch(e => {
-          console.log('Audio playback failed:', e);
-          setActiveSound(null);
+    localStorage.setItem(VOLUME_STORAGE_KEY, volume.toString());
+  }, [volume]);
+
+  // Clear any ongoing fade
+  const clearFade = useCallback(() => {
+    if (fadeIntervalRef.current) {
+      clearInterval(fadeIntervalRef.current);
+      fadeIntervalRef.current = null;
+    }
+  }, []);
+
+  // Fade volume
+  const fadeVolume = useCallback((
+    audio: HTMLAudioElement,
+    from: number,
+    to: number,
+    duration: number,
+    onComplete?: () => void
+  ) => {
+    clearFade();
+    const steps = 20;
+    const stepDuration = duration / steps;
+    const volumeStep = (to - from) / steps;
+    let currentStep = 0;
+
+    fadeIntervalRef.current = window.setInterval(() => {
+      currentStep++;
+      const newVolume = from + volumeStep * currentStep;
+      audio.volume = Math.max(0, Math.min(1, newVolume));
+
+      if (currentStep >= steps) {
+        clearFade();
+        onComplete?.();
+      }
+    }, stepDuration);
+  }, [clearFade]);
+
+  // Setup audio context and analyser
+  const setupAudioContext = useCallback((audio: HTMLAudioElement) => {
+    if (!audioContextRef.current) {
+      audioContextRef.current = new AudioContext();
+    }
+    
+    // Only create source if not already connected
+    if (!sourceRef.current) {
+      sourceRef.current = audioContextRef.current.createMediaElementSource(audio);
+      const analyserNode = audioContextRef.current.createAnalyser();
+      analyserNode.fftSize = 64;
+      sourceRef.current.connect(analyserNode);
+      analyserNode.connect(audioContextRef.current.destination);
+      setAnalyser(analyserNode);
+    }
+  }, []);
+
+  // Handle sound selection with crossfade
+  const handleSoundToggle = useCallback(async (soundId: string) => {
+    const isSameSound = activeSound === soundId;
+    
+    if (isSameSound) {
+      // Stop current sound with fade
+      if (audioRef.current) {
+        const currentVolume = audioRef.current.volume;
+        fadeVolume(audioRef.current, currentVolume, 0, CROSSFADE_DURATION, () => {
+          audioRef.current?.pause();
+          setIsPlaying(false);
         });
       }
-    } else {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
+      setActiveSound(null);
+      onSoundChange?.(null);
+      return;
     }
 
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-    };
-  }, [activeSound]);
+    const sound = SOUNDS.find(s => s.id === soundId);
+    if (!sound) return;
 
+    // Fade out current sound if playing
+    if (audioRef.current && activeSound) {
+      const currentVolume = audioRef.current.volume;
+      fadeVolume(audioRef.current, currentVolume, 0, CROSSFADE_DURATION, () => {
+        audioRef.current?.pause();
+      });
+      
+      // Wait a bit before starting new sound
+      await new Promise(r => setTimeout(r, CROSSFADE_DURATION / 2));
+    }
+
+    // Create new audio element
+    const newAudio = new Audio(sound.url);
+    newAudio.loop = true;
+    newAudio.volume = 0;
+    
+    try {
+      await newAudio.play();
+      
+      // Resume audio context if suspended
+      if (audioContextRef.current?.state === 'suspended') {
+        await audioContextRef.current.resume();
+      }
+      
+      // Disconnect old source
+      if (sourceRef.current) {
+        sourceRef.current.disconnect();
+        sourceRef.current = null;
+      }
+      
+      audioRef.current = newAudio;
+      setupAudioContext(newAudio);
+      
+      // Fade in
+      const targetVolume = isMuted ? 0 : volume / 100;
+      fadeVolume(newAudio, 0, targetVolume, CROSSFADE_DURATION);
+      
+      setActiveSound(soundId);
+      setIsPlaying(true);
+      onSoundChange?.(soundId);
+    } catch (e) {
+      console.log('Audio playback failed:', e);
+      setActiveSound(null);
+      setIsPlaying(false);
+    }
+  }, [activeSound, volume, isMuted, fadeVolume, setupAudioContext, onSoundChange]);
+
+  // Handle volume changes
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.volume = isMuted ? 0 : volume / 100;
     }
   }, [volume, isMuted]);
 
-  const handleSoundToggle = (soundId: string) => {
-    const newSound = activeSound === soundId ? null : soundId;
-    setActiveSound(newSound);
-    onSoundChange?.(newSound);
-  };
+  // Handle break mode - pause/resume
+  useEffect(() => {
+    if (isBreakMode && audioRef.current && isPlaying) {
+      // Pause for break
+      pausedForBreakRef.current = true;
+      const currentVolume = audioRef.current.volume;
+      fadeVolume(audioRef.current, currentVolume, 0, CROSSFADE_DURATION, () => {
+        audioRef.current?.pause();
+        setIsPlaying(false);
+      });
+    } else if (!isBreakMode && pausedForBreakRef.current && activeSound) {
+      // Resume after break
+      pausedForBreakRef.current = false;
+      if (audioRef.current) {
+        audioRef.current.play().then(() => {
+          const targetVolume = isMuted ? 0 : volume / 100;
+          fadeVolume(audioRef.current!, 0, targetVolume, CROSSFADE_DURATION);
+          setIsPlaying(true);
+        }).catch(e => console.log('Resume failed:', e));
+      }
+    }
+  }, [isBreakMode, activeSound, volume, isMuted, fadeVolume, isPlaying]);
+
+  // Handle session end - graceful fadeout
+  useEffect(() => {
+    if (shouldStop && audioRef.current && isPlaying) {
+      const currentVolume = audioRef.current.volume;
+      fadeVolume(audioRef.current, currentVolume, 0, FADEOUT_DURATION, () => {
+        audioRef.current?.pause();
+        setActiveSound(null);
+        setIsPlaying(false);
+        onSoundChange?.(null);
+      });
+    }
+  }, [shouldStop, fadeVolume, isPlaying, onSoundChange]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      clearFade();
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
+    };
+  }, [clearFade]);
+
+  const activeSoundData = SOUNDS.find(s => s.id === activeSound);
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium">Ambient Sounds</span>
+        <span className={cn(
+          "text-sm font-medium",
+          isTerminal && "font-mono uppercase tracking-wider text-xs"
+        )}>
+          {isTerminal ? 'AUDIO FEED' : 'Ambient Sounds'}
+        </span>
         <Button
           variant="ghost"
           size="icon"
@@ -98,6 +267,23 @@ export function AmbientSounds({ onSoundChange }: AmbientSoundsProps) {
           );
         })}
       </div>
+
+      {/* Waveform and Now Playing */}
+      {isPlaying && activeSoundData && (
+        <div className="flex flex-col items-center gap-2 py-2">
+          <AudioWaveform 
+            analyser={analyser} 
+            isPlaying={isPlaying && !isMuted}
+          />
+          <div className={cn(
+            "text-xs text-muted-foreground flex items-center gap-1.5",
+            isTerminal && "font-mono uppercase tracking-wider"
+          )}>
+            <Music className="h-3 w-3" />
+            {isTerminal ? `PLAYING: ${activeSoundData.label.toUpperCase()}` : `Now Playing: ${activeSoundData.label}`}
+          </div>
+        </div>
+      )}
 
       {activeSound && (
         <div className="flex items-center gap-3">

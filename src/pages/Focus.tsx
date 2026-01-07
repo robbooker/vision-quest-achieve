@@ -220,8 +220,23 @@ export default function Focus() {
                   
                   {/* Ambient Sounds */}
                   <div className="mt-6 pt-6 border-t">
-                    <AmbientSounds />
+                    <AmbientSounds 
+                      isBreakMode={false}
+                      shouldStop={false}
+                    />
                   </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Audio persists during break - shown separately */}
+            {viewState === 'break' && (
+              <Card className="mb-4">
+                <CardContent className="pt-4 pb-4">
+                  <AmbientSounds 
+                    isBreakMode={true}
+                    shouldStop={false}
+                  />
                 </CardContent>
               </Card>
             )}

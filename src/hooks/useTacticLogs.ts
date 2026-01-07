@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { useActivityEmbeddings } from './useActivityEmbeddings';
 import { format, subDays, eachDayOfInterval } from 'date-fns';
 
 export interface TacticLog {
@@ -16,6 +17,7 @@ export interface TacticLog {
 export function useTacticLogs(date?: Date) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { embedHabitLog } = useActivityEmbeddings();
   const targetDate = date || new Date();
   const dateString = format(targetDate, 'yyyy-MM-dd');
 
@@ -93,11 +95,13 @@ export function useTacticLogs(date?: Date) {
     mutationFn: async ({ 
       tacticId, 
       completedCount, 
-      notes 
+      notes,
+      tacticTitle,
     }: { 
       tacticId: string; 
       completedCount: number; 
       notes?: string;
+      tacticTitle?: string;
     }) => {
       // First try to find existing log
       const { data: existing } = await supabase
@@ -126,6 +130,14 @@ export function useTacticLogs(date?: Date) {
           .select()
           .single();
         if (error) throw error;
+        
+        // Generate embedding for updated habit log
+        if (data && tacticTitle) {
+          embedHabitLog(data as TacticLog, tacticTitle).catch(err =>
+            console.log('Embedding update failed (non-blocking):', err)
+          );
+        }
+        
         return data as TacticLog;
       } else if (completedCount > 0) {
         // Insert new
@@ -141,6 +153,14 @@ export function useTacticLogs(date?: Date) {
           .select()
           .single();
         if (error) throw error;
+        
+        // Generate embedding for new habit log
+        if (data && tacticTitle) {
+          embedHabitLog(data as TacticLog, tacticTitle).catch(err =>
+            console.log('Embedding generation failed (non-blocking):', err)
+          );
+        }
+        
         return data as TacticLog;
       }
       return null;

@@ -23,6 +23,19 @@ export function MiamiModeProvider({ children }: { children: ReactNode }) {
     }
   }, [isMiamiMode]);
 
+  // Secret keyboard shortcut: Shift+Cmd+M (Mac) or Shift+Ctrl+M (Windows)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.shiftKey && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'm') {
+        e.preventDefault();
+        setIsMiamiMode(prev => !prev);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const toggleMiamiMode = () => setIsMiamiMode(prev => !prev);
 
   return (

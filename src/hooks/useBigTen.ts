@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
+import { useActivityEmbeddings } from './useActivityEmbeddings';
 
 export type BigTenCategory = 'opportunity' | 'challenge';
 
@@ -32,6 +33,7 @@ export interface BigTenProject {
 export function useBigTen() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { embedBigTenProject } = useActivityEmbeddings();
 
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ['big-ten-projects', user?.id],
@@ -83,8 +85,10 @@ export function useBigTen() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['big-ten-projects'] });
+      // Generate embedding for the project
+      embedBigTenProject(data).catch(console.error);
     },
     onError: (error) => {
       toast.error('Failed to create project');
@@ -115,15 +119,20 @@ export function useBigTen() {
       }
       if (category !== undefined) updates.category = category;
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('big_ten_projects')
         .update(updates)
-        .eq('id', id);
+        .eq('id', id)
+        .select()
+        .single();
 
       if (error) throw error;
+      return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['big-ten-projects'] });
+      // Update embedding for the project
+      if (data) embedBigTenProject(data).catch(console.error);
     },
     onError: (error) => {
       toast.error('Failed to update project');

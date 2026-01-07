@@ -2,7 +2,16 @@ import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 
-type SourceType = "journal_entry" | "quick_task" | "habit_log" | "focus_session";
+type SourceType = 
+  | "journal_entry" 
+  | "quick_task" 
+  | "habit_log" 
+  | "focus_session"
+  | "goal"
+  | "week_review"
+  | "vision"
+  | "big_ten_project"
+  | "reset_audit";
 
 interface EmbeddingData {
   sourceType: SourceType;
@@ -204,11 +213,229 @@ export function useActivityEmbeddings() {
     });
   }, [generateEmbedding]);
 
+  // Helper to format goal for embedding
+  const embedGoal = useCallback(async (goal: {
+    id: string;
+    title: string;
+    why?: string | null;
+    goal_type: string;
+    implementation_intention?: string | null;
+    habit_direction?: string | null;
+    habit_cue?: string | null;
+    habit_new_routine?: string | null;
+    habit_reward?: string | null;
+    created_at: string;
+  }) => {
+    const parts = [`Goal: "${goal.title}"`];
+    parts.push(`Type: ${goal.goal_type}`);
+    
+    if (goal.why) {
+      parts.push(`Why: ${goal.why}`);
+    }
+    if (goal.implementation_intention) {
+      parts.push(`Implementation intention: ${goal.implementation_intention}`);
+    }
+    if (goal.habit_direction) {
+      parts.push(`Habit direction: ${goal.habit_direction}`);
+    }
+    if (goal.habit_cue) {
+      parts.push(`Cue: ${goal.habit_cue}`);
+    }
+    if (goal.habit_new_routine) {
+      parts.push(`New routine: ${goal.habit_new_routine}`);
+    }
+    if (goal.habit_reward) {
+      parts.push(`Reward: ${goal.habit_reward}`);
+    }
+
+    const activityDate = format(new Date(goal.created_at), "yyyy-MM-dd");
+
+    return generateEmbedding({
+      sourceType: "goal",
+      sourceId: goal.id,
+      contentText: parts.join(" "),
+      activityDate,
+      metadata: {
+        goalType: goal.goal_type,
+        hasWhy: !!goal.why,
+      },
+    });
+  }, [generateEmbedding]);
+
+  // Helper to format week review for embedding
+  const embedWeekReview = useCallback(async (review: {
+    id: string;
+    week_number: number;
+    execution_score?: number | null;
+    wins?: string | null;
+    lessons?: string | null;
+    next_focus?: string | null;
+    celebration?: string | null;
+    created_at: string;
+  }) => {
+    const parts = [`Week ${review.week_number} Review`];
+    
+    if (review.execution_score !== null && review.execution_score !== undefined) {
+      parts.push(`Execution score: ${review.execution_score}%`);
+    }
+    if (review.wins) {
+      parts.push(`Wins: ${review.wins}`);
+    }
+    if (review.lessons) {
+      parts.push(`Lessons: ${review.lessons}`);
+    }
+    if (review.next_focus) {
+      parts.push(`Next focus: ${review.next_focus}`);
+    }
+    if (review.celebration) {
+      parts.push(`Celebration: ${review.celebration}`);
+    }
+
+    const activityDate = format(new Date(review.created_at), "yyyy-MM-dd");
+
+    return generateEmbedding({
+      sourceType: "week_review",
+      sourceId: review.id,
+      contentText: parts.join(" "),
+      activityDate,
+      metadata: {
+        weekNumber: review.week_number,
+        executionScore: review.execution_score,
+      },
+    });
+  }, [generateEmbedding]);
+
+  // Helper to format vision for embedding
+  const embedVision = useCallback(async (vision: {
+    id: string;
+    vision_3_year?: string | null;
+    vision_long_term?: string | null;
+    core_values?: string | null;
+    updated_at: string;
+  }) => {
+    const parts: string[] = ["Personal Vision Statement"];
+    
+    if (vision.vision_3_year) {
+      parts.push(`3-Year Vision: ${vision.vision_3_year}`);
+    }
+    if (vision.vision_long_term) {
+      parts.push(`Long-term Vision (5-10 years): ${vision.vision_long_term}`);
+    }
+    if (vision.core_values) {
+      parts.push(`Core Values: ${vision.core_values}`);
+    }
+
+    const activityDate = format(new Date(vision.updated_at), "yyyy-MM-dd");
+
+    return generateEmbedding({
+      sourceType: "vision",
+      sourceId: vision.id,
+      contentText: parts.join(" "),
+      activityDate,
+      metadata: {
+        hasVision3Year: !!vision.vision_3_year,
+        hasLongTermVision: !!vision.vision_long_term,
+        hasCoreValues: !!vision.core_values,
+      },
+    });
+  }, [generateEmbedding]);
+
+  // Helper to format Big Ten project for embedding
+  const embedBigTenProject = useCallback(async (project: {
+    id: string;
+    title: string;
+    category?: string | null;
+    completed: boolean;
+    completed_at?: string | null;
+    target_date?: string | null;
+    created_at: string;
+  }) => {
+    const parts = [`Big Ten Project: "${project.title}"`];
+    
+    if (project.category) {
+      parts.push(`Category: ${project.category}`);
+    }
+    if (project.completed) {
+      parts.push("Status: Completed");
+    }
+    if (project.target_date) {
+      parts.push(`Target date: ${project.target_date}`);
+    }
+
+    const activityDate = project.completed_at 
+      ? format(new Date(project.completed_at), "yyyy-MM-dd")
+      : format(new Date(project.created_at), "yyyy-MM-dd");
+
+    return generateEmbedding({
+      sourceType: "big_ten_project",
+      sourceId: project.id,
+      contentText: parts.join(" "),
+      activityDate,
+      metadata: {
+        category: project.category,
+        completed: project.completed,
+      },
+    });
+  }, [generateEmbedding]);
+
+  // Helper to format reset audit for embedding
+  const embedResetAudit = useCallback(async (audit: {
+    id: string;
+    audit_date: string;
+    post_op_note?: string | null;
+    rule_wake: boolean;
+    rule_move: boolean;
+    rule_fuel: boolean;
+    rule_work: boolean;
+    rule_read: boolean;
+    rule_reset: boolean;
+    rule_sleep: boolean;
+    rule_input: boolean;
+  }) => {
+    // Only embed if there's a note
+    if (!audit.post_op_note) {
+      return { success: true, skipped: true };
+    }
+
+    const completedRules: string[] = [];
+    if (audit.rule_wake) completedRules.push("Wake");
+    if (audit.rule_move) completedRules.push("Move");
+    if (audit.rule_fuel) completedRules.push("Fuel");
+    if (audit.rule_work) completedRules.push("Work");
+    if (audit.rule_read) completedRules.push("Read");
+    if (audit.rule_reset) completedRules.push("Reset");
+    if (audit.rule_sleep) completedRules.push("Sleep");
+    if (audit.rule_input) completedRules.push("Input");
+
+    const parts = [`Reset Audit for ${audit.audit_date}`];
+    parts.push(`Score: ${completedRules.length}/8`);
+    if (completedRules.length > 0) {
+      parts.push(`Completed: ${completedRules.join(", ")}`);
+    }
+    parts.push(`Post-op note: ${audit.post_op_note}`);
+
+    return generateEmbedding({
+      sourceType: "reset_audit",
+      sourceId: audit.id,
+      contentText: parts.join(" "),
+      activityDate: audit.audit_date,
+      metadata: {
+        score: completedRules.length,
+        completedRules,
+      },
+    });
+  }, [generateEmbedding]);
+
   return {
     generateEmbedding,
     embedJournalEntry,
     embedQuickTask,
     embedHabitLog,
     embedFocusSession,
+    embedGoal,
+    embedWeekReview,
+    embedVision,
+    embedBigTenProject,
+    embedResetAudit,
   };
 }

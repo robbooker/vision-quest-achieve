@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { useActivityEmbeddings } from './useActivityEmbeddings';
 
 export interface Vision {
   id: string;
@@ -21,6 +22,7 @@ export interface VisionInput {
 export function useVision() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { embedVision } = useActivityEmbeddings();
 
   const visionQuery = useQuery({
     queryKey: ['vision', user?.id],
@@ -63,12 +65,14 @@ export function useVision() {
           .insert({ ...input, user_id: user!.id })
           .select()
           .single();
-        if (error) throw error;
+      if (error) throw error;
         return data as Vision;
       }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['vision'] });
+      // Generate embedding for the vision
+      embedVision(data).catch(console.error);
     },
   });
 

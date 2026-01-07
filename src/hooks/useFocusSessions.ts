@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useActivityEmbeddings } from '@/hooks/useActivityEmbeddings';
 import { startOfDay, endOfDay, subDays, format, differenceInMinutes } from 'date-fns';
 
 export type FocusSession = {
@@ -48,6 +49,7 @@ type UpdateSessionInput = {
 export const useFocusSessions = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { embedFocusSession } = useActivityEmbeddings();
 
   // Fetch all sessions (used for reports)
   const { data: sessions = [], isLoading } = useQuery({
@@ -151,6 +153,12 @@ export const useFocusSessions = () => {
         .single();
       
       if (error) throw error;
+      
+      // Generate embedding for completed session
+      embedFocusSession(data as FocusSession).catch(err =>
+        console.log('Embedding generation failed (non-blocking):', err)
+      );
+      
       return data as FocusSession;
     },
     onSuccess: () => {

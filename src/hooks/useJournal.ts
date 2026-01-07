@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 import { format, subDays } from 'date-fns';
-
+import { useActivityEmbeddings } from './useActivityEmbeddings';
 export interface CompletedTask {
   id: string;
   title: string;
@@ -88,6 +88,7 @@ export const useJournalEntries = (limit: number = 3) => {
 export const useCreateJournalEntry = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { embedJournalEntry } = useActivityEmbeddings();
 
   return useMutation({
     mutationFn: async (date: string) => {
@@ -162,13 +163,21 @@ export const useCreateJournalEntry = () => {
         .single();
 
       if (error) throw error;
-      return {
+      
+      const entry = {
         ...data,
         completed_tasks: completedTasks,
         completed_habits: completedHabits,
         completed_focus_sessions: completedFocusSessions,
         user_photos: [] as UserPhoto[],
       } as JournalEntry;
+
+      // Generate embedding for the journal entry (fire and forget)
+      embedJournalEntry(entry).catch(err => 
+        console.log('Embedding generation failed (non-blocking):', err)
+      );
+
+      return entry;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['journal-entries'] });
@@ -183,18 +192,34 @@ export const useCreateJournalEntry = () => {
 export const useUpdateJournalNotes = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { embedJournalEntry } = useActivityEmbeddings();
 
   return useMutation({
     mutationFn: async ({ entryId, notes }: { entryId: string; notes: string }) => {
       if (!user?.id) throw new Error('Not authenticated');
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('journal_entries')
         .update({ user_notes: notes })
         .eq('id', entryId)
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .select()
+        .single();
 
       if (error) throw error;
+      
+      // Re-generate embedding with updated notes
+      if (data) {
+        const entry = {
+          ...data,
+          completed_tasks: data.completed_tasks || [],
+          completed_habits: data.completed_habits || [],
+          completed_focus_sessions: (data as any).completed_focus_sessions || [],
+        };
+        embedJournalEntry(entry).catch(err => 
+          console.log('Embedding update failed (non-blocking):', err)
+        );
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['journal-entries'] });

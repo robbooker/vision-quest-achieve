@@ -114,9 +114,13 @@ export default function Today() {
   // Handle habit toggle/increment
   const handleHabitToggle = async (tacticId: string, newCount: number) => {
     try {
-      await upsertLog.mutateAsync({ tacticId, completedCount: newCount });
+      const tactic = allTactics.find(t => t.id === tacticId);
+      await upsertLog.mutateAsync({ 
+        tacticId, 
+        completedCount: newCount,
+        tacticTitle: tactic?.title,
+      });
       if (newCount > 0) {
-        const tactic = allTactics.find(t => t.id === tacticId);
         if (tactic && newCount >= tactic.target_count) {
           toast({ title: 'Habit completed!', description: tactic.title });
         }

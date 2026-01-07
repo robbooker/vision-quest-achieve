@@ -224,6 +224,9 @@ export function useActivityEmbeddings() {
     habit_cue?: string | null;
     habit_new_routine?: string | null;
     habit_reward?: string | null;
+    // WOOP fields
+    outcome_visualization?: string | null;
+    primary_obstacle?: string | null;
     created_at: string;
   }) => {
     const parts = [`Goal: "${goal.title}"`];
@@ -235,6 +238,7 @@ export function useActivityEmbeddings() {
     if (goal.implementation_intention) {
       parts.push(`Implementation intention: ${goal.implementation_intention}`);
     }
+    // Habit fields
     if (goal.habit_direction) {
       parts.push(`Habit direction: ${goal.habit_direction}`);
     }
@@ -247,6 +251,13 @@ export function useActivityEmbeddings() {
     if (goal.habit_reward) {
       parts.push(`Reward: ${goal.habit_reward}`);
     }
+    // WOOP fields
+    if (goal.outcome_visualization) {
+      parts.push(`Best outcome visualization: ${goal.outcome_visualization}`);
+    }
+    if (goal.primary_obstacle) {
+      parts.push(`Internal obstacle: ${goal.primary_obstacle}`);
+    }
 
     const activityDate = format(new Date(goal.created_at), "yyyy-MM-dd");
 
@@ -258,6 +269,7 @@ export function useActivityEmbeddings() {
       metadata: {
         goalType: goal.goal_type,
         hasWhy: !!goal.why,
+        isWoop: goal.goal_type === 'woop',
       },
     });
   }, [generateEmbedding]);

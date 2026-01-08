@@ -12,6 +12,8 @@ export interface QuickTask {
   position: number;
   created_at: string;
   updated_at: string;
+  goal_id: string | null;
+  goal_title?: string | null;
 }
 
 export function useQuickTasks() {
@@ -25,17 +27,28 @@ export function useQuickTasks() {
       
       const { data, error } = await supabase
         .from('quick_tasks')
-        .select('*')
+        .select(`
+          *,
+          goals ( title )
+        `)
         .order('position', { ascending: true });
       
       if (error) throw error;
-      return data as QuickTask[];
+      
+      // Map the nested goal data to a flat structure
+      return data.map((task) => {
+        const { goals, ...rest } = task as { goals?: { title: string } | null } & Omit<QuickTask, 'goal_title'>;
+        return {
+          ...rest,
+          goal_title: goals?.title || null,
+        };
+      }) as QuickTask[];
     },
     enabled: !!user,
   });
 
   const createTask = useMutation({
-    mutationFn: async (task: { title: string; category: 'personal' | 'business' }) => {
+    mutationFn: async (task: { title: string; category: 'personal' | 'business'; goal_id?: string | null }) => {
       if (!user) throw new Error('Not authenticated');
       
       // New tasks go to position 0 (top of list)
@@ -46,6 +59,7 @@ export function useQuickTasks() {
           title: task.title,
           category: task.category,
           position: 0,
+          goal_id: task.goal_id || null,
         })
         .select()
         .single();
@@ -59,11 +73,12 @@ export function useQuickTasks() {
   });
 
   const updateTask = useMutation({
-    mutationFn: async (update: { id: string; title?: string; category?: 'personal' | 'business'; completed?: boolean; position?: number }) => {
+    mutationFn: async (update: { id: string; title?: string; category?: 'personal' | 'business'; completed?: boolean; position?: number; goal_id?: string | null }) => {
       const updateData: Record<string, unknown> = {};
       if (update.title !== undefined) updateData.title = update.title;
       if (update.category !== undefined) updateData.category = update.category;
       if (update.position !== undefined) updateData.position = update.position;
+      if (update.goal_id !== undefined) updateData.goal_id = update.goal_id;
       if (update.completed !== undefined) {
         updateData.completed = update.completed;
         updateData.completed_at = update.completed ? new Date().toISOString() : null;

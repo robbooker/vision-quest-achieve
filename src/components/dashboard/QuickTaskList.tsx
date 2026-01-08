@@ -17,7 +17,8 @@ import {
   User,
   GripVertical,
   Share2,
-  Users
+  Users,
+  Target
 } from 'lucide-react';
 import {
   Popover,
@@ -34,6 +35,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   DndContext,
   closestCenter,
@@ -54,6 +67,8 @@ import { CSS } from '@dnd-kit/utilities';
 import { useQuickTasks, QuickTask } from '@/hooks/useQuickTasks';
 import { useSharedTasks, SharedTask } from '@/hooks/useSharedTasks';
 import { useFriendships, Friend } from '@/hooks/useFriendships';
+import { useCycles } from '@/hooks/useCycles';
+import { useGoals } from '@/hooks/useGoals';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -186,6 +201,21 @@ function SortableTaskItem({
               {task.title}
             </span>
             
+            {/* Goal badge */}
+            {task.goal_title && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="secondary" className="hidden sm:flex gap-1 text-xs shrink-0 max-w-[120px]">
+                    <Target className="h-3 w-3 shrink-0" />
+                    <span className="truncate">{task.goal_title}</span>
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Linked to: {task.goal_title}</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+            
             {/* Desktop: show actions on hover */}
             <div className="hidden sm:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
               <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onStartEdit(task)}>
@@ -207,28 +237,37 @@ function SortableTaskItem({
 
       {/* Mobile expanded actions */}
       {isExpanded && !isEditing && (
-        <div className="flex items-center gap-2 px-2 pb-2 sm:hidden animate-in fade-in slide-in-from-top-1 duration-150">
-          <Button 
-            size="sm" 
-            variant="outline" 
-            className="flex-1 h-8 text-xs"
-            onClick={() => {
-              onStartEdit(task);
-              setIsExpanded(false);
-            }}
-          >
-            <Pencil className="h-3 w-3 mr-1.5" />
-            Edit
-          </Button>
-          <Button 
-            size="sm" 
-            variant="outline" 
-            className="flex-1 h-8 text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
-            onClick={() => onDelete(task.id)}
-          >
-            <Trash2 className="h-3 w-3 mr-1.5" />
-            Delete
-          </Button>
+        <div className="flex flex-col gap-2 px-2 pb-2 sm:hidden animate-in fade-in slide-in-from-top-1 duration-150">
+          {/* Goal badge on mobile */}
+          {task.goal_title && (
+            <Badge variant="secondary" className="self-start gap-1 text-xs">
+              <Target className="h-3 w-3" />
+              {task.goal_title}
+            </Badge>
+          )}
+          <div className="flex items-center gap-2">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="flex-1 h-8 text-xs"
+              onClick={() => {
+                onStartEdit(task);
+                setIsExpanded(false);
+              }}
+            >
+              <Pencil className="h-3 w-3 mr-1.5" />
+              Edit
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="flex-1 h-8 text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
+              onClick={() => onDelete(task.id)}
+            >
+              <Trash2 className="h-3 w-3 mr-1.5" />
+              Delete
+            </Button>
+          </div>
         </div>
       )}
     </div>
@@ -520,11 +559,15 @@ export function QuickTaskList() {
   const { activeTasks: quickActiveTasks, completedTasks: quickCompletedTasks, isLoading: quickLoading, createTask: createQuickTask, updateTask: updateQuickTask, deleteTask: deleteQuickTask, reorderTasks: reorderQuickTasks } = useQuickTasks();
   const { activeTasks: sharedActiveTasks, completedTasks: sharedCompletedTasks, isLoading: sharedLoading, createTask: createSharedTask, updateTask: updateSharedTask, deleteTask: deleteSharedTask, updateShares, reorderTasks: reorderSharedTasks } = useSharedTasks();
   const { friends } = useFriendships();
+  const { getActiveCycle } = useCycles();
+  const activeCycle = getActiveCycle();
+  const { goals } = useGoals(activeCycle?.id);
   const { toast } = useToast();
   const isMobile = useIsMobile();
   
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskCategory, setNewTaskCategory] = useState<TaskCategory>('personal');
+  const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -548,9 +591,10 @@ export function QuickTaskList() {
 
   const isLoading = quickLoading || sharedLoading;
 
-  const handleAddTask = async (title?: string, category?: TaskCategory) => {
+  const handleAddTask = async (title?: string, category?: TaskCategory, goalId?: string | null) => {
     const taskTitle = title || newTaskTitle;
     const taskCategory = category || newTaskCategory;
+    const taskGoalId = goalId !== undefined ? goalId : selectedGoalId;
     
     if (!taskTitle.trim()) return;
     
@@ -565,9 +609,13 @@ export function QuickTaskList() {
         await createQuickTask.mutateAsync({
           title: taskTitle.trim(),
           category: taskCategory,
+          goal_id: taskGoalId,
         });
       }
-      if (!title) setNewTaskTitle('');
+      if (!title) {
+        setNewTaskTitle('');
+        setSelectedGoalId(null);
+      }
       toast({ title: 'Task added' });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to add task', variant: 'destructive' });
@@ -921,6 +969,29 @@ export function QuickTaskList() {
                   Shared
                 </Button>
               </div>
+              
+              {/* Goal selection for personal/business tasks */}
+              {filter !== 'shared' && goals.length > 0 && (
+                <Select
+                  value={selectedGoalId || "none"}
+                  onValueChange={(value) => setSelectedGoalId(value === "none" ? null : value)}
+                >
+                  <SelectTrigger className="h-9 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Target className="h-4 w-4 text-muted-foreground" />
+                      <SelectValue placeholder="Link to goal (optional)" />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No goal</SelectItem>
+                    {goals.map(goal => (
+                      <SelectItem key={goal.id} value={goal.id}>
+                        {goal.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               
               {/* Friend selection for shared tasks */}
               {filter === 'shared' && friends.length > 0 && (

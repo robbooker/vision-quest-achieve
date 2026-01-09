@@ -435,6 +435,29 @@ export const useCheckYesterdayEntry = () => {
   });
 };
 
+export const useCheckTodayEntry = () => {
+  const { user } = useAuth();
+  const today = format(new Date(), 'yyyy-MM-dd');
+
+  return useQuery({
+    queryKey: ['journal-entry-check', user?.id, today],
+    queryFn: async () => {
+      if (!user?.id) return null;
+
+      const { data, error } = await supabase
+        .from('journal_entries')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('entry_date', today)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+};
+
 export const useYesterdayActivity = () => {
   const { user } = useAuth();
   const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');

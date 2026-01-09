@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { BookOpen, Loader2 } from 'lucide-react';
+import { BookOpen, Loader2, PenLine } from 'lucide-react';
 import { format, subDays } from 'date-fns';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import {
   useJournalEntries, 
   useCreateJournalEntry, 
   useCheckYesterdayEntry,
+  useCheckTodayEntry,
   useYesterdayActivity 
 } from '@/hooks/useJournal';
 
@@ -19,11 +20,18 @@ const Journal = () => {
   const { entries, isLoading, refetch } = useJournalEntries(limit);
   const createEntry = useCreateJournalEntry();
   const { data: yesterdayEntry, isLoading: checkingYesterday } = useCheckYesterdayEntry();
+  const { data: todayEntry, isLoading: checkingToday } = useCheckTodayEntry();
   const { data: yesterdayActivity } = useYesterdayActivity();
 
   const handleCreateYesterdayEntry = async () => {
     const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
     await createEntry.mutateAsync(yesterday);
+    refetch();
+  };
+
+  const handleCreateTodayEntry = async () => {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    await createEntry.mutateAsync(today);
     refetch();
   };
 
@@ -33,6 +41,7 @@ const Journal = () => {
 
   const showEmptyState = !isLoading && entries.length === 0;
   const showCreateYesterday = !checkingYesterday && !yesterdayEntry && yesterdayActivity?.hasActivity;
+  const showCreateToday = !checkingToday && !todayEntry;
 
   return (
     <DashboardLayout>
@@ -52,6 +61,15 @@ const Journal = () => {
               Your daily accomplishments, visualized
             </p>
           </div>
+          {showCreateToday && (
+            <Button 
+              onClick={handleCreateTodayEntry}
+              disabled={createEntry.isPending}
+            >
+              <PenLine className="w-4 h-4 mr-2" />
+              {createEntry.isPending ? 'Creating...' : 'Start Today\'s Entry'}
+            </Button>
+          )}
         </div>
 
         {/* Show prompt to create yesterday's entry if it doesn't exist */}

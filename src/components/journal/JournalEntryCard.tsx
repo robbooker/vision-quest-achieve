@@ -116,9 +116,9 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
       
       <CardContent className="space-y-4">
         {/* Image Section */}
-        <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
+        <div className="relative bg-muted rounded-lg overflow-hidden">
           {isGenerating ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+            <div className="aspect-video flex flex-col items-center justify-center gap-2">
               <RefreshCw className="w-8 h-8 animate-spin text-primary" />
               <p className="text-sm text-muted-foreground">Generating your journal art...</p>
             </div>
@@ -127,7 +127,7 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
               <img 
                 src={entry.image_url} 
                 alt={`Journal art for ${formattedDate}`}
-                className="w-full h-full object-cover"
+                className="w-full h-auto"
               />
               <div className="absolute top-2 right-2 flex gap-2 opacity-0 hover:opacity-100 transition-opacity">
                 <Button
@@ -168,7 +168,7 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
               </div>
             </>
           ) : (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+            <div className="aspect-video flex flex-col items-center justify-center gap-3">
               <ImageIcon className="w-12 h-12 text-muted-foreground/50" />
               <Button
                 variant="secondary"

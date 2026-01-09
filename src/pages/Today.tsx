@@ -29,8 +29,15 @@ import {
   Clock,
   CheckCircle2,
   Circle,
-  Thermometer
+  Thermometer,
+  MoreHorizontal
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useSickDays } from '@/hooks/useSickDays';
 import {
   Dialog,
@@ -345,10 +352,29 @@ export default function Today() {
               {format(new Date(), 'EEEE, MMMM d, yyyy')} • Week {currentWeek}
             </p>
           </div>
-          <Button onClick={() => setAddTaskOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Task
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={() => setAddTaskOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Task
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem 
+                  onClick={() => toggleSickDay.mutate({ date: new Date() })}
+                  disabled={sickDaysLoading || toggleSickDay.isPending}
+                  className="text-amber-600 dark:text-amber-400"
+                >
+                  <Thermometer className="h-4 w-4 mr-2" />
+                  {todayIsSick ? 'Remove Sick Day' : 'Mark as Sick Day'}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         {/* Compact Reset Card - when reset is active */}
@@ -381,29 +407,15 @@ export default function Today() {
           {(allTactics.length > 0 || todaySchedules.length > 0) ? (
             <Card className={`border-primary/20 ${todayIsSick ? 'opacity-60' : ''}`}>
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Repeat className="h-4 w-4 text-primary" />
-                    Daily Steps
-                    {todayIsSick && (
-                      <Badge variant="outline" className="text-xs border-amber-500/50 text-amber-600 dark:text-amber-400">
-                        Optional
-                      </Badge>
-                    )}
-                  </CardTitle>
-                  {!todayIsSick && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => toggleSickDay.mutate({ date: new Date() })}
-                      className="text-muted-foreground hover:text-amber-500"
-                      disabled={sickDaysLoading || toggleSickDay.isPending}
-                    >
-                      <Thermometer className="h-4 w-4 mr-1" />
-                      Sick Day
-                    </Button>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Repeat className="h-4 w-4 text-primary" />
+                  Daily Steps
+                  {todayIsSick && (
+                    <Badge variant="outline" className="text-xs border-amber-500/50 text-amber-600 dark:text-amber-400">
+                      Optional
+                    </Badge>
                   )}
-                </div>
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 {/* Time-Mastery Practice Blocks */}

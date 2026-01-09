@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { useSickDays } from './useSickDays';
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameDay } from 'date-fns';
 
 export interface HabitDayStatus {
@@ -32,6 +33,7 @@ export interface GoalHabitChain {
 
 export function useHabitChainData(month: Date = new Date()) {
   const { user } = useAuth();
+  const { isSickDay } = useSickDays();
   
   const monthStart = startOfMonth(month);
   const monthEnd = endOfMonth(month);
@@ -158,7 +160,7 @@ export function useHabitChainData(month: Date = new Date()) {
     });
   }, [tacticsQuery.data, logsQuery.data, monthStart, monthEnd]);
 
-  // Calculate current streak for a goal
+  // Calculate current streak for a goal (excluding sick days)
   const getCurrentStreak = (goalId: string): number => {
     const chain = goalChains.find(c => c.goalId === goalId);
     if (!chain) return 0;
@@ -170,6 +172,11 @@ export function useHabitChainData(month: Date = new Date()) {
     for (let i = chain.days.length - 1; i >= 0; i--) {
       const day = chain.days[i];
       if (day.date > today) continue;
+      
+      // Skip sick days - they don't break or count towards streak
+      if (isSickDay(day.date)) {
+        continue;
+      }
       
       if (day.allCompleted) {
         streak++;

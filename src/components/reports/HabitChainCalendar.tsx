@@ -3,9 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { ChevronLeft, ChevronRight, Flame, Link2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flame, Link2, Thermometer } from 'lucide-react';
 import { format, addMonths, subMonths, startOfMonth, getDay, isSameDay, isFuture, isBefore, startOfDay } from 'date-fns';
 import { useHabitChainData, GoalHabitChain, HabitDayStatus } from '@/hooks/useHabitChainData';
+import { useSickDays } from '@/hooks/useSickDays';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
@@ -18,6 +19,7 @@ interface HabitChainCalendarProps {
 export function HabitChainCalendar({ className }: HabitChainCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const { goalChains, isLoading, getCurrentStreak } = useHabitChainData(currentMonth);
+  const { isSickDay } = useSickDays();
 
   const handlePrevMonth = () => setCurrentMonth(prev => subMonths(prev, 1));
   const handleNextMonth = () => setCurrentMonth(prev => addMonths(prev, 1));
@@ -84,6 +86,7 @@ export function HabitChainCalendar({ className }: HabitChainCalendarProps) {
             key={chain.goalId}
             chain={chain}
             streak={getCurrentStreak(chain.goalId)}
+            isSickDay={isSickDay}
           />
         ))}
       </div>
@@ -94,9 +97,10 @@ export function HabitChainCalendar({ className }: HabitChainCalendarProps) {
 interface GoalChainCardProps {
   chain: GoalHabitChain;
   streak: number;
+  isSickDay: (date: Date | string) => boolean;
 }
 
-function GoalChainCard({ chain, streak }: GoalChainCardProps) {
+function GoalChainCard({ chain, streak, isSickDay }: GoalChainCardProps) {
   const monthStart = startOfMonth(chain.days[0]?.date || new Date());
   const firstDayOfWeek = getDay(monthStart);
   
@@ -153,13 +157,14 @@ function GoalChainCard({ chain, streak }: GoalChainCardProps) {
               isToday={day ? isSameDay(day.date, today) : false}
               isFutureDay={day ? isFuture(day.date) : false}
               isBeforeGoal={day ? isBefore(startOfDay(day.date), goalStartDate) : false}
+              isSickDay={day ? isSickDay(day.date) : false}
               tacticCount={chain.tactics.length}
             />
           ))}
         </div>
 
         {/* Legend */}
-        <div className="flex items-center justify-center gap-4 mt-3 text-[10px] text-muted-foreground">
+        <div className="flex items-center justify-center gap-3 mt-3 text-[10px] text-muted-foreground flex-wrap">
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 rounded-sm bg-green-500" />
             <span>Done</span>
@@ -167,6 +172,10 @@ function GoalChainCard({ chain, streak }: GoalChainCardProps) {
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 rounded-sm bg-destructive" />
             <span>Missed</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded-sm bg-amber-500" />
+            <span>Sick</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 rounded-sm bg-muted" />
@@ -183,10 +192,11 @@ interface DayCellProps {
   isToday: boolean;
   isFutureDay: boolean;
   isBeforeGoal: boolean;
+  isSickDay: boolean;
   tacticCount: number;
 }
 
-function DayCell({ day, isToday, isFutureDay, isBeforeGoal, tacticCount }: DayCellProps) {
+function DayCell({ day, isToday, isFutureDay, isBeforeGoal, isSickDay, tacticCount }: DayCellProps) {
   if (!day) {
     return <div className="aspect-square" />;
   }
@@ -204,6 +214,25 @@ function DayCell({ day, isToday, isFutureDay, isBeforeGoal, tacticCount }: DayCe
         </TooltipTrigger>
         <TooltipContent>
           <p className="text-xs">{format(day.date, 'MMM d')} - Goal not yet created</p>
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  // For sick days, show amber/neutral (not penalized, doesn't break streak)
+  if (isSickDay) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className={cn(
+            "aspect-square rounded-sm bg-amber-500 flex items-center justify-center",
+            isToday && "ring-2 ring-primary ring-offset-1 ring-offset-background"
+          )}>
+            <Thermometer className="h-3 w-3 text-amber-50" />
+          </div>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p className="text-xs">{format(day.date, 'MMM d')} - Sick day (doesn't affect streak)</p>
         </TooltipContent>
       </Tooltip>
     );

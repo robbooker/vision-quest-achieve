@@ -1120,6 +1120,33 @@ export type Database = {
         }
         Relationships: []
       }
+      sick_days: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          sick_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          sick_date: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          sick_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           canceled_at: string | null

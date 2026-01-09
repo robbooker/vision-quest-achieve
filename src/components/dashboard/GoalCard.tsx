@@ -1,6 +1,6 @@
 import { Goal } from '@/hooks/useGoals';
 import { Badge } from '@/components/ui/badge';
-import { Target, MoreVertical, Trash2, Edit, CalendarCheck, Zap, Clock, Repeat, Star, Play, StopCircle, Brain } from 'lucide-react';
+import { Target, MoreVertical, Trash2, Edit, CalendarCheck, Zap, Clock, Repeat, Star, Play, StopCircle, Brain, TrendingUp } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,6 +12,7 @@ import { useMilestones } from '@/hooks/useMilestones';
 import { useTactics } from '@/hooks/useTactics';
 import { useGoalProgress } from '@/hooks/useGoalProgress';
 import { useGoalSchedules } from '@/hooks/useGoalSchedules';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface GoalCardProps {
   goal: Goal;
@@ -40,6 +41,10 @@ export function GoalCard({ goal, index, onEdit, onDelete, onPlanMilestones, onMa
   // Support both old 12-week cycles and new 6-week cycles
   const hasMilestones = milestones.length >= 6 || (isTimeMastery && milestones.length >= 3);
   const activeTactics = tactics.filter(t => t.is_active);
+  
+  // Detect score-based goals and check if exceeding target
+  const isScoreBased = goal.metric_type.toLowerCase().includes('score');
+  const isExceedingTarget = isScoreBased && actualValue > goal.target_value;
 
   const getGoalIcon = () => {
     if (isTimeMastery) return Clock;
@@ -124,6 +129,19 @@ export function GoalCard({ goal, index, onEdit, onDelete, onPlanMilestones, onMa
             <Star className="h-3 w-3" />
             Keystone
           </Badge>
+        )}
+        {isExceedingTarget && !progressLoading && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge className="text-xs uppercase tracking-wide bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/50 gap-1">
+                <TrendingUp className="h-3 w-3" />
+                Exceeding
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Averaging {actualValue.toFixed(1)}/10, exceeding target of {goal.target_value}</p>
+            </TooltipContent>
+          </Tooltip>
         )}
         {!isLoading && !isHabit && !isWoop && (
           <Badge variant={hasMilestones ? 'default' : 'secondary'} className="text-xs uppercase tracking-wide">

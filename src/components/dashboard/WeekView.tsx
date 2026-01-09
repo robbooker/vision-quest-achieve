@@ -4,6 +4,7 @@ import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useMilestones } from '@/hooks/useMilestones';
+import { useGoalProgress } from '@/hooks/useGoalProgress';
 import { useCalendarConnection, useCalendarEvents, useUserPreferences, useCalendarAvailability } from '@/hooks/useCalendar';
 import { Goal } from '@/hooks/useGoals';
 import { Cycle } from '@/hooks/useCycles';
@@ -148,7 +149,14 @@ interface WeekGoalItemProps {
 }
 
 function WeekGoalItem({ goal, currentWeek }: WeekGoalItemProps) {
-  const { milestones, isLoading } = useMilestones(goal.id);
+  const { milestones, isLoading: milestonesLoading } = useMilestones(goal.id);
+  
+  // Detect score-based goals
+  const isScoreBased = goal.metric_type.toLowerCase().includes('score');
+  
+  // For score-based goals, use actual logged progress
+  const { actualValue, progressPercent: actualProgress, isLoading: progressLoading } = 
+    useGoalProgress(goal.id, goal.target_value, goal.metric_type);
   
   const currentMilestone = useMemo(() => 
     milestones.find(m => m.week_number === currentWeek),
@@ -162,13 +170,42 @@ function WeekGoalItem({ goal, currentWeek }: WeekGoalItemProps) {
     [milestones, currentWeek]
   );
 
-  const progressPercent = goal.target_value > 0 
+  // Use appropriate progress calculation based on goal type
+  const milestoneProgress = goal.target_value > 0 
     ? Math.round((cumulativeTarget / goal.target_value) * 100)
     : 0;
+  const displayProgress = isScoreBased ? actualProgress : milestoneProgress;
+
+  const isLoading = milestonesLoading || (isScoreBased && progressLoading);
 
   if (isLoading) {
     return (
       <div className="animate-pulse h-16 bg-muted rounded-lg" />
+    );
+  }
+
+  // For score-based goals, we don't need milestones - show actual progress
+  if (isScoreBased) {
+    return (
+      <div className="space-y-2 p-3 rounded-lg bg-muted/50">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Target className="h-4 w-4 text-primary" />
+            <span className="font-medium text-sm">{goal.title}</span>
+          </div>
+          <span className="text-xs text-muted-foreground">
+            {Math.min(displayProgress, 100)}% of goal
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          <Progress value={Math.min(displayProgress, 100)} className="flex-1 h-2" />
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Avg score: <span className="font-medium text-foreground">
+            {actualValue.toFixed(1)}
+          </span> / target {goal.target_value}
+        </p>
+      </div>
     );
   }
 
@@ -194,11 +231,11 @@ function WeekGoalItem({ goal, currentWeek }: WeekGoalItemProps) {
           <span className="font-medium text-sm">{goal.title}</span>
         </div>
         <span className="text-xs text-muted-foreground">
-          {progressPercent}% of goal
+          {displayProgress}% of goal
         </span>
       </div>
       <div className="flex items-center gap-3">
-        <Progress value={progressPercent} className="flex-1 h-2" />
+        <Progress value={displayProgress} className="flex-1 h-2" />
       </div>
       <p className="text-sm text-muted-foreground">
         Target this week: <span className="font-medium text-foreground">

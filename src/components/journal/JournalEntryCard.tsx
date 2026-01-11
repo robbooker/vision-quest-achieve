@@ -14,6 +14,7 @@ import {
   Plus,
   Timer
 } from 'lucide-react';
+import { ImageLightbox } from '@/components/ui/image-lightbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -47,6 +48,7 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notes, setNotes] = useState(entry.user_notes || '');
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const updateNotes = useUpdateJournalNotes();
@@ -127,7 +129,8 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
               <img 
                 src={entry.image_url} 
                 alt={`Journal art for ${formattedDate}`}
-                className="w-full h-auto"
+                className="w-full h-auto cursor-pointer hover:opacity-95 transition-opacity"
+                onClick={() => setLightboxImage(entry.image_url)}
               />
               <div className="absolute top-2 right-2 flex gap-2 opacity-0 hover:opacity-100 transition-opacity">
                 <Button
@@ -225,7 +228,8 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
                   <img
                     src={photo.url}
                     alt={`User photo ${index + 1}`}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                    onClick={() => setLightboxImage(photo.url)}
                   />
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
@@ -375,6 +379,13 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
             </div>
           )}
         </div>
+
+        {/* Image Lightbox */}
+        <ImageLightbox
+          imageUrl={lightboxImage}
+          alt={`Journal image for ${formattedDate}`}
+          onClose={() => setLightboxImage(null)}
+        />
       </CardContent>
     </Card>
   );

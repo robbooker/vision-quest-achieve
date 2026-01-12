@@ -38,7 +38,6 @@ import ResetBlog from "./pages/ResetBlog";
 import Reset from "./pages/Reset";
 import Journal from "./pages/Journal";
 import Focus from "./pages/Focus";
-import CheckoutSuccess from "./pages/CheckoutSuccess";
 import Secret from "./pages/Secret";
 import Books from "./pages/Books";
 import NotFound from "./pages/NotFound";
@@ -95,7 +94,6 @@ const App = () => (
                   <Route path="/reset" element={<ProtectedRoute><Reset /></ProtectedRoute>} />
                   <Route path="/journal" element={<ProtectedRoute><Journal /></ProtectedRoute>} />
                   <Route path="/books" element={<ProtectedRoute><Books /></ProtectedRoute>} />
-                  <Route path="/checkout/success" element={<ProtectedRoute><CheckoutSuccess /></ProtectedRoute>} />
                   <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
                   <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
                   <Route path="/admin/broadcasts" element={<AdminRoute><AdminBroadcasts /></AdminRoute>} />

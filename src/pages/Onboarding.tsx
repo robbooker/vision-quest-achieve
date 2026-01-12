@@ -71,46 +71,60 @@ export default function Onboarding() {
 
     setIsSaving(true);
 
-    const hasAnyConsent = consentEmail || consentSms || consentWhatsapp;
-    
-    const { error } = await supabase
-      .from("profiles")
-      .upsert({
-        user_id: user.id,
-        display_name: displayName.trim(),
-        phone_us: phoneUs.replace(/\D/g, "") || null,
-        phone_whatsapp: phoneWhatsapp.trim() || null,
-        consent_email: consentEmail,
-        consent_sms: consentSms,
-        consent_whatsapp: consentWhatsapp,
-        consent_timestamp: hasAnyConsent ? new Date().toISOString() : null,
-        onboarding_completed: true,
-      }, { onConflict: "user_id" });
+    try {
+      const hasAnyConsent = consentEmail || consentSms || consentWhatsapp;
+      
+      // Clean phone number - only store digits, empty string becomes null
+      const cleanPhoneUs = phoneUs.replace(/\D/g, "");
+      
+      const { error } = await supabase
+        .from("profiles")
+        .upsert({
+          user_id: user.id,
+          display_name: displayName.trim(),
+          phone_us: cleanPhoneUs.length > 0 ? cleanPhoneUs : null,
+          phone_whatsapp: phoneWhatsapp.trim().length > 0 ? phoneWhatsapp.trim() : null,
+          consent_email: consentEmail,
+          consent_sms: consentSms,
+          consent_whatsapp: consentWhatsapp,
+          consent_timestamp: hasAnyConsent ? new Date().toISOString() : null,
+          onboarding_completed: true,
+        }, { onConflict: "user_id" });
 
-    setIsSaving(false);
+      if (error) {
+        console.error("Profile upsert error:", error);
+        toast({
+          title: "Error saving profile",
+          description: error.message,
+          variant: "destructive",
+        });
+        setIsSaving(false);
+        return;
+      }
 
-    if (error) {
       toast({
-        title: "Error saving profile",
-        description: error.message,
+        title: "Welcome aboard! 🍞",
+        description: "You're all set up. Let me show you around!",
+      });
+
+      // Clear the tour completion flag so Toasty tour starts fresh
+      localStorage.removeItem("groovy-planning-tour-completed");
+      
+      // Navigate to Today page and start the tour
+      navigate("/today");
+      setTimeout(() => {
+        startTour();
+      }, 500);
+    } catch (err) {
+      console.error("Unexpected error during onboarding:", err);
+      toast({
+        title: "Something went wrong",
+        description: "Please try again or skip for now.",
         variant: "destructive",
       });
-      return;
+    } finally {
+      setIsSaving(false);
     }
-
-    toast({
-      title: "Welcome aboard! 🍞",
-      description: "You're all set up. Let me show you around!",
-    });
-
-    // Clear the tour completion flag so Toasty tour starts fresh
-    localStorage.removeItem("groovy-planning-tour-completed");
-    
-    // Navigate to Today page and start the tour
-    navigate("/today");
-    setTimeout(() => {
-      startTour();
-    }, 500);
   };
 
   if (isLoading) {

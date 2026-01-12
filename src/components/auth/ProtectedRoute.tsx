@@ -1,10 +1,7 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
-import { PaywallModal } from '@/components/paywall/PaywallModal';
-import { TrialBanner } from '@/components/subscription/TrialBanner';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -12,7 +9,6 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
-  const { isSubscribed, isLoading: subLoading, status } = useSubscription();
   const location = useLocation();
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
@@ -41,11 +37,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     }
   }, [user, loading]);
 
-  // Pages that don't require subscription check to complete
-  const bypassSubscriptionLoading = ['/onboarding', '/settings', '/checkout/success'];
-  const shouldWaitForSub = !bypassSubscriptionLoading.includes(location.pathname);
-
-  if (loading || checkingOnboarding || (subLoading && shouldWaitForSub)) {
+  if (loading || checkingOnboarding) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="nixie-display animate-pulse">LOADING...</div>
@@ -62,17 +54,6 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Navigate to="/onboarding" replace />;
   }
 
-  // Show paywall if not subscribed (but allow onboarding, settings, and checkout success pages)
-  // Also skip paywall if subscription status is still loading or null (error case)
-  const allowWithoutSubscription = ['/onboarding', '/settings', '/checkout/success'];
-  if (!isSubscribed && !subLoading && status !== null && !allowWithoutSubscription.includes(location.pathname)) {
-    return <PaywallModal />;
-  }
-
-  return (
-    <>
-      <TrialBanner />
-      {children}
-    </>
-  );
+  // All users now have free access - no paywall needed
+  return <>{children}</>;
 }

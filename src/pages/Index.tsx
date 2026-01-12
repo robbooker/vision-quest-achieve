@@ -11,7 +11,7 @@ const Index = () => {
       if (user) {
         navigate('/today');
       } else {
-        navigate('/auth');
+        navigate('/');
       }
     }
   }, [user, loading, navigate]);

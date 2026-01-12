@@ -257,13 +257,13 @@ export default function Auth() {
           <Card className="w-full">
             <CardHeader className="text-center">
               <CardTitle className="text-2xl">{isReturningVisitor ? 'Welcome back!' : 'Welcome'}</CardTitle>
-            <CardDescription>
-              Sign in to start your groovy planning journey.{' '}
-              <Link to="/pricing" className="text-primary hover:underline">
-                View pricing →
-              </Link>
-            </CardDescription>
-          </CardHeader>
+              <CardDescription>
+                <span className="inline-flex items-center gap-1.5 text-primary font-medium">
+                  ✨ 100% Free
+                </span>
+                {' — '}Sign in to start your groovy planning journey.
+              </CardDescription>
+            </CardHeader>
           <CardContent className="space-y-6">
             <Button
               variant="outline"

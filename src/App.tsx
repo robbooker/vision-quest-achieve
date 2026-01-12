@@ -77,7 +77,7 @@ const App = () => (
               <NotificationListener />
               <BrowserRouter>
                 <Routes>
-                <Route path="/" element={<Pricing />} />
+                  <Route path="/" element={<Auth />} />
                   <Route path="/pricing" element={<Pricing />} />
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />

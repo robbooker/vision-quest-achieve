@@ -14,6 +14,7 @@ export interface QuickTask {
   updated_at: string;
   goal_id: string | null;
   goal_title?: string | null;
+  due_date: string | null;
 }
 
 export function useQuickTasks() {
@@ -73,12 +74,13 @@ export function useQuickTasks() {
   });
 
   const updateTask = useMutation({
-    mutationFn: async (update: { id: string; title?: string; category?: 'personal' | 'business'; completed?: boolean; position?: number; goal_id?: string | null }) => {
+    mutationFn: async (update: { id: string; title?: string; category?: 'personal' | 'business'; completed?: boolean; position?: number; goal_id?: string | null; due_date?: string | null }) => {
       const updateData: Record<string, unknown> = {};
       if (update.title !== undefined) updateData.title = update.title;
       if (update.category !== undefined) updateData.category = update.category;
       if (update.position !== undefined) updateData.position = update.position;
       if (update.goal_id !== undefined) updateData.goal_id = update.goal_id;
+      if (update.due_date !== undefined) updateData.due_date = update.due_date;
       if (update.completed !== undefined) {
         updateData.completed = update.completed;
         updateData.completed_at = update.completed ? new Date().toISOString() : null;

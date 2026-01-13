@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { format, isToday, isTomorrow, isPast, parseISO } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,7 +19,8 @@ import {
   GripVertical,
   Share2,
   Users,
-  Target
+  Target,
+  Calendar
 } from 'lucide-react';
 import {
   Popover,
@@ -74,6 +76,7 @@ import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MobileCommandBar } from './MobileCommandBar';
 import { FriendManagement } from './FriendManagement';
+import { EditQuickTaskDialog } from './EditQuickTaskDialog';
 
 type TaskCategory = 'personal' | 'business' | 'shared';
 
@@ -201,6 +204,31 @@ function SortableTaskItem({
               {task.title}
             </span>
             
+            {/* Due date badge */}
+            {task.due_date && !task.completed && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge 
+                    variant={isPast(parseISO(task.due_date)) && !isToday(parseISO(task.due_date)) ? "destructive" : "outline"} 
+                    className={cn(
+                      "hidden sm:flex gap-1 text-xs shrink-0",
+                      isToday(parseISO(task.due_date)) && "border-primary text-primary"
+                    )}
+                  >
+                    <Calendar className="h-3 w-3 shrink-0" />
+                    {isToday(parseISO(task.due_date)) 
+                      ? 'Today' 
+                      : isTomorrow(parseISO(task.due_date))
+                        ? 'Tomorrow'
+                        : format(parseISO(task.due_date), 'MMM d')}
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Due: {format(parseISO(task.due_date), 'PPP')}</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+            
             {/* Goal badge */}
             {task.goal_title && (
               <Tooltip>
@@ -238,6 +266,23 @@ function SortableTaskItem({
       {/* Mobile expanded actions */}
       {isExpanded && !isEditing && (
         <div className="flex flex-col gap-2 px-2 pb-2 sm:hidden animate-in fade-in slide-in-from-top-1 duration-150">
+          {/* Due date badge on mobile */}
+          {task.due_date && !task.completed && (
+            <Badge 
+              variant={isPast(parseISO(task.due_date)) && !isToday(parseISO(task.due_date)) ? "destructive" : "outline"} 
+              className={cn(
+                "self-start gap-1 text-xs",
+                isToday(parseISO(task.due_date)) && "border-primary text-primary"
+              )}
+            >
+              <Calendar className="h-3 w-3" />
+              Due: {isToday(parseISO(task.due_date)) 
+                ? 'Today' 
+                : isTomorrow(parseISO(task.due_date))
+                  ? 'Tomorrow'
+                  : format(parseISO(task.due_date), 'MMM d')}
+            </Badge>
+          )}
           {/* Goal badge on mobile */}
           {task.goal_title && (
             <Badge variant="secondary" className="self-start gap-1 text-xs">
@@ -570,6 +615,7 @@ export function QuickTaskList() {
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
+  const [editingQuickTask, setEditingQuickTask] = useState<QuickTask | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteType, setDeleteType] = useState<'quick' | 'shared'>('quick');
   const [showCompleted, setShowCompleted] = useState(false);
@@ -738,8 +784,21 @@ export function QuickTaskList() {
   };
 
   const startQuickEdit = (task: QuickTask) => {
-    setEditingId(task.id);
-    setEditTitle(task.title);
+    setEditingQuickTask(task);
+  };
+
+  const handleSaveQuickTaskWithDueDate = async (id: string, title: string, dueDate: string | null) => {
+    try {
+      await updateQuickTask.mutateAsync({
+        id,
+        title,
+        due_date: dueDate,
+      });
+      toast({ title: 'Task updated' });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to update task', variant: 'destructive' });
+      throw error;
+    }
   };
 
   const startSharedEdit = (task: SharedTask) => {
@@ -1207,6 +1266,16 @@ export function QuickTaskList() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Edit Quick Task Dialog */}
+        <EditQuickTaskDialog
+          open={!!editingQuickTask}
+          onOpenChange={(open) => {
+            if (!open) setEditingQuickTask(null);
+          }}
+          task={editingQuickTask}
+          onSave={handleSaveQuickTaskWithDueDate}
+        />
       </Card>
 
       {/* Mobile Command Bar */}

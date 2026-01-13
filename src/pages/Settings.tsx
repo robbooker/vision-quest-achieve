@@ -9,17 +9,25 @@ import { JournalSettings } from '@/components/settings/JournalSettings';
 import { SubscriptionSettings } from '@/components/subscription/SubscriptionSettings';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Sparkles, ChevronRight } from 'lucide-react';
+import { Sparkles, ChevronRight, PenLine } from 'lucide-react';
 
 export default function Settings() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Settings</h1>
-          <p className="text-muted-foreground">
-            Manage your calendar integration, notifications, and preferences.
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Settings</h1>
+            <p className="text-muted-foreground">
+              Manage your calendar integration, notifications, and preferences.
+            </p>
+          </div>
+          <Button asChild variant="outline" size="sm" className="gap-2">
+            <Link to="/affirmations">
+              <PenLine className="h-4 w-4" />
+              Affirmations
+            </Link>
+          </Button>
         </div>
 
         <div data-tour="settings-subscription">

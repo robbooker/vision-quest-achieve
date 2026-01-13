@@ -40,6 +40,8 @@ import Journal from "./pages/Journal";
 import Focus from "./pages/Focus";
 import Secret from "./pages/Secret";
 import Books from "./pages/Books";
+import Affirmations from "./pages/Affirmations";
+import AffirmationsBlog from "./pages/AffirmationsBlog";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -84,6 +86,7 @@ const App = () => (
                   <Route path="/blog/habit-goals" element={<HabitGoalsBlog />} />
                   <Route path="/blog/woop" element={<WoopBlog />} />
                   <Route path="/blog/reset" element={<ResetBlog />} />
+                  <Route path="/blog/affirmations" element={<AffirmationsBlog />} />
                   <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                   <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                   <Route path="/today" element={<ProtectedRoute><Today /></ProtectedRoute>} />
@@ -94,6 +97,7 @@ const App = () => (
                   <Route path="/reset" element={<ProtectedRoute><Reset /></ProtectedRoute>} />
                   <Route path="/journal" element={<ProtectedRoute><Journal /></ProtectedRoute>} />
                   <Route path="/books" element={<ProtectedRoute><Books /></ProtectedRoute>} />
+                  <Route path="/affirmations" element={<ProtectedRoute><Affirmations /></ProtectedRoute>} />
                   <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
                   <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
                   <Route path="/admin/broadcasts" element={<AdminRoute><AdminBroadcasts /></AdminRoute>} />

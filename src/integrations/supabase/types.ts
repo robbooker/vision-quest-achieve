@@ -53,6 +53,33 @@ export type Database = {
         }
         Relationships: []
       }
+      affirmation_submissions: {
+        Row: {
+          content_saved: boolean
+          created_at: string
+          id: string
+          saved_affirmations: string[] | null
+          submitted_at: string
+          user_id: string
+        }
+        Insert: {
+          content_saved?: boolean
+          created_at?: string
+          id?: string
+          saved_affirmations?: string[] | null
+          submitted_at?: string
+          user_id: string
+        }
+        Update: {
+          content_saved?: boolean
+          created_at?: string
+          id?: string
+          saved_affirmations?: string[] | null
+          submitted_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       big_ten_projects: {
         Row: {
           category: string | null

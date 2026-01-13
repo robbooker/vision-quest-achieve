@@ -31,7 +31,7 @@ import { useWeekReviews } from '@/hooks/useWeekReviews';
 import { useMilestones } from '@/hooks/useMilestones';
 import { useBigTen } from '@/hooks/useBigTen';
 import { useQuickTasks } from '@/hooks/useQuickTasks';
-import { TrendingUp, BarChart3, Target, AlertTriangle, Calendar, CheckSquare, FolderKanban, ListTodo, RotateCcw, Flame, Trophy, Zap, Clock, Timer, Globe } from 'lucide-react';
+import { TrendingUp, BarChart3, Target, AlertTriangle, Calendar, CheckSquare, FolderKanban, ListTodo, RotateCcw, Flame, Trophy, Zap, Clock, Timer, Globe, Sparkles } from 'lucide-react';
 import { HabitChainCalendar } from '@/components/reports/HabitChainCalendar';
 import { SitewideStats } from '@/components/reports/SitewideStats';
 import { AuditStrip } from '@/components/reset/AuditStrip';
@@ -40,6 +40,7 @@ import { useResetPreference } from '@/hooks/useResetPreference';
 import { useFocusSessions } from '@/hooks/useFocusSessions';
 import { format, subDays, startOfDay, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek } from 'date-fns';
 import { PieChart, Pie, Cell } from 'recharts';
+import { useAffirmations } from '@/hooks/useAffirmations';
 
 export default function Reports() {
   const { getActiveCycle, getCurrentWeekNumber, isLoading: cyclesLoading } = useCycles();
@@ -54,6 +55,7 @@ export default function Reports() {
   const { audits, getScore, getStreak, getPerfectDays, getAverageScore, getBestScore } = useResetAudits();
   const { isResetActive, resetStartedAt } = useResetPreference();
   const { sessions: focusSessions, weeklyStats: focusWeeklyStats, timeOfDayStats, streak: focusStreak } = useFocusSessions();
+  const { stats: affirmationStats } = useAffirmations();
 
   // Generate execution score data for all weeks (6-week cycle)
   const executionScoreData = useMemo(() => {
@@ -257,6 +259,42 @@ export default function Reports() {
 
         {/* Habit Chains Section - Top Priority */}
         <HabitChainCalendar />
+
+        {/* Affirmations Section */}
+        {(affirmationStats.totalDays > 0 || affirmationStats.currentStreak > 0) && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Affirmations
+            </h2>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-primary" />
+                    <span className="text-sm text-muted-foreground">Total Days</span>
+                  </div>
+                  <p className="text-2xl font-bold mt-1">{affirmationStats.totalDays}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    days practiced
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-2">
+                    <Flame className="h-4 w-4 text-primary" />
+                    <span className="text-sm text-muted-foreground">Current Streak</span>
+                  </div>
+                  <p className="text-2xl font-bold mt-1">{affirmationStats.currentStreak}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    consecutive days
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
 
         {/* Projects & Tasks Section */}
         <div className="space-y-4">

@@ -498,8 +498,80 @@ export const useYesterdayActivity = () => {
 
       return {
         hasActivity: (tasks?.length || 0) > 0 || (habits?.length || 0) > 0 || (focusSessions?.length || 0) > 0,
-        date: yesterday,
       };
+    },
+    enabled: !!user?.id,
+  });
+};
+
+// Check for missing entries in the past N days (excluding today)
+export const useMissingPastEntries = (daysBack: number = 3) => {
+  const { user } = useAuth();
+  const today = new Date();
+
+  return useQuery({
+    queryKey: ['missing-past-entries', user?.id, daysBack],
+    queryFn: async () => {
+      if (!user?.id) return [];
+
+      // Generate dates for past N days (excluding today)
+      const pastDates = Array.from({ length: daysBack }, (_, i) => 
+        format(subDays(today, i + 1), 'yyyy-MM-dd')
+      );
+
+      // Check which dates already have entries
+      const { data: existingEntries } = await supabase
+        .from('journal_entries')
+        .select('entry_date')
+        .eq('user_id', user.id)
+        .in('entry_date', pastDates);
+
+      const existingDates = new Set((existingEntries || []).map(e => e.entry_date));
+      
+      // For each missing date, check if there was activity
+      const missingDates = pastDates.filter(date => !existingDates.has(date));
+      
+      const missingWithActivity = await Promise.all(
+        missingDates.map(async (date) => {
+          const startOfDay = `${date}T00:00:00.000Z`;
+          const endOfDay = `${date}T23:59:59.999Z`;
+
+          const [tasks, habits, focusSessions] = await Promise.all([
+            supabase
+              .from('quick_tasks')
+              .select('id')
+              .eq('user_id', user.id)
+              .eq('completed', true)
+              .gte('completed_at', startOfDay)
+              .lte('completed_at', endOfDay)
+              .limit(1),
+            supabase
+              .from('tactic_logs')
+              .select('id')
+              .eq('user_id', user.id)
+              .eq('logged_date', date)
+              .gt('completed_count', 0)
+              .limit(1),
+            supabase
+              .from('focus_sessions')
+              .select('id')
+              .eq('user_id', user.id)
+              .eq('status', 'completed')
+              .gte('completed_at', startOfDay)
+              .lte('completed_at', endOfDay)
+              .limit(1),
+          ]);
+
+          const hasActivity = 
+            (tasks.data?.length || 0) > 0 || 
+            (habits.data?.length || 0) > 0 || 
+            (focusSessions.data?.length || 0) > 0;
+
+          return { date, hasActivity };
+        })
+      );
+
+      return missingWithActivity;
     },
     enabled: !!user?.id,
   });

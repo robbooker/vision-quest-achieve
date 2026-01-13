@@ -34,7 +34,8 @@ export default function AffirmationsBlog() {
         {/* Article */}
         <article className="container mx-auto px-4 py-12 max-w-3xl">
           {/* Meta */}
-          <div className="flex items-center gap-4 text-sm text-muted-foreground mb-6">
+          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-6">
+            <span className="font-medium text-foreground">By Scott Adams</span>
             <span className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
               Originally published circa 2008

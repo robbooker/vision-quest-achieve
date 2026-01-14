@@ -17,6 +17,7 @@ import { ToastProvider } from "@/components/notifications/ToastProvider";
 import { NotificationListener } from "@/components/notifications/NotificationListener";
 import { JournalChat } from "@/components/journal/JournalChat";
 import { MiamiModeProvider } from "@/hooks/useMiamiMode";
+import { SiteTourProvider } from "@/hooks/useSiteTour";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
@@ -69,6 +70,7 @@ const App = () => (
         <AuthProvider>
           <MiamiModeProvider>
           <TerminalModeProvider>
+            <SiteTourProvider>
             <GlobalChatProvider>
             <ToastProvider>
             <TooltipProvider>
@@ -113,6 +115,7 @@ const App = () => (
             </TooltipProvider>
             </ToastProvider>
             </GlobalChatProvider>
+            </SiteTourProvider>
           </TerminalModeProvider>
           </MiamiModeProvider>
         </AuthProvider>

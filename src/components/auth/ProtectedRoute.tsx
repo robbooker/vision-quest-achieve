@@ -20,6 +20,16 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
         return;
       }
 
+      // Check if user just completed onboarding (skip DB check to avoid race condition)
+      const justCompleted = sessionStorage.getItem("just-completed-onboarding");
+      if (justCompleted === "true") {
+        // Clear the flag so future navigations check the DB
+        sessionStorage.removeItem("just-completed-onboarding");
+        setOnboardingCompleted(true);
+        setCheckingOnboarding(false);
+        return;
+      }
+
       const { data } = await supabase
         .from('profiles')
         .select('onboarding_completed')

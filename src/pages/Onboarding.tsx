@@ -58,12 +58,7 @@ export default function Onboarding() {
   };
 
   const handleSubmit = async () => {
-    console.log("handleSubmit called, user:", user?.id);
-    
-    if (!user) {
-      console.error("No user found in handleSubmit");
-      return;
-    }
+    if (!user) return;
     
     if (!displayName.trim()) {
       toast({
@@ -75,12 +70,9 @@ export default function Onboarding() {
     }
 
     setIsSaving(true);
-    console.log("Starting profile upsert...");
 
     try {
       const hasAnyConsent = consentEmail || consentSms || consentWhatsapp;
-      
-      // Clean phone number - only store digits, empty string becomes null
       const cleanPhoneUs = phoneUs.replace(/\D/g, "");
       
       const profileData = {
@@ -95,17 +87,12 @@ export default function Onboarding() {
         onboarding_completed: true,
       };
       
-      console.log("Upserting profile data:", profileData);
-      
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("profiles")
         .upsert(profileData, { onConflict: "user_id" })
         .select();
 
-      console.log("Upsert result - data:", data, "error:", error);
-
       if (error) {
-        console.error("Profile upsert error:", error);
         toast({
           title: "Error saving profile",
           description: error.message,
@@ -115,26 +102,40 @@ export default function Onboarding() {
         return;
       }
 
-      console.log("Profile saved successfully, navigating to /today...");
+      // Verify the update was committed by refetching
+      const { data: verifyData } = await supabase
+        .from("profiles")
+        .select("onboarding_completed")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!verifyData?.onboarding_completed) {
+        // If verification fails, wait and try again
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
 
       // Clear the tour completion flag so Toasty tour starts fresh
       localStorage.removeItem("groovy-planning-tour-completed");
+      
+      // Mark that we just completed onboarding (for ProtectedRoute to skip re-check)
+      sessionStorage.setItem("just-completed-onboarding", "true");
 
       toast({
         title: "Welcome aboard! 🍞",
         description: "You're all set up. Let me show you around!",
       });
 
-      // Reset saving state before navigation
       setIsSaving(false);
       
-      // Navigate to Today page and start the tour
-      // Use replace to prevent going back to onboarding
-      navigate("/today", { replace: true });
+      // Start the tour BEFORE navigation so it's set in the shared context
+      startTour();
       
+      // Small delay to ensure tour state is set, then navigate
       setTimeout(() => {
-        startTour();
-      }, 500);
+        // Use window.location for guaranteed navigation (bypasses any React Router issues)
+        window.location.href = "/today";
+      }, 100);
+      
     } catch (err) {
       console.error("Unexpected error during onboarding:", err);
       toast({

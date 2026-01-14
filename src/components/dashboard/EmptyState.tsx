@@ -15,11 +15,11 @@ export function EmptyState({ type, onAction, onChatAction }: EmptyStateProps) {
           <Calendar className="h-8 w-8 text-primary" />
         </div>
         <h2 className="text-xl font-semibold text-foreground mb-2">
-          Start Your First 12-Week Year
+          Get Started with Goal Setting
         </h2>
         <p className="text-muted-foreground max-w-md mb-6">
-          Create a cycle to begin planning your goals. Each cycle is 12 weeks of focused execution, 
-          followed by a week of review and celebration.
+          Create a 6-week cycle to begin planning your goals. Each cycle is a focused sprint 
+          toward what matters most, followed by time to review and reset.
         </p>
         <Button onClick={onAction}>
           <Plus className="mr-2 h-4 w-4" />

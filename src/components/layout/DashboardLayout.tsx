@@ -3,7 +3,6 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useTerminalMode } from '@/hooks/useTerminalMode';
 import { useUserRole } from '@/hooks/useUserRole';
-import { useSiteTour } from '@/hooks/useSiteTour';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -20,8 +19,6 @@ import { cn } from '@/lib/utils';
 import { Footer } from '@/components/layout/Footer';
 import gpLogo from '@/assets/gp-logo.png';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
-import { TourHelpButton } from '@/components/tour/TourHelpButton';
-import { SiteTour } from '@/components/tour/SiteTour';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -46,7 +43,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { isTerminal, labels } = useTerminalMode();
   const { isAdmin } = useUserRole();
   const location = useLocation();
-  const { isTourRunning, tourStep, startTour, endTour, goToStep } = useSiteTour();
 
   const userInitials = user?.email
     ? user.email.substring(0, 2).toUpperCase()
@@ -111,7 +107,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
 
           <div className="flex items-center gap-2">
-            <TourHelpButton onClick={startTour} isTerminal={isTerminal} />
             <span data-tour="notifications">
               <NotificationBell />
             </span>
@@ -223,14 +218,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </main>
 
       <Footer />
-
-      {/* Site Tour */}
-      <SiteTour
-        isRunning={isTourRunning}
-        onEnd={endTour}
-        stepIndex={tourStep}
-        onStepChange={goToStep}
-      />
     </div>
   );
 }

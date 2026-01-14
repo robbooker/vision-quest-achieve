@@ -31,11 +31,14 @@ const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, tourId: 'dashboard' },
   { href: '/today', label: 'Today', icon: CheckSquare, tourId: 'today' },
   { href: '/focus', label: 'Focus', icon: Target, tourId: 'focus' },
-  { href: '/big-ten', label: 'Big 10', icon: Star, tourId: 'bigten' },
   { href: '/journal', label: 'Journal', icon: BookOpen, tourId: 'journal' },
-  { href: '/books', label: 'Books', icon: Library, tourId: 'books' },
-  { href: '/reset', label: 'Reset', icon: RotateCcw, tourId: 'reset' },
-  { href: '/reports', label: 'Reports', icon: BarChart3, tourId: 'reports' },
+];
+
+const dropdownNavItems = [
+  { href: '/big-ten', label: 'Big 10', icon: Star },
+  { href: '/books', label: 'Books', icon: Library },
+  { href: '/reset', label: 'Reset', icon: RotateCcw },
+  { href: '/reports', label: 'Reports', icon: BarChart3 },
 ];
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
@@ -142,6 +145,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     </p>
                   </div>
                 </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {dropdownNavItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <DropdownMenuItem key={item.href} asChild>
+                      <Link to={item.href}>
+                        <Icon className="mr-2 h-4 w-4" />
+                        {item.label}
+                      </Link>
+                    </DropdownMenuItem>
+                  );
+                })}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem disabled>
                   <User className="mr-2 h-4 w-4" />

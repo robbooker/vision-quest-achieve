@@ -226,13 +226,18 @@ export default function AdminUsers() {
 
   const handleDeleteUser = async (userId: string, email: string | null) => {
     try {
-      const { error } = await supabase.from('profiles').delete().eq('user_id', userId);
+      const { data, error } = await supabase.functions.invoke('admin-delete-user', {
+        body: { userId },
+      });
+      
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      
       toast({ title: 'User deleted', description: `${email || 'User'} has been removed` });
       fetchUsers();
     } catch (error) {
       console.error('Error deleting user:', error);
-      toast({ title: 'Error', description: 'Failed to delete user', variant: 'destructive' });
+      toast({ title: 'Error', description: error instanceof Error ? error.message : 'Failed to delete user', variant: 'destructive' });
     }
   };
 

@@ -157,6 +157,27 @@ export default function Focus() {
     }
   };
 
+  const handleExtendSession = async (additionalMinutes: number) => {
+    if (!activeSession) return;
+
+    try {
+      const newDuration = activeSession.planned_duration_minutes + additionalMinutes;
+      await updateSession.mutateAsync({
+        id: activeSession.id,
+        planned_duration_minutes: newDuration,
+      });
+      toast({
+        title: `Extended by ${additionalMinutes} minutes`,
+        description: `New planned duration: ${newDuration} minutes`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Failed to extend session',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <DashboardLayout>
       <Helmet>
@@ -231,6 +252,7 @@ export default function Focus() {
                     startTime={new Date(activeSession.started_at)}
                     onComplete={handleCompleteSession}
                     onCancel={handleCancelSession}
+                    onExtend={handleExtendSession}
                   />
                   
                   {/* Ambient Sounds */}

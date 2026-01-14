@@ -8,17 +8,17 @@ interface FocusTimerProps {
   objective: string;
   onComplete: (actualMinutes: number) => void;
   onCancel: () => void;
+  onExtend: (additionalMinutes: number) => void;
   startTime: Date;
 }
 
-export function FocusTimer({ plannedMinutes, objective, onComplete, onCancel, startTime }: FocusTimerProps) {
+export function FocusTimer({ plannedMinutes, objective, onComplete, onCancel, onExtend, startTime }: FocusTimerProps) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  const [extendedMinutes, setExtendedMinutes] = useState(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const totalPlannedSeconds = (plannedMinutes + extendedMinutes) * 60;
+  const totalPlannedSeconds = plannedMinutes * 60;
   const remainingSeconds = Math.max(0, totalPlannedSeconds - elapsedSeconds);
   const isOvertime = elapsedSeconds > totalPlannedSeconds;
   const progress = Math.min(100, (elapsedSeconds / totalPlannedSeconds) * 100);
@@ -78,7 +78,7 @@ export function FocusTimer({ plannedMinutes, objective, onComplete, onCancel, st
   }, [elapsedSeconds, onComplete]);
 
   const handleExtend = (minutes: number) => {
-    setExtendedMinutes(prev => prev + minutes);
+    onExtend(minutes);
   };
 
   // Calculate SVG circle values
@@ -142,7 +142,7 @@ export function FocusTimer({ plannedMinutes, objective, onComplete, onCancel, st
 
       {/* Session Info */}
       <div className="text-center text-sm text-muted-foreground">
-        <p>Elapsed: {formatTime(elapsedSeconds)} / Planned: {plannedMinutes + extendedMinutes} min</p>
+        <p>Elapsed: {formatTime(elapsedSeconds)} / Planned: {plannedMinutes} min</p>
       </div>
 
       {/* Controls */}

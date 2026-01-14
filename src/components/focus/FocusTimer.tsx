@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Play, Pause, CheckCircle, X, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
 interface FocusTimerProps {
@@ -15,6 +16,7 @@ interface FocusTimerProps {
 export function FocusTimer({ plannedMinutes, objective, onComplete, onCancel, onExtend, startTime }: FocusTimerProps) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [customMinutes, setCustomMinutes] = useState('');
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -78,7 +80,17 @@ export function FocusTimer({ plannedMinutes, objective, onComplete, onCancel, on
   }, [elapsedSeconds, onComplete]);
 
   const handleExtend = (minutes: number) => {
-    onExtend(minutes);
+    if (minutes > 0) {
+      onExtend(minutes);
+    }
+  };
+
+  const handleCustomExtend = () => {
+    const mins = parseInt(customMinutes, 10);
+    if (!isNaN(mins) && mins > 0) {
+      onExtend(mins);
+      setCustomMinutes('');
+    }
   };
 
   // Calculate SVG circle values
@@ -179,9 +191,9 @@ export function FocusTimer({ plannedMinutes, objective, onComplete, onCancel, on
       </div>
 
       {/* Extend Time */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap justify-center">
         <span className="text-sm text-muted-foreground">Extend:</span>
-        {[15, 30].map(mins => (
+        {[5, 10, 15, 30].map(mins => (
           <Button
             key={mins}
             variant="ghost"
@@ -193,6 +205,28 @@ export function FocusTimer({ plannedMinutes, objective, onComplete, onCancel, on
             {mins}m
           </Button>
         ))}
+        <div className="flex items-center gap-1">
+          <Input
+            type="number"
+            min="1"
+            max="120"
+            placeholder="min"
+            value={customMinutes}
+            onChange={(e) => setCustomMinutes(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleCustomExtend()}
+            className="w-16 h-8 text-sm"
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleCustomExtend}
+            disabled={!customMinutes || parseInt(customMinutes, 10) <= 0}
+            className="gap-1"
+          >
+            <Plus className="h-3 w-3" />
+            Add
+          </Button>
+        </div>
       </div>
     </div>
   );

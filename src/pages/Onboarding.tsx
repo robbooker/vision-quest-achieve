@@ -10,12 +10,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
-import { useSiteTour } from "@/hooks/useSiteTour";
 
 export default function Onboarding() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { startTour } = useSiteTour();
   
   const [displayName, setDisplayName] = useState("");
   const [phoneUs, setPhoneUs] = useState("");
@@ -114,19 +112,12 @@ export default function Onboarding() {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
 
-      // Clear the tour completion flag so Toasty tour starts fresh
-      localStorage.removeItem("groovy-planning-tour-completed");
-      
       // Mark that we just completed onboarding (for ProtectedRoute to skip re-check)
       sessionStorage.setItem("just-completed-onboarding", "true");
-      
-      // Persist tour state in sessionStorage so it survives the page reload
-      sessionStorage.setItem("groovy-planning-tour-running", "true");
-      sessionStorage.setItem("groovy-planning-tour-step", "0");
 
       toast({
         title: "Welcome aboard! 🍞",
-        description: "You're all set up. Let me show you around!",
+        description: "You're all set up. Explore your new planning space!",
       });
 
       setIsSaving(false);

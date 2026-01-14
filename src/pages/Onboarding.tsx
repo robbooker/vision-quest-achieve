@@ -119,6 +119,10 @@ export default function Onboarding() {
       
       // Mark that we just completed onboarding (for ProtectedRoute to skip re-check)
       sessionStorage.setItem("just-completed-onboarding", "true");
+      
+      // Persist tour state in sessionStorage so it survives the page reload
+      sessionStorage.setItem("groovy-planning-tour-running", "true");
+      sessionStorage.setItem("groovy-planning-tour-step", "0");
 
       toast({
         title: "Welcome aboard! 🍞",
@@ -127,10 +131,7 @@ export default function Onboarding() {
 
       setIsSaving(false);
       
-      // Start the tour BEFORE navigation so it's set in the shared context
-      startTour();
-      
-      // Small delay to ensure tour state is set, then navigate
+      // Navigate using window.location to ensure clean navigation
       setTimeout(() => {
         // Use window.location for guaranteed navigation (bypasses any React Router issues)
         window.location.href = "/today";

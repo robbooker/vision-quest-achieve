@@ -9,9 +9,12 @@ import { JournalSettings } from '@/components/settings/JournalSettings';
 import { SubscriptionSettings } from '@/components/subscription/SubscriptionSettings';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Sparkles, ChevronRight, PenLine } from 'lucide-react';
+import { Sparkles, ChevronRight, PenLine, RotateCcw } from 'lucide-react';
+import { useSiteTour } from '@/hooks/useSiteTour';
 
 export default function Settings() {
+  const { startTour } = useSiteTour();
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -22,12 +25,24 @@ export default function Settings() {
               Manage your calendar integration, notifications, and preferences.
             </p>
           </div>
-          <Button asChild variant="outline" size="sm" className="gap-2" data-tour="affirmations">
-            <Link to="/affirmations">
-              <PenLine className="h-4 w-4" />
-              Affirmations
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-2"
+              onClick={startTour}
+              data-tour="restart-tour"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Restart Tour
+            </Button>
+            <Button asChild variant="outline" size="sm" className="gap-2" data-tour="affirmations">
+              <Link to="/affirmations">
+                <PenLine className="h-4 w-4" />
+                Affirmations
+              </Link>
+            </Button>
+          </div>
         </div>
 
         <div data-tour="settings-subscription">

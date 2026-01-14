@@ -121,10 +121,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className={cn(
-                  "relative h-9 w-9",
-                  isTerminal ? "rounded-none" : "rounded-full"
-                )}>
+                <Button 
+                  variant="ghost" 
+                  className={cn(
+                    "relative h-9 w-9",
+                    isTerminal ? "rounded-none" : "rounded-full"
+                  )}
+                  data-tour="user-menu"
+                >
                   <Avatar className={cn("h-9 w-9", isTerminal && "rounded-none")}>
                     <AvatarImage 
                       src={user?.user_metadata?.avatar_url} 
@@ -163,7 +167,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   Profile
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to="/settings">
+                  <Link to="/settings" data-tour="settings">
                     <Settings className="mr-2 h-4 w-4" />
                     Settings
                   </Link>

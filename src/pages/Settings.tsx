@@ -22,7 +22,7 @@ export default function Settings() {
               Manage your calendar integration, notifications, and preferences.
             </p>
           </div>
-          <Button asChild variant="outline" size="sm" className="gap-2">
+          <Button asChild variant="outline" size="sm" className="gap-2" data-tour="affirmations">
             <Link to="/affirmations">
               <PenLine className="h-4 w-4" />
               Affirmations

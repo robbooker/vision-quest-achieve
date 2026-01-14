@@ -43,11 +43,11 @@ const tourSteps: Step[] = [
     data: { expression: "happy" },
   },
   {
-    target: '[data-tour="bigten"]',
+    target: '[data-tour="focus"]',
     placement: "bottom",
     disableBeacon: true,
-    title: "Big 10",
-    content: "Long-term projects that move the needle. Track up to 10 major life projects over time. The stuff that really matters!",
+    title: "Focus Sessions",
+    content: "Start timed focus sessions with ambient sounds. Track your deep work and build momentum! 🎯",
     data: { expression: "thinking" },
   },
   {
@@ -59,19 +59,11 @@ const tourSteps: Step[] = [
     data: { expression: "happy" },
   },
   {
-    target: '[data-tour="reset"]',
+    target: '[data-tour="user-menu"]',
     placement: "bottom",
     disableBeacon: true,
-    title: "7-Day Reset",
-    content: "Like hitting the toaster button twice - a fresh start! Commit to 8 simple rules for 7 days to stabilize your system.",
-    data: { expression: "thinking" },
-  },
-  {
-    target: '[data-tour="reports"]',
-    placement: "bottom",
-    disableBeacon: true,
-    title: "Reports",
-    content: "Track your progress with pretty charts! Habit chains, execution scores, and all the data to see how you're doing.",
+    title: "Your Menu",
+    content: "Click your profile to access Big 10 projects, Books, 7-Day Reset, Reports, Settings, and more! All your tools in one spot. 👤",
     data: { expression: "happy" },
   },
   {
@@ -129,6 +121,14 @@ const tourSteps: Step[] = [
     title: "Journal Settings",
     content: "Customize your journal image style! Choose art styles, themes, and color palettes for your daily AI-generated art. 🎨",
     data: { expression: "happy" },
+  },
+  {
+    target: '[data-tour="affirmations"]',
+    placement: "bottom",
+    disableBeacon: true,
+    title: "Affirmations",
+    content: "Practice Scott Adams-style affirmations! Write your goals 15 times to program your subconscious. Powerful stuff! ✍️",
+    data: { expression: "thinking" },
   },
   {
     target: '[data-tour="ai-coach"]',

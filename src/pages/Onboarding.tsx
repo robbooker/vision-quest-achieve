@@ -58,7 +58,12 @@ export default function Onboarding() {
   };
 
   const handleSubmit = async () => {
-    if (!user) return;
+    console.log("handleSubmit called, user:", user?.id);
+    
+    if (!user) {
+      console.error("No user found in handleSubmit");
+      return;
+    }
     
     if (!displayName.trim()) {
       toast({
@@ -70,6 +75,7 @@ export default function Onboarding() {
     }
 
     setIsSaving(true);
+    console.log("Starting profile upsert...");
 
     try {
       const hasAnyConsent = consentEmail || consentSms || consentWhatsapp;
@@ -77,19 +83,26 @@ export default function Onboarding() {
       // Clean phone number - only store digits, empty string becomes null
       const cleanPhoneUs = phoneUs.replace(/\D/g, "");
       
-      const { error } = await supabase
+      const profileData = {
+        user_id: user.id,
+        display_name: displayName.trim(),
+        phone_us: cleanPhoneUs.length > 0 ? cleanPhoneUs : null,
+        phone_whatsapp: phoneWhatsapp.trim().length > 0 ? phoneWhatsapp.trim() : null,
+        consent_email: consentEmail,
+        consent_sms: consentSms,
+        consent_whatsapp: consentWhatsapp,
+        consent_timestamp: hasAnyConsent ? new Date().toISOString() : null,
+        onboarding_completed: true,
+      };
+      
+      console.log("Upserting profile data:", profileData);
+      
+      const { data, error } = await supabase
         .from("profiles")
-        .upsert({
-          user_id: user.id,
-          display_name: displayName.trim(),
-          phone_us: cleanPhoneUs.length > 0 ? cleanPhoneUs : null,
-          phone_whatsapp: phoneWhatsapp.trim().length > 0 ? phoneWhatsapp.trim() : null,
-          consent_email: consentEmail,
-          consent_sms: consentSms,
-          consent_whatsapp: consentWhatsapp,
-          consent_timestamp: hasAnyConsent ? new Date().toISOString() : null,
-          onboarding_completed: true,
-        }, { onConflict: "user_id" });
+        .upsert(profileData, { onConflict: "user_id" })
+        .select();
+
+      console.log("Upsert result - data:", data, "error:", error);
 
       if (error) {
         console.error("Profile upsert error:", error);
@@ -102,6 +115,8 @@ export default function Onboarding() {
         return;
       }
 
+      console.log("Profile saved successfully, navigating to /today...");
+
       toast({
         title: "Welcome aboard! 🍞",
         description: "You're all set up. Let me show you around!",
@@ -112,7 +127,10 @@ export default function Onboarding() {
       
       // Navigate to Today page and start the tour
       navigate("/today");
+      console.log("Navigation called to /today");
+      
       setTimeout(() => {
+        console.log("Starting tour...");
         startTour();
       }, 500);
     } catch (err) {
@@ -122,7 +140,6 @@ export default function Onboarding() {
         description: "Please try again or skip for now.",
         variant: "destructive",
       });
-    } finally {
       setIsSaving(false);
     }
   };

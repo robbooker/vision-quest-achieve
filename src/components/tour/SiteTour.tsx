@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import Joyride, { CallBackProps, STATUS, Step } from "react-joyride";
 import { ToastyTooltip } from "./ToastyTooltip";
 import { useTerminalMode } from "@/hooks/useTerminalMode";
@@ -9,14 +11,19 @@ interface SiteTourProps {
   onStepChange: (step: number) => void;
 }
 
-const tourSteps: Step[] = [
+// Define steps with required routes for navigation
+interface TourStep extends Step {
+  data?: { expression?: string; route?: string };
+}
+
+const tourSteps: TourStep[] = [
   {
     target: "body",
     placement: "center",
     disableBeacon: true,
     title: "Hey there! 🍞",
     content: "I'm Toasty, your guide to Groovy Planning! Let me butter you up with a quick tour of all the features. Ready to get groovy?",
-    data: { expression: "wave" },
+    data: { expression: "wave", route: "/dashboard" },
   },
   {
     target: '[data-tour="dashboard"]',
@@ -24,15 +31,15 @@ const tourSteps: Step[] = [
     disableBeacon: true,
     title: "Dashboard",
     content: "This is your planning hub! Create 6-week cycles and set up to 3 goals per cycle. Big picture thinking lives here.",
-    data: { expression: "happy" },
+    data: { expression: "happy", route: "/dashboard" },
   },
   {
     target: '[data-tour="today"]',
     placement: "bottom",
     disableBeacon: true,
     title: "Today",
-    content: "Your daily execution view! Check off habits, view your calendar, and manage quick tasks. Click here to visit the Today page!",
-    data: { expression: "happy" },
+    content: "Your daily execution view! Check off habits, view your calendar, and manage quick tasks.",
+    data: { expression: "happy", route: "/dashboard" },
   },
   {
     target: '[data-tour="quick-tasks"]',
@@ -40,7 +47,7 @@ const tourSteps: Step[] = [
     disableBeacon: true,
     title: "Quick Tasks",
     content: "Manage Personal, Business, and Shared tasks here. Share tasks with friends and see what they complete in real-time! 📝",
-    data: { expression: "happy" },
+    data: { expression: "happy", route: "/today" },
   },
   {
     target: '[data-tour="focus"]',
@@ -48,7 +55,7 @@ const tourSteps: Step[] = [
     disableBeacon: true,
     title: "Focus Sessions",
     content: "Start timed focus sessions with ambient sounds. Track your deep work and build momentum! 🎯",
-    data: { expression: "thinking" },
+    data: { expression: "thinking", route: "/today" },
   },
   {
     target: '[data-tour="journal"]',
@@ -56,7 +63,7 @@ const tourSteps: Step[] = [
     disableBeacon: true,
     title: "Journal",
     content: "Your daily accomplishments turned into art! AI generates beautiful images based on your completed tasks and habits. 📔",
-    data: { expression: "happy" },
+    data: { expression: "happy", route: "/today" },
   },
   {
     target: '[data-tour="user-menu"]',
@@ -64,15 +71,7 @@ const tourSteps: Step[] = [
     disableBeacon: true,
     title: "Your Menu",
     content: "Click your profile to access Big 10 projects, Books, 7-Day Reset, Reports, Settings, and more! All your tools in one spot. 👤",
-    data: { expression: "happy" },
-  },
-  {
-    target: '[data-tour="settings"]',
-    placement: "bottom",
-    disableBeacon: true,
-    title: "Settings",
-    content: "Customize everything! Click here to visit Settings and I'll show you around. 🛠️",
-    data: { expression: "thinking" },
+    data: { expression: "happy", route: "/today" },
   },
   {
     target: '[data-tour="settings-profile"]',
@@ -80,7 +79,7 @@ const tourSteps: Step[] = [
     disableBeacon: true,
     title: "Profile Settings",
     content: "Add your display name, avatar, and contact preferences here. Make it your own!",
-    data: { expression: "happy" },
+    data: { expression: "happy", route: "/settings" },
   },
   {
     target: '[data-tour="settings-vision"]',
@@ -88,7 +87,7 @@ const tourSteps: Step[] = [
     disableBeacon: true,
     title: "Vision & Values",
     content: "Define your long-term aspirations. Your goals should connect to this bigger picture - it's the 'why' behind everything!",
-    data: { expression: "thinking" },
+    data: { expression: "thinking", route: "/settings" },
   },
   {
     target: '[data-tour="settings-hard-questions"]',
@@ -96,7 +95,7 @@ const tourSteps: Step[] = [
     disableBeacon: true,
     title: "Hard Questions",
     content: "Self-reflection prompts that help you dig deeper. Answer them honestly - Future You will thank Present You!",
-    data: { expression: "thinking" },
+    data: { expression: "thinking", route: "/settings" },
   },
   {
     target: '[data-tour="settings-display"]',
@@ -104,7 +103,7 @@ const tourSteps: Step[] = [
     disableBeacon: true,
     title: "Display Settings",
     content: "Text size, Terminal mode for power users, and other visual tweaks. Yes, there's a secret hacker mode. 💻",
-    data: { expression: "happy" },
+    data: { expression: "happy", route: "/settings" },
   },
   {
     target: '[data-tour="settings-calendar"]',
@@ -112,7 +111,7 @@ const tourSteps: Step[] = [
     disableBeacon: true,
     title: "Calendar Integration",
     content: "Connect your Google Calendar to see your schedule right in Groovy Planning. Super handy for time-blocking!",
-    data: { expression: "happy" },
+    data: { expression: "happy", route: "/settings" },
   },
   {
     target: '[data-tour="settings-journal"]',
@@ -120,7 +119,7 @@ const tourSteps: Step[] = [
     disableBeacon: true,
     title: "Journal Settings",
     content: "Customize your journal image style! Choose art styles, themes, and color palettes for your daily AI-generated art. 🎨",
-    data: { expression: "happy" },
+    data: { expression: "happy", route: "/settings" },
   },
   {
     target: '[data-tour="affirmations"]',
@@ -128,7 +127,15 @@ const tourSteps: Step[] = [
     disableBeacon: true,
     title: "Affirmations",
     content: "Practice Scott Adams-style affirmations! Write your goals 15 times to program your subconscious. Powerful stuff! ✍️",
-    data: { expression: "thinking" },
+    data: { expression: "thinking", route: "/settings" },
+  },
+  {
+    target: '[data-tour="restart-tour"]',
+    placement: "top",
+    disableBeacon: true,
+    title: "Restart Tour",
+    content: "You can always restart this tour from here if you need a refresher! 🔄",
+    data: { expression: "happy", route: "/settings" },
   },
   {
     target: '[data-tour="ai-coach"]',
@@ -136,7 +143,7 @@ const tourSteps: Step[] = [
     disableBeacon: true,
     title: "AI Coach",
     content: "Need help discovering goals? Chat with the AI Coach or do a guided interview. It's like having a planning buddy!",
-    data: { expression: "wave" },
+    data: { expression: "wave", route: "/dashboard" },
   },
   {
     target: '[data-tour="notifications"]',
@@ -144,7 +151,7 @@ const tourSteps: Step[] = [
     disableBeacon: true,
     title: "Notifications",
     content: "I'll pop up here when something important happens! Friend requests, reminders, the works. We're toast buddies now! 🍞",
-    data: { expression: "happy" },
+    data: { expression: "happy", route: "/dashboard" },
   },
   {
     target: '[data-tour="theme-toggle"]',
@@ -152,7 +159,7 @@ const tourSteps: Step[] = [
     disableBeacon: true,
     title: "Theme Toggle",
     content: "Switch between light and dark mode. Both look great with that warm, vintage vibe!",
-    data: { expression: "happy" },
+    data: { expression: "happy", route: "/dashboard" },
   },
   {
     target: "body",
@@ -160,12 +167,26 @@ const tourSteps: Step[] = [
     disableBeacon: true,
     title: "You're All Set! 🎉",
     content: "That's the tour! Click the help button anytime to see me again. Now go make some plans - Future You will thank you!",
-    data: { expression: "celebrate" },
+    data: { expression: "celebrate", route: "/dashboard" },
   },
 ];
 
 export function SiteTour({ isRunning, onEnd, stepIndex, onStepChange }: SiteTourProps) {
   const { isTerminal } = useTerminalMode();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Navigate to the correct route when step changes
+  useEffect(() => {
+    if (!isRunning) return;
+    
+    const currentStep = tourSteps[stepIndex];
+    const requiredRoute = currentStep?.data?.route;
+    
+    if (requiredRoute && location.pathname !== requiredRoute) {
+      navigate(requiredRoute);
+    }
+  }, [stepIndex, isRunning, navigate, location.pathname]);
 
   const handleCallback = (data: CallBackProps) => {
     const { status, action, type } = data;
@@ -175,10 +196,8 @@ export function SiteTour({ isRunning, onEnd, stepIndex, onStepChange }: SiteTour
     } else if (status === STATUS.SKIPPED) {
       onEnd(false);
     } else if (action === "close") {
-      // Handle X button click
       onEnd(false);
     } else if (type === "step:after") {
-      // Advance step after user clicks Next or Back
       if (action === "next") {
         onStepChange(stepIndex + 1);
       } else if (action === "prev") {

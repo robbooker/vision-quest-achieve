@@ -117,20 +117,22 @@ export default function Onboarding() {
 
       console.log("Profile saved successfully, navigating to /today...");
 
+      // Clear the tour completion flag so Toasty tour starts fresh
+      localStorage.removeItem("groovy-planning-tour-completed");
+
       toast({
         title: "Welcome aboard! 🍞",
         description: "You're all set up. Let me show you around!",
       });
 
-      // Clear the tour completion flag so Toasty tour starts fresh
-      localStorage.removeItem("groovy-planning-tour-completed");
+      // Reset saving state before navigation
+      setIsSaving(false);
       
       // Navigate to Today page and start the tour
-      navigate("/today");
-      console.log("Navigation called to /today");
+      // Use replace to prevent going back to onboarding
+      navigate("/today", { replace: true });
       
       setTimeout(() => {
-        console.log("Starting tour...");
         startTour();
       }, 500);
     } catch (err) {

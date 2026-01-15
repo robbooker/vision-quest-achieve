@@ -44,6 +44,7 @@ import Books from "./pages/Books";
 import Affirmations from "./pages/Affirmations";
 import AffirmationsBlog from "./pages/AffirmationsBlog";
 import NotFound from "./pages/NotFound";
+import Free from "./pages/Free";
 
 const queryClient = new QueryClient();
 
@@ -82,6 +83,7 @@ const App = () => (
                 <Routes>
                   <Route path="/" element={<Auth />} />
                   <Route path="/pricing" element={<Pricing />} />
+                  <Route path="/free" element={<Free />} />
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
                   <Route path="/blog" element={<Blog />} />

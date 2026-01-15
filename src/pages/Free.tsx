@@ -32,11 +32,17 @@ export default function Free() {
       
       <div className="min-h-screen bg-background flex flex-col">
         {/* Header */}
-        <header className="p-6 flex justify-center">
+        <header className="p-6 flex justify-between items-center">
           <Link to="/" className="flex items-center gap-3">
             <img src={gpLogo} alt="Groovy Planning" className="h-12 w-12" />
-            <span className="text-xl font-bold text-foreground">Groovy Planning</span>
+            <div>
+              <span className="text-xl font-bold text-foreground block">Groovy Planning</span>
+              <span className="text-sm text-muted-foreground">By Rob Booker</span>
+            </div>
           </Link>
+          <Button asChild variant="outline">
+            <Link to="/auth">Log in</Link>
+          </Button>
         </header>
 
         {/* Main Content */}

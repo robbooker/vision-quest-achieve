@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 import { Footer } from '@/components/layout/Footer';
 import gpLogo from '@/assets/gp-logo.png';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
-import { GoalCoachChat } from '@/components/coach/GoalCoachChat';
+import { JournalChat } from '@/components/journal/JournalChat';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -220,8 +220,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
       <Footer />
       
-      {/* Global AI Goal Coach */}
-      <GoalCoachChat />
+      {/* Global Reflection Assistant */}
+      <JournalChat />
     </div>
   );
 }

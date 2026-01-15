@@ -1,9 +1,29 @@
+import { useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import gpLogo from '@/assets/gp-logo.png';
 
 export default function Free() {
+  // Load Wistia scripts
+  useEffect(() => {
+    const playerScript = document.createElement('script');
+    playerScript.src = 'https://fast.wistia.com/player.js';
+    playerScript.async = true;
+    document.head.appendChild(playerScript);
+
+    const embedScript = document.createElement('script');
+    embedScript.src = 'https://fast.wistia.com/embed/9b0gydu658.js';
+    embedScript.async = true;
+    embedScript.type = 'module';
+    document.head.appendChild(embedScript);
+
+    return () => {
+      document.head.removeChild(playerScript);
+      document.head.removeChild(embedScript);
+    };
+  }, []);
+
   return (
     <>
       <Helmet>
@@ -33,17 +53,18 @@ export default function Free() {
               </p>
             </div>
 
-            {/* Video Embed */}
-            <div className="aspect-video w-full max-w-2xl mx-auto rounded-lg overflow-hidden bg-muted border shadow-lg">
-              {/* Replace the src with your video embed URL */}
-              <iframe
-                className="w-full h-full"
-                src="https://www.youtube.com/embed/VIDEO_ID_HERE"
-                title="Groovy Planning Introduction"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
+            {/* Wistia Video Embed */}
+            <div className="w-full max-w-2xl mx-auto rounded-lg overflow-hidden shadow-lg">
+              <style>{`
+                wistia-player[media-id='9b0gydu658']:not(:defined) {
+                  background: center / contain no-repeat url('https://fast.wistia.com/embed/medias/9b0gydu658/swatch');
+                  display: block;
+                  filter: blur(5px);
+                  padding-top: 64.79%;
+                }
+              `}</style>
+              {/* @ts-ignore - Wistia web component */}
+              <wistia-player media-id="9b0gydu658" aspect="1.5434083601286173"></wistia-player>
             </div>
 
             {/* CTA Button */}

@@ -7,20 +7,19 @@ import gpLogo from '@/assets/gp-logo.png';
 export default function Free() {
   // Load Wistia scripts
   useEffect(() => {
-    const playerScript = document.createElement('script');
-    playerScript.src = 'https://fast.wistia.com/player.js';
-    playerScript.async = true;
-    document.head.appendChild(playerScript);
+    const jsonpScript = document.createElement('script');
+    jsonpScript.src = 'https://fast.wistia.com/embed/medias/9b0gydu658.jsonp';
+    jsonpScript.async = true;
+    document.head.appendChild(jsonpScript);
 
-    const embedScript = document.createElement('script');
-    embedScript.src = 'https://fast.wistia.com/embed/9b0gydu658.js';
-    embedScript.async = true;
-    embedScript.type = 'module';
-    document.head.appendChild(embedScript);
+    const wistiaScript = document.createElement('script');
+    wistiaScript.src = 'https://fast.wistia.com/assets/external/E-v1.js';
+    wistiaScript.async = true;
+    document.head.appendChild(wistiaScript);
 
     return () => {
-      document.head.removeChild(playerScript);
-      document.head.removeChild(embedScript);
+      if (jsonpScript.parentNode) jsonpScript.parentNode.removeChild(jsonpScript);
+      if (wistiaScript.parentNode) wistiaScript.parentNode.removeChild(wistiaScript);
     };
   }, []);
 
@@ -55,16 +54,36 @@ export default function Free() {
 
             {/* Wistia Video Embed */}
             <div className="w-full max-w-2xl mx-auto rounded-lg overflow-hidden shadow-lg">
-              <style>{`
-                wistia-player[media-id='9b0gydu658']:not(:defined) {
-                  background: center / contain no-repeat url('https://fast.wistia.com/embed/medias/9b0gydu658/swatch');
-                  display: block;
-                  filter: blur(5px);
-                  padding-top: 64.79%;
-                }
-              `}</style>
-              {/* @ts-ignore - Wistia web component */}
-              <wistia-player media-id="9b0gydu658" aspect="1.5434083601286173"></wistia-player>
+              <div className="wistia_responsive_padding" style={{ padding: '64.79% 0 0 0', position: 'relative' }}>
+                <div className="wistia_responsive_wrapper" style={{ height: '100%', left: 0, position: 'absolute', top: 0, width: '100%' }}>
+                  <div 
+                    className="wistia_embed wistia_async_9b0gydu658 seo=true videoFoam=true" 
+                    style={{ height: '100%', position: 'relative', width: '100%' }}
+                  >
+                    <div 
+                      className="wistia_swatch" 
+                      style={{ 
+                        height: '100%', 
+                        left: 0, 
+                        opacity: 0, 
+                        overflow: 'hidden', 
+                        position: 'absolute', 
+                        top: 0, 
+                        transition: 'opacity 200ms', 
+                        width: '100%' 
+                      }}
+                    >
+                      <img 
+                        src="https://fast.wistia.com/embed/medias/9b0gydu658/swatch" 
+                        style={{ filter: 'blur(5px)', height: '100%', objectFit: 'contain', width: '100%' }} 
+                        alt="" 
+                        aria-hidden="true" 
+                        onLoad={(e) => { (e.target as HTMLImageElement).parentElement!.style.opacity = '1'; }} 
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* CTA Button */}

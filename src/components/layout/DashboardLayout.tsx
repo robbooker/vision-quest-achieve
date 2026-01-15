@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { Footer } from '@/components/layout/Footer';
 import gpLogo from '@/assets/gp-logo.png';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { GoalCoachChat } from '@/components/coach/GoalCoachChat';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -218,6 +219,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </main>
 
       <Footer />
+      
+      {/* Global AI Goal Coach */}
+      <GoalCoachChat />
     </div>
   );
 }

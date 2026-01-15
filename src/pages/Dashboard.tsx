@@ -14,7 +14,7 @@ import { TacticsManagerDialog } from '@/components/dashboard/TacticsManagerDialo
 import { WeekView } from '@/components/dashboard/WeekView';
 import { WeeklyReviewDialog, ReplanDialog } from '@/components/dashboard/WeeklyReviewDialog';
 import { CycleMigrationDialog } from '@/components/dashboard/CycleMigrationDialog';
-import { GoalCoachChat } from '@/components/coach/GoalCoachChat';
+
 import { useCycles } from '@/hooks/useCycles';
 import { useGlobalChat } from '@/hooks/useGlobalChat';
 import { useGoals, Goal } from '@/hooks/useGoals';
@@ -492,9 +492,6 @@ export default function Dashboard() {
           cycle={activeCycle}
         />
       )}
-
-      {/* AI Goal Coach */}
-      <GoalCoachChat cycleId={activeCycle?.id} />
     </DashboardLayout>
   );
 }

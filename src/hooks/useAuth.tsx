@@ -89,15 +89,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: 'local' });
     } catch (error) {
       console.error('Sign out error:', error);
     } finally {
-      // Force clear local state and redirect regardless of API response
-      // This ensures Safari works even if session is already invalid
+      // Force clear local state
       setSession(null);
       setUser(null);
+      
+      // Clear all Supabase-related storage items (Safari ITP fix)
       localStorage.removeItem('sessionExpiry');
+      
+      // Clear all Supabase auth keys from localStorage
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith('sb-') || key.includes('supabase'))) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+      
+      // Also clear sessionStorage
+      for (let i = sessionStorage.length - 1; i >= 0; i--) {
+        const key = sessionStorage.key(i);
+        if (key && (key.startsWith('sb-') || key.includes('supabase'))) {
+          sessionStorage.removeItem(key);
+        }
+      }
+      
+      // Force page reload to clear any in-memory state (helps Safari)
       window.location.href = '/auth';
     }
   };

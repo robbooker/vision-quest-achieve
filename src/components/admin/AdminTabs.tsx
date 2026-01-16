@@ -1,11 +1,12 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, Megaphone } from 'lucide-react';
+import { LayoutDashboard, Users, Megaphone, MessageSquarePlus } from 'lucide-react';
 
 const tabs = [
   { name: 'Overview', href: '/admin', icon: LayoutDashboard },
   { name: 'Users', href: '/admin/users', icon: Users },
   { name: 'Broadcasts', href: '/admin/broadcasts', icon: Megaphone },
+  { name: 'Feedback', href: '/admin/feedback', icon: MessageSquarePlus },
 ];
 
 export function AdminTabs() {

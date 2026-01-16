@@ -45,6 +45,8 @@ import Affirmations from "./pages/Affirmations";
 import AffirmationsBlog from "./pages/AffirmationsBlog";
 import NotFound from "./pages/NotFound";
 import Free from "./pages/Free";
+import Feedback from "./pages/Feedback";
+import AdminFeedback from "./pages/AdminFeedback";
 
 const queryClient = new QueryClient();
 
@@ -102,9 +104,11 @@ const App = () => (
                   <Route path="/journal" element={<ProtectedRoute><Journal /></ProtectedRoute>} />
                   <Route path="/books" element={<ProtectedRoute><Books /></ProtectedRoute>} />
                   <Route path="/affirmations" element={<ProtectedRoute><Affirmations /></ProtectedRoute>} />
+                  <Route path="/feedback" element={<ProtectedRoute><Feedback /></ProtectedRoute>} />
                   <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
                   <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
                   <Route path="/admin/broadcasts" element={<AdminRoute><AdminBroadcasts /></AdminRoute>} />
+                  <Route path="/admin/feedback" element={<AdminRoute><AdminFeedback /></AdminRoute>} />
                   <Route path="/privacy" element={<PrivacyPolicy />} />
                   <Route path="/terms" element={<TermsOfService />} />
                   <Route path="/secret" element={<Secret />} />

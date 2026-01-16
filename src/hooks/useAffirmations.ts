@@ -64,6 +64,24 @@ export function useAffirmations() {
     },
   });
 
+  // Delete an affirmation submission
+  const deleteSubmission = useMutation({
+    mutationFn: async (submissionId: string) => {
+      if (!user?.id) throw new Error('Not authenticated');
+
+      const { error } = await supabase
+        .from('affirmation_submissions')
+        .delete()
+        .eq('id', submissionId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['affirmation-submissions', user?.id] });
+    },
+  });
+
   // Calculate stats
   const stats = useMemo(() => {
     if (!submissions.length) {
@@ -116,6 +134,7 @@ export function useAffirmations() {
     submissions,
     isLoading,
     submitAffirmations,
+    deleteSubmission,
     stats,
     savedAffirmations,
   };

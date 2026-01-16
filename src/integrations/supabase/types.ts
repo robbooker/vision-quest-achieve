@@ -1671,6 +1671,7 @@ export type Database = {
     Functions: {
       delete_user_account: { Args: never; Returns: undefined }
       get_sitewide_stats: { Args: never; Returns: Json }
+      get_sitewide_trends: { Args: { days_back?: number }; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

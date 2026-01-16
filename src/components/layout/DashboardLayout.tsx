@@ -30,6 +30,7 @@ const navItems = [
   { href: '/today', label: 'Today', icon: CheckSquare, tourId: 'today' },
   { href: '/focus', label: 'Focus', icon: Target, tourId: 'focus' },
   { href: '/journal', label: 'Journal', icon: BookOpen, tourId: 'journal' },
+  { href: '/feedback', label: 'Feedback', icon: MessageSquarePlus, tourId: 'feedback' },
 ];
 
 const dropdownNavItems = [
@@ -37,7 +38,6 @@ const dropdownNavItems = [
   { href: '/books', label: 'Books', icon: Library },
   { href: '/reset', label: 'Reset', icon: RotateCcw },
   { href: '/reports', label: 'Reports', icon: BarChart3 },
-  { href: '/feedback', label: 'Feedback', icon: MessageSquarePlus },
 ];
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {

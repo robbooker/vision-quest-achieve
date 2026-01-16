@@ -1,17 +1,20 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
-import { Sparkles, BookOpen, Plus, Check, Trash2 } from 'lucide-react';
+import { Sparkles, BookOpen, Plus, Check, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAffirmations } from '@/hooks/useAffirmations';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 const LINES_COUNT = 15;
 
 export default function Affirmations() {
   const [lines, setLines] = useState<string[]>(Array(LINES_COUNT).fill(''));
   const [setNumber, setSetNumber] = useState(1);
-  const { submitAffirmations, stats, savedAffirmations } = useAffirmations();
+  const [showHistory, setShowHistory] = useState(false);
+  const { submitAffirmations, deleteSubmission, stats, savedAffirmations, submissions } = useAffirmations();
 
   // Count filled lines
   const filledLines = lines.filter(line => line.trim().length > 0).length;
@@ -172,6 +175,56 @@ export default function Affirmations() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Submission History */}
+        {submissions.length > 0 && (
+          <Collapsible open={showHistory} onOpenChange={setShowHistory}>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" className="w-full justify-between">
+                <span>Submission History ({submissions.length})</span>
+                {showHistory ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-2 mt-2">
+              {submissions.map((submission) => (
+                <div 
+                  key={submission.id} 
+                  className="flex items-center justify-between bg-muted/30 rounded-lg p-3 text-sm"
+                >
+                  <div className="flex-1">
+                    <span className="text-foreground font-medium">
+                      {format(new Date(submission.submitted_at), 'MMM d, yyyy h:mm a')}
+                    </span>
+                    <span className="text-muted-foreground ml-2">
+                      {submission.content_saved ? '(saved)' : '(content deleted)'}
+                    </span>
+                    {submission.saved_affirmations && submission.saved_affirmations[0] && (
+                      <p className="text-muted-foreground text-xs mt-1 truncate max-w-[300px]">
+                        "{submission.saved_affirmations[0]}"
+                      </p>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        await deleteSubmission.mutateAsync(submission.id);
+                        toast.success('Submission deleted');
+                      } catch {
+                        toast.error('Failed to delete submission');
+                      }
+                    }}
+                    disabled={deleteSubmission.isPending}
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </CollapsibleContent>
+          </Collapsible>
         )}
       </div>
     </DashboardLayout>

@@ -101,6 +101,14 @@ export default function Affirmations() {
                   type="text"
                   value={line}
                   onChange={(e) => handleLineChange(index, e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && index < LINES_COUNT - 1) {
+                      e.preventDefault();
+                      const nextInput = document.querySelector(`input[data-line="${index + 1}"]`) as HTMLInputElement;
+                      nextInput?.focus();
+                    }
+                  }}
+                  data-line={index}
                   className="w-full bg-transparent border-0 border-b border-primary/20 py-2 pl-8 pr-2 focus:outline-none focus:border-primary/50 font-mono text-sm text-[hsl(220,30%,20%)] dark:text-[hsl(45,30%,85%)] placeholder:text-[hsl(220,10%,50%)] dark:placeholder:text-[hsl(45,30%,45%)]"
                   placeholder={index === 0 ? "I, [Name], will..." : ""}
                 />

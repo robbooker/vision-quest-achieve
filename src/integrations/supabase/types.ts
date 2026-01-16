@@ -313,6 +313,88 @@ export type Database = {
         }
         Relationships: []
       }
+      feedback: {
+        Row: {
+          added_to_tasks: boolean
+          admin_notes: string | null
+          category: Database["public"]["Enums"]["feedback_category"]
+          created_at: string
+          description: string | null
+          id: string
+          priority: Database["public"]["Enums"]["feedback_priority"] | null
+          quick_task_id: string | null
+          status: Database["public"]["Enums"]["feedback_status"]
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          added_to_tasks?: boolean
+          admin_notes?: string | null
+          category: Database["public"]["Enums"]["feedback_category"]
+          created_at?: string
+          description?: string | null
+          id?: string
+          priority?: Database["public"]["Enums"]["feedback_priority"] | null
+          quick_task_id?: string | null
+          status?: Database["public"]["Enums"]["feedback_status"]
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          added_to_tasks?: boolean
+          admin_notes?: string | null
+          category?: Database["public"]["Enums"]["feedback_category"]
+          created_at?: string
+          description?: string | null
+          id?: string
+          priority?: Database["public"]["Enums"]["feedback_priority"] | null
+          quick_task_id?: string | null
+          status?: Database["public"]["Enums"]["feedback_status"]
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_quick_task_id_fkey"
+            columns: ["quick_task_id"]
+            isOneToOne: false
+            referencedRelation: "quick_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feedback_votes: {
+        Row: {
+          created_at: string
+          feedback_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          feedback_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          feedback_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_votes_feedback_id_fkey"
+            columns: ["feedback_id"]
+            isOneToOne: false
+            referencedRelation: "feedback"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       focus_sessions: {
         Row: {
           actual_duration_minutes: number | null
@@ -1621,6 +1703,15 @@ export type Database = {
     Enums: {
       app_role: "admin" | "user"
       cycle_status: "planning" | "active" | "review" | "completed"
+      feedback_category: "bug_report" | "feature_request" | "general_feedback"
+      feedback_priority: "low" | "medium" | "high"
+      feedback_status:
+        | "pending"
+        | "under_review"
+        | "planned"
+        | "in_progress"
+        | "completed"
+        | "wont_do"
       task_status:
         | "pending"
         | "scheduled"
@@ -1756,6 +1847,16 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "user"],
       cycle_status: ["planning", "active", "review", "completed"],
+      feedback_category: ["bug_report", "feature_request", "general_feedback"],
+      feedback_priority: ["low", "medium", "high"],
+      feedback_status: [
+        "pending",
+        "under_review",
+        "planned",
+        "in_progress",
+        "completed",
+        "wont_do",
+      ],
       task_status: [
         "pending",
         "scheduled",

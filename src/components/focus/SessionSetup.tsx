@@ -10,10 +10,10 @@ import { useBigTen } from '@/hooks/useBigTen';
 import { useQuickTasks } from '@/hooks/useQuickTasks';
 
 const DURATION_PRESETS = [
-  { value: 25, label: '25 min', description: 'Pomodoro' },
+  { value: 10, label: '10 min', description: 'Quick' },
+  { value: 30, label: '30 min', description: 'Short' },
   { value: 45, label: '45 min', description: 'Deep Work' },
   { value: 60, label: '60 min', description: '1 Hour' },
-  { value: 90, label: '90 min', description: 'Ultra Focus' },
 ];
 
 interface SessionSetupProps {

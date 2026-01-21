@@ -167,19 +167,27 @@ export function useAudioJournal() {
 
       if (uploadError) throw uploadError;
 
-      const { data: publicUrl } = supabase.storage
+      // For private buckets, create a signed URL for playback (valid 1 hour)
+      const { data: signedUrl, error: signError } = await supabase.storage
         .from("journal-audio")
-        .getPublicUrl(fileName);
+        .createSignedUrl(fileName, 3600);
+
+      if (signError) throw signError;
+
+      // Store a URL that contains the path for the edge function to extract
+      // Format: base storage URL + path (edge function will download via service role)
+      const storageUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/sign/journal-audio/${fileName}`;
 
       // Update journal entry with audio URL
       const { error: updateError } = await supabase
         .from("journal_entries")
-        .update({ audio_url: publicUrl.publicUrl })
+        .update({ audio_url: storageUrl })
         .eq("id", entryId);
 
       if (updateError) throw updateError;
 
-      return publicUrl.publicUrl;
+      // Return the signed URL for immediate playback
+      return signedUrl.signedUrl;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["journal-entries"] });

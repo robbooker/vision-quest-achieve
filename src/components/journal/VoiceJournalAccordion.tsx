@@ -19,13 +19,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Mic, Plus, Trash2, ChevronDown, ChevronUp, Volume2 } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Mic, Plus, Trash2, ChevronDown, ChevronUp, Volume2, RefreshCw, Pencil, Check, X } from 'lucide-react';
 import { AudioPlayerWithWaveform } from './AudioPlayerWithWaveform';
 import { AudioJournalRecorder } from './AudioJournalRecorder';
 import {
   JournalAudioRecording,
   useJournalAudioRecordings,
   useDeleteAudioRecording,
+  useTranscribeAudioRecording,
+  useUpdateAudioTranscript,
 } from '@/hooks/useJournalAudioRecordings';
 import { MOOD_ICONS, getEnergyColor } from '@/hooks/useAudioJournal';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -118,12 +121,41 @@ interface VoiceRecordingItemProps {
 function VoiceRecordingItem({
   recording,
   index,
+  entryId,
   onDelete,
   isDeleting,
 }: VoiceRecordingItemProps) {
   const [showTranscript, setShowTranscript] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedTranscript, setEditedTranscript] = useState(recording.audio_transcript || '');
+  
+  const retranscribe = useTranscribeAudioRecording();
+  const updateTranscript = useUpdateAudioTranscript();
+  
   const metadata = recording.audio_metadata;
   const createdTime = format(parseISO(recording.created_at), 'h:mm a');
+
+  const handleRetranscribe = () => {
+    retranscribe.mutate({
+      recordingId: recording.id,
+      audioUrl: recording.audio_url,
+      entryId,
+    });
+  };
+
+  const handleSaveEdit = () => {
+    updateTranscript.mutate({
+      recordingId: recording.id,
+      transcript: editedTranscript,
+      entryId,
+    });
+    setIsEditing(false);
+  };
+
+  const handleCancelEdit = () => {
+    setEditedTranscript(recording.audio_transcript || '');
+    setIsEditing(false);
+  };
 
   return (
     <AccordionItem value={recording.id} className="border rounded-lg px-3 mb-2">
@@ -138,7 +170,13 @@ function VoiceRecordingItem({
             <span className="font-medium text-sm">Voice Note #{index}</span>
           </div>
           <span className="text-xs text-muted-foreground">{createdTime}</span>
-          {metadata?.keyThemes && metadata.keyThemes.length > 0 && (
+          {retranscribe.isPending && (
+            <Badge variant="secondary" className="text-xs animate-pulse">
+              <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+              Transcribing...
+            </Badge>
+          )}
+          {metadata?.keyThemes && metadata.keyThemes.length > 0 && !retranscribe.isPending && (
             <div className="hidden sm:flex gap-1">
               {metadata.keyThemes.slice(0, 2).map((theme, i) => (
                 <Badge key={i} variant="outline" className="text-xs">
@@ -208,32 +246,88 @@ function VoiceRecordingItem({
             </div>
           )}
 
-          {/* Transcript toggle */}
+          {/* Transcript section */}
           {recording.audio_transcript && (
-            <div>
-              <button
-                onClick={() => setShowTranscript(!showTranscript)}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <Volume2 className="w-3 h-3" />
-                {showTranscript ? 'Hide transcript' : 'Show transcript'}
-                {showTranscript ? (
-                  <ChevronUp className="w-3 h-3" />
-                ) : (
-                  <ChevronDown className="w-3 h-3" />
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => setShowTranscript(!showTranscript)}
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Volume2 className="w-3 h-3" />
+                  {showTranscript ? 'Hide transcript' : 'Show transcript'}
+                  {showTranscript ? (
+                    <ChevronUp className="w-3 h-3" />
+                  ) : (
+                    <ChevronDown className="w-3 h-3" />
+                  )}
+                </button>
+                
+                {showTranscript && !isEditing && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 px-2 text-xs"
+                    onClick={() => setIsEditing(true)}
+                  >
+                    <Pencil className="w-3 h-3 mr-1" />
+                    Edit
+                  </Button>
                 )}
-              </button>
+              </div>
 
               {showTranscript && (
-                <p className="mt-2 text-sm text-muted-foreground whitespace-pre-wrap">
-                  {recording.audio_transcript}
-                </p>
+                <div className="space-y-2">
+                  {isEditing ? (
+                    <div className="space-y-2">
+                      <Textarea
+                        value={editedTranscript}
+                        onChange={(e) => setEditedTranscript(e.target.value)}
+                        className="min-h-[100px] text-sm"
+                        placeholder="Edit transcript..."
+                      />
+                      <div className="flex gap-2 justify-end">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={handleCancelEdit}
+                          disabled={updateTranscript.isPending}
+                        >
+                          <X className="w-3 h-3 mr-1" />
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={handleSaveEdit}
+                          disabled={updateTranscript.isPending}
+                        >
+                          <Check className="w-3 h-3 mr-1" />
+                          Save
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                      {recording.audio_transcript}
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           )}
 
-          {/* Delete button */}
-          <div className="flex justify-end pt-2">
+          {/* Action buttons */}
+          <div className="flex justify-between items-center pt-2 border-t">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleRetranscribe}
+              disabled={retranscribe.isPending}
+            >
+              <RefreshCw className={`w-3 h-3 mr-1 ${retranscribe.isPending ? 'animate-spin' : ''}`} />
+              Re-transcribe
+            </Button>
+            
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button

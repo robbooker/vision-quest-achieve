@@ -32,6 +32,15 @@ export interface UserPhoto {
   uploaded_at: string;
 }
 
+export interface AudioMetadata {
+  mood?: string;
+  energyLevel?: number;
+  keyThemes?: string[];
+  highlights?: { text: string; significance: string }[];
+  suggestedPrompt?: string;
+  transcribedAt?: string;
+}
+
 export interface JournalEntry {
   id: string;
   user_id: string;
@@ -43,6 +52,10 @@ export interface JournalEntry {
   image_prompt: string | null;
   user_notes: string | null;
   user_photos: UserPhoto[];
+  audio_url: string | null;
+  audio_transcript: string | null;
+  audio_duration_seconds: number | null;
+  audio_metadata: AudioMetadata | null;
   created_at: string;
   updated_at: string;
 }

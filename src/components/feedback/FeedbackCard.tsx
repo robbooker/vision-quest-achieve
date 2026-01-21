@@ -85,7 +85,6 @@ export function FeedbackCard({ feedback }: FeedbackCardProps) {
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <span>
               {formatDistanceToNow(new Date(feedback.created_at), { addSuffix: true })}
-              {isAdmin && feedback.user_email && ` by ${feedback.user_email}`}
             </span>
             
             <div className="flex items-center gap-2">

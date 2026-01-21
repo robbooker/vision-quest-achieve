@@ -110,13 +110,37 @@ serve(async (req) => {
 
     console.log(`Transcribing audio for entry ${entryId}, user ${user.id}`);
 
-    // Fetch the audio file
-    const audioResponse = await fetch(audioUrl);
-    if (!audioResponse.ok) {
-      throw new Error(`Failed to fetch audio: ${audioResponse.statusText}`);
+    // Extract the storage path from the URL
+    // audioUrl format: https://{project}.supabase.co/storage/v1/object/public/journal-audio/{userId}/{filename}
+    // or: https://{project}.supabase.co/storage/v1/object/sign/journal-audio/...
+    let storagePath: string;
+    
+    if (audioUrl.includes('/storage/v1/object/')) {
+      // Extract path after bucket name
+      const match = audioUrl.match(/journal-audio\/(.+?)(\?|$)/);
+      if (match) {
+        storagePath = match[1];
+      } else {
+        throw new Error("Could not extract storage path from audioUrl");
+      }
+    } else {
+      throw new Error("Invalid audio URL format");
     }
 
-    const audioBuffer = await audioResponse.arrayBuffer();
+    console.log(`Downloading audio from storage path: ${storagePath}`);
+
+    // Download the file using the service role (private bucket)
+    const { data: audioData, error: downloadError } = await supabaseAdmin
+      .storage
+      .from("journal-audio")
+      .download(storagePath);
+
+    if (downloadError || !audioData) {
+      console.error("Storage download error:", downloadError);
+      throw new Error(`Failed to fetch audio: ${downloadError?.message || "Unknown error"}`);
+    }
+
+    const audioBuffer = await audioData.arrayBuffer();
     
     // Convert to base64 in chunks to avoid stack overflow
     const uint8Array = new Uint8Array(audioBuffer);

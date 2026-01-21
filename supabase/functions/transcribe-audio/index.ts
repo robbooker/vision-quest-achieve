@@ -117,7 +117,16 @@ serve(async (req) => {
     }
 
     const audioBuffer = await audioResponse.arrayBuffer();
-    const audioBase64 = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
+    
+    // Convert to base64 in chunks to avoid stack overflow
+    const uint8Array = new Uint8Array(audioBuffer);
+    const chunkSize = 8192;
+    let binaryString = '';
+    for (let i = 0; i < uint8Array.length; i += chunkSize) {
+      const chunk = uint8Array.slice(i, Math.min(i + chunkSize, uint8Array.length));
+      binaryString += String.fromCharCode.apply(null, Array.from(chunk));
+    }
+    const audioBase64 = btoa(binaryString);
     
     // Determine MIME type from URL
     const mimeType = audioUrl.includes('.webm') ? 'audio/webm' 

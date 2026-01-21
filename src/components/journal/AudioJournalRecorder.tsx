@@ -9,6 +9,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Mic, Square, Upload, X, Check, Loader2 } from "lucide-react";
 import { useAudioJournal } from "@/hooks/useAudioJournal";
+import { useCreateAudioRecording, useTranscribeAudioRecording } from "@/hooks/useJournalAudioRecordings";
 import { AudioWaveformVisualizer } from "./AudioWaveformVisualizer";
 import { AudioPlayerWithWaveform } from "./AudioPlayerWithWaveform";
 import { VoiceCheckinPrompts } from "./VoiceCheckinPrompts";
@@ -44,12 +45,13 @@ export function AudioJournalRecorder({
     startRecording,
     stopRecording,
     cancelRecording,
-    uploadAudio,
-    transcribeAudio,
   } = useAudioJournal();
 
-  const isUploading = uploadAudio.isPending;
-  const isTranscribing = transcribeAudio.isPending;
+  const createRecording = useCreateAudioRecording();
+  const transcribeRecording = useTranscribeAudioRecording();
+
+  const isUploading = createRecording.isPending;
+  const isTranscribing = transcribeRecording.isPending;
   const isProcessing = isUploading || isTranscribing;
 
   const handleStartRecording = async () => {
@@ -72,15 +74,16 @@ export function AudioJournalRecorder({
     if (!audioBlob) return;
 
     try {
-      // Upload audio
-      const publicUrl = await uploadAudio.mutateAsync({
+      // Upload audio and create recording record
+      const { recordingId, storageUrl } = await createRecording.mutateAsync({
         entryId,
         blob: audioBlob,
       });
 
       // Transcribe audio
-      await transcribeAudio.mutateAsync({
-        audioUrl: publicUrl,
+      await transcribeRecording.mutateAsync({
+        recordingId,
+        audioUrl: storageUrl,
         entryId,
       });
 
@@ -111,15 +114,16 @@ export function AudioJournalRecorder({
     }
 
     try {
-      // Upload audio
-      const publicUrl = await uploadAudio.mutateAsync({
+      // Upload audio and create recording record
+      const { recordingId, storageUrl } = await createRecording.mutateAsync({
         entryId,
         blob: file,
       });
 
       // Transcribe audio
-      await transcribeAudio.mutateAsync({
-        audioUrl: publicUrl,
+      await transcribeRecording.mutateAsync({
+        recordingId,
+        audioUrl: storageUrl,
         entryId,
       });
 

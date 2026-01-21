@@ -802,6 +802,50 @@ export type Database = {
           },
         ]
       }
+      journal_audio_recordings: {
+        Row: {
+          audio_duration_seconds: number | null
+          audio_metadata: Json | null
+          audio_transcript: string | null
+          audio_url: string
+          created_at: string
+          id: string
+          journal_entry_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          audio_duration_seconds?: number | null
+          audio_metadata?: Json | null
+          audio_transcript?: string | null
+          audio_url: string
+          created_at?: string
+          id?: string
+          journal_entry_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          audio_duration_seconds?: number | null
+          audio_metadata?: Json | null
+          audio_transcript?: string | null
+          audio_url?: string
+          created_at?: string
+          id?: string
+          journal_entry_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_audio_recordings_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       journal_entries: {
         Row: {
           audio_duration_seconds: number | null

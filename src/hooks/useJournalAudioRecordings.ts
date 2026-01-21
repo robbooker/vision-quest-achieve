@@ -142,6 +142,43 @@ export function useTranscribeAudioRecording() {
   });
 }
 
+export function useUpdateAudioTranscript() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      recordingId,
+      transcript,
+      entryId,
+    }: {
+      recordingId: string;
+      transcript: string;
+      entryId: string;
+    }) => {
+      if (!user?.id) throw new Error('Not authenticated');
+
+      const { error } = await supabase
+        .from('journal_audio_recordings')
+        .update({ audio_transcript: transcript })
+        .eq('id', recordingId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      return { entryId };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['journal-audio-recordings', result.entryId] });
+      toast.success('Transcript updated');
+    },
+    onError: (error) => {
+      console.error('Update error:', error);
+      toast.error('Failed to update transcript');
+    },
+  });
+}
+
 export function useDeleteAudioRecording() {
   const { user } = useAuth();
   const queryClient = useQueryClient();

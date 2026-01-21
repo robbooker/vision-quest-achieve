@@ -12,7 +12,9 @@ import {
   Sparkles,
   Camera,
   Plus,
-  Timer
+  Timer,
+  Mic,
+  Volume2
 } from 'lucide-react';
 import { ImageLightbox } from '@/components/ui/image-lightbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,6 +41,9 @@ import {
   useUploadJournalPhoto,
   useDeleteJournalPhoto
 } from '@/hooks/useJournal';
+import { useAudioJournal, MOOD_ICONS, getEnergyColor } from '@/hooks/useAudioJournal';
+import { AudioJournalRecorder } from './AudioJournalRecorder';
+import { AudioPlayerWithWaveform } from './AudioPlayerWithWaveform';
 
 interface JournalEntryCardProps {
   entry: JournalEntry;
@@ -49,6 +54,8 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notes, setNotes] = useState(entry.user_notes || '');
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [showAudioRecorder, setShowAudioRecorder] = useState(false);
+  const [showTranscript, setShowTranscript] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const updateNotes = useUpdateJournalNotes();
@@ -56,6 +63,7 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
   const deleteImage = useDeleteJournalImage();
   const uploadPhoto = useUploadJournalPhoto();
   const deletePhoto = useDeleteJournalPhoto();
+  const { deleteAudio } = useAudioJournal();
 
   const isGenerating = generateImage.isPending;
   const isDeleting = deleteImage.isPending;
@@ -63,6 +71,15 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
 
   const userPhotos = entry.user_photos || [];
   const canAddMorePhotos = userPhotos.length < 2;
+  
+  // Audio data
+  const audioMetadata = entry.audio_metadata as {
+    mood?: string;
+    energyLevel?: number;
+    keyThemes?: string[];
+    highlights?: { text: string; significance: string }[];
+    suggestedPrompt?: string;
+  } | null;
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

@@ -9,6 +9,7 @@ const corsHeaders = {
 interface TranscriptionRequest {
   audioUrl: string;
   entryId: string;
+  recordingId?: string; // New: for saving to journal_audio_recordings table
 }
 
 interface TranscriptionResult {
@@ -99,7 +100,7 @@ serve(async (req) => {
       );
     }
 
-    const { audioUrl, entryId } = await req.json() as TranscriptionRequest;
+    const { audioUrl, entryId, recordingId } = await req.json() as TranscriptionRequest;
 
     if (!audioUrl || !entryId) {
       return new Response(
@@ -108,7 +109,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Transcribing audio for entry ${entryId}, user ${user.id}`);
+    console.log(`Transcribing audio for entry ${entryId}, recording ${recordingId || 'legacy'}, user ${user.id}`);
 
     // Extract the storage path from the URL
     // audioUrl format: https://{project}.supabase.co/storage/v1/object/public/journal-audio/{userId}/{filename}
@@ -259,27 +260,53 @@ Respond ONLY with valid JSON in this exact format:
     const wordCount = result.transcript.split(/\s+/).length;
     result.durationSeconds = Math.round((wordCount / 150) * 60);
 
-    // Update the journal entry with transcription results
-    const { error: updateError } = await supabaseAdmin
-      .from("journal_entries")
-      .update({
-        audio_transcript: result.transcript,
-        audio_duration_seconds: result.durationSeconds,
-        audio_metadata: {
-          mood: result.mood,
-          energyLevel: result.energyLevel,
-          keyThemes: result.keyThemes,
-          highlights: result.highlights,
-          suggestedPrompt: result.suggestedPrompt,
-          transcribedAt: new Date().toISOString(),
-        },
-      })
-      .eq("id", entryId)
-      .eq("user_id", user.id);
+    // Save transcription results to the appropriate table
+    if (recordingId) {
+      // New: Save to journal_audio_recordings table
+      const { error: updateError } = await supabaseAdmin
+        .from("journal_audio_recordings")
+        .update({
+          audio_transcript: result.transcript,
+          audio_duration_seconds: result.durationSeconds,
+          audio_metadata: {
+            mood: result.mood,
+            energyLevel: result.energyLevel,
+            keyThemes: result.keyThemes,
+            highlights: result.highlights,
+            suggestedPrompt: result.suggestedPrompt,
+            transcribedAt: new Date().toISOString(),
+          },
+        })
+        .eq("id", recordingId)
+        .eq("user_id", user.id);
 
-    if (updateError) {
-      console.error("Failed to update journal entry:", updateError);
-      throw new Error("Failed to save transcription");
+      if (updateError) {
+        console.error("Failed to update audio recording:", updateError);
+        throw new Error("Failed to save transcription");
+      }
+    } else {
+      // Legacy: Save to journal_entries table (for backwards compatibility)
+      const { error: updateError } = await supabaseAdmin
+        .from("journal_entries")
+        .update({
+          audio_transcript: result.transcript,
+          audio_duration_seconds: result.durationSeconds,
+          audio_metadata: {
+            mood: result.mood,
+            energyLevel: result.energyLevel,
+            keyThemes: result.keyThemes,
+            highlights: result.highlights,
+            suggestedPrompt: result.suggestedPrompt,
+            transcribedAt: new Date().toISOString(),
+          },
+        })
+        .eq("id", entryId)
+        .eq("user_id", user.id);
+
+      if (updateError) {
+        console.error("Failed to update journal entry:", updateError);
+        throw new Error("Failed to save transcription");
+      }
     }
 
     // Chunk the transcript for embeddings

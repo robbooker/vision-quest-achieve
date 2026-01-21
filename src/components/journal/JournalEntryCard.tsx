@@ -12,9 +12,7 @@ import {
   Sparkles,
   Camera,
   Plus,
-  Timer,
-  Mic,
-  Volume2
+  Timer
 } from 'lucide-react';
 import { ImageLightbox } from '@/components/ui/image-lightbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,9 +39,7 @@ import {
   useUploadJournalPhoto,
   useDeleteJournalPhoto
 } from '@/hooks/useJournal';
-import { useAudioJournal, MOOD_ICONS, getEnergyColor } from '@/hooks/useAudioJournal';
-import { AudioJournalRecorder } from './AudioJournalRecorder';
-import { AudioPlayerWithWaveform } from './AudioPlayerWithWaveform';
+import { VoiceJournalAccordion } from './VoiceJournalAccordion';
 
 interface JournalEntryCardProps {
   entry: JournalEntry;
@@ -54,8 +50,6 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notes, setNotes] = useState(entry.user_notes || '');
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
-  const [showAudioRecorder, setShowAudioRecorder] = useState(false);
-  const [showTranscript, setShowTranscript] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const updateNotes = useUpdateJournalNotes();
@@ -63,7 +57,6 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
   const deleteImage = useDeleteJournalImage();
   const uploadPhoto = useUploadJournalPhoto();
   const deletePhoto = useDeleteJournalPhoto();
-  const { deleteAudio } = useAudioJournal();
 
   const isGenerating = generateImage.isPending;
   const isDeleting = deleteImage.isPending;
@@ -71,9 +64,6 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
 
   const userPhotos = entry.user_photos || [];
   const canAddMorePhotos = userPhotos.length < 2;
-  
-  // Audio data - now properly typed from JournalEntry interface
-  const audioMetadata = entry.audio_metadata;
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -276,137 +266,8 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
           )}
         </div>
 
-        {/* Voice Journal Section */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h4 className="text-sm font-medium flex items-center gap-2">
-              <Mic className="w-4 h-4" />
-              Voice Journal
-              {audioMetadata?.mood && (
-                <span className="text-base" title={`Mood: ${audioMetadata.mood}`}>
-                  {MOOD_ICONS[audioMetadata.mood] || '🎙️'}
-                </span>
-              )}
-            </h4>
-            {!entry.audio_url && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setShowAudioRecorder(true)}
-              >
-                <Plus className="w-4 h-4 mr-1" />
-                Add Voice Note
-              </Button>
-            )}
-          </div>
-
-          {entry.audio_url && (
-            <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
-              <AudioPlayerWithWaveform 
-                src={entry.audio_url} 
-                duration={entry.audio_duration_seconds || undefined}
-              />
-              
-              {/* Mood & Energy indicators */}
-              {audioMetadata && (
-                <div className="flex flex-wrap gap-2 text-xs">
-                  {audioMetadata.mood && (
-                    <Badge variant="secondary" className="gap-1">
-                      {MOOD_ICONS[audioMetadata.mood]} {audioMetadata.mood}
-                    </Badge>
-                  )}
-                  {audioMetadata.energyLevel && (
-                    <Badge variant="outline" className={getEnergyColor(audioMetadata.energyLevel)}>
-                      ⚡ Energy: {audioMetadata.energyLevel}/10
-                    </Badge>
-                  )}
-                </div>
-              )}
-
-              {/* Key Themes */}
-              {audioMetadata?.keyThemes && audioMetadata.keyThemes.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {audioMetadata.keyThemes.map((theme, i) => (
-                    <Badge key={i} variant="outline" className="text-xs">
-                      {theme}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-
-              {/* Highlights */}
-              {audioMetadata?.highlights && audioMetadata.highlights.length > 0 && (
-                <div className="space-y-2">
-                  {audioMetadata.highlights.map((highlight, i) => (
-                    <blockquote 
-                      key={i} 
-                      className="border-l-2 border-primary pl-3 py-1 text-sm italic"
-                    >
-                      "{highlight.text}"
-                      <p className="text-xs text-muted-foreground not-italic mt-1">
-                        {highlight.significance}
-                      </p>
-                    </blockquote>
-                  ))}
-                </div>
-              )}
-
-              {/* Transcript toggle */}
-              {entry.audio_transcript && (
-                <div>
-                  <button
-                    onClick={() => setShowTranscript(!showTranscript)}
-                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <Volume2 className="w-3 h-3" />
-                    {showTranscript ? 'Hide transcript' : 'Show transcript'}
-                    {showTranscript ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                  </button>
-                  
-                  {showTranscript && (
-                    <p className="mt-2 text-sm text-muted-foreground whitespace-pre-wrap">
-                      {entry.audio_transcript}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* Delete audio */}
-              <div className="flex justify-end">
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive">
-                      <Trash2 className="w-3 h-3 mr-1" />
-                      Remove
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Voice Journal?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This will permanently remove the audio recording and transcript from this entry.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => deleteAudio.mutate(entry.id)}>
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Audio Recorder Dialog */}
-        <AudioJournalRecorder
-          entryId={entry.id}
-          open={showAudioRecorder}
-          onOpenChange={setShowAudioRecorder}
-          dynamicPrompt={audioMetadata?.suggestedPrompt}
-        />
+        {/* Voice Journal Section - Now using accordion for multiple recordings */}
+        <VoiceJournalAccordion entryId={entry.id} />
 
         {/* Accomplishments Section */}
         <div>

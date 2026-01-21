@@ -10,7 +10,9 @@ type SourceType =
   | "week_review"
   | "vision"
   | "big_ten_project"
-  | "reset_audit";
+  | "reset_audit"
+  | "audio_journal"
+  | "audio_journal_chunk";
 
 interface SearchOptions {
   limit?: number;
@@ -121,6 +123,16 @@ export function useSemanticSearch() {
     if (grouped.reset_audit?.length) {
       sections.push("**Reset/Wellness Audits:**\n" + 
         grouped.reset_audit.map(r => `- ${r.activityDate}: ${r.contentText}`).join("\n"));
+    }
+
+    // Audio journal entries
+    const audioJournals = [...(grouped.audio_journal || []), ...(grouped.audio_journal_chunk || [])];
+    if (audioJournals.length) {
+      sections.push("**🎙️ Voice Journal Entries:**\n" + 
+        audioJournals.map(r => {
+          const mood = r.metadata?.mood ? ` (${r.metadata.mood})` : "";
+          return `- ${r.activityDate}${mood}: ${r.contentText}`;
+        }).join("\n"));
     }
 
     return sections.join("\n\n");

@@ -804,6 +804,10 @@ export type Database = {
       }
       journal_entries: {
         Row: {
+          audio_duration_seconds: number | null
+          audio_metadata: Json | null
+          audio_transcript: string | null
+          audio_url: string | null
           completed_focus_sessions: Json | null
           completed_habits: Json | null
           completed_tasks: Json | null
@@ -818,6 +822,10 @@ export type Database = {
           user_photos: Json | null
         }
         Insert: {
+          audio_duration_seconds?: number | null
+          audio_metadata?: Json | null
+          audio_transcript?: string | null
+          audio_url?: string | null
           completed_focus_sessions?: Json | null
           completed_habits?: Json | null
           completed_tasks?: Json | null
@@ -832,6 +840,10 @@ export type Database = {
           user_photos?: Json | null
         }
         Update: {
+          audio_duration_seconds?: number | null
+          audio_metadata?: Json | null
+          audio_transcript?: string | null
+          audio_url?: string | null
           completed_focus_sessions?: Json | null
           completed_habits?: Json | null
           completed_tasks?: Json | null

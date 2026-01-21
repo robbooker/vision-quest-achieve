@@ -159,7 +159,7 @@ serve(async (req) => {
       : audioUrl.includes('.wav') ? 'audio/wav'
       : 'audio/webm';
 
-    // Call Gemini 3 Pro for transcription and analysis
+    // Call Gemini 3 Pro for transcription and analysis using Gemini's native multimodal format
     const geminiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -170,48 +170,45 @@ serve(async (req) => {
         model: "google/gemini-3-pro-preview",
         messages: [
           {
-            role: "system",
-            content: `You are an expert audio transcription and emotional intelligence analyst. 
-            
-Your task is to:
-1. Transcribe the audio accurately, preserving the natural speech patterns
-2. Analyze the emotional tone and mood of the speaker
-3. Estimate the energy level (1-10 scale, where 1 is exhausted/low and 10 is highly energized/excited)
-4. Identify key themes or topics discussed
-5. Extract 1-3 highlight quotes - the most meaningful or insightful moments
-6. Suggest a follow-up journaling prompt based on the content
-
-Respond ONLY with valid JSON in this exact format:
-{
-  "transcript": "Full transcription of the audio...",
-  "mood": "one of: happy, calm, reflective, stressed, anxious, energetic, sad, grateful, frustrated, hopeful, tired, excited",
-  "energyLevel": 7,
-  "keyThemes": ["theme1", "theme2", "theme3"],
-  "highlights": [
-    {"text": "Exact quote from transcript", "significance": "Why this is meaningful"}
-  ],
-  "suggestedPrompt": "A thoughtful follow-up question based on the content"
-}`
-          },
-          {
             role: "user",
             content: [
               {
                 type: "text",
-                text: "Please transcribe and analyze this voice journal entry:"
+                text: `You are an expert audio transcription and emotional intelligence analyst.
+
+Listen carefully to this audio recording and perform these tasks:
+1. Transcribe the audio ACCURATELY - write down exactly what you hear the person saying, word for word
+2. Analyze the emotional tone and mood of the speaker based on what they actually said
+3. Estimate the energy level (1-10 scale, where 1 is exhausted/low and 10 is highly energized/excited)
+4. Identify key themes or topics from the actual content discussed
+5. Extract 1-3 highlight quotes - exact quotes from what the person actually said
+6. Suggest a follow-up journaling prompt based on the actual content
+
+CRITICAL: You must transcribe what is ACTUALLY spoken in the audio. Do not make up or invent content.
+
+Respond ONLY with valid JSON in this exact format:
+{
+  "transcript": "Full transcription of what was actually said in the audio...",
+  "mood": "one of: happy, calm, reflective, stressed, anxious, energetic, sad, grateful, frustrated, hopeful, tired, excited",
+  "energyLevel": 7,
+  "keyThemes": ["theme1", "theme2", "theme3"],
+  "highlights": [
+    {"text": "Exact quote from the actual audio", "significance": "Why this is meaningful"}
+  ],
+  "suggestedPrompt": "A thoughtful follow-up question based on the content"
+}`
               },
               {
-                type: "input_audio",
-                input_audio: {
-                  data: audioBase64,
-                  format: mimeType.split('/')[1]
+                type: "image_url",
+                image_url: {
+                  url: `data:${mimeType};base64,${audioBase64}`
                 }
               }
             ]
           }
         ],
         max_tokens: 4000,
-        temperature: 0.3,
+        temperature: 0.1,
       }),
     });
 

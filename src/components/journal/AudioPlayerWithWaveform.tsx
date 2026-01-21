@@ -1,12 +1,20 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Play, Pause, Volume2, VolumeX } from "lucide-react";
+import { Play, Pause, Volume2, VolumeX, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AudioPlayerWithWaveformProps {
   src: string;
   duration?: number;
   className?: string;
+}
+
+// Extract storage path from various URL formats
+function extractStoragePath(url: string): string | null {
+  // Format: .../journal-audio/userId/filename
+  const match = url.match(/journal-audio\/([^?]+)/);
+  return match ? match[1] : null;
 }
 
 export function AudioPlayerWithWaveform({
@@ -21,12 +29,48 @@ export function AudioPlayerWithWaveform({
   const [audioDuration, setAudioDuration] = useState(duration || 0);
   const [isMuted, setIsMuted] = useState(false);
   const [waveformData, setWaveformData] = useState<number[]>([]);
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Get signed URL for private bucket audio
+  useEffect(() => {
+    const getSignedUrl = async () => {
+      setIsLoading(true);
+      
+      // Check if this is a storage URL that needs signing
+      const storagePath = extractStoragePath(src);
+      
+      if (storagePath) {
+        // Get a signed URL from Supabase (valid for 1 hour)
+        const { data, error } = await supabase.storage
+          .from("journal-audio")
+          .createSignedUrl(storagePath, 3600);
+        
+        if (data && !error) {
+          setSignedUrl(data.signedUrl);
+        } else {
+          console.error("Failed to get signed URL:", error);
+          // Fallback to original URL (might work for public buckets or blob URLs)
+          setSignedUrl(src);
+        }
+      } else {
+        // Not a storage URL (might be a blob URL from recording)
+        setSignedUrl(src);
+      }
+      
+      setIsLoading(false);
+    };
+
+    getSignedUrl();
+  }, [src]);
 
   // Generate static waveform visualization
   useEffect(() => {
+    if (!signedUrl) return;
+    
     const generateWaveform = async () => {
       try {
-        const response = await fetch(src);
+        const response = await fetch(signedUrl);
         const arrayBuffer = await response.arrayBuffer();
         const audioContext = new AudioContext();
         const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
@@ -58,7 +102,7 @@ export function AudioPlayerWithWaveform({
     };
 
     generateWaveform();
-  }, [src]);
+  }, [signedUrl]);
 
   // Draw waveform
   useEffect(() => {
@@ -157,9 +201,30 @@ export function AudioPlayerWithWaveform({
     setCurrentTime(newTime);
   };
 
+  if (isLoading) {
+    return (
+      <div className={`space-y-2 ${className}`}>
+        <div className="w-full h-12 bg-muted/50 rounded-md flex items-center justify-center">
+          <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+          <span className="ml-2 text-xs text-muted-foreground">Loading audio...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!signedUrl) {
+    return (
+      <div className={`space-y-2 ${className}`}>
+        <div className="w-full h-12 bg-muted/50 rounded-md flex items-center justify-center">
+          <span className="text-xs text-muted-foreground">Audio unavailable</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`space-y-2 ${className}`}>
-      <audio ref={audioRef} src={src} preload="metadata" />
+      <audio ref={audioRef} src={signedUrl} preload="metadata" />
       
       <canvas
         ref={canvasRef}

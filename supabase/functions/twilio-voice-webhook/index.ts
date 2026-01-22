@@ -725,19 +725,33 @@ When you complete an action like creating or completing a task, confirm it natur
       }
 
     } else {
-      // Initial call - give the welcome briefing with full context
-      console.log('Initial call from:', userName);
+      // Initial call - give the DAILY BRIEFING with full context
+      console.log('Initial call - Daily Briefing for:', userName);
 
-      // Fetch context for initial greeting in parallel
-      const [tasksResult, cycleResult, goalsResult] = await Promise.all([
-        // Fetch top 3 pending tasks
+      // Fetch comprehensive context for daily briefing in parallel
+      const today = new Date();
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const sevenDaysAgoStr = sevenDaysAgo.toISOString();
+      const todayStr = today.toISOString().split('T')[0];
+
+      const [
+        tasksResult, 
+        cycleResult, 
+        goalsResult, 
+        focusResult, 
+        completedTodayResult,
+        habitsResult,
+        journalResult
+      ] = await Promise.all([
+        // Fetch top 5 pending tasks
         supabase
           .from('quick_tasks')
           .select('title, category, due_date')
           .eq('user_id', userId)
           .eq('completed', false)
           .order('position')
-          .limit(3),
+          .limit(5),
         
         // Fetch active cycle
         supabase
@@ -747,49 +761,151 @@ When you complete an action like creating or completing a task, confirm it natur
           .eq('status', 'active')
           .maybeSingle(),
         
-        // Fetch goals
+        // Fetch goals with milestones
         supabase
           .from('goals')
+          .select('title, target_value, metric_type, milestones(week_number, target_value)')
+          .eq('user_id', userId)
+          .limit(3),
+        
+        // Fetch focus sessions from last 7 days
+        supabase
+          .from('focus_sessions')
+          .select('objective, actual_duration_minutes, started_at, status')
+          .eq('user_id', userId)
+          .eq('status', 'completed')
+          .gte('started_at', sevenDaysAgoStr)
+          .order('started_at', { ascending: false })
+          .limit(10),
+        
+        // Fetch tasks completed today
+        supabase
+          .from('quick_tasks')
           .select('title')
           .eq('user_id', userId)
-          .limit(2)
+          .eq('completed', true)
+          .gte('completed_at', `${todayStr}T00:00:00`)
+          .limit(5),
+        
+        // Fetch habit logs from last 7 days
+        supabase
+          .from('tactic_logs')
+          .select('goal_tactics(title), completed_count, logged_date')
+          .eq('user_id', userId)
+          .gte('logged_date', sevenDaysAgoStr.split('T')[0])
+          .order('logged_date', { ascending: false })
+          .limit(15),
+        
+        // Fetch recent journal entries for pattern analysis
+        supabase
+          .from('journal_entries')
+          .select('entry_date, user_notes, audio_transcript')
+          .eq('user_id', userId)
+          .order('entry_date', { ascending: false })
+          .limit(3)
       ]);
 
       const tasks = tasksResult.data;
       const activeCycle = cycleResult.data;
       const goals = goalsResult.data;
+      const focusSessions = focusResult.data;
+      const completedToday = completedTodayResult.data;
+      const habits = habitsResult.data;
+      const journals = journalResult.data;
 
       // Calculate current week if cycle exists
       let weekInfo = '';
+      let currentWeek = 0;
       if (activeCycle) {
         const startDate = new Date(activeCycle.start_date);
         const now = new Date();
-        const weekNumber = Math.floor((now.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
-        weekInfo = `You're in week ${Math.min(weekNumber, 8)} of your "${activeCycle.name}" cycle. `;
+        currentWeek = Math.floor((now.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+        weekInfo = `You're in week ${Math.min(currentWeek, 8)} of your "${activeCycle.name}" cycle. `;
       }
 
-      // Build the greeting
-      let greeting = `Hi ${userName}! Welcome back to Groovy Planning. `;
+      // Calculate focus stats
+      const totalFocusMinutes = focusSessions?.reduce((sum, s) => sum + (s.actual_duration_minutes || 0), 0) || 0;
+      const focusSessionCount = focusSessions?.length || 0;
+
+      // Analyze habit consistency (count unique habits logged this week)
+      const uniqueHabits = new Set(habits?.map(h => (h as any).goal_tactics?.title).filter(Boolean));
+      const habitStreak = uniqueHabits.size;
+
+      // Analyze journal patterns - look for mood/energy keywords
+      let journalInsight = '';
+      if (journals && journals.length > 0) {
+        const allNotes = journals.map(j => (j.user_notes || j.audio_transcript || '').toLowerCase()).join(' ');
+        
+        // Simple pattern detection
+        if (allNotes.includes('tired') || allNotes.includes('exhausted') || allNotes.includes('low energy')) {
+          journalInsight = "I noticed you've mentioned feeling tired recently. Remember to pace yourself. ";
+        } else if (allNotes.includes('excited') || allNotes.includes('great') || allNotes.includes('motivated')) {
+          journalInsight = "Your recent reflections show high energy! Let's ride that momentum. ";
+        } else if (allNotes.includes('stuck') || allNotes.includes('frustrated') || allNotes.includes('hard')) {
+          journalInsight = "I see you've been working through some challenges. That's where growth happens. ";
+        } else if (allNotes.includes('progress') || allNotes.includes('accomplished') || allNotes.includes('done')) {
+          journalInsight = "Your journals show solid progress. Keep that momentum going! ";
+        }
+      }
+
+      // Build the DAILY BRIEFING greeting
+      const hour = today.getHours();
+      const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
       
+      let greeting = `Good ${timeOfDay}, ${userName}! Here's your daily briefing. `;
+      
+      // Cycle and week context
       if (weekInfo) {
         greeting += weekInfo;
       }
-      
+
+      // Today's progress
+      if (completedToday && completedToday.length > 0) {
+        greeting += `You've already completed ${completedToday.length} task${completedToday.length > 1 ? 's' : ''} today, nice work! `;
+      }
+
+      // Weekly focus time
+      if (totalFocusMinutes > 0) {
+        const hours = Math.floor(totalFocusMinutes / 60);
+        const mins = totalFocusMinutes % 60;
+        const focusTimeStr = hours > 0 ? `${hours} hour${hours > 1 ? 's' : ''} ${mins > 0 ? `and ${mins} minutes` : ''}` : `${mins} minutes`;
+        greeting += `This week you've logged ${focusTimeStr} of focused work across ${focusSessionCount} session${focusSessionCount > 1 ? 's' : ''}. `;
+      }
+
+      // Habit consistency
+      if (habitStreak > 0) {
+        greeting += `You're tracking ${habitStreak} habit${habitStreak > 1 ? 's' : ''} this week. `;
+      }
+
+      // Journal insight
+      if (journalInsight) {
+        greeting += journalInsight;
+      }
+
+      // Top priorities
       if (tasks && tasks.length > 0) {
-        greeting += "Your top tasks are: ";
-        tasks.forEach((task, index) => {
-          const separator = index === tasks.length - 1 ? '. ' : ', ';
+        const topTasks = tasks.slice(0, 3);
+        greeting += "Your top priorities are: ";
+        topTasks.forEach((task, index) => {
+          const separator = index === topTasks.length - 1 ? '. ' : ', ';
           greeting += `${task.title}${separator}`;
         });
       } else {
         greeting += "You're all caught up with no pending tasks! ";
       }
 
-      if (goals && goals.length > 0) {
-        greeting += `You can ask me about your ${goals.length} active goal${goals.length > 1 ? 's' : ''}, `;
+      // Goal milestone reminder if relevant
+      if (goals && goals.length > 0 && currentWeek > 0) {
+        const goalWithMilestone = goals.find(g => 
+          g.milestones?.some((m: any) => m.week_number === currentWeek)
+        );
+        if (goalWithMilestone) {
+          const milestone = goalWithMilestone.milestones?.find((m: any) => m.week_number === currentWeek);
+          greeting += `This week's milestone for "${goalWithMilestone.title}" is ${milestone?.target_value} ${goalWithMilestone.metric_type}. `;
+        }
       }
 
-      greeting += "add tasks, mark them complete, or get a weekly summary.";
+      greeting += "What would you like to focus on?";
 
       // Add greeting to conversation history
       const greetingMessage: ConversationMessage = {
@@ -807,7 +923,7 @@ When you complete an action like creating or completing a task, confirm it natur
       // Return greeting with gather for next input
       return twiml(
         say(greeting) +
-        gather(baseUrl, "What's on your mind?")
+        gather(baseUrl, "")
       );
     }
 

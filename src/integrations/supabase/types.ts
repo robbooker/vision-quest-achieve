@@ -933,6 +933,36 @@ export type Database = {
         }
         Relationships: []
       }
+      master_items: {
+        Row: {
+          category: string
+          created_at: string
+          default_carry: boolean
+          id: string
+          item_name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          default_carry?: boolean
+          id?: string
+          item_name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          default_carry?: boolean
+          id?: string
+          item_name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       milestones: {
         Row: {
           created_at: string
@@ -1505,6 +1535,102 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      trip_packing_list: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          is_ai_suggested: boolean
+          is_packed: boolean
+          item_name: string
+          master_item_id: string | null
+          quantity: number
+          trip_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_ai_suggested?: boolean
+          is_packed?: boolean
+          item_name: string
+          master_item_id?: string | null
+          quantity?: number
+          trip_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_ai_suggested?: boolean
+          is_packed?: boolean
+          item_name?: string
+          master_item_id?: string | null
+          quantity?: number
+          trip_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_packing_list_master_item_id_fkey"
+            columns: ["master_item_id"]
+            isOneToOne: false
+            referencedRelation: "master_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_packing_list_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trips: {
+        Row: {
+          attendees: string[] | null
+          created_at: string
+          destination: string
+          end_date: string
+          id: string
+          planned_activities: string | null
+          purpose: string
+          start_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attendees?: string[] | null
+          created_at?: string
+          destination: string
+          end_date: string
+          id?: string
+          planned_activities?: string | null
+          purpose?: string
+          start_date: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attendees?: string[] | null
+          created_at?: string
+          destination?: string
+          end_date?: string
+          id?: string
+          planned_activities?: string | null
+          purpose?: string
+          start_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       used_member_pins: {
         Row: {

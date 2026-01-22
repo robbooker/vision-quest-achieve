@@ -26,7 +26,9 @@ serve(async (req) => {
         ).join('\n')
       : 'No existing items';
 
-    const prompt = `You are a smart travel packing assistant. Generate a comprehensive packing list for this trip.
+    const systemPrompt = `You are a smart travel packing assistant. Generate practical packing lists based on trip details.`;
+
+    const userPrompt = `Generate a comprehensive packing list for this trip.
 
 TRIP DETAILS:
 - Destination: ${destination}
@@ -43,22 +45,7 @@ INSTRUCTIONS:
 3. Prioritize items from the user's existing Master Locker when applicable
 4. For items NOT in the Master Locker, mark them as suggestions
 5. Include appropriate quantities based on trip duration
-6. Categories should include: Clothing, Tech, Toiletries, Documents, Accessories, Activity-Specific, Miscellaneous
-
-Respond ONLY with valid JSON in this exact format:
-{
-  "items": [
-    {
-      "item_name": "Passport",
-      "category": "Documents",
-      "quantity": 1,
-      "is_from_master": false,
-      "reason": "Essential travel document"
-    }
-  ],
-  "weather_note": "Brief note about expected weather",
-  "tips": ["Helpful packing tip 1", "Helpful packing tip 2"]
-}`;
+6. Categories should include: Clothing, Tech, Toiletries, Documents, Accessories, Activity-Specific, Miscellaneous`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -69,48 +56,86 @@ Respond ONLY with valid JSON in this exact format:
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages: [
-          { role: 'user', content: prompt }
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
         ],
         temperature: 0.7,
-        max_tokens: 2000,
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "generate_packing_list",
+              description: "Generate a structured packing list for a trip",
+              parameters: {
+                type: "object",
+                properties: {
+                  items: {
+                    type: "array",
+                    description: "List of items to pack",
+                    items: {
+                      type: "object",
+                      properties: {
+                        item_name: { type: "string", description: "Name of the item" },
+                        category: { type: "string", description: "Category like Clothing, Tech, Toiletries, Documents, Accessories, Activity-Specific, Miscellaneous" },
+                        quantity: { type: "number", description: "How many to bring" },
+                        is_from_master: { type: "boolean", description: "Whether this item is from user's master locker" },
+                        reason: { type: "string", description: "Brief reason for including this item" }
+                      },
+                      required: ["item_name", "category", "quantity", "is_from_master"],
+                      additionalProperties: false
+                    }
+                  },
+                  weather_note: { type: "string", description: "Brief note about expected weather" },
+                  tips: { 
+                    type: "array", 
+                    items: { type: "string" },
+                    description: "2-3 helpful packing tips"
+                  }
+                },
+                required: ["items", "weather_note", "tips"],
+                additionalProperties: false
+              }
+            }
+          }
+        ],
+        tool_choice: { type: "function", function: { name: "generate_packing_list" } }
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('OpenRouter API error:', errorText);
+      console.error('AI gateway error:', response.status, errorText);
+      
+      if (response.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again later." }), {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ error: "Payment required, please add funds to your Lovable AI workspace." }), {
+          status: 402,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
       throw new Error(`AI API error: ${response.status}`);
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-
-    if (!content) {
-      throw new Error('No content in AI response');
+    
+    // Extract the tool call arguments
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    if (!toolCall || toolCall.function.name !== 'generate_packing_list') {
+      console.error('No valid tool call in response:', JSON.stringify(data));
+      throw new Error('AI did not return a valid packing list');
     }
 
-    // Parse the JSON response
     let packingList;
     try {
-      // Extract JSON from potential markdown code blocks - handle both with and without code blocks
-      let jsonStr = content.trim();
-      
-      // Check for markdown code blocks
-      const codeBlockMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
-      if (codeBlockMatch) {
-        jsonStr = codeBlockMatch[1].trim();
-      }
-      
-      // Find the first { and last } to extract just the JSON object
-      const firstBrace = jsonStr.indexOf('{');
-      const lastBrace = jsonStr.lastIndexOf('}');
-      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-        jsonStr = jsonStr.slice(firstBrace, lastBrace + 1);
-      }
-      
-      packingList = JSON.parse(jsonStr);
+      packingList = JSON.parse(toolCall.function.arguments);
     } catch (parseError) {
-      console.error('Failed to parse AI response:', content);
+      console.error('Failed to parse tool arguments:', toolCall.function.arguments);
       throw new Error('Failed to parse packing list response');
     }
 

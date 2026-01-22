@@ -6,7 +6,6 @@ import { Separator } from '@/components/ui/separator';
 import intentionActionGapImg from '@/assets/blog/intention-action-gap.jpeg';
 import woopBrainImg from '@/assets/blog/woop-brain.jpeg';
 import lockeLathamImg from '@/assets/blog/locke-latham.jpeg';
-import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
 
 const Blog = () => {
   return (
@@ -20,9 +19,8 @@ const Blog = () => {
       </Helmet>
 
       <div className="min-h-screen bg-background">
-        <AnnouncementBar />
         {/* Header */}
-        <header className="border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 pt-10">
+        <header className="border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="container mx-auto px-4 py-4 flex items-center justify-between">
             <Link to="/auth">
               <Button variant="ghost" size="sm" className="gap-2">

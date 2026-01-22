@@ -6,7 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { User, Check, Loader2, Phone, MessageSquare, Trash2 } from 'lucide-react';
+import { User, Check, Loader2, Phone, MessageSquare, Trash2, Hash } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -18,6 +19,7 @@ interface ProfileData {
   consent_email: boolean | null;
   consent_sms: boolean | null;
   consent_whatsapp: boolean | null;
+  member_pin: string | null;
 }
 
 export function ProfileSettings() {
@@ -28,6 +30,7 @@ export function ProfileSettings() {
   const [consentEmail, setConsentEmail] = useState(false);
   const [consentSms, setConsentSms] = useState(false);
   const [consentWhatsapp, setConsentWhatsapp] = useState(false);
+  const [memberPin, setMemberPin] = useState<string | null>(null);
   
   const [originalData, setOriginalData] = useState<ProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -53,7 +56,7 @@ export function ProfileSettings() {
       
       const { data, error } = await supabase
         .from('profiles')
-        .select('display_name, phone_us, phone_whatsapp, consent_email, consent_sms, consent_whatsapp')
+        .select('display_name, phone_us, phone_whatsapp, consent_email, consent_sms, consent_whatsapp, member_pin')
         .eq('user_id', user.id)
         .single();
       
@@ -66,6 +69,7 @@ export function ProfileSettings() {
         setConsentEmail(data.consent_email || false);
         setConsentSms(data.consent_sms || false);
         setConsentWhatsapp(data.consent_whatsapp || false);
+        setMemberPin(data.member_pin);
         setOriginalData(data);
       }
       setIsLoading(false);
@@ -120,6 +124,7 @@ export function ProfileSettings() {
         consent_email: consentEmail,
         consent_sms: consentSms,
         consent_whatsapp: consentWhatsapp,
+        member_pin: memberPin,
       });
       toast.success('Profile updated');
     }
@@ -157,6 +162,24 @@ export function ProfileSettings() {
         <div className="space-y-2">
           <Label>Email</Label>
           <p className="text-sm text-muted-foreground">{user?.email}</p>
+        </div>
+
+        {/* Member PIN */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Hash className="h-4 w-4 text-primary" />
+            <Label>Member Number</Label>
+          </div>
+          {isLoading ? (
+            <div className="h-8 bg-muted animate-pulse rounded-md w-20" />
+          ) : memberPin ? (
+            <Badge variant="secondary" className="text-lg font-mono px-3 py-1">
+              {memberPin}
+            </Badge>
+          ) : (
+            <p className="text-sm text-muted-foreground">Not assigned</p>
+          )}
+          <p className="text-xs text-muted-foreground">Your unique member PIN</p>
         </div>
 
         <Separator />

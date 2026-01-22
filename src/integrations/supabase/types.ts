@@ -1054,6 +1054,7 @@ export type Database = {
           display_name: string | null
           email: string | null
           id: string
+          member_pin: string | null
           onboarding_completed: boolean | null
           phone_us: string | null
           phone_whatsapp: string | null
@@ -1070,6 +1071,7 @@ export type Database = {
           display_name?: string | null
           email?: string | null
           id?: string
+          member_pin?: string | null
           onboarding_completed?: boolean | null
           phone_us?: string | null
           phone_whatsapp?: string | null
@@ -1086,6 +1088,7 @@ export type Database = {
           display_name?: string | null
           email?: string | null
           id?: string
+          member_pin?: string | null
           onboarding_completed?: boolean | null
           phone_us?: string | null
           phone_whatsapp?: string | null
@@ -1503,6 +1506,24 @@ export type Database = {
           },
         ]
       }
+      used_member_pins: {
+        Row: {
+          assigned_at: string
+          pin: string
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          pin: string
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string
+          pin?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_calendar_tokens: {
         Row: {
           access_token: string
@@ -1725,7 +1746,9 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assign_member_pin: { Args: { target_user_id: string }; Returns: string }
       delete_user_account: { Args: never; Returns: undefined }
+      generate_unique_member_pin: { Args: never; Returns: string }
       get_sitewide_stats: { Args: never; Returns: Json }
       get_sitewide_trends: { Args: { days_back?: number }; Returns: Json }
       has_role: {

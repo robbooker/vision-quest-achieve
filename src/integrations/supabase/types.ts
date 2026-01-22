@@ -1653,6 +1653,48 @@ export type Database = {
         }
         Relationships: []
       }
+      voice_call_logs: {
+        Row: {
+          call_ended_at: string | null
+          call_sid: string
+          call_started_at: string
+          caller_number: string | null
+          created_at: string
+          id: string
+          messages: Json
+          tasks_completed: Json | null
+          tasks_created: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          call_ended_at?: string | null
+          call_sid: string
+          call_started_at?: string
+          caller_number?: string | null
+          created_at?: string
+          id?: string
+          messages?: Json
+          tasks_completed?: Json | null
+          tasks_created?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          call_ended_at?: string | null
+          call_sid?: string
+          call_started_at?: string
+          caller_number?: string | null
+          created_at?: string
+          id?: string
+          messages?: Json
+          tasks_completed?: Json | null
+          tasks_created?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       week_reviews: {
         Row: {
           celebration: string | null

@@ -92,10 +92,23 @@ Respond ONLY with valid JSON in this exact format:
     // Parse the JSON response
     let packingList;
     try {
-      // Extract JSON from potential markdown code blocks
-      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, content];
-      const jsonStr = jsonMatch[1] || content;
-      packingList = JSON.parse(jsonStr.trim());
+      // Extract JSON from potential markdown code blocks - handle both with and without code blocks
+      let jsonStr = content.trim();
+      
+      // Check for markdown code blocks
+      const codeBlockMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (codeBlockMatch) {
+        jsonStr = codeBlockMatch[1].trim();
+      }
+      
+      // Find the first { and last } to extract just the JSON object
+      const firstBrace = jsonStr.indexOf('{');
+      const lastBrace = jsonStr.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        jsonStr = jsonStr.slice(firstBrace, lastBrace + 1);
+      }
+      
+      packingList = JSON.parse(jsonStr);
     } catch (parseError) {
       console.error('Failed to parse AI response:', content);
       throw new Error('Failed to parse packing list response');

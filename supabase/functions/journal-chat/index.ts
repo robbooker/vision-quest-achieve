@@ -16,10 +16,21 @@ Your communication style:
 - Insightful - draw connections between past and present activities
 - Brief but meaningful (2-3 paragraphs max unless asked for more)
 
-You have access to three types of context:
-1. **Recent Activity (last 7 days)** - A structured summary of recent tasks, habits, and focus sessions
-2. **Semantic Search Results** - Relevant historical activities found by searching their entire history based on what they're asking about
-3. **Voice Journal Entries** - Transcribed audio journals with mood, energy levels, and key themes detected by AI
+You have access to multiple types of context:
+1. **Recent Activity (last 7 days)** - Tasks, habits, focus sessions
+2. **Semantic Search Results** - Historical activities matching their query
+3. **Voice Journal Entries** - Audio journals with mood and energy levels
+4. **Goals & Milestones** - Their 6-Week Sprint goals and weekly targets
+5. **Active Cycle** - Current planning cycle info and week number
+6. **Personal Vision** - 3-year vision, long-term vision, and core values
+
+**GOAL & VISION AWARENESS:**
+You have access to the user's 6-Week Sprint goals, their weekly milestones, and their personal vision.
+- Reference their goals when discussing productivity or priorities
+- Connect daily tasks to their bigger picture vision
+- Acknowledge progress on milestones ("You're in Week 3 of your cycle, how's the book project going?")
+- Use vision to provide encouraging perspective when they're struggling
+- Help them see the connection between small wins and their larger aspirations
 
 When the user asks about patterns, habits, or "when did I...?" questions, pay special attention to the semantic search results as they contain relevant historical context beyond just the last 7 days.
 
@@ -27,7 +38,6 @@ When the user asks about patterns, habits, or "when did I...?" questions, pay sp
 You have access to the user's voice journal entries, which include their spoken reflections along with detected mood and energy levels. When referencing voice journals, you might say things like:
 - "I noticed in your voice journal from Tuesday, you sounded really energized when talking about..."
 - "You mentioned feeling stressed about X in your voice note last week..."
-- "In your audio reflection, you expressed gratitude for..."
 Look for patterns in mood and energy across voice entries to provide deeper insights.
 
 When analyzing their data:
@@ -35,8 +45,9 @@ When analyzing their data:
 - Identify long-term trends, not just recent activity
 - Celebrate consistency you notice across weeks or months
 - Gently surface things they may have forgotten about
-- Suggest connections between activities and goals
 - Reference mood and energy patterns from voice journals when relevant
+- Connect daily tasks and habits to their active goals and milestones
+- Use their vision and core values to provide meaningful encouragement
 
 **TASK CREATION:**
 When the user wants to add, create, or remind themselves about a task, use the create_task tool to add it to their task list. Examples:
@@ -120,29 +131,62 @@ serve(async (req) => {
     }
     
     if (context) {
+      // Add active cycle info first
+      if (context.activeCycle) {
+        const startDate = new Date(context.activeCycle.start_date);
+        const now = new Date();
+        const weekNumber = Math.floor((now.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+        contextMessage += `\n\n**📅 Current 6-Week Cycle:** "${context.activeCycle.name}" (Week ${Math.min(weekNumber, 8)} of 8)\n`;
+      }
+
+      // Add goals with milestones
+      if (context.goals && context.goals.length > 0) {
+        contextMessage += "\n\n**🎯 Active Goals:**\n";
+        context.goals.forEach((goal: any) => {
+          contextMessage += `- "${goal.title}" (Target: ${goal.target_value} ${goal.metric_type})`;
+          if (goal.why) contextMessage += ` | Why: ${goal.why}`;
+          contextMessage += "\n";
+          if (goal.milestones?.length > 0) {
+            goal.milestones.forEach((m: any) => {
+              contextMessage += `  • Week ${m.week_number}: ${m.target_value}${m.description ? ` - ${m.description}` : ''}\n`;
+            });
+          }
+          if (goal.obstacles) contextMessage += `  Obstacles: ${goal.obstacles}\n`;
+          if (goal.strategies) contextMessage += `  Strategies: ${goal.strategies}\n`;
+        });
+      }
+
+      // Add user vision
+      if (context.vision) {
+        contextMessage += "\n\n**🔮 User's Vision:**\n";
+        if (context.vision.vision_3_year) contextMessage += `3-Year Vision: ${context.vision.vision_3_year}\n`;
+        if (context.vision.vision_long_term) contextMessage += `Long-term Vision: ${context.vision.vision_long_term}\n`;
+        if (context.vision.core_values) contextMessage += `Core Values: ${context.vision.core_values}\n`;
+      }
+
       if (context.recentTasks && context.recentTasks.length > 0) {
-        contextMessage += "\n\n**Recent Completed Tasks (last 7 days):**\n";
+        contextMessage += "\n\n**✅ Recent Completed Tasks (last 7 days):**\n";
         context.recentTasks.forEach((task: any) => {
           contextMessage += `- ${task.title} (completed ${task.completed_at})\n`;
         });
       }
       
       if (context.pendingTasks && context.pendingTasks.length > 0) {
-        contextMessage += "\n\n**Current Pending Tasks:**\n";
+        contextMessage += "\n\n**📋 Current Pending Tasks:**\n";
         context.pendingTasks.forEach((task: any) => {
           contextMessage += `- ${task.title}\n`;
         });
       }
       
       if (context.recentHabits && context.recentHabits.length > 0) {
-        contextMessage += "\n\n**Recent Habit Activity (last 7 days):**\n";
+        contextMessage += "\n\n**🔄 Recent Habit Activity (last 7 days):**\n";
         context.recentHabits.forEach((habit: any) => {
           contextMessage += `- ${habit.tactic_title}: ${habit.completed_count}x on ${habit.logged_date}\n`;
         });
       }
       
       if (context.journalEntries && context.journalEntries.length > 0) {
-        contextMessage += "\n\n**Recent Journal Entries:**\n";
+        contextMessage += "\n\n**📔 Recent Journal Entries:**\n";
         context.journalEntries.forEach((entry: any) => {
           contextMessage += `- ${entry.entry_date}:`;
           if (entry.user_notes) {
@@ -158,7 +202,7 @@ serve(async (req) => {
       // Add focus session context
       if (context.focusSessions && context.focusSessions.length > 0) {
         const totalMinutes = context.focusSessions.reduce((sum: number, s: any) => sum + (s.actual_duration_minutes || 0), 0);
-        contextMessage += "\n\n**Recent Focus Sessions (last 7 days):**\n";
+        contextMessage += "\n\n**🧘 Recent Focus Sessions (last 7 days):**\n";
         contextMessage += `- Total focused time: ${totalMinutes} minutes across ${context.focusSessions.length} sessions\n`;
         context.focusSessions.slice(0, 5).forEach((session: any) => {
           contextMessage += `- "${session.objective}": ${session.actual_duration_minutes || session.planned_duration_minutes}m (${session.status})\n`;

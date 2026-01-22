@@ -65,6 +65,30 @@ const voiceTools = [
         additionalProperties: false
       }
     }
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_goal_progress",
+      description: "Get progress on the user's goals. Use when they ask 'how am I doing on my goals', 'what's my progress', 'goal update', etc.",
+      parameters: {
+        type: "object",
+        properties: {},
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_weekly_summary",
+      description: "Get a summary of the user's week. Use when they ask 'how was my week', 'what did I accomplish', 'weekly recap', etc.",
+      parameters: {
+        type: "object",
+        properties: {},
+        additionalProperties: false
+      }
+    }
   }
 ];
 
@@ -321,46 +345,176 @@ serve(async (req) => {
       console.log('Processing speech input:', speechResult);
       console.log('Conversation history length:', conversationHistory.length);
 
-      // Fetch context for AI
-      const { data: tasks } = await supabase
-        .from('quick_tasks')
-        .select('id, title, category, due_date, completed')
-        .eq('user_id', userId)
-        .eq('completed', false)
-        .order('position')
-        .limit(10);
+      // Fetch comprehensive context for AI
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const sevenDaysAgoStr = sevenDaysAgo.toISOString();
 
-      const { data: recentHabits } = await supabase
-        .from('tactic_logs')
-        .select('goal_tactics(title), completed_count, logged_date')
-        .eq('user_id', userId)
-        .order('logged_date', { ascending: false })
-        .limit(5);
+      // Fetch all context in parallel
+      const [
+        tasksResult,
+        completedTasksResult,
+        recentHabitsResult,
+        goalsResult,
+        activeCycleResult,
+        visionResult,
+        focusSessionsResult,
+        journalEntriesResult
+      ] = await Promise.all([
+        // Pending tasks
+        supabase
+          .from('quick_tasks')
+          .select('id, title, category, due_date, completed')
+          .eq('user_id', userId)
+          .eq('completed', false)
+          .order('position')
+          .limit(10),
+        
+        // Completed tasks (last 7 days)
+        supabase
+          .from('quick_tasks')
+          .select('title, completed_at')
+          .eq('user_id', userId)
+          .eq('completed', true)
+          .gte('completed_at', sevenDaysAgoStr)
+          .order('completed_at', { ascending: false })
+          .limit(10),
+        
+        // Recent habits
+        supabase
+          .from('tactic_logs')
+          .select('goal_tactics(title), completed_count, logged_date')
+          .eq('user_id', userId)
+          .gte('logged_date', sevenDaysAgoStr.split('T')[0])
+          .order('logged_date', { ascending: false })
+          .limit(10),
+        
+        // Goals with milestones
+        supabase
+          .from('goals')
+          .select(`
+            title, target_value, metric_type, why, goal_type,
+            obstacles, strategies, vision_connection,
+            milestones(week_number, target_value, description)
+          `)
+          .eq('user_id', userId)
+          .limit(5),
+        
+        // Active cycle
+        supabase
+          .from('cycles')
+          .select('id, name, start_date, end_date, status')
+          .eq('user_id', userId)
+          .eq('status', 'active')
+          .maybeSingle(),
+        
+        // User vision
+        supabase
+          .from('user_vision')
+          .select('vision_3_year, vision_long_term, core_values')
+          .eq('user_id', userId)
+          .maybeSingle(),
+        
+        // Recent focus sessions
+        supabase
+          .from('focus_sessions')
+          .select('objective, actual_duration_minutes, started_at, status')
+          .eq('user_id', userId)
+          .gte('started_at', sevenDaysAgoStr)
+          .order('started_at', { ascending: false })
+          .limit(5),
+        
+        // Recent journal entries
+        supabase
+          .from('journal_entries')
+          .select('entry_date, user_notes, audio_transcript')
+          .eq('user_id', userId)
+          .order('entry_date', { ascending: false })
+          .limit(3)
+      ]);
 
-      // Build context
+      const tasks = tasksResult.data;
+      const completedTasks = completedTasksResult.data;
+      const recentHabits = recentHabitsResult.data;
+      const goals = goalsResult.data;
+      const activeCycle = activeCycleResult.data;
+      const vision = visionResult.data;
+      const focusSessions = focusSessionsResult.data;
+      const journalEntries = journalEntriesResult.data;
+
+      // Calculate current week number if cycle exists
+      let currentWeek = 0;
+      if (activeCycle) {
+        const startDate = new Date(activeCycle.start_date);
+        const now = new Date();
+        currentWeek = Math.floor((now.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+      }
+
+      // Build context strings
       const taskContext = tasks?.length 
-        ? `User's pending tasks:\n${tasks.map((t, i) => `${i + 1}. ${t.title} (${t.category})`).join('\n')}`
+        ? `Pending tasks:\n${tasks.map((t, i) => `${i + 1}. ${t.title} (${t.category})`).join('\n')}`
         : 'No pending tasks.';
+
+      const completedContext = completedTasks?.length
+        ? `Completed this week: ${completedTasks.map(t => t.title).join(', ')}`
+        : '';
 
       const habitContext = recentHabits?.length
         ? `Recent habits: ${recentHabits.map(h => (h as any).goal_tactics?.title).filter(Boolean).join(', ')}`
         : '';
 
-      // Build system prompt
-      const systemPrompt = `You are a helpful voice assistant for GroovyPlanning.ai, a goal and task management app. 
-You're speaking to ${userName} on the phone. Keep responses conversational and concise (under 100 words) since this is voice.
-Be warm, encouraging, and helpful. You can help with tasks, goals, habits, and general productivity advice.
+      const goalContext = goals?.length
+        ? `Active goals:\n${goals.map(g => `• "${g.title}" - Target: ${g.target_value} ${g.metric_type}${g.why ? ` (Why: ${g.why})` : ''}`).join('\n')}`
+        : '';
 
-IMPORTANT: You have tools to create tasks and mark tasks complete. Use them when the user asks!
-- When they say "add a task for X" or "remind me to X" -> use create_task
-- When they say "complete X" or "mark X as done" -> use complete_task
-- When they ask "what are my tasks" -> use list_tasks
+      const cycleContext = activeCycle
+        ? `Current cycle: "${activeCycle.name}" (Week ${Math.min(currentWeek, 8)} of 8)`
+        : '';
 
-Context:
+      const visionContext = vision?.vision_3_year
+        ? `3-Year Vision: ${vision.vision_3_year.slice(0, 200)}...`
+        : '';
+
+      const focusContext = focusSessions?.length
+        ? `Focus sessions this week: ${focusSessions.length} sessions, ${focusSessions.reduce((sum, s) => sum + (s.actual_duration_minutes || 0), 0)} minutes total`
+        : '';
+
+      const journalContext = journalEntries?.length
+        ? `Recent reflections: ${journalEntries.map(j => j.user_notes || j.audio_transcript).filter(Boolean).slice(0, 2).map(n => n?.slice(0, 100)).join(' | ')}`
+        : '';
+
+      // Build system prompt with full context
+      const systemPrompt = `You are Toasty, a warm and encouraging voice assistant for GroovyPlanning.ai. 
+You're speaking to ${userName} on the phone. Keep responses natural and under 100 words since this is voice.
+Be warm, encouraging, and helpful. You know about their goals, vision, tasks, habits, and recent activity.
+
+IMPORTANT: You have tools to help with tasks and provide insights:
+- create_task: When they say "add a task for X" or "remind me to X"
+- complete_task: When they say "complete X" or "mark X as done"
+- list_tasks: When they ask "what are my tasks"
+- get_goal_progress: When they ask "how am I doing on my goals"
+- get_weekly_summary: When they ask "how was my week"
+
+**USER'S CONTEXT:**
+
+${cycleContext}
+
+${goalContext}
+
+${visionContext}
+
 ${taskContext}
+
+${completedContext}
+
 ${habitContext}
 
+${focusContext}
+
+${journalContext}
+
 Remember: This is a phone call, so speak naturally and avoid markdown, bullet points, or formatting.
+When discussing goals or vision, be encouraging and connect their daily actions to their bigger picture.
 When you complete an action like creating or completing a task, confirm it naturally in conversation.`;
 
       // Build messages array with history
@@ -460,6 +614,40 @@ When you complete an action like creating or completing a task, confirm it natur
               const limit = args.limit || 5;
               const taskList = tasks?.slice(0, limit).map(t => t.title).join(', ') || 'No pending tasks';
               toolResults.push(`Tasks: ${taskList}`);
+
+            } else if (functionName === 'get_goal_progress') {
+              // Build goal progress summary
+              let progressSummary = '';
+              if (goals && goals.length > 0) {
+                progressSummary = `Goals progress:\n${goals.map(g => {
+                  let goalInfo = `"${g.title}" - Target: ${g.target_value} ${g.metric_type}`;
+                  if (g.milestones && g.milestones.length > 0 && currentWeek > 0) {
+                    const currentMilestone = g.milestones.find((m: any) => m.week_number === currentWeek);
+                    if (currentMilestone) {
+                      goalInfo += ` | This week's target: ${currentMilestone.target_value}`;
+                    }
+                  }
+                  return goalInfo;
+                }).join('\n')}`;
+                if (cycleContext) progressSummary += `\n${cycleContext}`;
+              } else {
+                progressSummary = 'No active goals set.';
+              }
+              toolResults.push(progressSummary);
+
+            } else if (functionName === 'get_weekly_summary') {
+              // Build weekly summary
+              const completedCount = completedTasks?.length || 0;
+              const focusMinutes = focusSessions?.reduce((sum, s) => sum + (s.actual_duration_minutes || 0), 0) || 0;
+              const habitCount = recentHabits?.length || 0;
+              
+              let summary = `Weekly summary: `;
+              summary += `${completedCount} tasks completed. `;
+              summary += `${focusMinutes} minutes of focused work across ${focusSessions?.length || 0} sessions. `;
+              summary += `${habitCount} habit logs this week. `;
+              if (cycleContext) summary += cycleContext;
+              
+              toolResults.push(summary);
             }
           }
 
@@ -537,38 +725,71 @@ When you complete an action like creating or completing a task, confirm it natur
       }
 
     } else {
-      // Initial call - give the welcome briefing
+      // Initial call - give the welcome briefing with full context
       console.log('Initial call from:', userName);
 
-      // Fetch top 3 pending tasks
-      const { data: tasks, error: tasksError } = await supabase
-        .from('quick_tasks')
-        .select('title, category, due_date')
-        .eq('user_id', userId)
-        .eq('completed', false)
-        .order('position')
-        .limit(3);
+      // Fetch context for initial greeting in parallel
+      const [tasksResult, cycleResult, goalsResult] = await Promise.all([
+        // Fetch top 3 pending tasks
+        supabase
+          .from('quick_tasks')
+          .select('title, category, due_date')
+          .eq('user_id', userId)
+          .eq('completed', false)
+          .order('position')
+          .limit(3),
+        
+        // Fetch active cycle
+        supabase
+          .from('cycles')
+          .select('id, name, start_date, status')
+          .eq('user_id', userId)
+          .eq('status', 'active')
+          .maybeSingle(),
+        
+        // Fetch goals
+        supabase
+          .from('goals')
+          .select('title')
+          .eq('user_id', userId)
+          .limit(2)
+      ]);
 
-      if (tasksError) {
-        console.error('Tasks fetch error:', tasksError);
+      const tasks = tasksResult.data;
+      const activeCycle = cycleResult.data;
+      const goals = goalsResult.data;
+
+      // Calculate current week if cycle exists
+      let weekInfo = '';
+      if (activeCycle) {
+        const startDate = new Date(activeCycle.start_date);
+        const now = new Date();
+        const weekNumber = Math.floor((now.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+        weekInfo = `You're in week ${Math.min(weekNumber, 8)} of your "${activeCycle.name}" cycle. `;
       }
 
       // Build the greeting
-      let greeting = `Hi ${userName}! Welcome to Groovy Planning. `;
+      let greeting = `Hi ${userName}! Welcome back to Groovy Planning. `;
+      
+      if (weekInfo) {
+        greeting += weekInfo;
+      }
       
       if (tasks && tasks.length > 0) {
-        greeting += "Here's your briefing. ";
         greeting += "Your top tasks are: ";
-        
         tasks.forEach((task, index) => {
           const separator = index === tasks.length - 1 ? '. ' : ', ';
           greeting += `${task.title}${separator}`;
         });
       } else {
-        greeting += "You're all caught up! No pending tasks right now. ";
+        greeting += "You're all caught up with no pending tasks! ";
       }
 
-      greeting += "You can ask me to add tasks, mark them complete, or chat about your goals.";
+      if (goals && goals.length > 0) {
+        greeting += `You can ask me about your ${goals.length} active goal${goals.length > 1 ? 's' : ''}, `;
+      }
+
+      greeting += "add tasks, mark them complete, or get a weekly summary.";
 
       // Add greeting to conversation history
       const greetingMessage: ConversationMessage = {

@@ -42,6 +42,7 @@ import Journal from "./pages/Journal";
 import Focus from "./pages/Focus";
 import Secret from "./pages/Secret";
 import Books from "./pages/Books";
+import Trips from "./pages/Trips";
 import Affirmations from "./pages/Affirmations";
 import AffirmationsBlog from "./pages/AffirmationsBlog";
 import NotFound from "./pages/NotFound";
@@ -106,6 +107,7 @@ const App = () => (
                     <Route path="/reset" element={<ProtectedRoute><Reset /></ProtectedRoute>} />
                     <Route path="/journal" element={<ProtectedRoute><Journal /></ProtectedRoute>} />
                     <Route path="/books" element={<ProtectedRoute><Books /></ProtectedRoute>} />
+                    <Route path="/trips" element={<ProtectedRoute><Trips /></ProtectedRoute>} />
                     <Route path="/affirmations" element={<ProtectedRoute><Affirmations /></ProtectedRoute>} />
                     <Route path="/feedback" element={<ProtectedRoute><Feedback /></ProtectedRoute>} />
                     <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />

@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Footer } from '@/components/layout/Footer';
+import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useState } from 'react';
@@ -167,8 +168,9 @@ export default function Pricing() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
+      <AnnouncementBar />
       {/* Header */}
-      <header className="border-b">
+      <header className="border-b pt-10">
         <div className="container flex items-center justify-between py-4">
           <Link to="/" className="flex items-center gap-2">
             <img src={gpLogo} alt="Groovy Planning" className="h-10 w-auto" />
@@ -395,3 +397,4 @@ export default function Pricing() {
     </div>
   );
 }
+

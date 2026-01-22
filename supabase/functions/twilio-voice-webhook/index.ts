@@ -6,6 +6,68 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-twilio-signature',
 };
 
+// AI tools for voice commands
+const voiceTools = [
+  {
+    type: "function" as const,
+    function: {
+      name: "create_task",
+      description: "Create a new task for the user. Use when they say things like 'add a task', 'remind me to', 'create a task for', etc.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: {
+            type: "string",
+            description: "The title/description of the task to create"
+          },
+          category: {
+            type: "string",
+            enum: ["personal", "work"],
+            description: "The category of the task. Default to 'personal' unless work-related."
+          }
+        },
+        required: ["title"],
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "complete_task",
+      description: "Mark a task as complete. Use when they say 'complete', 'done', 'finished', 'mark as done', etc.",
+      parameters: {
+        type: "object",
+        properties: {
+          task_title: {
+            type: "string",
+            description: "The title or partial title of the task to complete (will match closest)"
+          }
+        },
+        required: ["task_title"],
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "list_tasks",
+      description: "List the user's pending tasks. Use when they ask 'what are my tasks', 'what do I need to do', etc.",
+      parameters: {
+        type: "object",
+        properties: {
+          limit: {
+            type: "number",
+            description: "Number of tasks to list. Default 5."
+          }
+        },
+        additionalProperties: false
+      }
+    }
+  }
+];
+
 // Validate Twilio request signature using Web Crypto API
 async function validateTwilioSignature(
   authToken: string,
@@ -14,15 +76,12 @@ async function validateTwilioSignature(
   params: Record<string, string>
 ): Promise<boolean> {
   try {
-    // Sort params alphabetically and concatenate
     const sortedParams = Object.keys(params)
       .sort()
       .map(key => key + params[key])
       .join('');
     
     const data = url + sortedParams;
-    
-    // Create HMAC-SHA1 signature using Web Crypto API
     const encoder = new TextEncoder();
     const keyData = encoder.encode(authToken);
     const dataBytes = encoder.encode(data);
@@ -84,8 +143,14 @@ function gather(action: string, prompt: string, timeout = 5): string {
   `;
 }
 
+// Interface for conversation messages
+interface ConversationMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: string;
+}
+
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -110,7 +175,7 @@ serve(async (req) => {
 
     console.log('Twilio webhook received:', JSON.stringify(params, null, 2));
 
-    // Validate Twilio signature (skip in development if needed)
+    // Validate Twilio signature
     const twilioSignature = req.headers.get('x-twilio-signature');
     const requestUrl = req.url;
     
@@ -135,8 +200,9 @@ serve(async (req) => {
     const callerNumber = params.From;
     const callSid = params.CallSid;
     const speechResult = params.SpeechResult;
+    const callStatus = params.CallStatus;
 
-    // Normalize phone number for lookup (remove + and format variations)
+    // Normalize phone number for lookup
     const normalizedNumber = callerNumber?.replace(/\D/g, '');
     
     // Look up user by phone number
@@ -166,18 +232,64 @@ serve(async (req) => {
     const userId = profile.user_id;
     const baseUrl = requestUrl.split('?')[0];
 
+    // Handle call end - update call log
+    if (callStatus === 'completed') {
+      await supabase
+        .from('voice_call_logs')
+        .update({ call_ended_at: new Date().toISOString() })
+        .eq('call_sid', callSid);
+      
+      return new Response('OK', { headers: corsHeaders });
+    }
+
+    // Get or create call log for conversation memory
+    let { data: callLog } = await supabase
+      .from('voice_call_logs')
+      .select('*')
+      .eq('call_sid', callSid)
+      .maybeSingle();
+
+    if (!callLog) {
+      // Create new call log
+      const { data: newLog, error: createError } = await supabase
+        .from('voice_call_logs')
+        .insert({
+          user_id: userId,
+          call_sid: callSid,
+          caller_number: callerNumber,
+          messages: [],
+          tasks_created: [],
+          tasks_completed: []
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        console.error('Failed to create call log:', createError);
+      }
+      callLog = newLog;
+    }
+
+    // Get conversation history from call log
+    const conversationHistory: ConversationMessage[] = callLog?.messages || [];
+
     // Check if this is the initial call or a conversation response
     if (speechResult) {
-      // This is a response from the user - process with AI
-      console.log('Processing speech input:', speechResult);
+      // Add user message to history
+      const userMessage: ConversationMessage = {
+        role: 'user',
+        content: speechResult,
+        timestamp: new Date().toISOString()
+      };
+      conversationHistory.push(userMessage);
 
-      // First, respond with a thinking message to reduce perceived latency
-      // We use <Redirect> to process in background and come back
-      
+      console.log('Processing speech input:', speechResult);
+      console.log('Conversation history length:', conversationHistory.length);
+
       // Fetch context for AI
       const { data: tasks } = await supabase
         .from('quick_tasks')
-        .select('title, category, due_date')
+        .select('id, title, category, due_date, completed')
         .eq('user_id', userId)
         .eq('completed', false)
         .order('position')
@@ -190,25 +302,37 @@ serve(async (req) => {
         .order('logged_date', { ascending: false })
         .limit(5);
 
-      // Build context for AI
+      // Build context
       const taskContext = tasks?.length 
-        ? `User's pending tasks: ${tasks.map(t => t.title).join(', ')}`
+        ? `User's pending tasks:\n${tasks.map((t, i) => `${i + 1}. ${t.title} (${t.category})`).join('\n')}`
         : 'No pending tasks.';
 
       const habitContext = recentHabits?.length
         ? `Recent habits: ${recentHabits.map(h => (h as any).goal_tactics?.title).filter(Boolean).join(', ')}`
         : '';
 
-      // Call Lovable AI for response
+      // Build system prompt
       const systemPrompt = `You are a helpful voice assistant for GroovyPlanning.ai, a goal and task management app. 
 You're speaking to ${userName} on the phone. Keep responses conversational and concise (under 100 words) since this is voice.
 Be warm, encouraging, and helpful. You can help with tasks, goals, habits, and general productivity advice.
+
+IMPORTANT: You have tools to create tasks and mark tasks complete. Use them when the user asks!
+- When they say "add a task for X" or "remind me to X" -> use create_task
+- When they say "complete X" or "mark X as done" -> use complete_task
+- When they ask "what are my tasks" -> use list_tasks
 
 Context:
 ${taskContext}
 ${habitContext}
 
-Remember: This is a phone call, so speak naturally and avoid markdown, bullet points, or formatting.`;
+Remember: This is a phone call, so speak naturally and avoid markdown, bullet points, or formatting.
+When you complete an action like creating or completing a task, confirm it naturally in conversation.`;
+
+      // Build messages array with history
+      const messages = [
+        { role: 'system' as const, content: systemPrompt },
+        ...conversationHistory.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }))
+      ];
 
       try {
         const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -219,11 +343,9 @@ Remember: This is a phone call, so speak naturally and avoid markdown, bullet po
           },
           body: JSON.stringify({
             model: 'google/gemini-3-flash-preview',
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: speechResult }
-            ],
-            max_tokens: 300,
+            messages,
+            tools: voiceTools,
+            max_tokens: 500,
             temperature: 0.7,
           }),
         });
@@ -237,8 +359,131 @@ Remember: This is a phone call, so speak naturally and avoid markdown, bullet po
         }
 
         const aiData = await aiResponse.json();
-        const assistantMessage = aiData.choices?.[0]?.message?.content || 
-          "I'm not sure how to respond to that. Is there something else I can help you with?";
+        const choice = aiData.choices?.[0];
+        let assistantMessage = choice?.message?.content || '';
+        const toolCalls = choice?.message?.tool_calls;
+
+        // Handle tool calls
+        if (toolCalls && toolCalls.length > 0) {
+          const toolResults: string[] = [];
+          const tasksCreated: any[] = callLog?.tasks_created || [];
+          const tasksCompleted: any[] = callLog?.tasks_completed || [];
+
+          for (const toolCall of toolCalls) {
+            const functionName = toolCall.function.name;
+            const args = JSON.parse(toolCall.function.arguments || '{}');
+
+            console.log('Tool call:', functionName, args);
+
+            if (functionName === 'create_task') {
+              // Create a new task
+              const { data: newTask, error: taskError } = await supabase
+                .from('quick_tasks')
+                .insert({
+                  user_id: userId,
+                  title: args.title,
+                  category: args.category || 'personal',
+                  position: 0
+                })
+                .select()
+                .single();
+
+              if (taskError) {
+                console.error('Failed to create task:', taskError);
+                toolResults.push(`Failed to create task: ${args.title}`);
+              } else {
+                toolResults.push(`Created task: ${args.title}`);
+                tasksCreated.push({ id: newTask.id, title: args.title, created_at: new Date().toISOString() });
+              }
+
+            } else if (functionName === 'complete_task') {
+              // Find and complete the task
+              const searchTerm = args.task_title.toLowerCase();
+              const matchingTask = tasks?.find(t => 
+                t.title.toLowerCase().includes(searchTerm) ||
+                searchTerm.includes(t.title.toLowerCase())
+              );
+
+              if (matchingTask) {
+                const { error: updateError } = await supabase
+                  .from('quick_tasks')
+                  .update({ completed: true, completed_at: new Date().toISOString() })
+                  .eq('id', matchingTask.id);
+
+                if (updateError) {
+                  console.error('Failed to complete task:', updateError);
+                  toolResults.push(`Failed to complete task: ${matchingTask.title}`);
+                } else {
+                  toolResults.push(`Completed task: ${matchingTask.title}`);
+                  tasksCompleted.push({ id: matchingTask.id, title: matchingTask.title, completed_at: new Date().toISOString() });
+                }
+              } else {
+                toolResults.push(`Could not find a task matching: ${args.task_title}`);
+              }
+
+            } else if (functionName === 'list_tasks') {
+              const limit = args.limit || 5;
+              const taskList = tasks?.slice(0, limit).map(t => t.title).join(', ') || 'No pending tasks';
+              toolResults.push(`Tasks: ${taskList}`);
+            }
+          }
+
+          // Get follow-up response from AI with tool results
+          const followUpMessages = [
+            ...messages,
+            choice.message,
+            ...toolCalls.map((tc: any, i: number) => ({
+              role: 'tool' as const,
+              tool_call_id: tc.id,
+              content: toolResults[i]
+            }))
+          ];
+
+          const followUpResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'google/gemini-3-flash-preview',
+              messages: followUpMessages,
+              max_tokens: 300,
+              temperature: 0.7,
+            }),
+          });
+
+          if (followUpResponse.ok) {
+            const followUpData = await followUpResponse.json();
+            assistantMessage = followUpData.choices?.[0]?.message?.content || 
+              `Done! ${toolResults.join('. ')}`;
+          } else {
+            assistantMessage = `Done! ${toolResults.join('. ')}`;
+          }
+
+          // Update call log with tasks created/completed
+          await supabase
+            .from('voice_call_logs')
+            .update({ 
+              tasks_created: tasksCreated,
+              tasks_completed: tasksCompleted
+            })
+            .eq('call_sid', callSid);
+        }
+
+        // Add assistant message to history
+        const assistantHistoryMessage: ConversationMessage = {
+          role: 'assistant',
+          content: assistantMessage,
+          timestamp: new Date().toISOString()
+        };
+        conversationHistory.push(assistantHistoryMessage);
+
+        // Update call log with new messages
+        await supabase
+          .from('voice_call_logs')
+          .update({ messages: conversationHistory })
+          .eq('call_sid', callSid);
 
         console.log('AI response:', assistantMessage);
 
@@ -288,10 +533,25 @@ Remember: This is a phone call, so speak naturally and avoid markdown, bullet po
         greeting += "You're all caught up! No pending tasks right now. ";
       }
 
+      greeting += "You can ask me to add tasks, mark them complete, or chat about your goals.";
+
+      // Add greeting to conversation history
+      const greetingMessage: ConversationMessage = {
+        role: 'assistant',
+        content: greeting,
+        timestamp: new Date().toISOString()
+      };
+
+      // Update call log
+      await supabase
+        .from('voice_call_logs')
+        .update({ messages: [greetingMessage] })
+        .eq('call_sid', callSid);
+
       // Return greeting with gather for next input
       return twiml(
         say(greeting) +
-        gather(baseUrl, "What's on your mind? You can ask me about your tasks, goals, or anything else.")
+        gather(baseUrl, "What's on your mind?")
       );
     }
 

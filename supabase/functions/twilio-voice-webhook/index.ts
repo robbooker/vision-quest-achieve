@@ -203,14 +203,16 @@ serve(async (req) => {
     const callSid = params.CallSid;
     const speechResult = params.SpeechResult;
     const callStatus = params.CallStatus;
+    const digits = params.Digits; // For PIN entry via keypad
+    const baseUrl = webhookUrl;
 
     // Normalize phone number for lookup
     const normalizedNumber = callerNumber?.replace(/\D/g, '');
     
-    // Look up user by phone number
-    const { data: profile, error: profileError } = await supabase
+    // Look up user by phone number first
+    let { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('user_id, display_name, phone_us')
+      .select('user_id, display_name, phone_us, member_pin')
       .or(`phone_us.ilike.%${normalizedNumber?.slice(-10)}%,phone_whatsapp.ilike.%${normalizedNumber?.slice(-10)}%`)
       .limit(1)
       .maybeSingle();
@@ -219,20 +221,51 @@ serve(async (req) => {
       console.error('Profile lookup error:', profileError);
     }
 
-    // If no user found, ask them to register
+    // If PIN was entered, look up by member_pin
+    if (digits && digits.length === 4) {
+      console.log('PIN entered:', digits);
+      const { data: pinProfile, error: pinError } = await supabase
+        .from('profiles')
+        .select('user_id, display_name, phone_us, member_pin')
+        .eq('member_pin', digits)
+        .maybeSingle();
+
+      if (pinError) {
+        console.error('PIN lookup error:', pinError);
+      }
+
+      if (pinProfile) {
+        profile = pinProfile;
+        console.log('User authenticated via PIN:', pinProfile.display_name);
+      } else {
+        // Invalid PIN - offer to try again
+        console.log('Invalid PIN entered:', digits);
+        return twiml(
+          say("I couldn't find a member with that PIN.") +
+          `<Gather input="dtmf" numDigits="4" action="${baseUrl}" timeout="10">
+            ${say("Please enter your 4 digit member PIN, or hang up to try again later.")}
+          </Gather>` +
+          say("I didn't receive any input. Goodbye!") +
+          '<Hangup/>'
+        );
+      }
+    }
+
+    // If still no user found, offer PIN authentication
     if (!profile) {
       console.log('No user found for number:', callerNumber);
       return twiml(
-        say("Welcome to Groovy Planning. I don't recognize this phone number. " +
-            "Please register your phone number on our website at groovy planning dot A I, " +
-            "then try calling again. Goodbye!") +
+        say("Welcome to Groovy Planning! I don't recognize this phone number.") +
+        `<Gather input="dtmf" numDigits="4" action="${baseUrl}" timeout="15">
+          ${say("If you're already a member, please enter your 4 digit member PIN now. You can find your PIN in your profile settings.")}
+        </Gather>` +
+        say("If you're not a member yet, please visit groovy planning dot A I to sign up. Goodbye!") +
         '<Hangup/>'
       );
     }
 
     const userName = profile.display_name || 'there';
     const userId = profile.user_id;
-    const baseUrl = webhookUrl;
 
     // Handle call end - update call log
     if (callStatus === 'completed') {

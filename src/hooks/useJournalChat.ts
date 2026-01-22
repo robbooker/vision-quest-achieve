@@ -15,6 +15,9 @@ type JournalContext = {
   recentHabits: any[];
   journalEntries: any[];
   focusSessions: any[];
+  goals: any[];
+  activeCycle: any;
+  vision: any;
 };
 
 type SemanticResult = {
@@ -38,73 +41,115 @@ export const useJournalChat = () => {
   const fetchContext = useCallback(async (): Promise<JournalContext> => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      return { recentTasks: [], pendingTasks: [], recentHabits: [], journalEntries: [], focusSessions: [] };
+      return { recentTasks: [], pendingTasks: [], recentHabits: [], journalEntries: [], focusSessions: [], goals: [], activeCycle: null, vision: null };
     }
 
     const sevenDaysAgo = format(subDays(new Date(), 7), 'yyyy-MM-dd');
 
-    // Fetch recent completed tasks
-    const { data: recentTasks } = await supabase
-      .from('quick_tasks')
-      .select('title, completed_at')
-      .eq('user_id', user.id)
-      .eq('completed', true)
-      .gte('completed_at', sevenDaysAgo)
-      .order('completed_at', { ascending: false })
-      .limit(20);
-
-    // Fetch pending tasks
-    const { data: pendingTasks } = await supabase
-      .from('quick_tasks')
-      .select('title')
-      .eq('user_id', user.id)
-      .eq('completed', false)
-      .order('position', { ascending: true })
-      .limit(10);
-
-    // Fetch recent habit logs with tactic titles
-    const { data: recentHabits } = await supabase
-      .from('tactic_logs')
-      .select(`
-        logged_date,
-        completed_count,
-        goal_tactics!inner(title)
-      `)
-      .eq('user_id', user.id)
-      .gte('logged_date', sevenDaysAgo)
-      .order('logged_date', { ascending: false })
-      .limit(30);
+    // Fetch all context data in parallel
+    const [
+      recentTasksResult,
+      pendingTasksResult,
+      recentHabitsResult,
+      journalEntriesResult,
+      focusSessionsResult,
+      goalsResult,
+      activeCycleResult,
+      visionResult
+    ] = await Promise.all([
+      // Fetch recent completed tasks
+      supabase
+        .from('quick_tasks')
+        .select('title, completed_at')
+        .eq('user_id', user.id)
+        .eq('completed', true)
+        .gte('completed_at', sevenDaysAgo)
+        .order('completed_at', { ascending: false })
+        .limit(20),
+      
+      // Fetch pending tasks
+      supabase
+        .from('quick_tasks')
+        .select('title')
+        .eq('user_id', user.id)
+        .eq('completed', false)
+        .order('position', { ascending: true })
+        .limit(10),
+      
+      // Fetch recent habit logs with tactic titles
+      supabase
+        .from('tactic_logs')
+        .select(`
+          logged_date,
+          completed_count,
+          goal_tactics!inner(title)
+        `)
+        .eq('user_id', user.id)
+        .gte('logged_date', sevenDaysAgo)
+        .order('logged_date', { ascending: false })
+        .limit(30),
+      
+      // Fetch recent journal entries
+      supabase
+        .from('journal_entries')
+        .select('entry_date, user_notes, completed_tasks')
+        .eq('user_id', user.id)
+        .order('entry_date', { ascending: false })
+        .limit(5),
+      
+      // Fetch recent focus sessions
+      supabase
+        .from('focus_sessions')
+        .select('objective, actual_duration_minutes, planned_duration_minutes, status, started_at')
+        .eq('user_id', user.id)
+        .gte('started_at', sevenDaysAgo)
+        .order('started_at', { ascending: false })
+        .limit(10),
+      
+      // Fetch goals with milestones
+      supabase
+        .from('goals')
+        .select(`
+          title, target_value, metric_type, why, goal_type,
+          obstacles, strategies, vision_connection,
+          milestones(week_number, target_value, description)
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10),
+      
+      // Fetch active cycle
+      supabase
+        .from('cycles')
+        .select('id, name, start_date, end_date, status')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .maybeSingle(),
+      
+      // Fetch user vision
+      supabase
+        .from('user_vision')
+        .select('vision_3_year, vision_long_term, core_values')
+        .eq('user_id', user.id)
+        .maybeSingle()
+    ]);
 
     // Transform habit data to include tactic title
-    const habitsWithTitles = recentHabits?.map(h => ({
+    const habitsWithTitles = recentHabitsResult.data?.map(h => ({
       logged_date: h.logged_date,
       completed_count: h.completed_count,
       tactic_title: (h.goal_tactics as any)?.title || 'Unknown habit'
     })) || [];
 
-    // Fetch recent journal entries
-    const { data: journalEntries } = await supabase
-      .from('journal_entries')
-      .select('entry_date, user_notes, completed_tasks')
-      .eq('user_id', user.id)
-      .order('entry_date', { ascending: false })
-      .limit(5);
-
-    // Fetch recent focus sessions
-    const { data: focusSessions } = await supabase
-      .from('focus_sessions')
-      .select('objective, actual_duration_minutes, planned_duration_minutes, status, started_at')
-      .eq('user_id', user.id)
-      .gte('started_at', sevenDaysAgo)
-      .order('started_at', { ascending: false })
-      .limit(10);
-
     return {
-      recentTasks: recentTasks || [],
-      pendingTasks: pendingTasks || [],
+      recentTasks: recentTasksResult.data || [],
+      pendingTasks: pendingTasksResult.data || [],
       recentHabits: habitsWithTitles,
-      journalEntries: journalEntries || [],
-      focusSessions: focusSessions || [],
+      journalEntries: journalEntriesResult.data || [],
+      focusSessions: focusSessionsResult.data || [],
+      goals: goalsResult.data || [],
+      activeCycle: activeCycleResult.data || null,
+      vision: visionResult.data || null,
     };
   }, []);
 

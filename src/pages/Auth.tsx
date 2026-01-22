@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Calendar, Target, TrendingUp, BookOpen } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Footer } from '@/components/layout/Footer';
+import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
 import { z } from 'zod';
 import gpLogo from '@/assets/gp-logo.png';
 
@@ -173,12 +174,13 @@ export default function Auth() {
 
   return (
     <div className="flex flex-col min-h-screen">
+      <AnnouncementBar />
       {/* Theme Toggle - top right */}
-      <div className="absolute top-4 right-4 z-10">
+      <div className="absolute top-14 right-4 z-10">
         <ThemeToggle />
       </div>
       
-      <div className="flex flex-1">
+      <div className="flex flex-1 pt-10">
       {/* Left side - Branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-primary/5 items-center justify-center p-12">
         <div className="max-w-md space-y-8">
@@ -439,3 +441,4 @@ export default function Auth() {
     </div>
   );
 }
+

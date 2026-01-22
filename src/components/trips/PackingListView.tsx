@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { ArrowLeft, Package, Plus, Sparkles, Check, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Package, Plus, Sparkles, Check, X, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -9,6 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Trip, usePackingList, useTrips, PackingListItem } from '@/hooks/useTrips';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PackingListViewProps {
   trip: Trip;
@@ -27,9 +28,10 @@ const categoryOrder = [
 ];
 
 export function PackingListView({ trip, onBack }: PackingListViewProps) {
-  const { packingList, togglePacked, deletePackingItem, progressPercent, packedCount, totalCount } = usePackingList(trip.id);
+  const { packingList, togglePacked, deletePackingItem, addPackingItems, progressPercent, packedCount, totalCount } = usePackingList(trip.id);
   const { addMasterItem, masterItems } = useTrips();
   const [openCategories, setOpenCategories] = useState<Set<string>>(new Set(categoryOrder));
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   const groupedItems = useMemo(() => {
     const groups: Record<string, PackingListItem[]> = {};
@@ -88,6 +90,52 @@ export function PackingListView({ trip, onBack }: PackingListViewProps) {
     toast.success('Item removed');
   };
 
+  const handleRegenerate = async () => {
+    setIsRegenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-packing-list', {
+        body: {
+          destination: trip.destination,
+          startDate: trip.start_date,
+          endDate: trip.end_date,
+          purpose: trip.purpose,
+          plannedActivities: trip.planned_activities,
+          masterItems: masterItems,
+        },
+      });
+
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+
+      // Prepare items for insertion
+      const itemsToAdd = data.items.map((item: any) => {
+        const matchingMaster = masterItems.find(
+          (mi) => mi.item_name.toLowerCase() === item.item_name.toLowerCase()
+        );
+        return {
+          trip_id: trip.id,
+          item_name: item.item_name,
+          category: item.category || 'General',
+          quantity: item.quantity || 1,
+          is_ai_suggested: true,
+          master_item_id: matchingMaster?.id || null,
+        };
+      });
+
+      if (itemsToAdd.length > 0) {
+        await addPackingItems.mutateAsync(itemsToAdd);
+        toast.success(`Added ${itemsToAdd.length} new items to your packing list!`);
+      } else {
+        toast.info('No new items to add');
+      }
+    } catch (err: any) {
+      console.error('Failed to regenerate packing list:', err);
+      toast.error(err.message || 'Failed to regenerate packing list');
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -111,7 +159,19 @@ export function PackingListView({ trip, onBack }: PackingListViewProps) {
               <Package className="h-5 w-5 text-primary" />
               <span className="font-semibold">Packing Progress</span>
             </div>
-            <span className="text-2xl font-bold text-primary">{progressPercent}%</span>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRegenerate}
+                disabled={isRegenerating}
+                className="gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${isRegenerating ? 'animate-spin' : ''}`} />
+                {isRegenerating ? 'Generating...' : 'Regenerate'}
+              </Button>
+              <span className="text-2xl font-bold text-primary">{progressPercent}%</span>
+            </div>
           </div>
           <Progress value={progressPercent} className="h-3 mb-2" />
           <p className="text-sm text-muted-foreground">

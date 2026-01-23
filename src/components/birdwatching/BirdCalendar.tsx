@@ -2,7 +2,19 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Bird, Pencil } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { ImageLightbox } from '@/components/ui/image-lightbox';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Bird, Pencil, Trash2, Camera } from 'lucide-react';
 import { useBirdwatching, BirdSighting } from '@/hooks/useBirdwatching';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, isSameDay, addMonths, subMonths } from 'date-fns';
 import { EditSightingDialog } from './EditSightingDialog';
@@ -12,10 +24,11 @@ interface BirdCalendarProps {
 }
 
 export function BirdCalendar({ onSelectSpecies }: BirdCalendarProps) {
-  const { sightings, getSightingsByDate } = useBirdwatching();
+  const { sightings, getSightingsByDate, deleteSighting, getPhotosForSighting } = useBirdwatching();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [editingSighting, setEditingSighting] = useState<BirdSighting | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   const sightingsByDate = getSightingsByDate();
 
@@ -129,36 +142,91 @@ export function BirdCalendar({ onSelectSpecies }: BirdCalendarProps) {
               </p>
             ) : (
               <div className="space-y-2">
-                {selectedDateSightings.map(sighting => (
-                  <div
-                    key={sighting.id}
-                    className="w-full flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors"
-                  >
-                    <button
-                      onClick={() => onSelectSpecies(sighting.species_name)}
-                      className="flex items-center gap-3 flex-1 text-left"
+                {selectedDateSightings.map(sighting => {
+                  const photos = getPhotosForSighting(sighting.id);
+                  return (
+                    <div
+                      key={sighting.id}
+                      className="w-full flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors"
                     >
-                      <Bird className="h-5 w-5 text-primary" />
-                      <div className="flex-1">
-                        <p className="font-medium">{sighting.species_name}</p>
-                        {sighting.location_name && (
-                          <p className="text-sm text-muted-foreground">{sighting.location_name}</p>
+                      {/* Photo thumbnail */}
+                      {photos.length > 0 && (
+                        <button
+                          onClick={() => setLightboxImage(photos[0].photo_url)}
+                          className="h-12 w-12 rounded-md overflow-hidden flex-shrink-0 hover:opacity-80 transition-opacity"
+                        >
+                          <img 
+                            src={photos[0].photo_url} 
+                            alt={sighting.species_name}
+                            className="h-full w-full object-cover"
+                          />
+                        </button>
+                      )}
+                      
+                      <button
+                        onClick={() => onSelectSpecies(sighting.species_name)}
+                        className="flex items-center gap-3 flex-1 text-left"
+                      >
+                        {photos.length === 0 && <Bird className="h-5 w-5 text-primary" />}
+                        <div className="flex-1">
+                          <p className="font-medium">{sighting.species_name}</p>
+                          {sighting.location_name && (
+                            <p className="text-sm text-muted-foreground">{sighting.location_name}</p>
+                          )}
+                        </div>
+                      </button>
+                      
+                      <div className="flex items-center gap-1">
+                        {sighting.sighting_time && (
+                          <Badge variant="outline">{sighting.sighting_time.slice(0, 5)}</Badge>
                         )}
+                        {photos.length > 1 && (
+                          <Badge variant="secondary">
+                            <Camera className="h-3 w-3 mr-1" />
+                            {photos.length}
+                          </Badge>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setEditingSighting(sighting)}
+                          className="h-8 w-8"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete sighting?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently delete this {sighting.species_name} sighting. 
+                                This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => deleteSighting.mutate(sighting.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
-                    </button>
-                    {sighting.sighting_time && (
-                      <Badge variant="outline">{sighting.sighting_time.slice(0, 5)}</Badge>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setEditingSighting(sighting)}
-                      className="h-8 w-8"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </CardContent>
@@ -169,6 +237,12 @@ export function BirdCalendar({ onSelectSpecies }: BirdCalendarProps) {
         sighting={editingSighting}
         open={!!editingSighting}
         onOpenChange={(open) => !open && setEditingSighting(null)}
+      />
+
+      <ImageLightbox 
+        imageUrl={lightboxImage} 
+        alt="Bird sighting" 
+        onClose={() => setLightboxImage(null)} 
       />
     </div>
   );

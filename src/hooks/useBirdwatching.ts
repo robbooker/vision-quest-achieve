@@ -42,8 +42,9 @@ export interface BirdSpeciesNotes {
   user_id: string;
   species_name: string;
   personal_notes: string | null;
-  ai_research_cache: any | null;
+  ai_research_cache: string | null;
   ai_research_fetched_at: string | null;
+  ai_research_previous: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -385,6 +386,37 @@ export function useBirdwatching() {
     },
   });
 
+  // Save AI research mutation
+  const saveAIResearch = useMutation({
+    mutationFn: async ({ species_name, research }: { species_name: string; research: string }) => {
+      if (!user) throw new Error('Not authenticated');
+      
+      // First get the current cached research to save as previous
+      const existing = speciesNotes.find(n => n.species_name.toLowerCase() === species_name.toLowerCase());
+      
+      const { data, error } = await supabase
+        .from('bird_species_notes')
+        .upsert({
+          user_id: user.id,
+          species_name,
+          ai_research_cache: research,
+          ai_research_fetched_at: new Date().toISOString(),
+          ai_research_previous: existing?.ai_research_cache || null,
+        }, { onConflict: 'user_id,species_name' })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bird-species-notes'] });
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to save AI research', variant: 'destructive' });
+    },
+  });
+
   // Get photos for a specific sighting
   const getPhotosForSighting = (sightingId: string) => {
     return allPhotos.filter(p => p.sighting_id === sightingId);
@@ -424,6 +456,7 @@ export function useBirdwatching() {
     removeFromWishlist,
     uploadPhoto,
     saveSpeciesNotes,
+    saveAIResearch,
     getPhotosForSighting,
     getNotesForSpecies,
     getSightingsByDate,

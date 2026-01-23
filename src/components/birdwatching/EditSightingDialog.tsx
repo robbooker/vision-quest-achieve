@@ -344,16 +344,22 @@ export function EditSightingDialog({ sighting, open, onOpenChange }: EditSightin
                     </button>
                   </div>
                 ))}
-                <label className="h-16 w-16 border-2 border-dashed rounded-md flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-16 w-16 border-2 border-dashed p-0"
+                  onClick={() => document.getElementById('edit-photo-input')?.click()}
+                >
                   <Plus className="h-6 w-6 text-muted-foreground" />
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="hidden"
-                    onChange={handlePhotoSelect}
-                  />
-                </label>
+                </Button>
+                <input
+                  id="edit-photo-input"
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={handlePhotoSelect}
+                />
               </div>
               {newPhotos.length > 0 && (
                 <p className="text-xs text-muted-foreground">

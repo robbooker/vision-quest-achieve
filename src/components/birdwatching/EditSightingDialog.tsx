@@ -10,7 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { MapPin, Clock, Loader2, Save } from 'lucide-react';
+import { ImageLightbox } from '@/components/ui/image-lightbox';
+import { MapPin, Clock, Loader2, Save, Camera, X, Plus } from 'lucide-react';
 import { useBirdwatching, BirdSighting, SightingFormData } from '@/hooks/useBirdwatching';
 
 type LocationMode = 'none' | 'gps' | 'manual';
@@ -22,11 +23,14 @@ interface EditSightingDialogProps {
 }
 
 export function EditSightingDialog({ sighting, open, onOpenChange }: EditSightingDialogProps) {
-  const { updateSighting, sightings } = useBirdwatching();
+  const { updateSighting, sightings, getPhotosForSighting, uploadPhoto } = useBirdwatching();
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [locationMode, setLocationMode] = useState<LocationMode>('none');
   const [manualLat, setManualLat] = useState('');
   const [manualLng, setManualLng] = useState('');
+  const [newPhotos, setNewPhotos] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   
   const [formData, setFormData] = useState<SightingFormData>({
     species_name: '',
@@ -38,6 +42,9 @@ export function EditSightingDialog({ sighting, open, onOpenChange }: EditSightin
     behavior_notes: '',
     field_marks: '',
   });
+
+  // Get existing photos for this sighting
+  const existingPhotos = sighting ? getPhotosForSighting(sighting.id) : [];
 
   // Initialize form when sighting changes
   useEffect(() => {
@@ -62,6 +69,9 @@ export function EditSightingDialog({ sighting, open, onOpenChange }: EditSightin
         setManualLat('');
         setManualLng('');
       }
+      
+      // Reset new photos when dialog opens
+      setNewPhotos([]);
     }
   }, [sighting]);
 
@@ -114,12 +124,38 @@ export function EditSightingDialog({ sighting, open, onOpenChange }: EditSightin
     }
   };
 
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    setNewPhotos(prev => [...prev, ...files]);
+    // Reset input so the same file can be selected again
+    e.target.value = '';
+  };
+
+  const removeNewPhoto = (index: number) => {
+    setNewPhotos(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!sighting || !formData.species_name.trim()) return;
 
-    await updateSighting.mutateAsync({ id: sighting.id, data: formData });
-    onOpenChange(false);
+    setIsUploading(true);
+    
+    try {
+      // Update sighting data
+      await updateSighting.mutateAsync({ id: sighting.id, data: formData });
+      
+      // Upload new photos
+      for (const file of newPhotos) {
+        await uploadPhoto.mutateAsync({ sightingId: sighting.id, file });
+      }
+      
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error updating sighting:', error);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   // Get unique species for autocomplete suggestions
@@ -264,6 +300,67 @@ export function EditSightingDialog({ sighting, open, onOpenChange }: EditSightin
             )}
           </div>
 
+          {/* Existing Photos */}
+          {existingPhotos.length > 0 && (
+            <div className="space-y-2">
+              <Label>Existing Photos</Label>
+              <div className="flex flex-wrap gap-2">
+                {existingPhotos.map((photo) => (
+                  <button
+                    key={photo.id}
+                    type="button"
+                    onClick={() => setLightboxImage(photo.photo_url)}
+                    className="h-16 w-16 rounded-md overflow-hidden hover:opacity-80 transition-opacity"
+                  >
+                    <img 
+                      src={photo.photo_url} 
+                      alt="Sighting"
+                      className="h-full w-full object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Add Photos */}
+          <div className="space-y-2">
+            <Label>Add Photos</Label>
+            <div className="flex flex-wrap gap-2 items-start">
+              {newPhotos.map((file, index) => (
+                <div key={index} className="relative h-16 w-16">
+                  <img
+                    src={URL.createObjectURL(file)}
+                    alt={`New photo ${index + 1}`}
+                    className="h-full w-full object-cover rounded-md"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeNewPhoto(index)}
+                    className="absolute -top-1 -right-1 h-5 w-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center hover:bg-destructive/90"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+              <label className="h-16 w-16 border-2 border-dashed rounded-md flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors">
+                <Plus className="h-6 w-6 text-muted-foreground" />
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={handlePhotoSelect}
+                />
+              </label>
+            </div>
+            {newPhotos.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {newPhotos.length} new photo{newPhotos.length !== 1 ? 's' : ''} to upload
+              </p>
+            )}
+          </div>
+
           {/* Behavior Notes */}
           <div className="space-y-2">
             <Label htmlFor="edit-behavior">Behavior Notes</Label>
@@ -301,17 +398,23 @@ export function EditSightingDialog({ sighting, open, onOpenChange }: EditSightin
             <Button 
               type="submit" 
               className="flex-1"
-              disabled={updateSighting.isPending || !formData.species_name.trim()}
+              disabled={isUploading || updateSighting.isPending || !formData.species_name.trim()}
             >
-              {updateSighting.isPending ? (
+              {isUploading || updateSighting.isPending ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
                 <Save className="h-4 w-4 mr-2" />
               )}
-              Save Changes
+              {newPhotos.length > 0 ? 'Save & Upload' : 'Save Changes'}
             </Button>
           </div>
         </form>
+
+        <ImageLightbox 
+          imageUrl={lightboxImage} 
+          alt="Sighting photo" 
+          onClose={() => setLightboxImage(null)} 
+        />
       </DialogContent>
     </Dialog>
   );

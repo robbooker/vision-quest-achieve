@@ -238,6 +238,7 @@ export type Database = {
         Row: {
           ai_research_cache: Json | null
           ai_research_fetched_at: string | null
+          ai_research_previous: string | null
           created_at: string
           id: string
           personal_notes: string | null
@@ -248,6 +249,7 @@ export type Database = {
         Insert: {
           ai_research_cache?: Json | null
           ai_research_fetched_at?: string | null
+          ai_research_previous?: string | null
           created_at?: string
           id?: string
           personal_notes?: string | null
@@ -258,6 +260,7 @@ export type Database = {
         Update: {
           ai_research_cache?: Json | null
           ai_research_fetched_at?: string | null
+          ai_research_previous?: string | null
           created_at?: string
           id?: string
           personal_notes?: string | null

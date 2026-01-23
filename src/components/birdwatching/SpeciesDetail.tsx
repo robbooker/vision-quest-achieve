@@ -1,9 +1,21 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ImageLightbox } from '@/components/ui/image-lightbox';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { 
   ArrowLeft, 
   Bird, 
@@ -14,11 +26,16 @@ import {
   Save,
   Loader2,
   Camera,
-  BookOpen
+  BookOpen,
+  RefreshCw,
+  Undo2,
+  Trash2,
+  Check
 } from 'lucide-react';
 import { useBirdwatching } from '@/hooks/useBirdwatching';
 import { useAIBirdResearch } from '@/hooks/useAIBirdResearch';
 import { format } from 'date-fns';
+import ReactMarkdown from 'react-markdown';
 
 interface SpeciesDetailProps {
   species: string;
@@ -31,14 +48,40 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
     getPhotosForSighting, 
     getNotesForSpecies, 
     saveSpeciesNotes,
+    saveAIResearch,
+    deleteSighting,
     allPhotos 
   } = useBirdwatching();
   
-  const { research, isLoading: researchLoading, fetchResearch } = useAIBirdResearch(species);
+  // Get cached data for this species
+  const existingNotes = getNotesForSpecies(species);
+  
+  const handleSaveResearch = useCallback(async (research: string) => {
+    await saveAIResearch.mutateAsync({ species_name: species, research });
+  }, [saveAIResearch, species]);
+  
+  const { 
+    research, 
+    isLoading: researchLoading, 
+    isSaved,
+    savedAt,
+    hasPrevious,
+    fetchResearch,
+    regenerate,
+    saveResearch,
+    restorePrevious
+  } = useAIBirdResearch(species, {
+    cachedResearch: existingNotes?.ai_research_cache,
+    cachedAt: existingNotes?.ai_research_fetched_at,
+    previousResearch: existingNotes?.ai_research_previous,
+    onSave: handleSaveResearch,
+  });
   
   const [personalNotes, setPersonalNotes] = useState(
-    getNotesForSpecies(species)?.personal_notes || ''
+    existingNotes?.personal_notes || ''
   );
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
 
   const speciesSightings = sightings.filter(
     s => s.species_name.toLowerCase() === species.toLowerCase()
@@ -55,6 +98,11 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
 
   const handleSaveNotes = () => {
     saveSpeciesNotes.mutate({ species_name: species, personal_notes: personalNotes });
+  };
+
+  const handleRegenerate = async () => {
+    setShowRegenerateConfirm(false);
+    await regenerate();
   };
 
   return (
@@ -124,19 +172,17 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
           <CardContent>
             <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
               {speciesPhotos.map((photo) => (
-                <a
+                <button
                   key={photo.id}
-                  href={photo.photo_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="aspect-square rounded-lg overflow-hidden hover:opacity-80 transition-opacity"
+                  onClick={() => setLightboxImage(photo.photo_url)}
+                  className="aspect-square rounded-lg overflow-hidden hover:opacity-80 transition-opacity cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   <img
                     src={photo.photo_url}
                     alt={species}
                     className="w-full h-full object-cover"
                   />
-                </a>
+                </button>
               ))}
             </div>
           </CardContent>
@@ -146,13 +192,78 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
       {/* AI Research */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" />
-            AI Research
-          </CardTitle>
-          <CardDescription>
-            Learn about this species from AI-powered research
-          </CardDescription>
+          <div className="flex items-start justify-between">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                AI Research
+                {isSaved && (
+                  <Badge variant="secondary" className="ml-2">
+                    <Check className="h-3 w-3 mr-1" />
+                    Saved
+                  </Badge>
+                )}
+              </CardTitle>
+              <CardDescription>
+                {savedAt ? (
+                  <>Saved {format(new Date(savedAt), 'MMM d, yyyy')}</>
+                ) : (
+                  'Learn about this species from AI-powered research'
+                )}
+              </CardDescription>
+            </div>
+            {research && (
+              <div className="flex gap-2">
+                {!isSaved && (
+                  <Button 
+                    size="sm" 
+                    onClick={saveResearch}
+                    disabled={saveAIResearch.isPending}
+                  >
+                    {saveAIResearch.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4 mr-1" />
+                    )}
+                    Save
+                  </Button>
+                )}
+                {hasPrevious && (
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={restorePrevious}
+                  >
+                    <Undo2 className="h-4 w-4 mr-1" />
+                    Restore
+                  </Button>
+                )}
+                <AlertDialog open={showRegenerateConfirm} onOpenChange={setShowRegenerateConfirm}>
+                  <AlertDialogTrigger asChild>
+                    <Button size="sm" variant="outline" disabled={researchLoading}>
+                      <RefreshCw className={`h-4 w-4 mr-1 ${researchLoading ? 'animate-spin' : ''}`} />
+                      Regenerate
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Regenerate AI Research?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will replace your saved research with a fresh version. 
+                        Don't worry — you can restore the previous version if you prefer it.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleRegenerate}>
+                        Regenerate
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {!research && !researchLoading && (
@@ -174,12 +285,14 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
               <Skeleton className="h-4 w-3/4" />
               <Skeleton className="h-4 w-5/6" />
               <Skeleton className="h-4 w-2/3" />
+              <Skeleton className="h-4 w-4/5" />
+              <Skeleton className="h-4 w-3/4" />
             </div>
           )}
 
-          {research && (
-            <div className="prose prose-sm dark:prose-invert max-w-none">
-              <div dangerouslySetInnerHTML={{ __html: research.replace(/\n/g, '<br/>') }} />
+          {research && !researchLoading && (
+            <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-2 prose-strong:text-foreground prose-headings:text-foreground prose-li:my-0.5 prose-h2:text-lg prose-h2:mt-4 prose-h2:mb-2">
+              <ReactMarkdown>{research}</ReactMarkdown>
             </div>
           )}
         </CardContent>
@@ -228,7 +341,7 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
                 className="p-3 rounded-lg border bg-card"
               >
                 <div className="flex items-start justify-between">
-                  <div>
+                  <div className="flex-1">
                     <p className="font-medium">
                       {format(new Date(sighting.sighting_date), 'MMMM d, yyyy')}
                       {sighting.sighting_time && (
@@ -244,12 +357,39 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
                       </p>
                     )}
                   </div>
-                  {getPhotosForSighting(sighting.id).length > 0 && (
-                    <Badge variant="outline">
-                      <Camera className="h-3 w-3 mr-1" />
-                      {getPhotosForSighting(sighting.id).length}
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {getPhotosForSighting(sighting.id).length > 0 && (
+                      <Badge variant="outline">
+                        <Camera className="h-3 w-3 mr-1" />
+                        {getPhotosForSighting(sighting.id).length}
+                      </Badge>
+                    )}
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete sighting?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will permanently delete this {species} sighting from {format(new Date(sighting.sighting_date), 'MMMM d, yyyy')}.
+                            This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => deleteSighting.mutate(sighting.id)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </div>
                 {(sighting.behavior_notes || sighting.field_marks) && (
                   <div className="mt-2 text-sm text-muted-foreground">
@@ -263,6 +403,12 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
         </CardContent>
       </Card>
 
+      {/* Photo Lightbox */}
+      <ImageLightbox 
+        imageUrl={lightboxImage} 
+        alt={species} 
+        onClose={() => setLightboxImage(null)} 
+      />
     </div>
   );
 }

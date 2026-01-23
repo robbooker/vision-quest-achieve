@@ -119,17 +119,24 @@ export function LogSightingForm() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
           {/* Species Name */}
           <div className="space-y-2">
             <Label htmlFor="species">Species Name *</Label>
             <Input
               id="species"
+              name="bird-species-name"
               placeholder="e.g., Northern Cardinal"
               value={formData.species_name}
               onChange={(e) => setFormData(prev => ({ ...prev, species_name: e.target.value }))}
               list="species-list"
               required
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="words"
+              spellCheck={false}
+              data-form-type="other"
+              data-lpignore="true"
             />
             <datalist id="species-list">
               {uniqueSpecies.map(species => (

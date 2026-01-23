@@ -230,6 +230,40 @@ export function useBirdwatching() {
     },
   });
 
+  // Update sighting mutation
+  const updateSighting = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<SightingFormData> }) => {
+      if (!user) throw new Error('Not authenticated');
+      
+      const { data: sighting, error } = await supabase
+        .from('bird_sightings')
+        .update({
+          species_name: data.species_name,
+          sighting_date: data.sighting_date,
+          sighting_time: data.sighting_time || null,
+          location_name: data.location_name || null,
+          latitude: data.latitude || null,
+          longitude: data.longitude || null,
+          behavior_notes: data.behavior_notes || null,
+          field_marks: data.field_marks || null,
+        })
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return sighting;
+    },
+    onSuccess: (sighting) => {
+      queryClient.invalidateQueries({ queryKey: ['bird-sightings'] });
+      toast({ title: 'Sighting updated', description: sighting.species_name });
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to update sighting', variant: 'destructive' });
+    },
+  });
+
   // Delete sighting mutation
   const deleteSighting = useMutation({
     mutationFn: async (id: string) => {
@@ -384,6 +418,7 @@ export function useBirdwatching() {
     speciesNotes,
     allPhotos,
     addSighting,
+    updateSighting,
     deleteSighting,
     addToWishlist,
     removeFromWishlist,

@@ -1,34 +1,69 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { useState, useEffect } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Bird, MapPin, Clock, Camera, Loader2 } from 'lucide-react';
-import { useBirdwatching, SightingFormData } from '@/hooks/useBirdwatching';
-import { format } from 'date-fns';
+import { MapPin, Clock, Loader2, Save } from 'lucide-react';
+import { useBirdwatching, BirdSighting, SightingFormData } from '@/hooks/useBirdwatching';
 
-type LocationMode = 'gps' | 'manual' | 'city';
+type LocationMode = 'none' | 'gps' | 'manual';
 
-export function LogSightingForm() {
-  const { addSighting, uploadPhoto, sightings } = useBirdwatching();
+interface EditSightingDialogProps {
+  sighting: BirdSighting | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function EditSightingDialog({ sighting, open, onOpenChange }: EditSightingDialogProps) {
+  const { updateSighting, sightings } = useBirdwatching();
   const [isGettingLocation, setIsGettingLocation] = useState(false);
-  const [photos, setPhotos] = useState<File[]>([]);
-  const [locationMode, setLocationMode] = useState<LocationMode>('city');
+  const [locationMode, setLocationMode] = useState<LocationMode>('none');
   const [manualLat, setManualLat] = useState('');
   const [manualLng, setManualLng] = useState('');
   
   const [formData, setFormData] = useState<SightingFormData>({
     species_name: '',
-    sighting_date: format(new Date(), 'yyyy-MM-dd'),
-    sighting_time: format(new Date(), 'HH:mm'),
+    sighting_date: '',
+    sighting_time: '',
     location_name: '',
     latitude: undefined,
     longitude: undefined,
     behavior_notes: '',
     field_marks: '',
   });
+
+  // Initialize form when sighting changes
+  useEffect(() => {
+    if (sighting) {
+      setFormData({
+        species_name: sighting.species_name,
+        sighting_date: sighting.sighting_date,
+        sighting_time: sighting.sighting_time || '',
+        location_name: sighting.location_name || '',
+        latitude: sighting.latitude ?? undefined,
+        longitude: sighting.longitude ?? undefined,
+        behavior_notes: sighting.behavior_notes || '',
+        field_marks: sighting.field_marks || '',
+      });
+      
+      if (sighting.latitude !== null && sighting.longitude !== null) {
+        setLocationMode('manual');
+        setManualLat(sighting.latitude.toString());
+        setManualLng(sighting.longitude.toString());
+      } else {
+        setLocationMode('none');
+        setManualLat('');
+        setManualLng('');
+      }
+    }
+  }, [sighting]);
 
   const handleGetLocation = () => {
     if (!navigator.geolocation) {
@@ -47,6 +82,7 @@ export function LogSightingForm() {
         setManualLat(position.coords.latitude.toString());
         setManualLng(position.coords.longitude.toString());
         setIsGettingLocation(false);
+        setLocationMode('manual');
       },
       (error) => {
         console.error('Error getting location:', error);
@@ -69,69 +105,48 @@ export function LogSightingForm() {
     }));
   };
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setPhotos(Array.from(e.target.files));
+  const handleLocationModeChange = (mode: LocationMode) => {
+    setLocationMode(mode);
+    if (mode === 'none') {
+      setFormData(prev => ({ ...prev, latitude: undefined, longitude: undefined }));
+      setManualLat('');
+      setManualLng('');
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.species_name.trim()) return;
+    if (!sighting || !formData.species_name.trim()) return;
 
-    const result = await addSighting.mutateAsync(formData);
-    
-    // Upload photos if any
-    if (photos.length > 0 && result.sighting) {
-      for (const photo of photos) {
-        await uploadPhoto.mutateAsync({ sightingId: result.sighting.id, file: photo });
-      }
-    }
-
-    // Reset form
-    setFormData({
-      species_name: '',
-      sighting_date: format(new Date(), 'yyyy-MM-dd'),
-      sighting_time: format(new Date(), 'HH:mm'),
-      location_name: '',
-      latitude: undefined,
-      longitude: undefined,
-      behavior_notes: '',
-      field_marks: '',
-    });
-    setPhotos([]);
-    setManualLat('');
-    setManualLng('');
+    await updateSighting.mutateAsync({ id: sighting.id, data: formData });
+    onOpenChange(false);
   };
 
   // Get unique species for autocomplete suggestions
   const uniqueSpecies = [...new Set(sightings.map(s => s.species_name))].sort();
 
+  if (!sighting) return null;
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Bird className="h-5 w-5" />
-          Log a Sighting
-        </CardTitle>
-        <CardDescription>
-          Record a new bird observation
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Edit Sighting</DialogTitle>
+        </DialogHeader>
+        
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Species Name */}
           <div className="space-y-2">
-            <Label htmlFor="species">Species Name *</Label>
+            <Label htmlFor="edit-species">Species Name *</Label>
             <Input
-              id="species"
+              id="edit-species"
               placeholder="e.g., Northern Cardinal"
               value={formData.species_name}
               onChange={(e) => setFormData(prev => ({ ...prev, species_name: e.target.value }))}
-              list="species-list"
+              list="edit-species-list"
               required
             />
-            <datalist id="species-list">
+            <datalist id="edit-species-list">
               {uniqueSpecies.map(species => (
                 <option key={species} value={species} />
               ))}
@@ -141,9 +156,9 @@ export function LogSightingForm() {
           {/* Date and Time */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="date">Date *</Label>
+              <Label htmlFor="edit-date">Date *</Label>
               <Input
-                id="date"
+                id="edit-date"
                 type="date"
                 value={formData.sighting_date}
                 onChange={(e) => setFormData(prev => ({ ...prev, sighting_date: e.target.value }))}
@@ -151,11 +166,11 @@ export function LogSightingForm() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="time">Time</Label>
+              <Label htmlFor="edit-time">Time</Label>
               <div className="relative">
                 <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  id="time"
+                  id="edit-time"
                   type="time"
                   className="pl-10"
                   value={formData.sighting_time}
@@ -167,9 +182,9 @@ export function LogSightingForm() {
 
           {/* Location */}
           <div className="space-y-2">
-            <Label htmlFor="location">Location Name (City, State or Description)</Label>
+            <Label htmlFor="edit-location">Location Name (City, State or Description)</Label>
             <Input
-              id="location"
+              id="edit-location"
               placeholder="e.g., Austin, TX or Central Park, NYC"
               value={formData.location_name}
               onChange={(e) => setFormData(prev => ({ ...prev, location_name: e.target.value }))}
@@ -181,20 +196,20 @@ export function LogSightingForm() {
             <Label>GPS Coordinates (Optional)</Label>
             <RadioGroup 
               value={locationMode} 
-              onValueChange={(value) => setLocationMode(value as LocationMode)}
+              onValueChange={(value) => handleLocationModeChange(value as LocationMode)}
               className="flex flex-wrap gap-4"
             >
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="city" id="loc-city" />
-                <Label htmlFor="loc-city" className="font-normal cursor-pointer">None</Label>
+                <RadioGroupItem value="none" id="edit-loc-none" />
+                <Label htmlFor="edit-loc-none" className="font-normal cursor-pointer">None</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="gps" id="loc-gps" />
-                <Label htmlFor="loc-gps" className="font-normal cursor-pointer">Use Device GPS</Label>
+                <RadioGroupItem value="gps" id="edit-loc-gps" />
+                <Label htmlFor="edit-loc-gps" className="font-normal cursor-pointer">Use Device GPS</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="manual" id="loc-manual" />
-                <Label htmlFor="loc-manual" className="font-normal cursor-pointer">Enter Manually</Label>
+                <RadioGroupItem value="manual" id="edit-loc-manual" />
+                <Label htmlFor="edit-loc-manual" className="font-normal cursor-pointer">Enter Manually</Label>
               </div>
             </RadioGroup>
 
@@ -224,9 +239,9 @@ export function LogSightingForm() {
             {locationMode === 'manual' && (
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label htmlFor="manual-lat" className="text-xs text-muted-foreground">Latitude</Label>
+                  <Label htmlFor="edit-manual-lat" className="text-xs text-muted-foreground">Latitude</Label>
                   <Input
-                    id="manual-lat"
+                    id="edit-manual-lat"
                     type="number"
                     step="any"
                     placeholder="e.g., 30.2672"
@@ -235,9 +250,9 @@ export function LogSightingForm() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="manual-lng" className="text-xs text-muted-foreground">Longitude</Label>
+                  <Label htmlFor="edit-manual-lng" className="text-xs text-muted-foreground">Longitude</Label>
                   <Input
-                    id="manual-lng"
+                    id="edit-manual-lng"
                     type="number"
                     step="any"
                     placeholder="e.g., -97.7431"
@@ -249,43 +264,11 @@ export function LogSightingForm() {
             )}
           </div>
 
-          {/* Photos */}
-          <div className="space-y-2">
-            <Label htmlFor="photos">Photos</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                id="photos"
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handlePhotoChange}
-                className="flex-1"
-              />
-              {photos.length > 0 && (
-                <span className="text-sm text-muted-foreground">
-                  {photos.length} photo(s) selected
-                </span>
-              )}
-            </div>
-            {photos.length > 0 && (
-              <div className="flex gap-2 mt-2 flex-wrap">
-                {photos.map((photo, idx) => (
-                  <img
-                    key={idx}
-                    src={URL.createObjectURL(photo)}
-                    alt={`Preview ${idx + 1}`}
-                    className="w-16 h-16 object-cover rounded border"
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-
           {/* Behavior Notes */}
           <div className="space-y-2">
-            <Label htmlFor="behavior">Behavior Notes</Label>
+            <Label htmlFor="edit-behavior">Behavior Notes</Label>
             <Textarea
-              id="behavior"
+              id="edit-behavior"
               placeholder="What was the bird doing? Feeding, singing, nesting..."
               value={formData.behavior_notes}
               onChange={(e) => setFormData(prev => ({ ...prev, behavior_notes: e.target.value }))}
@@ -295,9 +278,9 @@ export function LogSightingForm() {
 
           {/* Field Marks */}
           <div className="space-y-2">
-            <Label htmlFor="fieldmarks">Field Marks</Label>
+            <Label htmlFor="edit-fieldmarks">Field Marks</Label>
             <Textarea
-              id="fieldmarks"
+              id="edit-fieldmarks"
               placeholder="Distinctive features: colors, size, markings..."
               value={formData.field_marks}
               onChange={(e) => setFormData(prev => ({ ...prev, field_marks: e.target.value }))}
@@ -306,20 +289,30 @@ export function LogSightingForm() {
           </div>
 
           {/* Submit */}
-          <Button 
-            type="submit" 
-            className="w-full"
-            disabled={addSighting.isPending || !formData.species_name.trim()}
-          >
-            {addSighting.isPending ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Bird className="h-4 w-4 mr-2" />
-            )}
-            Log Sighting
-          </Button>
+          <div className="flex gap-2 pt-2">
+            <Button 
+              type="button" 
+              variant="outline"
+              className="flex-1"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              className="flex-1"
+              disabled={updateSighting.isPending || !formData.species_name.trim()}
+            >
+              {updateSighting.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
+              Save Changes
+            </Button>
+          </div>
         </form>
-      </CardContent>
-    </Card>
+      </DialogContent>
+    </Dialog>
   );
 }

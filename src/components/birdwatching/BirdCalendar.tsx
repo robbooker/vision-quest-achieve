@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Bird } from 'lucide-react';
-import { useBirdwatching } from '@/hooks/useBirdwatching';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Bird, Pencil } from 'lucide-react';
+import { useBirdwatching, BirdSighting } from '@/hooks/useBirdwatching';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, isSameDay, addMonths, subMonths } from 'date-fns';
+import { EditSightingDialog } from './EditSightingDialog';
 
 interface BirdCalendarProps {
   onSelectSpecies: (species: string) => void;
@@ -14,6 +15,7 @@ export function BirdCalendar({ onSelectSpecies }: BirdCalendarProps) {
   const { sightings, getSightingsByDate } = useBirdwatching();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [editingSighting, setEditingSighting] = useState<BirdSighting | null>(null);
 
   const sightingsByDate = getSightingsByDate();
 
@@ -128,28 +130,46 @@ export function BirdCalendar({ onSelectSpecies }: BirdCalendarProps) {
             ) : (
               <div className="space-y-2">
                 {selectedDateSightings.map(sighting => (
-                  <button
+                  <div
                     key={sighting.id}
-                    onClick={() => onSelectSpecies(sighting.species_name)}
-                    className="w-full flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors text-left"
+                    className="w-full flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors"
                   >
-                    <Bird className="h-5 w-5 text-primary" />
-                    <div className="flex-1">
-                      <p className="font-medium">{sighting.species_name}</p>
-                      {sighting.location_name && (
-                        <p className="text-sm text-muted-foreground">{sighting.location_name}</p>
-                      )}
-                    </div>
+                    <button
+                      onClick={() => onSelectSpecies(sighting.species_name)}
+                      className="flex items-center gap-3 flex-1 text-left"
+                    >
+                      <Bird className="h-5 w-5 text-primary" />
+                      <div className="flex-1">
+                        <p className="font-medium">{sighting.species_name}</p>
+                        {sighting.location_name && (
+                          <p className="text-sm text-muted-foreground">{sighting.location_name}</p>
+                        )}
+                      </div>
+                    </button>
                     {sighting.sighting_time && (
                       <Badge variant="outline">{sighting.sighting_time.slice(0, 5)}</Badge>
                     )}
-                  </button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setEditingSighting(sighting)}
+                      className="h-8 w-8"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </div>
                 ))}
               </div>
             )}
           </CardContent>
         </Card>
       )}
+
+      <EditSightingDialog
+        sighting={editingSighting}
+        open={!!editingSighting}
+        onOpenChange={(open) => !open && setEditingSighting(null)}
+      />
     </div>
   );
 }

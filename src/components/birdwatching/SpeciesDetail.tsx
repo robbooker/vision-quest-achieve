@@ -294,7 +294,17 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
           )}
 
           {research && !researchLoading && (
-            <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-2 prose-strong:text-foreground prose-headings:text-foreground prose-li:my-0.5 prose-h2:text-lg prose-h2:mt-4 prose-h2:mb-2">
+            <div className="prose prose-sm dark:prose-invert max-w-none 
+              prose-p:my-3 prose-p:leading-relaxed
+              prose-strong:text-foreground prose-strong:font-semibold
+              prose-headings:text-foreground prose-headings:font-bold
+              prose-h2:text-base prose-h2:mt-6 prose-h2:mb-3 prose-h2:pb-1 prose-h2:border-b prose-h2:border-border/50
+              prose-h3:text-sm prose-h3:mt-4 prose-h3:mb-2
+              prose-li:my-1 prose-li:leading-relaxed
+              prose-ul:my-3 prose-ol:my-3
+              prose-em:text-muted-foreground prose-em:not-italic prose-em:font-medium
+              [&_p:first-of-type]:text-base [&_p:first-of-type]:leading-relaxed [&_p:first-of-type]:mb-4
+            ">
               <ReactMarkdown>{research}</ReactMarkdown>
             </div>
           )}

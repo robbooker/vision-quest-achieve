@@ -20,7 +20,7 @@ interface BirdGalleryProps {
 
 export function BirdGallery({ onSelectSpecies }: BirdGalleryProps) {
   const { sightings, allPhotos } = useBirdwatching();
-  const [selectedPhoto, setSelectedPhoto] = useState<GalleryPhoto | null>(null);
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
 
   // Combine photos with their sighting data
   const galleryPhotos: GalleryPhoto[] = allPhotos.map(photo => {
@@ -34,9 +34,17 @@ export function BirdGallery({ onSelectSpecies }: BirdGalleryProps) {
     };
   }).sort((a, b) => new Date(b.sighting_date).getTime() - new Date(a.sighting_date).getTime());
 
-  const handlePhotoClick = (photo: GalleryPhoto) => {
-    setSelectedPhoto(photo);
+  const handlePhotoClick = (index: number) => {
+    setSelectedPhotoIndex(index);
   };
+
+  // Prepare images array for lightbox navigation
+  const lightboxImages = galleryPhotos.map(photo => ({
+    url: photo.photo_url,
+    alt: photo.species_name,
+  }));
+
+  const selectedPhoto = selectedPhotoIndex !== null ? galleryPhotos[selectedPhotoIndex] : null;
 
   if (galleryPhotos.length === 0) {
     return (
@@ -97,7 +105,7 @@ export function BirdGallery({ onSelectSpecies }: BirdGalleryProps) {
               <div
                 key={photo.id}
                 className="group relative aspect-square rounded-lg overflow-hidden cursor-pointer bg-muted"
-                onClick={() => handlePhotoClick(photo)}
+                onClick={() => handlePhotoClick(galleryPhotos.indexOf(photo))}
               >
                 <img
                   src={photo.photo_url}
@@ -154,11 +162,14 @@ export function BirdGallery({ onSelectSpecies }: BirdGalleryProps) {
         </CardContent>
       </Card>
 
-      {/* Lightbox */}
+      {/* Lightbox with navigation */}
       <ImageLightbox
         imageUrl={selectedPhoto?.photo_url || null}
         alt={selectedPhoto?.species_name || 'Bird photo'}
-        onClose={() => setSelectedPhoto(null)}
+        onClose={() => setSelectedPhotoIndex(null)}
+        images={lightboxImages}
+        currentIndex={selectedPhotoIndex ?? 0}
+        onNavigate={setSelectedPhotoIndex}
       />
     </div>
   );

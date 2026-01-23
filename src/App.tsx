@@ -49,6 +49,7 @@ import NotFound from "./pages/NotFound";
 import Free from "./pages/Free";
 import Feedback from "./pages/Feedback";
 import AdminFeedback from "./pages/AdminFeedback";
+import Birdwatching from "./pages/Birdwatching";
 
 const queryClient = new QueryClient();
 
@@ -110,6 +111,7 @@ const App = () => (
                     <Route path="/trips" element={<ProtectedRoute><Trips /></ProtectedRoute>} />
                     <Route path="/affirmations" element={<ProtectedRoute><Affirmations /></ProtectedRoute>} />
                     <Route path="/feedback" element={<ProtectedRoute><Feedback /></ProtectedRoute>} />
+                    <Route path="/birdwatching" element={<ProtectedRoute><Birdwatching /></ProtectedRoute>} />
                     <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
                     <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
                     <Route path="/admin/broadcasts" element={<AdminRoute><AdminBroadcasts /></AdminRoute>} />

@@ -157,6 +157,146 @@ export type Database = {
           },
         ]
       }
+      bird_sighting_photos: {
+        Row: {
+          created_at: string
+          id: string
+          photo_url: string
+          sighting_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          photo_url: string
+          sighting_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          photo_url?: string
+          sighting_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bird_sighting_photos_sighting_id_fkey"
+            columns: ["sighting_id"]
+            isOneToOne: false
+            referencedRelation: "bird_sightings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bird_sightings: {
+        Row: {
+          behavior_notes: string | null
+          created_at: string
+          field_marks: string | null
+          id: string
+          latitude: number | null
+          location_name: string | null
+          longitude: number | null
+          sighting_date: string
+          sighting_time: string | null
+          species_name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          behavior_notes?: string | null
+          created_at?: string
+          field_marks?: string | null
+          id?: string
+          latitude?: number | null
+          location_name?: string | null
+          longitude?: number | null
+          sighting_date?: string
+          sighting_time?: string | null
+          species_name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          behavior_notes?: string | null
+          created_at?: string
+          field_marks?: string | null
+          id?: string
+          latitude?: number | null
+          location_name?: string | null
+          longitude?: number | null
+          sighting_date?: string
+          sighting_time?: string | null
+          species_name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      bird_species_notes: {
+        Row: {
+          ai_research_cache: Json | null
+          ai_research_fetched_at: string | null
+          created_at: string
+          id: string
+          personal_notes: string | null
+          species_name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_research_cache?: Json | null
+          ai_research_fetched_at?: string | null
+          created_at?: string
+          id?: string
+          personal_notes?: string | null
+          species_name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_research_cache?: Json | null
+          ai_research_fetched_at?: string | null
+          created_at?: string
+          id?: string
+          personal_notes?: string | null
+          species_name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      bird_wishlist: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          priority: number | null
+          species_name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          priority?: number | null
+          species_name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          priority?: number | null
+          species_name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       books: {
         Row: {
           author: string

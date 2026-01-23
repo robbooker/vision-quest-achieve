@@ -22,6 +22,7 @@ import { useQuickTasks } from '@/hooks/useQuickTasks';
 import { useCalendarConnection, useCalendarEvents } from '@/hooks/useCalendar';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfDay, endOfDay } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 import { 
   Plus,
   Calendar,
@@ -30,7 +31,8 @@ import {
   CheckCircle2,
   Circle,
   Thermometer,
-  MoreHorizontal
+  MoreHorizontal,
+  Bird
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -57,6 +59,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 
 export default function Today() {
+  const navigate = useNavigate();
   const { getActiveCycle, getCurrentWeekNumber, isLoading: cyclesLoading } = useCycles();
   const activeCycle = getActiveCycle();
   const currentWeek = activeCycle ? getCurrentWeekNumber(activeCycle) : 0;
@@ -371,6 +374,10 @@ export default function Today() {
                 >
                   <Thermometer className="h-4 w-4 mr-2" />
                   {todayIsSick ? 'Remove Sick Day' : 'Mark as Sick Day'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/birdwatching')}>
+                  <Bird className="h-4 w-4 mr-2" />
+                  Birdwatching
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

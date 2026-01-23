@@ -68,6 +68,17 @@ serve(async (req) => {
         context.goals.forEach((goal: any, i: number) => {
           contextMessage += `${i + 1}. "${goal.title}" - Target: ${goal.target_value} ${goal.metric_type}`;
           if (goal.why) contextMessage += ` (Why: ${goal.why})`;
+          // Include progress data if available
+          if (goal.progress) {
+            const p = goal.progress;
+            contextMessage += `\n   → Progress: ${p.currentValue?.toLocaleString() || 0} of ${p.targetValue?.toLocaleString() || goal.target_value} (${p.progressPercent || 0}%)`;
+            if (p.dailyAverage) contextMessage += ` | Avg: ${p.dailyAverage}/day`;
+            if (p.daysActive) contextMessage += ` | ${p.daysActive} days logged`;
+            if (p.projectedTotal && p.daysRemaining > 0) {
+              const onTrack = p.projectedTotal >= (p.targetValue || goal.target_value);
+              contextMessage += ` | Projected: ${p.projectedTotal.toLocaleString()} ${onTrack ? '(on track!)' : '(behind pace)'}`;
+            }
+          }
           contextMessage += "\n";
         });
       }

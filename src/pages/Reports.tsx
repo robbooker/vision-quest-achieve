@@ -33,6 +33,7 @@ import { useBigTen } from '@/hooks/useBigTen';
 import { useQuickTasks } from '@/hooks/useQuickTasks';
 import { TrendingUp, BarChart3, Target, AlertTriangle, Calendar, CheckSquare, FolderKanban, ListTodo, RotateCcw, Flame, Trophy, Zap, Clock, Timer, Globe, Sparkles } from 'lucide-react';
 import { HabitChainCalendar } from '@/components/reports/HabitChainCalendar';
+import { CumulativeProgressCard } from '@/components/reports/CumulativeProgressCard';
 import { SitewideStats } from '@/components/reports/SitewideStats';
 import { AuditStrip } from '@/components/reset/AuditStrip';
 import { useResetAudits } from '@/hooks/useResetAudits';
@@ -257,7 +258,13 @@ export default function Reports() {
 
           <TabsContent value="personal" className="space-y-6 mt-6">
 
-        {/* Habit Chains Section - Top Priority */}
+        {/* Cumulative Progress - Top Priority for numeric goals */}
+        <CumulativeProgressCard 
+          goals={goals.map(g => ({ id: g.id, title: g.title, target_value: g.target_value, metric_type: g.metric_type }))}
+          cycleEndDate={activeCycle?.end_date}
+        />
+
+        {/* Habit Chains Section */}
         <HabitChainCalendar />
 
         {/* Affirmations Section */}

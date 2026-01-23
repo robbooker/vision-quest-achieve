@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { useGoals } from './useGoals';
 import { useCycles } from './useCycles';
 import { useVision } from './useVision';
+import { useAllGoalsProgress } from './useCumulativeProgress';
 import type { ChatMessage } from '@/types/chat';
 
 export type { ChatMessage };
@@ -19,6 +20,12 @@ export function useGoalCoach(cycleId?: string) {
 
   const activeCycle = useMemo(() => getActiveCycle(), [getActiveCycle]);
   const currentWeek = useMemo(() => activeCycle ? getCurrentWeekNumber(activeCycle) : null, [activeCycle, getCurrentWeekNumber]);
+
+  // Get cumulative progress for numeric goals
+  const { data: progressData } = useAllGoalsProgress(
+    goals.map(g => ({ id: g.id, title: g.title, target_value: g.target_value, metric_type: g.metric_type })),
+    activeCycle?.end_date
+  );
 
   const sendMessage = useCallback(async (userMessage: string) => {
     const userMsg: ChatMessage = { role: 'user', content: userMessage };
@@ -38,12 +45,24 @@ export function useGoalCoach(cycleId?: string) {
         body: JSON.stringify({
           messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })),
           context: {
-            goals: goals.map(g => ({
-              title: g.title,
-              target_value: g.target_value,
-              metric_type: g.metric_type,
-              why: g.why,
-            })),
+            goals: goals.map(g => {
+              const progress = progressData?.find(p => p.goalId === g.id);
+              return {
+                title: g.title,
+                target_value: g.target_value,
+                metric_type: g.metric_type,
+                why: g.why,
+                progress: progress ? {
+                  currentValue: progress.currentValue,
+                  targetValue: progress.targetValue,
+                  progressPercent: progress.progressPercent,
+                  dailyAverage: progress.dailyAverage,
+                  daysActive: progress.daysActive,
+                  projectedTotal: progress.projectedTotal,
+                  daysRemaining: progress.daysRemaining,
+                } : undefined,
+              };
+            }),
             cycle: activeCycle,
             currentWeek,
             vision,
@@ -138,7 +157,7 @@ export function useGoalCoach(cycleId?: string) {
     } finally {
       setIsLoading(false);
     }
-  }, [messages, goals, activeCycle, currentWeek, vision]);
+  }, [messages, goals, activeCycle, currentWeek, vision, progressData]);
 
   const clearChat = useCallback(() => {
     setMessages([]);

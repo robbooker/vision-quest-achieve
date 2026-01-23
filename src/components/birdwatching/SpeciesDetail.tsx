@@ -266,5 +266,3 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
     </div>
   );
 }
-  );
-}

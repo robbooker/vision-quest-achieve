@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -31,7 +32,8 @@ import {
   Undo2,
   Trash2,
   Check,
-  Pencil
+  Pencil,
+  ChevronDown
 } from 'lucide-react';
 import { useBirdwatching, BirdSighting } from '@/hooks/useBirdwatching';
 import { useAIBirdResearch } from '@/hooks/useAIBirdResearch';
@@ -294,23 +296,31 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
           )}
 
           {research && !researchLoading && (
-            <div className="prose prose-sm dark:prose-invert max-w-none
-              prose-p:my-4 prose-p:leading-7 prose-p:text-foreground/90
-              prose-strong:text-foreground prose-strong:font-semibold
-              prose-headings:text-foreground prose-headings:font-bold prose-headings:tracking-tight
-              prose-h2:text-lg prose-h2:mt-8 prose-h2:mb-4 prose-h2:pb-2 prose-h2:border-b prose-h2:border-border
-              prose-h3:text-base prose-h3:mt-6 prose-h3:mb-3
-              prose-h4:text-sm prose-h4:mt-5 prose-h4:mb-2 prose-h4:font-semibold
-              prose-li:my-2 prose-li:leading-7
-              prose-ul:my-4 prose-ul:space-y-1 prose-ol:my-4 prose-ol:space-y-1
-              prose-ul:pl-0 prose-ol:pl-0
-              prose-em:text-foreground/80 prose-em:font-medium
-              [&_p:first-of-type]:text-base [&_p:first-of-type]:leading-7 [&_p:first-of-type]:mb-6
-              [&_ul]:list-disc [&_ul]:ml-6 [&_ol]:list-decimal [&_ol]:ml-6
-              [&_li>strong]:block [&_li>strong]:mb-1
-            ">
-              <ReactMarkdown>{research}</ReactMarkdown>
-            </div>
+            <Collapsible defaultOpen className="space-y-2">
+              <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors w-full group">
+                <ChevronDown className="h-4 w-4 transition-transform group-data-[state=closed]:-rotate-90" />
+                <span>AI Research</span>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="prose prose-sm dark:prose-invert max-w-none pt-2
+                  prose-p:my-4 prose-p:leading-7 prose-p:text-foreground/90
+                  prose-strong:text-foreground prose-strong:font-semibold
+                  prose-headings:text-foreground prose-headings:font-bold prose-headings:tracking-tight
+                  prose-h2:text-lg prose-h2:mt-8 prose-h2:mb-4 prose-h2:pb-2 prose-h2:border-b prose-h2:border-border
+                  prose-h3:text-base prose-h3:mt-6 prose-h3:mb-3
+                  prose-h4:text-sm prose-h4:mt-5 prose-h4:mb-2 prose-h4:font-semibold
+                  prose-li:my-2 prose-li:leading-7
+                  prose-ul:my-4 prose-ul:space-y-1 prose-ol:my-4 prose-ol:space-y-1
+                  prose-ul:pl-0 prose-ol:pl-0
+                  prose-em:text-foreground/80 prose-em:font-medium
+                  [&_p:first-of-type]:text-base [&_p:first-of-type]:leading-7 [&_p:first-of-type]:mb-6
+                  [&_ul]:list-disc [&_ul]:ml-6 [&_ol]:list-decimal [&_ol]:ml-6
+                  [&_li>strong]:block [&_li>strong]:mb-1
+                ">
+                  <ReactMarkdown>{research}</ReactMarkdown>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           )}
         </CardContent>
       </Card>

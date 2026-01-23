@@ -30,12 +30,14 @@ import {
   RefreshCw,
   Undo2,
   Trash2,
-  Check
+  Check,
+  Pencil
 } from 'lucide-react';
-import { useBirdwatching } from '@/hooks/useBirdwatching';
+import { useBirdwatching, BirdSighting } from '@/hooks/useBirdwatching';
 import { useAIBirdResearch } from '@/hooks/useAIBirdResearch';
 import { format } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
+import { EditSightingDialog } from './EditSightingDialog';
 
 interface SpeciesDetailProps {
   species: string;
@@ -82,6 +84,7 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
   );
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
+  const [editingSighting, setEditingSighting] = useState<BirdSighting | null>(null);
 
   const speciesSightings = sightings.filter(
     s => s.species_name.toLowerCase() === species.toLowerCase()
@@ -364,6 +367,14 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
                         {getPhotosForSighting(sighting.id).length}
                       </Badge>
                     )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setEditingSighting(sighting)}
+                      className="h-8 w-8"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
@@ -402,6 +413,13 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Edit Sighting Dialog */}
+      <EditSightingDialog
+        sighting={editingSighting}
+        open={!!editingSighting}
+        onOpenChange={(open) => !open && setEditingSighting(null)}
+      />
 
       {/* Photo Lightbox */}
       <ImageLightbox 

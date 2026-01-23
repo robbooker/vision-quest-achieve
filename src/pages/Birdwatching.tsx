@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -46,7 +47,14 @@ export default function Birdwatching() {
         <Alert className="bg-primary/5 border-primary/20">
           <Info className="h-4 w-4" />
           <AlertDescription>
-            This feature is mostly for Rob. But of course you are welcome to use it. 🐦
+            This feature is mostly for{' '}
+            <Link 
+              to="/birds/rob" 
+              className="font-medium text-primary hover:underline"
+            >
+              Rob
+            </Link>
+            . But of course you are welcome to use it. 🐦
           </AlertDescription>
         </Alert>
 

@@ -140,7 +140,7 @@ export function LogSightingForm() {
 
           {/* Date and Time */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
+            <div className="space-y-2 min-w-0">
               <Label htmlFor="date">Date *</Label>
               <Input
                 id="date"
@@ -148,16 +148,17 @@ export function LogSightingForm() {
                 value={formData.sighting_date}
                 onChange={(e) => setFormData(prev => ({ ...prev, sighting_date: e.target.value }))}
                 required
+                className="w-full"
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 min-w-0">
               <Label htmlFor="time">Time</Label>
               <div className="relative">
                 <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="time"
                   type="time"
-                  className="pl-10"
+                  className="pl-10 w-full"
                   value={formData.sighting_time}
                   onChange={(e) => setFormData(prev => ({ ...prev, sighting_time: e.target.value }))}
                 />

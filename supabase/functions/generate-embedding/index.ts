@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EmbeddingRequest {
-  sourceType: "journal_entry" | "quick_task" | "habit_log" | "focus_session";
+  sourceType: "journal_entry" | "quick_task" | "habit_log" | "focus_session" | "bird_sighting";
   sourceId: string;
   contentText: string;
   activityDate: string;

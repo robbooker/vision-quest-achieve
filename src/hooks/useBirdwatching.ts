@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useActivityEmbeddings } from '@/hooks/useActivityEmbeddings';
 
 export interface BirdSighting {
   id: string;
@@ -64,6 +65,7 @@ export function useBirdwatching() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { embedBirdSighting } = useActivityEmbeddings();
 
   // Fetch all sightings
   const { data: sightings = [], isLoading: sightingsLoading } = useQuery({
@@ -209,6 +211,9 @@ export function useBirdwatching() {
       queryClient.invalidateQueries({ queryKey: ['bird-sightings'] });
       queryClient.invalidateQueries({ queryKey: ['bird-wishlist'] });
       
+      // Generate embedding for the sighting
+      embedBirdSighting(result.sighting).catch(console.error);
+      
       if (result.isWishlisted && result.isFirstSighting) {
         toast({
           title: '🎉 Wishlist bird spotted!',
@@ -258,6 +263,10 @@ export function useBirdwatching() {
     },
     onSuccess: (sighting) => {
       queryClient.invalidateQueries({ queryKey: ['bird-sightings'] });
+      
+      // Update embedding for the sighting
+      embedBirdSighting(sighting).catch(console.error);
+      
       toast({ title: 'Sighting updated', description: sighting.species_name });
     },
     onError: () => {

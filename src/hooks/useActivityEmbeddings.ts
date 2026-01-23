@@ -11,7 +11,8 @@ type SourceType =
   | "week_review"
   | "vision"
   | "big_ten_project"
-  | "reset_audit";
+  | "reset_audit"
+  | "bird_sighting";
 
 interface EmbeddingData {
   sourceType: SourceType;
@@ -438,6 +439,47 @@ export function useActivityEmbeddings() {
     });
   }, [generateEmbedding]);
 
+  // Helper to format bird sighting for embedding
+  const embedBirdSighting = useCallback(async (sighting: {
+    id: string;
+    species_name: string;
+    sighting_date: string;
+    sighting_time?: string | null;
+    location_name?: string | null;
+    behavior_notes?: string | null;
+    field_marks?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  }) => {
+    const parts = [`Bird sighting: ${sighting.species_name}`];
+    parts.push(`Date: ${sighting.sighting_date}`);
+    
+    if (sighting.sighting_time) {
+      parts.push(`Time: ${sighting.sighting_time}`);
+    }
+    if (sighting.location_name) {
+      parts.push(`Location: ${sighting.location_name}`);
+    }
+    if (sighting.behavior_notes) {
+      parts.push(`Behavior: ${sighting.behavior_notes}`);
+    }
+    if (sighting.field_marks) {
+      parts.push(`Field marks: ${sighting.field_marks}`);
+    }
+
+    return generateEmbedding({
+      sourceType: "bird_sighting",
+      sourceId: sighting.id,
+      contentText: parts.join(". "),
+      activityDate: sighting.sighting_date,
+      metadata: {
+        species: sighting.species_name,
+        location: sighting.location_name,
+        hasCoordinates: !!(sighting.latitude && sighting.longitude),
+      },
+    });
+  }, [generateEmbedding]);
+
   return {
     generateEmbedding,
     embedJournalEntry,
@@ -449,5 +491,6 @@ export function useActivityEmbeddings() {
     embedVision,
     embedBigTenProject,
     embedResetAudit,
+    embedBirdSighting,
   };
 }

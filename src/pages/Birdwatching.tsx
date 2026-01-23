@@ -4,7 +4,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Bird, List, Heart, Calendar, BarChart3, Map, Info } from 'lucide-react';
+import { Bird, List, Heart, Calendar, BarChart3, Map, Info, Camera } from 'lucide-react';
 import { useBirdwatching } from '@/hooks/useBirdwatching';
 import { LogSightingForm } from '@/components/birdwatching/LogSightingForm';
 import { LifeList } from '@/components/birdwatching/LifeList';
@@ -14,6 +14,7 @@ import { SeasonalTimeline } from '@/components/birdwatching/SeasonalTimeline';
 import { BirdStats } from '@/components/birdwatching/BirdStats';
 import { BirdMap } from '@/components/birdwatching/BirdMap';
 import { SpeciesDetail } from '@/components/birdwatching/SpeciesDetail';
+import { BirdGallery } from '@/components/birdwatching/BirdGallery';
 
 export default function Birdwatching() {
   const [activeTab, setActiveTab] = useState('log');
@@ -60,7 +61,7 @@ export default function Birdwatching() {
 
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="log" className="text-xs sm:text-sm">
               <Bird className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Log</span>
@@ -68,6 +69,10 @@ export default function Birdwatching() {
             <TabsTrigger value="lifelist" className="text-xs sm:text-sm">
               <List className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Life List</span>
+            </TabsTrigger>
+            <TabsTrigger value="gallery" className="text-xs sm:text-sm">
+              <Camera className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Gallery</span>
             </TabsTrigger>
             <TabsTrigger value="wishlist" className="text-xs sm:text-sm">
               <Heart className="h-4 w-4 sm:mr-2" />
@@ -97,6 +102,10 @@ export default function Birdwatching() {
 
           <TabsContent value="lifelist" className="mt-6">
             <LifeList onSelectSpecies={setSelectedSpecies} />
+          </TabsContent>
+
+          <TabsContent value="gallery" className="mt-6">
+            <BirdGallery onSelectSpecies={setSelectedSpecies} />
           </TabsContent>
 
           <TabsContent value="wishlist" className="mt-6">

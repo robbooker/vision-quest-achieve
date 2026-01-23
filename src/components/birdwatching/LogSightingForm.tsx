@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Bird, MapPin, Clock, Camera, Loader2 } from 'lucide-react';
+import { Bird, MapPin, Clock, Loader2, X } from 'lucide-react';
 import { useBirdwatching, SightingFormData } from '@/hooks/useBirdwatching';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 type LocationMode = 'gps' | 'manual' | 'city';
 
@@ -19,6 +20,13 @@ export function LogSightingForm() {
   const [manualLat, setManualLat] = useState('');
   const [manualLng, setManualLng] = useState('');
   
+  // Custom autocomplete state
+  const [speciesInput, setSpeciesInput] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+  
   const [formData, setFormData] = useState<SightingFormData>({
     species_name: '',
     sighting_date: format(new Date(), 'yyyy-MM-dd'),
@@ -29,6 +37,68 @@ export function LogSightingForm() {
     behavior_notes: '',
     field_marks: '',
   });
+
+  // Get unique species for autocomplete suggestions
+  const uniqueSpecies = [...new Set(sightings.map(s => s.species_name))].sort();
+  
+  // Filter suggestions based on input
+  const filteredSuggestions = speciesInput.trim().length > 0
+    ? uniqueSpecies.filter(species => 
+        species.toLowerCase().includes(speciesInput.toLowerCase())
+      ).slice(0, 8)
+    : [];
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        inputRef.current && 
+        !inputRef.current.contains(e.target as Node) &&
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(e.target as Node)
+      ) {
+        setShowSuggestions(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSpeciesInputChange = (value: string) => {
+    setSpeciesInput(value);
+    setFormData(prev => ({ ...prev, species_name: value }));
+    setShowSuggestions(true);
+    setHighlightedIndex(-1);
+  };
+
+  const selectSpecies = (species: string) => {
+    setSpeciesInput(species);
+    setFormData(prev => ({ ...prev, species_name: species }));
+    setShowSuggestions(false);
+    setHighlightedIndex(-1);
+  };
+
+  const handleSpeciesKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showSuggestions || filteredSuggestions.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightedIndex(prev => 
+        prev < filteredSuggestions.length - 1 ? prev + 1 : 0
+      );
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightedIndex(prev => 
+        prev > 0 ? prev - 1 : filteredSuggestions.length - 1
+      );
+    } else if (e.key === 'Enter' && highlightedIndex >= 0) {
+      e.preventDefault();
+      selectSpecies(filteredSuggestions[highlightedIndex]);
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false);
+    }
+  };
 
   const handleGetLocation = () => {
     if (!navigator.geolocation) {
@@ -79,33 +149,35 @@ export function LogSightingForm() {
     e.preventDefault();
     if (!formData.species_name.trim()) return;
 
-    const result = await addSighting.mutateAsync(formData);
-    
-    // Upload photos if any
-    if (photos.length > 0 && result.sighting) {
-      for (const photo of photos) {
-        await uploadPhoto.mutateAsync({ sightingId: result.sighting.id, file: photo });
+    try {
+      const result = await addSighting.mutateAsync(formData);
+      
+      // Upload photos if any
+      if (photos.length > 0 && result.sighting) {
+        for (const photo of photos) {
+          await uploadPhoto.mutateAsync({ sightingId: result.sighting.id, file: photo });
+        }
       }
+
+      // Reset form
+      setFormData({
+        species_name: '',
+        sighting_date: format(new Date(), 'yyyy-MM-dd'),
+        sighting_time: format(new Date(), 'HH:mm'),
+        location_name: '',
+        latitude: undefined,
+        longitude: undefined,
+        behavior_notes: '',
+        field_marks: '',
+      });
+      setSpeciesInput('');
+      setPhotos([]);
+      setManualLat('');
+      setManualLng('');
+    } catch (error) {
+      console.error('Failed to log sighting:', error);
     }
-
-    // Reset form
-    setFormData({
-      species_name: '',
-      sighting_date: format(new Date(), 'yyyy-MM-dd'),
-      sighting_time: format(new Date(), 'HH:mm'),
-      location_name: '',
-      latitude: undefined,
-      longitude: undefined,
-      behavior_notes: '',
-      field_marks: '',
-    });
-    setPhotos([]);
-    setManualLat('');
-    setManualLng('');
   };
-
-  // Get unique species for autocomplete suggestions
-  const uniqueSpecies = [...new Set(sightings.map(s => s.species_name))].sort();
 
   return (
     <Card>
@@ -119,30 +191,72 @@ export function LogSightingForm() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
-          {/* Species Name */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Species Name - Custom Autocomplete */}
           <div className="space-y-2">
-            <Label htmlFor="species">Species Name *</Label>
-            <Input
-              id="species"
-              name="bird-species-name"
-              placeholder="e.g., Northern Cardinal"
-              value={formData.species_name}
-              onChange={(e) => setFormData(prev => ({ ...prev, species_name: e.target.value }))}
-              list="species-list"
-              required
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="words"
-              spellCheck={false}
-              data-form-type="other"
-              data-lpignore="true"
-            />
-            <datalist id="species-list">
-              {uniqueSpecies.map(species => (
-                <option key={species} value={species} />
-              ))}
-            </datalist>
+            <Label htmlFor="species-input">Species Name *</Label>
+            <div className="relative">
+              <Input
+                ref={inputRef}
+                id="species-input"
+                type="text"
+                placeholder="e.g., Northern Cardinal"
+                value={speciesInput}
+                onChange={(e) => handleSpeciesInputChange(e.target.value)}
+                onFocus={() => speciesInput.trim() && setShowSuggestions(true)}
+                onKeyDown={handleSpeciesKeyDown}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="words"
+                spellCheck={false}
+                data-form-type="other"
+                data-lpignore="true"
+                data-1p-ignore="true"
+                aria-autocomplete="list"
+                aria-expanded={showSuggestions && filteredSuggestions.length > 0}
+                className="pr-8"
+              />
+              {speciesInput && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSpeciesInput('');
+                    setFormData(prev => ({ ...prev, species_name: '' }));
+                    inputRef.current?.focus();
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+              
+              {/* Suggestions dropdown */}
+              {showSuggestions && filteredSuggestions.length > 0 && (
+                <div
+                  ref={suggestionsRef}
+                  className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-lg max-h-48 overflow-auto"
+                >
+                  {filteredSuggestions.map((species, index) => (
+                    <button
+                      key={species}
+                      type="button"
+                      onClick={() => selectSpecies(species)}
+                      className={cn(
+                        "w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground",
+                        highlightedIndex === index && "bg-accent text-accent-foreground"
+                      )}
+                    >
+                      {species}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            {uniqueSpecies.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Start typing to see suggestions from your {uniqueSpecies.length} species
+              </p>
+            )}
           </div>
 
           {/* Date and Time */}
@@ -181,6 +295,7 @@ export function LogSightingForm() {
               placeholder="e.g., Austin, TX or Central Park, NYC"
               value={formData.location_name}
               onChange={(e) => setFormData(prev => ({ ...prev, location_name: e.target.value }))}
+              autoComplete="off"
             />
           </div>
 

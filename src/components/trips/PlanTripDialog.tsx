@@ -12,6 +12,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { useTrips } from '@/hooks/useTrips';
 import { useAuth } from '@/hooks/useAuth';
@@ -24,6 +25,7 @@ const tripSchema = z.object({
   endDate: z.date({ required_error: 'End date is required' }),
   purpose: z.string().default('leisure'),
   plannedActivities: z.string().optional(),
+  hasFlight: z.boolean().default(false),
 });
 
 type TripFormData = z.infer<typeof tripSchema>;
@@ -45,6 +47,7 @@ export function PlanTripDialog({ open, onOpenChange, onTripCreated }: PlanTripDi
       destination: '',
       purpose: 'leisure',
       plannedActivities: '',
+      hasFlight: false,
     },
   });
 
@@ -62,6 +65,7 @@ export function PlanTripDialog({ open, onOpenChange, onTripCreated }: PlanTripDi
         purpose: data.purpose,
         attendees: [],
         planned_activities: data.plannedActivities || null,
+        has_flight: data.hasFlight,
       });
 
       // Generate AI packing list
@@ -75,6 +79,7 @@ export function PlanTripDialog({ open, onOpenChange, onTripCreated }: PlanTripDi
           purpose: data.purpose,
           plannedActivities: data.plannedActivities,
           masterItems: masterItems,
+          hasFlight: data.hasFlight,
         },
       });
 
@@ -88,6 +93,7 @@ export function PlanTripDialog({ open, onOpenChange, onTripCreated }: PlanTripDi
           category: string;
           quantity: number;
           is_from_master: boolean;
+          bag_type?: string;
         }) => {
           const masterItem = masterItems.find(
             (mi) => mi.item_name.toLowerCase() === item.item_name.toLowerCase()
@@ -101,6 +107,7 @@ export function PlanTripDialog({ open, onOpenChange, onTripCreated }: PlanTripDi
             is_packed: false,
             is_ai_suggested: !masterItem,
             master_item_id: masterItem?.id || null,
+            bag_type: item.bag_type || 'checked',
           };
         });
 
@@ -255,6 +262,30 @@ export function PlanTripDialog({ open, onOpenChange, onTripCreated }: PlanTripDi
                     </SelectContent>
                   </Select>
                   <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="hasFlight"
+              render={({ field }) => (
+                <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                  <div className="space-y-0.5">
+                    <FormLabel className="flex items-center gap-2">
+                      <Plane className="h-4 w-4" />
+                      Flying to destination?
+                    </FormLabel>
+                    <p className="text-xs text-muted-foreground">
+                      We'll organize your list by carry-on vs checked bags
+                    </p>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
                 </FormItem>
               )}
             />

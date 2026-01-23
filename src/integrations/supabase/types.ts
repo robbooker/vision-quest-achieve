@@ -1538,6 +1538,7 @@ export type Database = {
       }
       trip_packing_list: {
         Row: {
+          bag_type: string | null
           category: string
           created_at: string
           id: string
@@ -1551,6 +1552,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          bag_type?: string | null
           category?: string
           created_at?: string
           id?: string
@@ -1564,6 +1566,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          bag_type?: string | null
           category?: string
           created_at?: string
           id?: string
@@ -1599,6 +1602,7 @@ export type Database = {
           created_at: string
           destination: string
           end_date: string
+          has_flight: boolean | null
           id: string
           planned_activities: string | null
           purpose: string
@@ -1611,6 +1615,7 @@ export type Database = {
           created_at?: string
           destination: string
           end_date: string
+          has_flight?: boolean | null
           id?: string
           planned_activities?: string | null
           purpose?: string
@@ -1623,6 +1628,7 @@ export type Database = {
           created_at?: string
           destination?: string
           end_date?: string
+          has_flight?: boolean | null
           id?: string
           planned_activities?: string | null
           purpose?: string

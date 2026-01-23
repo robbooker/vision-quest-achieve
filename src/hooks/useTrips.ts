@@ -13,6 +13,7 @@ export interface Trip {
   purpose: string;
   attendees: string[];
   planned_activities: string | null;
+  has_flight: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -37,6 +38,7 @@ export interface PackingListItem {
   quantity: number;
   is_packed: boolean;
   is_ai_suggested: boolean;
+  bag_type: 'carry_on' | 'checked';
   created_at: string;
   updated_at: string;
 }

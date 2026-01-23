@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -31,6 +31,7 @@ export function EditSightingDialog({ sighting, open, onOpenChange }: EditSightin
   const [newPhotos, setNewPhotos] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState<SightingFormData>({
     species_name: '',
@@ -348,19 +349,23 @@ export function EditSightingDialog({ sighting, open, onOpenChange }: EditSightin
                   type="button"
                   variant="outline"
                   className="h-16 w-16 border-2 border-dashed p-0"
-                  onClick={() => document.getElementById('edit-photo-input')?.click()}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    fileInputRef.current?.click();
+                  }}
                 >
                   <Plus className="h-6 w-6 text-muted-foreground" />
                 </Button>
-                <input
-                  id="edit-photo-input"
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={handlePhotoSelect}
-                />
               </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={handlePhotoSelect}
+              />
               {newPhotos.length > 0 && (
                 <p className="text-xs text-muted-foreground">
                   {newPhotos.length} new photo{newPhotos.length !== 1 ? 's' : ''} to upload

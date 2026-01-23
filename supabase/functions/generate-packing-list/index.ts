@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { destination, startDate, endDate, purpose, plannedActivities, masterItems } = await req.json();
+    const { destination, startDate, endDate, purpose, plannedActivities, masterItems, hasFlight } = await req.json();
 
     // Calculate trip duration
     const start = new Date(startDate);
@@ -26,6 +26,17 @@ serve(async (req) => {
         ).join('\n')
       : 'No existing items';
 
+    const flightInstructions = hasFlight 
+      ? `
+IMPORTANT - FLIGHT TRAVEL:
+The user is FLYING to the destination. You MUST categorize each item as either:
+- "carry_on": Items needed during flight, valuable electronics, medications, essential documents, items that shouldn't be in checked luggage
+- "checked": Larger items, liquids over 3.4oz, items that can safely go in checked luggage
+
+Always put these in carry_on: passport, wallet, phone, laptop, medications, jewelry, chargers, change of clothes
+Always put these in checked: large toiletries, bulky shoes, most clothing, large equipment`
+      : '';
+
     const systemPrompt = `You are a smart travel packing assistant. Generate practical packing lists based on trip details.`;
 
     const userPrompt = `Generate a comprehensive packing list for this trip.
@@ -35,9 +46,11 @@ TRIP DETAILS:
 - Duration: ${tripDays} days (${startDate} to ${endDate})
 - Purpose: ${purpose}
 - Planned Activities: ${plannedActivities || 'General travel'}
+- Transportation: ${hasFlight ? 'FLYING (organize by carry-on vs checked bag)' : 'Not flying'}
 
 USER'S EXISTING ITEMS (Master Locker):
 ${existingItemsList}
+${flightInstructions}
 
 INSTRUCTIONS:
 1. Generate a practical packing list organized by category
@@ -45,7 +58,8 @@ INSTRUCTIONS:
 3. Prioritize items from the user's existing Master Locker when applicable
 4. For items NOT in the Master Locker, mark them as suggestions
 5. Include appropriate quantities based on trip duration
-6. Categories should include: Clothing, Tech, Toiletries, Documents, Accessories, Activity-Specific, Miscellaneous`;
+6. Categories should include: Clothing, Tech, Toiletries, Documents, Accessories, Activity-Specific, Miscellaneous
+${hasFlight ? '7. CRITICAL: Include bag_type for EVERY item (carry_on or checked)' : ''}`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -79,9 +93,10 @@ INSTRUCTIONS:
                         category: { type: "string", description: "Category like Clothing, Tech, Toiletries, Documents, Accessories, Activity-Specific, Miscellaneous" },
                         quantity: { type: "number", description: "How many to bring" },
                         is_from_master: { type: "boolean", description: "Whether this item is from user's master locker" },
+                        bag_type: { type: "string", enum: ["carry_on", "checked"], description: "Whether item goes in carry-on or checked bag (for flights)" },
                         reason: { type: "string", description: "Brief reason for including this item" }
                       },
-                      required: ["item_name", "category", "quantity", "is_from_master"],
+                      required: ["item_name", "category", "quantity", "is_from_master", "bag_type"],
                       additionalProperties: false
                     }
                   },

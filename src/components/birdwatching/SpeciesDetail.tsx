@@ -128,6 +128,34 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
         </div>
       </div>
 
+      {/* Hero Photo - Most Recent */}
+      {speciesPhotos.length > 0 && (
+        <div 
+          className="relative aspect-[16/9] md:aspect-[21/9] rounded-xl overflow-hidden cursor-pointer group"
+          onClick={() => setLightboxImage(speciesPhotos[0].photo_url)}
+        >
+          <img
+            src={speciesPhotos[0].photo_url}
+            alt={`${species} - most recent photo`}
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+          <div className="absolute bottom-3 left-3 text-white/90 text-sm">
+            <span className="font-medium">Most recent photo</span>
+            {lastSighting && (
+              <span className="ml-2 text-white/70">
+                • {format(new Date(lastSighting.sighting_date), 'MMM d, yyyy')}
+              </span>
+            )}
+          </div>
+          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="bg-black/40 rounded-full p-3">
+              <Camera className="h-6 w-6 text-white" />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
@@ -164,28 +192,28 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
         </Card>
       </div>
 
-      {/* Photos */}
-      {speciesPhotos.length > 0 && (
+      {/* Photos Grid - Skip first photo since it's the hero */}
+      {speciesPhotos.length > 1 && (
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <Camera className="h-4 w-4" />
-              Photos
+              All Photos
               <Badge variant="secondary">{speciesPhotos.length}</Badge>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-              {speciesPhotos.map((photo) => (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {speciesPhotos.slice(1).map((photo) => (
                 <button
                   key={photo.id}
                   onClick={() => setLightboxImage(photo.photo_url)}
-                  className="aspect-square rounded-lg overflow-hidden hover:opacity-80 transition-opacity cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="aspect-[4/3] rounded-lg overflow-hidden hover:ring-2 hover:ring-primary transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary group"
                 >
                   <img
                     src={photo.photo_url}
                     alt={species}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
                   />
                 </button>
               ))}
@@ -305,26 +333,19 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
               <CollapsibleContent>
                 <div className="prose prose-base dark:prose-invert max-w-none pt-4 pb-2
                   [&>*:first-child]:mt-0
-                  
-                  prose-p:text-[15px] prose-p:leading-[1.8] prose-p:my-5 prose-p:text-foreground/90
-                  
-                  prose-strong:text-foreground prose-strong:font-semibold
-                  prose-em:text-foreground/85 prose-em:not-italic prose-em:font-medium
-                  
+                  prose-p:text-[15px] prose-p:leading-relaxed prose-p:my-4 prose-p:text-foreground/90
                   prose-headings:text-foreground prose-headings:font-bold prose-headings:tracking-tight
-                  prose-h2:text-xl prose-h2:mt-10 prose-h2:mb-5 prose-h2:pb-3 prose-h2:border-b prose-h2:border-border/60
-                  prose-h3:text-lg prose-h3:mt-8 prose-h3:mb-4
-                  prose-h4:text-base prose-h4:mt-6 prose-h4:mb-3 prose-h4:font-semibold
-                  
-                  prose-ul:my-6 prose-ol:my-6
-                  [&_ul]:list-disc [&_ul]:ml-6 [&_ul]:space-y-4
-                  [&_ol]:list-decimal [&_ol]:ml-6 [&_ol]:space-y-4
-                  
-                  prose-li:text-[15px] prose-li:leading-[1.8] prose-li:pl-2
-                  [&_li>strong]:text-foreground [&_li>strong]:font-semibold [&_li>strong]:block [&_li>strong]:mb-1.5
-                  [&_li>p]:mt-1.5 [&_li>p]:mb-0
-                  
-                  [&_p:first-of-type]:text-base [&_p:first-of-type]:leading-[1.85] [&_p:first-of-type]:mb-6
+                  prose-h2:text-xl prose-h2:mt-8 prose-h2:mb-4 prose-h2:pb-2 prose-h2:border-b prose-h2:border-border/60
+                  prose-h3:text-lg prose-h3:mt-6 prose-h3:mb-2
+                  prose-h4:text-base prose-h4:mt-4 prose-h4:mb-2 prose-h4:font-semibold
+                  prose-strong:text-foreground prose-strong:font-semibold
+                  prose-ul:my-4 prose-ul:list-disc prose-ul:pl-6
+                  prose-ol:my-4 prose-ol:list-decimal prose-ol:pl-6
+                  prose-li:my-1.5 prose-li:pl-1 prose-li:text-[15px] prose-li:leading-7
+                  [&_li]:marker:text-primary/70
+                  [&_li>strong]:text-foreground [&_li>strong]:font-semibold [&_li>strong]:inline [&_li>strong]:mr-1
+                  [&_p:first-of-type]:text-[1.05rem] [&_p:first-of-type]:leading-loose [&_p:first-of-type]:text-foreground
+                  prose-blockquote:border-l-4 prose-blockquote:border-primary/30 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-muted-foreground
                 ">
                   <ReactMarkdown>{research}</ReactMarkdown>
                 </div>
@@ -371,78 +392,101 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {speciesSightings.map(sighting => (
-              <div
-                key={sighting.id}
-                className="p-3 rounded-lg border bg-card"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <p className="font-medium">
-                      {format(new Date(sighting.sighting_date), 'MMMM d, yyyy')}
-                      {sighting.sighting_time && (
-                        <span className="text-muted-foreground ml-2">
-                          at {sighting.sighting_time.slice(0, 5)}
-                        </span>
-                      )}
-                    </p>
-                    {sighting.location_name && (
-                      <p className="text-sm text-muted-foreground flex items-center gap-1">
-                        <MapPin className="h-3 w-3" />
-                        {sighting.location_name}
+            {speciesSightings.map(sighting => {
+              const sightingPhotos = getPhotosForSighting(sighting.id);
+              return (
+                <div
+                  key={sighting.id}
+                  className="p-3 rounded-lg border bg-card"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="font-medium">
+                        {format(new Date(sighting.sighting_date), 'MMMM d, yyyy')}
+                        {sighting.sighting_time && (
+                          <span className="text-muted-foreground ml-2">
+                            at {sighting.sighting_time.slice(0, 5)}
+                          </span>
+                        )}
                       </p>
-                    )}
+                      {sighting.location_name && (
+                        <p className="text-sm text-muted-foreground flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {sighting.location_name}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setEditingSighting(sighting)}
+                        className="h-8 w-8"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete sighting?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete this {species} sighting from {format(new Date(sighting.sighting_date), 'MMMM d, yyyy')}.
+                              This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => deleteSighting.mutate(sighting.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {getPhotosForSighting(sighting.id).length > 0 && (
-                      <Badge variant="outline">
-                        <Camera className="h-3 w-3 mr-1" />
-                        {getPhotosForSighting(sighting.id).length}
-                      </Badge>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setEditingSighting(sighting)}
-                      className="h-8 w-8"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete sighting?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will permanently delete this {species} sighting from {format(new Date(sighting.sighting_date), 'MMMM d, yyyy')}.
-                            This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => deleteSighting.mutate(sighting.id)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
+                  {(sighting.behavior_notes || sighting.field_marks) && (
+                    <div className="mt-2 text-sm text-muted-foreground">
+                      {sighting.behavior_notes && <p>📝 {sighting.behavior_notes}</p>}
+                      {sighting.field_marks && <p>🔍 {sighting.field_marks}</p>}
+                    </div>
+                  )}
+                  {/* Inline Photo Thumbnails */}
+                  {sightingPhotos.length > 0 && (
+                    <div className="flex items-center gap-2 mt-3">
+                      {sightingPhotos.slice(0, 4).map((photo) => (
+                        <button
+                          key={photo.id}
+                          onClick={() => setLightboxImage(photo.photo_url)}
+                          className="h-14 w-14 rounded-md overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all focus:outline-none focus:ring-2 focus:ring-primary"
+                        >
+                          <img
+                            src={photo.photo_url}
+                            alt={species}
+                            className="w-full h-full object-cover"
+                          />
+                        </button>
+                      ))}
+                      {sightingPhotos.length > 4 && (
+                        <button 
+                          className="h-14 w-14 rounded-md bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground cursor-pointer hover:bg-accent transition-colors"
+                          onClick={() => setLightboxImage(sightingPhotos[4].photo_url)}
+                        >
+                          +{sightingPhotos.length - 4}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
-                {(sighting.behavior_notes || sighting.field_marks) && (
-                  <div className="mt-2 text-sm text-muted-foreground">
-                    {sighting.behavior_notes && <p>📝 {sighting.behavior_notes}</p>}
-                    {sighting.field_marks && <p>🔍 {sighting.field_marks}</p>}
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </CardContent>
       </Card>

@@ -23,6 +23,7 @@ You have access to multiple types of context:
 4. **Goals & Milestones** - Their 6-Week Sprint goals and weekly targets
 5. **Active Cycle** - Current planning cycle info and week number
 6. **Personal Vision** - 3-year vision, long-term vision, and core values
+7. **Trading P&L** - Daily trading profit/loss data if they trade
 
 **GOAL & VISION AWARENESS:**
 You have access to the user's 6-Week Sprint goals, their weekly milestones, and their personal vision.
@@ -40,6 +41,13 @@ You have access to the user's voice journal entries, which include their spoken 
 - "You mentioned feeling stressed about X in your voice note last week..."
 Look for patterns in mood and energy across voice entries to provide deeper insights.
 
+**TRADING P&L AWARENESS:**
+If the user tracks their trading P&L, you have access to their daily profit/loss data. You can:
+- Correlate trading performance with habits, focus sessions, and mood
+- Notice patterns like "You tend to have better trading days when you complete your morning routine"
+- Offer supportive commentary on trading results without being preachy
+- Connect trading performance to their overall well-being and productivity
+
 When analyzing their data:
 - Connect current activities to past patterns you find in the search results
 - Identify long-term trends, not just recent activity
@@ -48,6 +56,7 @@ When analyzing their data:
 - Reference mood and energy patterns from voice journals when relevant
 - Connect daily tasks and habits to their active goals and milestones
 - Use their vision and core values to provide meaningful encouragement
+- If they trade, correlate trading outcomes with their daily routines
 
 **TASK CREATION:**
 When the user wants to add, create, or remind themselves about a task, use the create_task tool to add it to their task list. Examples:
@@ -206,6 +215,19 @@ serve(async (req) => {
         contextMessage += `- Total focused time: ${totalMinutes} minutes across ${context.focusSessions.length} sessions\n`;
         context.focusSessions.slice(0, 5).forEach((session: any) => {
           contextMessage += `- "${session.objective}": ${session.actual_duration_minutes || session.planned_duration_minutes}m (${session.status})\n`;
+        });
+      }
+
+      // Add trading P&L context
+      if (context.tradingPnL && context.tradingPnL.length > 0) {
+        const totalPnL = context.tradingPnL.reduce((sum: number, p: any) => sum + Number(p.pnl_amount), 0);
+        const winningDays = context.tradingPnL.filter((p: any) => Number(p.pnl_amount) > 0).length;
+        contextMessage += "\n\n**📈 Recent Trading P&L (last 7 days):**\n";
+        contextMessage += `- Total P&L: $${totalPnL.toFixed(2)} (${winningDays}/${context.tradingPnL.length} winning days)\n`;
+        context.tradingPnL.slice(0, 7).forEach((pnl: any) => {
+          const amount = Number(pnl.pnl_amount);
+          const emoji = amount >= 0 ? '🟢' : '🔴';
+          contextMessage += `${emoji} ${pnl.trade_date}: $${amount.toFixed(2)}${pnl.trade_count ? ` (${pnl.trade_count} trades)` : ''}\n`;
         });
       }
     }

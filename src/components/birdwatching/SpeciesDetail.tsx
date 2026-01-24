@@ -333,18 +333,17 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
               <CollapsibleContent>
                 <div className="prose prose-base dark:prose-invert max-w-none pt-4 pb-2
                   [&>*:first-child]:mt-0
-                  prose-p:text-[15px] prose-p:leading-relaxed prose-p:my-4 prose-p:text-foreground/90
+                  prose-p:text-[15px] prose-p:leading-7 prose-p:my-4 prose-p:text-foreground/90
                   prose-headings:text-foreground prose-headings:font-bold prose-headings:tracking-tight
                   prose-h2:text-xl prose-h2:mt-8 prose-h2:mb-4 prose-h2:pb-2 prose-h2:border-b prose-h2:border-border/60
-                  prose-h3:text-lg prose-h3:mt-6 prose-h3:mb-2
+                  prose-h3:text-lg prose-h3:mt-6 prose-h3:mb-3
                   prose-h4:text-base prose-h4:mt-4 prose-h4:mb-2 prose-h4:font-semibold
-                  prose-strong:text-foreground prose-strong:font-semibold
-                  prose-ul:my-4 prose-ul:list-disc prose-ul:pl-6
-                  prose-ol:my-4 prose-ol:list-decimal prose-ol:pl-6
-                  prose-li:my-1.5 prose-li:pl-1 prose-li:text-[15px] prose-li:leading-7
-                  [&_li]:marker:text-primary/70
-                  [&_li>strong]:text-foreground [&_li>strong]:font-semibold [&_li>strong]:inline [&_li>strong]:mr-1
-                  [&_p:first-of-type]:text-[1.05rem] [&_p:first-of-type]:leading-loose [&_p:first-of-type]:text-foreground
+                  [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-4 [&_ul]:space-y-2
+                  [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-4 [&_ol]:space-y-2
+                  [&_li]:text-[15px] [&_li]:leading-7 [&_li]:pl-1
+                  [&_li::marker]:text-muted-foreground
+                  [&_strong]:font-semibold [&_strong]:text-foreground
+                  [&_p:first-of-type]:text-[1.05rem] [&_p:first-of-type]:leading-loose
                   prose-blockquote:border-l-4 prose-blockquote:border-primary/30 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-muted-foreground
                 ">
                   <ReactMarkdown>{research}</ReactMarkdown>

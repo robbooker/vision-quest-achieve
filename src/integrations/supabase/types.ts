@@ -1155,6 +1155,7 @@ export type Database = {
           headline: string | null
           id: string
           month: string
+          password_hash: string | null
           photos: Json | null
           privacy: string
           published_at: string | null
@@ -1174,6 +1175,7 @@ export type Database = {
           headline?: string | null
           id?: string
           month: string
+          password_hash?: string | null
           photos?: Json | null
           privacy?: string
           published_at?: string | null
@@ -1193,6 +1195,7 @@ export type Database = {
           headline?: string | null
           id?: string
           month?: string
+          password_hash?: string | null
           photos?: Json | null
           privacy?: string
           published_at?: string | null
@@ -2135,6 +2138,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_recap_view: { Args: { recap_id: string }; Returns: undefined }
       is_shared_task_owner: { Args: { task_id: string }; Returns: boolean }
       is_task_shared_with_me: { Args: { task_id: string }; Returns: boolean }
       match_activity_embeddings: {

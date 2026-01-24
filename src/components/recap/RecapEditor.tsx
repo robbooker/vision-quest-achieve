@@ -4,14 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
 import { 
   Save, 
   Globe, 
-  Lock, 
-  Link as LinkIcon,
   Loader2,
   RefreshCw,
   Sparkles
@@ -27,6 +24,8 @@ import {
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { RecapShareControls } from './RecapShareControls';
+import { RecapExportMenu } from './RecapExportMenu';
 
 interface RecapEditorProps {
   recap: MonthlyRecap;
@@ -178,6 +177,22 @@ export function RecapEditor({ recap, onSave }: RecapEditorProps) {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
+      {/* Share Controls & Export */}
+      <div className="flex flex-col md:flex-row gap-4">
+        <div className="flex-1">
+          <RecapShareControls
+            recap={{ ...recap, headline, subheadline, privacy, slug, status }}
+            onPrivacyChange={setPrivacy}
+            onSlugChange={setSlug}
+            onPublish={handlePublish}
+            isPublishing={isPending}
+          />
+        </div>
+        <div className="md:self-start">
+          <RecapExportMenu recap={recap} />
+        </div>
+      </div>
+
       {/* Header & Tone Control */}
       <Card>
         <CardHeader>
@@ -250,62 +265,6 @@ export function RecapEditor({ recap, onSave }: RecapEditorProps) {
             </div>
           </div>
 
-          <Separator />
-
-          {/* Publishing Options */}
-          <div className="space-y-4">
-            <h3 className="font-medium">Publishing</h3>
-            
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Privacy</Label>
-                <p className="text-sm text-muted-foreground">
-                  Who can see this recap
-                </p>
-              </div>
-              <Select value={privacy} onValueChange={(v) => setPrivacy(v as any)}>
-                <SelectTrigger className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="private">
-                    <div className="flex items-center gap-2">
-                      <Lock className="h-4 w-4" />
-                      Private
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="unlisted">
-                    <div className="flex items-center gap-2">
-                      <LinkIcon className="h-4 w-4" />
-                      Unlisted
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="public">
-                    <div className="flex items-center gap-2">
-                      <Globe className="h-4 w-4" />
-                      Public
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {(privacy === 'unlisted' || privacy === 'public') && (
-              <div className="space-y-2">
-                <Label htmlFor="slug">Custom URL Slug (optional)</Label>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">/recaps/</span>
-                  <Input
-                    id="slug"
-                    value={slug}
-                    onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
-                    placeholder={format(new Date(recap.month), 'yyyy-MM')}
-                    className="flex-1"
-                  />
-                </div>
-              </div>
-            )}
-          </div>
         </CardContent>
       </Card>
 

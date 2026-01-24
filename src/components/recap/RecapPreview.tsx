@@ -25,7 +25,7 @@ export function RecapPreview({ recap }: RecapPreviewProps) {
   const chartsData = recap.charts_data;
 
   return (
-    <div className="space-y-8 max-w-4xl mx-auto">
+    <div className="space-y-8 max-w-4xl mx-auto" data-recap-preview>
       {/* Hero Section */}
       <div className="text-center space-y-4 py-8">
         <Badge variant="outline" className="mb-2">

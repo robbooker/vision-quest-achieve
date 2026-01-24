@@ -1742,6 +1742,39 @@ export type Database = {
           },
         ]
       }
+      trading_pnl: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          pnl_amount: number
+          trade_count: number | null
+          trade_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          pnl_amount: number
+          trade_count?: number | null
+          trade_date: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          pnl_amount?: number
+          trade_count?: number | null
+          trade_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       trip_packing_list: {
         Row: {
           bag_type: string | null

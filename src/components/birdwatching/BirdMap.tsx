@@ -1,40 +1,45 @@
-import { useMemo, useEffect } from 'react';
+import { useMemo, Suspense, lazy, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Map, MapPin, Bird } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Map, MapPin, Bird, AlertTriangle } from 'lucide-react';
 import { useBirdwatching } from '@/hooks/useBirdwatching';
-import { format } from 'date-fns';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 
-// Fix for default marker icons in React/Vite
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: markerIcon2x,
-  iconUrl: markerIcon,
-  shadowUrl: markerShadow,
-});
+// Lazy load the Leaflet map component to prevent SSR issues
+const LeafletMap = lazy(() => import('./LeafletMap').then(mod => ({ default: mod.LeafletMap })));
 
 interface BirdMapProps {
   onSelectSpecies: (species: string) => void;
 }
 
-// Component to recenter map when sightings change
-function MapRecenter({ lat, lng }: { lat: number; lng: number }) {
-  const map = useMap();
-  useEffect(() => {
-    map.setView([lat, lng], map.getZoom());
-  }, [lat, lng, map]);
-  return null;
+// Error boundary for map component
+function MapErrorFallback({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="h-[400px] w-full flex flex-col items-center justify-center bg-muted/30 rounded-lg border">
+      <AlertTriangle className="h-10 w-10 text-muted-foreground mb-3" />
+      <p className="text-sm text-muted-foreground mb-3">Failed to load the map</p>
+      <button
+        onClick={onRetry}
+        className="text-sm text-primary hover:underline"
+      >
+        Try again
+      </button>
+    </div>
+  );
+}
+
+function MapLoadingSkeleton() {
+  return (
+    <div className="h-[400px] w-full">
+      <Skeleton className="h-full w-full rounded-lg" />
+    </div>
+  );
 }
 
 export function BirdMap({ onSelectSpecies }: BirdMapProps) {
   const { sightings, getPhotosForSighting } = useBirdwatching();
+  const [mapKey, setMapKey] = useState(0);
+  const [hasError, setHasError] = useState(false);
 
   // Filter sightings with location data
   const locatedSightings = useMemo(() => 
@@ -77,6 +82,16 @@ export function BirdMap({ onSelectSpecies }: BirdMapProps) {
     };
   }, [locatedSightings]);
 
+  const handleRetry = () => {
+    setHasError(false);
+    setMapKey(k => k + 1);
+  };
+
+  // Reset error state when tab becomes visible
+  useEffect(() => {
+    setHasError(false);
+  }, []);
+
   if (sightings.length === 0) {
     return (
       <Card>
@@ -118,55 +133,19 @@ export function BirdMap({ onSelectSpecies }: BirdMapProps) {
             <div className="space-y-4">
               {/* Interactive Map */}
               <div className="rounded-lg overflow-hidden border">
-                <MapContainer 
-                  center={[mapCenter.lat, mapCenter.lng]} 
-                  zoom={8} 
-                  className="h-[400px] w-full"
-                  scrollWheelZoom={true}
-                >
-                  <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  />
-                  <MapRecenter lat={mapCenter.lat} lng={mapCenter.lng} />
-                  {locatedSightings.map(sighting => {
-                    const photos = getPhotosForSighting(sighting.id);
-                    return (
-                      <Marker 
-                        key={sighting.id} 
-                        position={[sighting.latitude!, sighting.longitude!]}
-                      >
-                        <Popup>
-                          <div className="min-w-[180px]">
-                            {photos.length > 0 && (
-                              <img 
-                                src={photos[0].photo_url} 
-                                alt={sighting.species_name}
-                                className="w-full h-24 object-cover rounded mb-2"
-                              />
-                            )}
-                            <button
-                              onClick={() => onSelectSpecies(sighting.species_name)}
-                              className="font-semibold text-primary hover:underline cursor-pointer block"
-                            >
-                              {sighting.species_name}
-                            </button>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {format(new Date(sighting.sighting_date), 'MMM d, yyyy')}
-                              {sighting.sighting_time && ` at ${sighting.sighting_time.slice(0, 5)}`}
-                            </p>
-                            {sighting.location_name && (
-                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                                <MapPin className="h-3 w-3" />
-                                {sighting.location_name}
-                              </p>
-                            )}
-                          </div>
-                        </Popup>
-                      </Marker>
-                    );
-                  })}
-                </MapContainer>
+                {hasError ? (
+                  <MapErrorFallback onRetry={handleRetry} />
+                ) : (
+                  <Suspense fallback={<MapLoadingSkeleton />}>
+                    <LeafletMap
+                      key={mapKey}
+                      sightings={locatedSightings}
+                      getPhotosForSighting={getPhotosForSighting}
+                      onSelectSpecies={onSelectSpecies}
+                      center={mapCenter}
+                    />
+                  </Suspense>
+                )}
               </div>
 
               {/* Location List */}

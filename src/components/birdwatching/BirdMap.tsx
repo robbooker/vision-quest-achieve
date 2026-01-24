@@ -66,26 +66,24 @@ function LazyLeafletMap({
   sightings, 
   getPhotosForSighting, 
   onSelectSpecies, 
-  center 
+  center,
+  onError
 }: {
   sightings: any[];
   getPhotosForSighting: (id: string) => any[];
   onSelectSpecies: (species: string) => void;
   center: { lat: number; lng: number };
+  onError: () => void;
 }) {
   const [MapComponent, setMapComponent] = useState<React.ComponentType<any> | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
 
   useEffect(() => {
     let mounted = true;
     
     const loadMap = async () => {
       try {
-        // Import CSS first
-        await import('leaflet/dist/leaflet.css');
-        
-        // Then import the component
+        // Import the component (CSS is imported inside LeafletMap.tsx)
         const module = await import('./LeafletMap');
         
         if (mounted) {
@@ -95,8 +93,8 @@ function LazyLeafletMap({
       } catch (err) {
         console.error('Failed to load map:', err);
         if (mounted) {
-          setError(true);
           setLoading(false);
+          onError();
         }
       }
     };
@@ -106,14 +104,14 @@ function LazyLeafletMap({
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [onError]);
 
   if (loading) {
     return <MapLoadingSkeleton />;
   }
 
-  if (error || !MapComponent) {
-    return null; // Parent will handle error state
+  if (!MapComponent) {
+    return null;
   }
 
   return (
@@ -232,6 +230,7 @@ export function BirdMap({ onSelectSpecies }: BirdMapProps) {
                       getPhotosForSighting={getPhotosForSighting}
                       onSelectSpecies={onSelectSpecies}
                       center={mapCenter}
+                      onError={handleError}
                     />
                   </MapErrorBoundary>
                 )}

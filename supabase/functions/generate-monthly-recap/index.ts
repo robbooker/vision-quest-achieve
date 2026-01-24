@@ -21,6 +21,7 @@ interface MonthlyData {
   weekReviews: any[];
   vision: any;
   bigTenProjects: any[];
+  tradingPnL: any[];
 }
 
 interface ComputedStats {
@@ -31,6 +32,11 @@ interface ComputedStats {
   tasksCompleted: number;
   longestStreak: number;
   photosCount: number;
+  tradingTotalPnL: number;
+  tradingBestDay: { date: string; amount: number } | null;
+  tradingWorstDay: { date: string; amount: number } | null;
+  tradingDaysLogged: number;
+  tradingWinRate: number;
 }
 
 serve(async (req) => {
@@ -90,6 +96,7 @@ serve(async (req) => {
       visionResult,
       bigTenResult,
       cyclesResult,
+      tradingPnLResult,
     ] = await Promise.all([
       // Goals active during the month
       supabase
@@ -169,6 +176,15 @@ serve(async (req) => {
         .eq('user_id', user.id)
         .lte('start_date', endDate)
         .gte('end_date', startDate),
+      
+      // Trading P&L for the month
+      supabase
+        .from('trading_pnl')
+        .select('*')
+        .eq('user_id', user.id)
+        .gte('trade_date', startDate)
+        .lte('trade_date', endDate)
+        .order('trade_date', { ascending: true }),
     ]);
 
     const monthlyData: MonthlyData = {
@@ -181,6 +197,7 @@ serve(async (req) => {
       weekReviews: weekReviewsResult.data || [],
       vision: visionResult.data,
       bigTenProjects: bigTenResult.data || [],
+      tradingPnL: tradingPnLResult.data || [],
     };
 
     // Compute stats
@@ -320,6 +337,33 @@ function computeStats(data: MonthlyData, startDate: string, endDate: string): Co
     });
   }).length;
 
+  // Calculate trading P&L stats
+  let tradingTotalPnL = 0;
+  let tradingBestDay: { date: string; amount: number } | null = null;
+  let tradingWorstDay: { date: string; amount: number } | null = null;
+  let tradingWinningDays = 0;
+  
+  if (data.tradingPnL && data.tradingPnL.length > 0) {
+    let best = data.tradingPnL[0];
+    let worst = data.tradingPnL[0];
+    
+    for (const entry of data.tradingPnL) {
+      const amount = Number(entry.pnl_amount);
+      tradingTotalPnL += amount;
+      if (amount > 0) tradingWinningDays++;
+      if (amount > Number(best.pnl_amount)) best = entry;
+      if (amount < Number(worst.pnl_amount)) worst = entry;
+    }
+    
+    tradingBestDay = { date: best.trade_date, amount: Number(best.pnl_amount) };
+    tradingWorstDay = { date: worst.trade_date, amount: Number(worst.pnl_amount) };
+  }
+
+  const tradingDaysLogged = data.tradingPnL?.length || 0;
+  const tradingWinRate = tradingDaysLogged > 0 
+    ? Math.round((tradingWinningDays / tradingDaysLogged) * 100) 
+    : 0;
+
   return {
     totalJournalEntries: data.journalEntries.length,
     habitCompletionRate,
@@ -328,6 +372,11 @@ function computeStats(data: MonthlyData, startDate: string, endDate: string): Co
     tasksCompleted: data.quickTasks.length,
     longestStreak,
     photosCount,
+    tradingTotalPnL,
+    tradingBestDay,
+    tradingWorstDay,
+    tradingDaysLogged,
+    tradingWinRate,
   };
 }
 
@@ -385,10 +434,23 @@ function prepareChartsData(data: MonthlyData, startDate: string, endDate: string
     focusByWeek[weekKey] = (focusByWeek[weekKey] || 0) + (session.actual_duration_minutes || 0);
   }
 
+  // Trading P&L daily data
+  const tradingPnLDaily: { date: string; amount: number; cumulative: number }[] = [];
+  let cumulative = 0;
+  for (const entry of (data.tradingPnL || [])) {
+    cumulative += Number(entry.pnl_amount);
+    tradingPnLDaily.push({
+      date: entry.trade_date,
+      amount: Number(entry.pnl_amount),
+      cumulative,
+    });
+  }
+
   return {
     goalProgress,
     habitHeatmap,
     focusByWeek,
+    tradingPnLDaily,
   };
 }
 
@@ -463,7 +525,14 @@ STATS FOR THIS MONTH:
 - Tasks completed: ${stats.tasksCompleted}
 - Longest habit streak: ${stats.longestStreak} days
 - Photos captured: ${stats.photosCount}
-
+${stats.tradingDaysLogged > 0 ? `
+TRADING P&L:
+- Total P&L: $${stats.tradingTotalPnL.toFixed(2)}
+- Trading days logged: ${stats.tradingDaysLogged}
+- Win rate: ${stats.tradingWinRate}%
+- Best day: ${stats.tradingBestDay ? `$${stats.tradingBestDay.amount.toFixed(2)} on ${stats.tradingBestDay.date}` : 'N/A'}
+- Worst day: ${stats.tradingWorstDay ? `$${stats.tradingWorstDay.amount.toFixed(2)} on ${stats.tradingWorstDay.date}` : 'N/A'}
+` : ''}
 GOALS:
 ${JSON.stringify(goalSummaries, null, 2)}
 
@@ -486,6 +555,7 @@ Generate a monthly recap with the following JSON structure. Be specific to this 
     {"goal_title": "string", "insight": "2-3 sentence AI commentary on progress/patterns for this specific goal"}
   ],
   "habit_insights": "A paragraph about habit patterns, correlations you noticed, strengths/weaknesses by day of week, streak analysis",
+  "trading_insights": "If trading data is provided, a paragraph analyzing: overall P&L performance, patterns between profitable/losing days and habits/focus/mood, best days context (what made them work), observations about trading psychology based on journal entries. If no trading data, set to null.",
   "biggest_win": {
     "title": "What was accomplished",
     "why_it_mattered": "Why it was significant",
@@ -507,7 +577,7 @@ Generate a monthly recap with the following JSON structure. Be specific to this 
 Return ONLY valid JSON, no markdown.`;
 
   try {
-    const response = await fetch('https://api.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -547,6 +617,7 @@ Return ONLY valid JSON, no markdown.`;
         opening_reflection: parsed.opening_reflection || '',
         goal_insights: parsed.goal_insights || [],
         habit_insights: parsed.habit_insights || '',
+        trading_insights: parsed.trading_insights || null,
         biggest_win: parsed.biggest_win || null,
         hardest_struggle: parsed.hardest_struggle || null,
         unexpected_delight: parsed.unexpected_delight || null,
@@ -562,9 +633,10 @@ Return ONLY valid JSON, no markdown.`;
       headline: `${monthYear}: Your Month in Review`,
       subheadline: `${stats.totalJournalEntries} journal entries, ${stats.habitCompletionRate}% habit completion`,
       sections: {
-        opening_reflection: `This month you wrote ${stats.totalJournalEntries} journal entries and maintained a ${stats.habitCompletionRate}% habit completion rate. You completed ${stats.tasksCompleted} tasks and spent ${stats.totalFocusMinutes} minutes in focused work sessions.`,
+        opening_reflection: `This month you wrote ${stats.totalJournalEntries} journal entries and maintained a ${stats.habitCompletionRate}% habit completion rate. You completed ${stats.tasksCompleted} tasks and spent ${stats.totalFocusMinutes} minutes in focused work sessions.${stats.tradingDaysLogged > 0 ? ` You logged ${stats.tradingDaysLogged} trading days with a total P&L of $${stats.tradingTotalPnL.toFixed(2)}.` : ''}`,
         goal_insights: [],
         habit_insights: `Your longest streak this month was ${stats.longestStreak} days.`,
+        trading_insights: stats.tradingDaysLogged > 0 ? `You logged ${stats.tradingDaysLogged} trading days this month with a ${stats.tradingWinRate}% win rate.` : null,
         biggest_win: null,
         hardest_struggle: null,
         unexpected_delight: null,

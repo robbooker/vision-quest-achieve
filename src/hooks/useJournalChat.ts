@@ -18,6 +18,7 @@ type JournalContext = {
   goals: any[];
   activeCycle: any;
   vision: any;
+  tradingPnL: any[];
 };
 
 type SemanticResult = {
@@ -41,7 +42,7 @@ export const useJournalChat = () => {
   const fetchContext = useCallback(async (): Promise<JournalContext> => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      return { recentTasks: [], pendingTasks: [], recentHabits: [], journalEntries: [], focusSessions: [], goals: [], activeCycle: null, vision: null };
+      return { recentTasks: [], pendingTasks: [], recentHabits: [], journalEntries: [], focusSessions: [], goals: [], activeCycle: null, vision: null, tradingPnL: [] };
     }
 
     const sevenDaysAgo = format(subDays(new Date(), 7), 'yyyy-MM-dd');
@@ -55,7 +56,8 @@ export const useJournalChat = () => {
       focusSessionsResult,
       goalsResult,
       activeCycleResult,
-      visionResult
+      visionResult,
+      tradingPnLResult
     ] = await Promise.all([
       // Fetch recent completed tasks
       supabase
@@ -131,7 +133,16 @@ export const useJournalChat = () => {
         .from('user_vision')
         .select('vision_3_year, vision_long_term, core_values')
         .eq('user_id', user.id)
-        .maybeSingle()
+        .maybeSingle(),
+      
+      // Fetch recent trading P&L
+      supabase
+        .from('trading_pnl')
+        .select('trade_date, pnl_amount, trade_count')
+        .eq('user_id', user.id)
+        .gte('trade_date', sevenDaysAgo)
+        .order('trade_date', { ascending: false })
+        .limit(7)
     ]);
 
     // Transform habit data to include tactic title
@@ -150,6 +161,7 @@ export const useJournalChat = () => {
       goals: goalsResult.data || [],
       activeCycle: activeCycleResult.data || null,
       vision: visionResult.data || null,
+      tradingPnL: tradingPnLResult.data || [],
     };
   }, []);
 

@@ -41,6 +41,11 @@ export interface AudioMetadata {
   transcribedAt?: string;
 }
 
+export interface TradingPnLData {
+  pnl_amount: number;
+  trade_count: number | null;
+}
+
 export interface JournalEntry {
   id: string;
   user_id: string;
@@ -48,6 +53,7 @@ export interface JournalEntry {
   completed_tasks: CompletedTask[];
   completed_habits: CompletedHabit[];
   completed_focus_sessions: CompletedFocusSession[];
+  trading_pnl: TradingPnLData | null;
   image_url: string | null;
   image_prompt: string | null;
   user_notes: string | null;
@@ -83,6 +89,7 @@ export const useJournalEntries = (limit: number = 3) => {
         completed_habits: (entry.completed_habits || []) as unknown as CompletedHabit[],
         completed_focus_sessions: ((entry as any).completed_focus_sessions || []) as unknown as CompletedFocusSession[],
         user_photos: (entry.user_photos || []) as unknown as UserPhoto[],
+        trading_pnl: (entry as any).trading_pnl || null,
       })) as JournalEntry[];
     },
     enabled: !!user?.id,
@@ -140,6 +147,14 @@ export const useCreateJournalEntry = () => {
         .gte('completed_at', startOfDay)
         .lte('completed_at', endOfDay);
 
+      // Fetch trading P&L for that date
+      const { data: tradingPnL } = await supabase
+        .from('trading_pnl')
+        .select('pnl_amount, trade_count')
+        .eq('user_id', user.id)
+        .eq('trade_date', date)
+        .maybeSingle();
+
       const completedTasks: CompletedTask[] = (tasks || []).map(t => ({
         id: t.id,
         title: t.title,
@@ -162,6 +177,11 @@ export const useCreateJournalEntry = () => {
         completed_at: s.completed_at || '',
       }));
 
+      const tradingPnLData: TradingPnLData | null = tradingPnL ? {
+        pnl_amount: Number(tradingPnL.pnl_amount),
+        trade_count: tradingPnL.trade_count,
+      } : null;
+
       // Create the journal entry
       const { data, error } = await supabase
         .from('journal_entries')
@@ -183,6 +203,7 @@ export const useCreateJournalEntry = () => {
         completed_habits: completedHabits,
         completed_focus_sessions: completedFocusSessions,
         user_photos: [] as UserPhoto[],
+        trading_pnl: tradingPnLData,
       } as JournalEntry;
 
       // Generate embedding for the journal entry (fire and forget)

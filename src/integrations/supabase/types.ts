@@ -1147,6 +1147,66 @@ export type Database = {
           },
         ]
       }
+      monthly_recaps: {
+        Row: {
+          charts_data: Json | null
+          content: Json | null
+          created_at: string
+          headline: string | null
+          id: string
+          month: string
+          photos: Json | null
+          privacy: string
+          published_at: string | null
+          slug: string | null
+          stats: Json | null
+          status: string
+          subheadline: string | null
+          tone: string | null
+          updated_at: string
+          user_id: string
+          view_count: number
+        }
+        Insert: {
+          charts_data?: Json | null
+          content?: Json | null
+          created_at?: string
+          headline?: string | null
+          id?: string
+          month: string
+          photos?: Json | null
+          privacy?: string
+          published_at?: string | null
+          slug?: string | null
+          stats?: Json | null
+          status?: string
+          subheadline?: string | null
+          tone?: string | null
+          updated_at?: string
+          user_id: string
+          view_count?: number
+        }
+        Update: {
+          charts_data?: Json | null
+          content?: Json | null
+          created_at?: string
+          headline?: string | null
+          id?: string
+          month?: string
+          photos?: Json | null
+          privacy?: string
+          published_at?: string | null
+          slug?: string | null
+          stats?: Json | null
+          status?: string
+          subheadline?: string | null
+          tone?: string | null
+          updated_at?: string
+          user_id?: string
+          view_count?: number
+        }
+        Relationships: []
+      }
       notification_preferences: {
         Row: {
           behind_plan: boolean | null

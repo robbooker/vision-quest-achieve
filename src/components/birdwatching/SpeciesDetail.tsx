@@ -324,30 +324,83 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
           )}
 
           {research && !researchLoading && (
-            <Collapsible defaultOpen className="space-y-3">
+            <Collapsible defaultOpen className="space-y-4">
               <CollapsibleTrigger className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors group">
                 <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=closed]:-rotate-90" />
-                <span className="group-data-[state=open]:hidden">Show</span>
-                <span className="group-data-[state=closed]:hidden">Hide</span>
+                <span className="group-data-[state=open]:hidden">Show article</span>
+                <span className="group-data-[state=closed]:hidden">Hide article</span>
               </CollapsibleTrigger>
               <CollapsibleContent>
-                <div className="prose prose-base dark:prose-invert max-w-none pt-4 pb-2
-                  [&>*:first-child]:mt-0
-                  prose-p:text-[15px] prose-p:leading-7 prose-p:my-4 prose-p:text-foreground/90
-                  prose-headings:text-foreground prose-headings:font-bold prose-headings:tracking-tight
-                  prose-h2:text-xl prose-h2:mt-8 prose-h2:mb-4 prose-h2:pb-2 prose-h2:border-b prose-h2:border-border/60
-                  prose-h3:text-lg prose-h3:mt-6 prose-h3:mb-3
-                  prose-h4:text-base prose-h4:mt-4 prose-h4:mb-2 prose-h4:font-semibold
-                  [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-4 [&_ul]:space-y-2
-                  [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-4 [&_ol]:space-y-2
-                  [&_li]:text-[15px] [&_li]:leading-7 [&_li]:pl-1
-                  [&_li::marker]:text-muted-foreground
-                  [&_strong]:font-semibold [&_strong]:text-foreground
-                  [&_p:first-of-type]:text-[1.05rem] [&_p:first-of-type]:leading-loose
-                  prose-blockquote:border-l-4 prose-blockquote:border-primary/30 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-muted-foreground
-                ">
-                  <ReactMarkdown>{research}</ReactMarkdown>
-                </div>
+                {/* Blog-style article container */}
+                <article className="relative">
+                  {/* Decorative top accent */}
+                  <div className="absolute top-0 left-0 w-16 h-1 bg-gradient-to-r from-primary to-primary/50 rounded-full" />
+                  
+                  {/* Article meta header */}
+                  <div className="pt-6 pb-4 mb-6 border-b border-border/50">
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                        <Sparkles className="h-3 w-3" />
+                        AI Research
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <BookOpen className="h-3 w-3" />
+                        {Math.ceil(research.split(/\s+/).length / 200)} min read
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Article content with enhanced blog typography */}
+                  <div className="prose prose-lg dark:prose-invert max-w-none
+                    
+                    /* Base text styling - slightly larger for readability */
+                    prose-p:text-[16px] prose-p:leading-[1.8] prose-p:my-5 prose-p:text-foreground/85
+                    
+                    /* Drop cap effect for first paragraph */
+                    [&>p:first-of-type]:text-lg [&>p:first-of-type]:leading-relaxed [&>p:first-of-type]:text-foreground
+                    [&>p:first-of-type::first-letter]:text-5xl [&>p:first-of-type::first-letter]:font-bold 
+                    [&>p:first-of-type::first-letter]:float-left [&>p:first-of-type::first-letter]:mr-3 
+                    [&>p:first-of-type::first-letter]:mt-1 [&>p:first-of-type::first-letter]:text-primary
+                    
+                    /* Section headings with editorial styling */
+                    prose-headings:text-foreground prose-headings:font-bold prose-headings:tracking-tight
+                    prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-4 prose-h2:pb-3 
+                    prose-h2:border-b prose-h2:border-border/40
+                    prose-h3:text-xl prose-h3:mt-8 prose-h3:mb-3 prose-h3:text-foreground/95
+                    prose-h4:text-lg prose-h4:mt-6 prose-h4:mb-2 prose-h4:font-semibold prose-h4:text-foreground/90
+                    
+                    /* Lists with proper spacing and bullets */
+                    [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:my-5 [&_ul]:space-y-3
+                    [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:my-5 [&_ol]:space-y-3
+                    [&_li]:text-[15px] [&_li]:leading-[1.75] [&_li]:pl-2
+                    [&_li::marker]:text-primary/60
+                    
+                    /* Bold and emphasis styling */
+                    [&_strong]:font-semibold [&_strong]:text-foreground
+                    [&_em]:text-foreground/80
+                    
+                    /* Blockquotes styled as pull quotes */
+                    prose-blockquote:border-l-4 prose-blockquote:border-primary/40 
+                    prose-blockquote:pl-6 prose-blockquote:py-2 prose-blockquote:my-8
+                    prose-blockquote:italic prose-blockquote:text-lg prose-blockquote:text-muted-foreground
+                    prose-blockquote:bg-muted/30 prose-blockquote:rounded-r-lg
+                    
+                    /* Links */
+                    prose-a:text-primary prose-a:no-underline hover:prose-a:underline
+                    
+                    /* Code blocks if any */
+                    prose-code:text-sm prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded
+                  ">
+                    <ReactMarkdown>{research}</ReactMarkdown>
+                  </div>
+                  
+                  {/* Article footer */}
+                  <div className="mt-8 pt-4 border-t border-border/30">
+                    <p className="text-xs text-muted-foreground italic">
+                      Content generated by AI. Verify important details with authoritative sources.
+                    </p>
+                  </div>
+                </article>
               </CollapsibleContent>
             </Collapsible>
           )}

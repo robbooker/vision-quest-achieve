@@ -303,9 +303,6 @@ export function useUpdateRecap() {
       
       if (error) throw error;
       return data;
-      
-      if (error) throw error;
-      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['monthly-recaps'] });
@@ -329,6 +326,51 @@ export function useDeleteRecap() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['monthly-recaps'] });
+    },
+  });
+}
+
+// Section keys that can be regenerated
+export type RegeneratableSectionKey = 
+  | 'opening_reflection' 
+  | 'habit_insights' 
+  | 'biggest_win' 
+  | 'hardest_struggle' 
+  | 'unexpected_delight' 
+  | 'looking_ahead'
+  | 'goal_insights';
+
+// Hook to regenerate a specific section
+export function useRegenerateSection() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ 
+      recapId, 
+      section, 
+      tone,
+      context 
+    }: { 
+      recapId: string; 
+      section: RegeneratableSectionKey; 
+      tone: RecapTone;
+      context?: Record<string, any>;
+    }) => {
+      const { data, error } = await supabase.functions.invoke('regenerate-recap-section', {
+        body: { 
+          recap_id: recapId, 
+          section, 
+          tone,
+          context 
+        },
+      });
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['monthly-recaps'] });
+      queryClient.invalidateQueries({ queryKey: ['monthly-recap'] });
     },
   });
 }

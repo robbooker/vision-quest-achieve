@@ -87,5 +87,8 @@ verify_jwt = false
 [functions.twilio-voice-webhook]
 verify_jwt = false
 
+[functions.twilio-sms-webhook]
+verify_jwt = false
+
 [functions.generate-packing-list]
 verify_jwt = false

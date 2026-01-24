@@ -611,7 +611,7 @@ ${goalContext}
 Respond naturally to their message. Use tools when appropriate.`;
 
     // Call AI with tools
-    const response = await fetch('https://api.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://api.lovable.dev/api/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${LOVABLE_API_KEY}`,

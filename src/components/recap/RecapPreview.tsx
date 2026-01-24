@@ -4,6 +4,7 @@ import { Separator } from '@/components/ui/separator';
 import { Trophy, AlertTriangle, Sparkles, Quote, ArrowRight, Target } from 'lucide-react';
 import { format } from 'date-fns';
 import type { MonthlyRecap } from '@/hooks/useMonthlyRecap';
+import { HabitHeatmap } from './HabitHeatmap';
 import { 
   BarChart, 
   Bar, 
@@ -112,13 +113,23 @@ export function RecapPreview({ recap }: RecapPreviewProps) {
         </Card>
       )}
 
-      {/* Habit Insights */}
+      {/* Habit Insights with Heatmap */}
       {content.habit_insights && (
         <Card>
           <CardHeader>
             <CardTitle>Habit Patterns</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-6">
+            {/* Habit Heatmap */}
+            {chartsData?.habitHeatmap && (
+              <HabitHeatmap 
+                month={recap.month} 
+                data={chartsData.habitHeatmap} 
+              />
+            )}
+            
+            <Separator />
+            
             <p className="text-muted-foreground leading-relaxed">
               {content.habit_insights}
             </p>

@@ -297,9 +297,10 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
 
           {research && !researchLoading && (
             <Collapsible defaultOpen className="space-y-3">
-              <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors w-full group">
-                <ChevronDown className="h-4 w-4 transition-transform group-data-[state=closed]:-rotate-90" />
-                <span>AI Research</span>
+              <CollapsibleTrigger className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors group">
+                <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=closed]:-rotate-90" />
+                <span className="group-data-[state=open]:hidden">Show</span>
+                <span className="group-data-[state=closed]:hidden">Hide</span>
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <div className="prose prose-base dark:prose-invert max-w-none pt-4 pb-2

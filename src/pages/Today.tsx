@@ -13,6 +13,7 @@ import { useResetPreference } from '@/hooks/useResetPreference';
 import { HabitItem } from '@/components/dashboard/HabitItem';
 import { DailyScoreLogger } from '@/components/dashboard/DailyScoreLogger';
 import { QuickTaskList } from '@/components/dashboard/QuickTaskList';
+import { DailyPnLLogger } from '@/components/dashboard/DailyPnLLogger';
 import { CompactResetCard } from '@/components/reset/CompactResetCard';
 
 import { TodaySchedule, CalendarEventData } from '@/components/dashboard/TodaySchedule';
@@ -511,9 +512,12 @@ export default function Today() {
           />
         </div>
 
-        {/* Task List - Full Width */}
-        <div data-tour="quick-tasks">
-          <QuickTaskList />
+        {/* Task List + P&L Logger */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div data-tour="quick-tasks" className="md:col-span-2">
+            <QuickTaskList />
+          </div>
+          <DailyPnLLogger />
         </div>
 
         {/* Daily Score Logger */}

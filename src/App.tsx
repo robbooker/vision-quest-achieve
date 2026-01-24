@@ -53,6 +53,7 @@ import Birdwatching from "./pages/Birdwatching";
 import PublicBirdProfile from "./pages/PublicBirdProfile";
 import MonthlyRecap from "./pages/MonthlyRecap";
 import PublicRecap from "./pages/PublicRecap";
+import TradingPnL from "./pages/TradingPnL";
 
 const queryClient = new QueryClient();
 
@@ -118,6 +119,7 @@ const App = () => (
                     <Route path="/birds/:username" element={<PublicBirdProfile />} />
                     <Route path="/recap/:slug" element={<PublicRecap />} />
                     <Route path="/monthly-recap" element={<ProtectedRoute><MonthlyRecap /></ProtectedRoute>} />
+                    <Route path="/trading" element={<ProtectedRoute><TradingPnL /></ProtectedRoute>} />
                     <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
                     <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
                     <Route path="/admin/broadcasts" element={<AdminRoute><AdminBroadcasts /></AdminRoute>} />

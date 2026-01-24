@@ -1,18 +1,43 @@
-import { useMemo, Suspense, lazy, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, Component, ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Map, MapPin, Bird, AlertTriangle } from 'lucide-react';
+import { Map, MapPin, AlertTriangle } from 'lucide-react';
 import { useBirdwatching } from '@/hooks/useBirdwatching';
-
-// Lazy load the Leaflet map component to prevent SSR issues
-const LeafletMap = lazy(() => import('./LeafletMap').then(mod => ({ default: mod.LeafletMap })));
 
 interface BirdMapProps {
   onSelectSpecies: (species: string) => void;
 }
 
-// Error boundary for map component
+// Error boundary class component
+interface ErrorBoundaryState {
+  hasError: boolean;
+}
+
+class MapErrorBoundary extends Component<{ children: ReactNode; onError: () => void }, ErrorBoundaryState> {
+  constructor(props: { children: ReactNode; onError: () => void }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): ErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error) {
+    console.error('Map error:', error);
+    this.props.onError();
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return null; // Parent will show error fallback
+    }
+    return this.props.children;
+  }
+}
+
+// Error fallback UI
 function MapErrorFallback({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="h-[400px] w-full flex flex-col items-center justify-center bg-muted/30 rounded-lg border">
@@ -33,6 +58,71 @@ function MapLoadingSkeleton() {
     <div className="h-[400px] w-full">
       <Skeleton className="h-full w-full rounded-lg" />
     </div>
+  );
+}
+
+// Dynamically imported map component
+function LazyLeafletMap({ 
+  sightings, 
+  getPhotosForSighting, 
+  onSelectSpecies, 
+  center 
+}: {
+  sightings: any[];
+  getPhotosForSighting: (id: string) => any[];
+  onSelectSpecies: (species: string) => void;
+  center: { lat: number; lng: number };
+}) {
+  const [MapComponent, setMapComponent] = useState<React.ComponentType<any> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    
+    const loadMap = async () => {
+      try {
+        // Import CSS first
+        await import('leaflet/dist/leaflet.css');
+        
+        // Then import the component
+        const module = await import('./LeafletMap');
+        
+        if (mounted) {
+          setMapComponent(() => module.LeafletMap);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Failed to load map:', err);
+        if (mounted) {
+          setError(true);
+          setLoading(false);
+        }
+      }
+    };
+
+    loadMap();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  if (loading) {
+    return <MapLoadingSkeleton />;
+  }
+
+  if (error || !MapComponent) {
+    return null; // Parent will handle error state
+  }
+
+  return (
+    <MapComponent
+      sightings={sightings}
+      getPhotosForSighting={getPhotosForSighting}
+      onSelectSpecies={onSelectSpecies}
+      center={center}
+    />
   );
 }
 
@@ -87,10 +177,9 @@ export function BirdMap({ onSelectSpecies }: BirdMapProps) {
     setMapKey(k => k + 1);
   };
 
-  // Reset error state when tab becomes visible
-  useEffect(() => {
-    setHasError(false);
-  }, []);
+  const handleError = () => {
+    setHasError(true);
+  };
 
   if (sightings.length === 0) {
     return (
@@ -136,15 +225,15 @@ export function BirdMap({ onSelectSpecies }: BirdMapProps) {
                 {hasError ? (
                   <MapErrorFallback onRetry={handleRetry} />
                 ) : (
-                  <Suspense fallback={<MapLoadingSkeleton />}>
-                    <LeafletMap
+                  <MapErrorBoundary onError={handleError}>
+                    <LazyLeafletMap
                       key={mapKey}
                       sightings={locatedSightings}
                       getPhotosForSighting={getPhotosForSighting}
                       onSelectSpecies={onSelectSpecies}
                       center={mapCenter}
                     />
-                  </Suspense>
+                  </MapErrorBoundary>
                 )}
               </div>
 

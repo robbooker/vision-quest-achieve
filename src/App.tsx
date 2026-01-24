@@ -52,6 +52,7 @@ import AdminFeedback from "./pages/AdminFeedback";
 import Birdwatching from "./pages/Birdwatching";
 import PublicBirdProfile from "./pages/PublicBirdProfile";
 import MonthlyRecap from "./pages/MonthlyRecap";
+import PublicRecap from "./pages/PublicRecap";
 
 const queryClient = new QueryClient();
 
@@ -115,6 +116,7 @@ const App = () => (
                     <Route path="/feedback" element={<ProtectedRoute><Feedback /></ProtectedRoute>} />
                     <Route path="/birdwatching" element={<ProtectedRoute><Birdwatching /></ProtectedRoute>} />
                     <Route path="/birds/:username" element={<PublicBirdProfile />} />
+                    <Route path="/recap/:slug" element={<PublicRecap />} />
                     <Route path="/monthly-recap" element={<ProtectedRoute><MonthlyRecap /></ProtectedRoute>} />
                     <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
                     <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />

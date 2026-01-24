@@ -77,13 +77,14 @@ function LazyLeafletMap({
 }) {
   const [MapComponent, setMapComponent] = useState<React.ComponentType<any> | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
     let mounted = true;
     
     const loadMap = async () => {
       try {
-        // Import the component (CSS is imported inside LeafletMap.tsx)
+        // Dynamic import of Leaflet component
         const module = await import('./LeafletMap');
         
         if (mounted) {
@@ -91,10 +92,10 @@ function LazyLeafletMap({
           setLoading(false);
         }
       } catch (err) {
-        console.error('Failed to load map:', err);
+        console.error('Failed to load map module:', err);
         if (mounted) {
+          setLoadFailed(true);
           setLoading(false);
-          onError();
         }
       }
     };
@@ -104,13 +105,20 @@ function LazyLeafletMap({
     return () => {
       mounted = false;
     };
-  }, [onError]);
+  }, []); // Empty dependency array - only run once
+
+  // Call onError after state update, not during effect
+  useEffect(() => {
+    if (loadFailed) {
+      onError();
+    }
+  }, [loadFailed, onError]);
 
   if (loading) {
     return <MapLoadingSkeleton />;
   }
 
-  if (!MapComponent) {
+  if (!MapComponent || loadFailed) {
     return null;
   }
 

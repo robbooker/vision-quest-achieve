@@ -69,33 +69,121 @@ serve(async (req) => {
     const artStyle = settings?.art_style || "watercolor";
     const colorPalette = settings?.color_palette || "warm and inspiring";
 
+    // Fetch calendar events for that day if user has calendar connected
+    let calendarEvents: string[] = [];
+    try {
+      const { data: calendarToken } = await supabase
+        .from("user_calendar_tokens")
+        .select("access_token, refresh_token, token_expires_at")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (calendarToken) {
+        // Get events for this specific date
+        const entryDate = new Date(entry.entry_date + "T00:00:00");
+        const nextDay = new Date(entryDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+
+        const timeMin = entryDate.toISOString();
+        const timeMax = nextDay.toISOString();
+
+        // Check if token needs refresh
+        let accessToken = calendarToken.access_token;
+        const tokenExpiry = new Date(calendarToken.token_expires_at);
+        
+        if (tokenExpiry <= new Date()) {
+          // Refresh the token
+          const clientId = Deno.env.get("GOOGLE_CALENDAR_CLIENT_ID");
+          const clientSecret = Deno.env.get("GOOGLE_CALENDAR_CLIENT_SECRET");
+          
+          if (clientId && clientSecret) {
+            const refreshResponse = await fetch("https://oauth2.googleapis.com/token", {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded" },
+              body: new URLSearchParams({
+                client_id: clientId,
+                client_secret: clientSecret,
+                refresh_token: calendarToken.refresh_token,
+                grant_type: "refresh_token",
+              }),
+            });
+
+            if (refreshResponse.ok) {
+              const tokenData = await refreshResponse.json();
+              accessToken = tokenData.access_token;
+              
+              // Update token in database
+              await supabase
+                .from("user_calendar_tokens")
+                .update({
+                  access_token: accessToken,
+                  token_expires_at: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
+                })
+                .eq("user_id", user.id);
+            }
+          }
+        }
+
+        // Fetch calendar events
+        const calendarResponse = await fetch(
+          `https://www.googleapis.com/calendar/v3/calendars/primary/events?` +
+          `timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`,
+          {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          }
+        );
+
+        if (calendarResponse.ok) {
+          const calendarData = await calendarResponse.json();
+          calendarEvents = (calendarData.items || [])
+            .filter((event: any) => event.summary)
+            .map((event: any) => event.summary)
+            .slice(0, 5);
+          console.log("Found calendar events:", calendarEvents);
+        }
+      }
+    } catch (calendarError) {
+      console.log("Calendar fetch skipped (non-blocking):", calendarError);
+    }
+
     // Build accomplishment list
     const tasks = (entry.completed_tasks as any[]) || [];
     const habits = (entry.completed_habits as any[]) || [];
+    const focusSessions = (entry.completed_focus_sessions as any[]) || [];
 
     const accomplishments: string[] = [];
+    
+    // Add calendar events first as context
+    calendarEvents.forEach((event: string) => {
+      accomplishments.push(`Calendar event: ${event}`);
+    });
+    
     tasks.slice(0, 5).forEach((t: any) => {
       accomplishments.push(`Completed task: ${t.title}`);
     });
     habits.slice(0, 5).forEach((h: any) => {
       accomplishments.push(`Practiced habit: ${h.title} (${h.completed_count}x)`);
     });
+    focusSessions.slice(0, 3).forEach((s: any) => {
+      accomplishments.push(`Focus session: ${s.objective} (${s.actual_duration_minutes} min)`);
+    });
 
     if (accomplishments.length === 0) {
       accomplishments.push("A day of rest and reflection");
     }
 
-    // Create the prompt
+    // Create the prompt with calendar context
     const prompt = `Create a beautiful ${artStyle} illustration for a personal daily journal.
 
 Today's theme: ${themeInstructions}
 Color palette: ${colorPalette}
 
-This image should subtly represent these accomplishments:
+This image should subtly represent these activities and accomplishments from the day:
 ${accomplishments.map(a => `- ${a}`).join("\n")}
 
 Style notes:
 - Make it feel personal and inspiring
+- Subtly incorporate visual elements that represent the day's activities
 - Suitable as a daily journal header image
 - Aspect ratio: 16:9
 - No text or words in the image

@@ -13,6 +13,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useGoals } from '@/hooks/useGoals';
 import { useToast } from '@/hooks/use-toast';
+import { PillarSelector } from '@/components/primed/PillarSelector';
+import { FoundationWarning } from '@/components/primed/FoundationWarning';
+import { PillarKey, PILLARS, ADVANCED_PILLARS, isFoundationComplete } from '@/data/primedBehaviors';
+import { useCurrentAssessment } from '@/hooks/usePrimedAssessment';
 
 interface CreateGoalDialogProps {
   open: boolean;
@@ -31,9 +35,23 @@ export function CreateGoalDialog({
   const [metricType, setMetricType] = useState('');
   const [targetValue, setTargetValue] = useState('');
   const [why, setWhy] = useState('');
+  const [pillar, setPillar] = useState<PillarKey | null>(null);
+  const [showFoundationWarning, setShowFoundationWarning] = useState(false);
   
   const { createGoal } = useGoals(cycleId);
   const { toast } = useToast();
+  const { assessment } = useCurrentAssessment();
+
+  const checkFoundationWarning = (): boolean => {
+    if (!pillar || !assessment) return false;
+    if (!ADVANCED_PILLARS.includes(pillar)) return false;
+    
+    return !isFoundationComplete({
+      physical_level: assessment.physical_level,
+      relations_level: assessment.relations_level,
+      mental_level: assessment.mental_level,
+    });
+  };
 
   const handleSubmit = async () => {
     if (!title.trim()) {
@@ -72,6 +90,16 @@ export function CreateGoalDialog({
       return;
     }
 
+    // Check foundation warning
+    if (checkFoundationWarning()) {
+      setShowFoundationWarning(true);
+      return;
+    }
+
+    await submitGoal();
+  };
+
+  const submitGoal = async () => {
     try {
       await createGoal.mutateAsync({
         cycle_id: cycleId,
@@ -79,6 +107,7 @@ export function CreateGoalDialog({
         metric_type: metricType.trim(),
         target_value: Number(targetValue),
         why: why.trim() || undefined,
+        pillar: pillar ?? undefined,
       });
 
       toast({
@@ -90,6 +119,7 @@ export function CreateGoalDialog({
       setMetricType('');
       setTargetValue('');
       setWhy('');
+      setPillar(null);
       onOpenChange(false);
     } catch (error) {
       toast({
@@ -101,72 +131,90 @@ export function CreateGoalDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>Add Goal {existingGoalsCount + 1}</DialogTitle>
-          <DialogDescription>
-            Define a transformational goal for this 12-week cycle. Be specific about what success looks like.
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Add Goal {existingGoalsCount + 1}</DialogTitle>
+            <DialogDescription>
+              Define a transformational goal for this 12-week cycle. Be specific about what success looks like.
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="grid gap-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="title">What do you want to achieve?</Label>
-            <Input
-              id="title"
-              placeholder="e.g., Complete my first novel draft"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="targetValue">Target Value</Label>
+              <Label htmlFor="title">What do you want to achieve?</Label>
               <Input
-                id="targetValue"
-                type="number"
-                placeholder="e.g., 50000"
-                value={targetValue}
-                onChange={(e) => setTargetValue(e.target.value)}
+                id="title"
+                placeholder="e.g., Complete my first novel draft"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
               />
             </div>
+
+            <PillarSelector
+              value={pillar}
+              onChange={setPillar}
+              label="Life Pillar (P.R.I.M.E.D.)"
+            />
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="targetValue">Target Value</Label>
+                <Input
+                  id="targetValue"
+                  type="number"
+                  placeholder="e.g., 50000"
+                  value={targetValue}
+                  onChange={(e) => setTargetValue(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="metricType">Metric (unit)</Label>
+                <Input
+                  id="metricType"
+                  placeholder="e.g., words, hours, calls"
+                  value={metricType}
+                  onChange={(e) => setMetricType(e.target.value)}
+                />
+              </div>
+            </div>
+
             <div className="space-y-2">
-              <Label htmlFor="metricType">Metric (unit)</Label>
-              <Input
-                id="metricType"
-                placeholder="e.g., words, hours, calls"
-                value={metricType}
-                onChange={(e) => setMetricType(e.target.value)}
+              <Label htmlFor="why">Why is this important to you?</Label>
+              <Textarea
+                id="why"
+                placeholder="Your motivation and the deeper reason behind this goal..."
+                value={why}
+                onChange={(e) => setWhy(e.target.value)}
+                rows={3}
               />
+              <p className="text-xs text-muted-foreground">
+                This will help you stay motivated when things get tough.
+              </p>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="why">Why is this important to you?</Label>
-            <Textarea
-              id="why"
-              placeholder="Your motivation and the deeper reason behind this goal..."
-              value={why}
-              onChange={(e) => setWhy(e.target.value)}
-              rows={3}
-            />
-            <p className="text-xs text-muted-foreground">
-              This will help you stay motivated when things get tough.
-            </p>
-          </div>
-        </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSubmit} disabled={createGoal.isPending}>
+              {createGoal.isPending ? 'Creating...' : 'Add Goal'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={createGoal.isPending}>
-            {createGoal.isPending ? 'Creating...' : 'Add Goal'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <FoundationWarning
+        open={showFoundationWarning}
+        onOpenChange={setShowFoundationWarning}
+        onProceed={() => {
+          setShowFoundationWarning(false);
+          submitGoal();
+        }}
+        pillarName={pillar ? PILLARS[pillar].name : ''}
+      />
+    </>
   );
 }

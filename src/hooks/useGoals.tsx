@@ -6,6 +6,8 @@ import { useActivityEmbeddings } from './useActivityEmbeddings';
 export type GoalType = 'standard' | 'time_mastery' | 'habit' | 'woop';
 export type HabitDirection = 'start' | 'stop' | 'replace';
 
+import { PillarKey } from '@/data/primedBehaviors';
+
 export interface Goal {
   id: string;
   cycle_id: string;
@@ -17,6 +19,8 @@ export interface Goal {
   goal_type: GoalType;
   created_at: string;
   updated_at: string;
+  // P.R.I.M.E.D. pillar
+  pillar?: PillarKey | null;
   // Habit-based goal fields
   habit_direction?: HabitDirection | null;
   habit_cue?: string | null;
@@ -40,6 +44,7 @@ export interface CreateGoalInput {
   target_value: number;
   why?: string;
   goal_type?: GoalType;
+  pillar?: PillarKey;
   // Habit-based goal fields
   habit_direction?: HabitDirection;
   habit_cue?: string;

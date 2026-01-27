@@ -805,6 +805,7 @@ export type Database = {
           metric_type: string
           obstacles: string | null
           outcome_visualization: string | null
+          pillar: string | null
           primary_obstacle: string | null
           strategies: string | null
           target_value: number
@@ -833,6 +834,7 @@ export type Database = {
           metric_type: string
           obstacles?: string | null
           outcome_visualization?: string | null
+          pillar?: string | null
           primary_obstacle?: string | null
           strategies?: string | null
           target_value: number
@@ -861,6 +863,7 @@ export type Database = {
           metric_type?: string
           obstacles?: string | null
           outcome_visualization?: string | null
+          pillar?: string | null
           primary_obstacle?: string | null
           strategies?: string | null
           target_value?: number
@@ -1278,6 +1281,127 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      primed_assessment_behaviors: {
+        Row: {
+          assessment_id: string
+          behavior_key: string
+          behavior_text: string
+          created_at: string
+          id: string
+          level: number
+          pillar: string
+        }
+        Insert: {
+          assessment_id: string
+          behavior_key: string
+          behavior_text: string
+          created_at?: string
+          id?: string
+          level: number
+          pillar: string
+        }
+        Update: {
+          assessment_id?: string
+          behavior_key?: string
+          behavior_text?: string
+          created_at?: string
+          id?: string
+          level?: number
+          pillar?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "primed_assessment_behaviors_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "primed_assessments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      primed_assessments: {
+        Row: {
+          ai_notes: string | null
+          assessed_at: string
+          created_at: string
+          direction_level: number
+          excellence_level: number
+          id: string
+          income_level: number
+          mental_level: number
+          physical_level: number
+          relations_level: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_notes?: string | null
+          assessed_at?: string
+          created_at?: string
+          direction_level?: number
+          excellence_level?: number
+          id?: string
+          income_level?: number
+          mental_level?: number
+          physical_level?: number
+          relations_level?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_notes?: string | null
+          assessed_at?: string
+          created_at?: string
+          direction_level?: number
+          excellence_level?: number
+          id?: string
+          income_level?: number
+          mental_level?: number
+          physical_level?: number
+          relations_level?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      primed_goal_progress: {
+        Row: {
+          assessment_id: string
+          created_at: string
+          focus_minutes: number
+          goals_completed: number
+          habits_maintained: number
+          id: string
+          pillar: string
+        }
+        Insert: {
+          assessment_id: string
+          created_at?: string
+          focus_minutes?: number
+          goals_completed?: number
+          habits_maintained?: number
+          id?: string
+          pillar: string
+        }
+        Update: {
+          assessment_id?: string
+          created_at?: string
+          focus_minutes?: number
+          goals_completed?: number
+          habits_maintained?: number
+          id?: string
+          pillar?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "primed_goal_progress_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "primed_assessments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {

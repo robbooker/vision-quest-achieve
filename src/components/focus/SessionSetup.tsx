@@ -21,6 +21,18 @@ const DURATION_PRESETS = [
   { value: 60, label: '60 min', description: '1 Hour' },
 ];
 
+const FOCUS_OPTIONS = [
+  'Meditation',
+  'Fitness',
+  'Gratitude',
+  'Mindfully journal',
+  'Prep for meeting',
+  'Wind down for bed',
+  'Wake up routine',
+  'Settle emotional state',
+  'other',
+];
+
 interface SessionSetupProps {
   onStart: (data: {
     objective: string;
@@ -51,12 +63,16 @@ export function SessionSetup({
   onUpdateSession,
   onResumeSession,
 }: SessionSetupProps) {
-  const [objective, setObjective] = useState('');
+  const [selectedFocus, setSelectedFocus] = useState('');
+  const [customObjective, setCustomObjective] = useState('');
   const [duration, setDuration] = useState(25);
   const [customDuration, setCustomDuration] = useState('');
   const [linkType, setLinkType] = useState<'none' | 'goal' | 'task' | 'bigten'>('none');
   const [linkedId, setLinkedId] = useState('');
   const [editingSession, setEditingSession] = useState<FocusSession | null>(null);
+
+  // Compute the actual objective based on selection
+  const objective = selectedFocus === 'other' ? customObjective : selectedFocus;
 
   const { goals } = useGoals();
   const { projects } = useBigTen();
@@ -146,13 +162,28 @@ export function SessionSetup({
               <TabsContent value="session" className="mt-0 space-y-6">
                 {/* Objective */}
                 <div className="space-y-2">
-                  <Label htmlFor="objective">What will you focus on?</Label>
-                  <Input
-                    id="objective"
-                    placeholder="e.g., Write the introduction for my blog post"
-                    value={objective}
-                    onChange={(e) => setObjective(e.target.value)}
-                  />
+                  <Label>What will you focus on?</Label>
+                  <Select value={selectedFocus} onValueChange={setSelectedFocus}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select focus activity" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background">
+                      {FOCUS_OPTIONS.map(option => (
+                        <SelectItem key={option} value={option}>
+                          {option === 'other' ? 'Something else...' : option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  
+                  {selectedFocus === 'other' && (
+                    <Input
+                      placeholder="Describe what you'll focus on..."
+                      value={customObjective}
+                      onChange={(e) => setCustomObjective(e.target.value)}
+                      className="mt-2"
+                    />
+                  )}
                 </div>
 
                 {/* Duration Presets */}

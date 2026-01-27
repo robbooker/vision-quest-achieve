@@ -15,10 +15,10 @@ import { isToday } from 'date-fns';
 import type { FocusSession } from '@/hooks/useFocusSessions';
 
 const DURATION_PRESETS = [
-  { value: 10, label: '10 min', description: 'Quick' },
-  { value: 30, label: '30 min', description: 'Short' },
-  { value: 45, label: '45 min', description: 'Deep Work' },
-  { value: 60, label: '60 min', description: '1 Hour' },
+  { value: 5, label: '5 min', description: 'Quick' },
+  { value: 10, label: '10 min', description: 'Short' },
+  { value: 30, label: '30 min', description: 'Deep Work' },
+  { value: 45, label: '45 min', description: 'Extended' },
 ];
 
 const FOCUS_OPTIONS = [

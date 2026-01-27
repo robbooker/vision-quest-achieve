@@ -54,6 +54,7 @@ import PublicBirdProfile from "./pages/PublicBirdProfile";
 import MonthlyRecap from "./pages/MonthlyRecap";
 import PublicRecap from "./pages/PublicRecap";
 import TradingPnL from "./pages/TradingPnL";
+import Primed from "./pages/Primed";
 
 const queryClient = new QueryClient();
 
@@ -102,6 +103,7 @@ const App = () => (
                     <Route path="/blog/woop" element={<WoopBlog />} />
                     <Route path="/blog/reset" element={<ResetBlog />} />
                     <Route path="/blog/affirmations" element={<AffirmationsBlog />} />
+                    <Route path="/primed" element={<ProtectedRoute><Primed /></ProtectedRoute>} />
                     <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                     <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                     <Route path="/today" element={<ProtectedRoute><Today /></ProtectedRoute>} />

@@ -1,6 +1,7 @@
 import { Goal } from '@/hooks/useGoals';
 import { Badge } from '@/components/ui/badge';
-import { Target, MoreVertical, Trash2, Edit, CalendarCheck, Zap, Clock, Repeat, Star, Play, StopCircle, Brain, TrendingUp } from 'lucide-react';
+import { Target, MoreVertical, Trash2, Edit, CalendarCheck, Zap, Clock, Repeat, Star, Play, StopCircle, Brain, TrendingUp, Hexagon } from 'lucide-react';
+import { PILLARS } from '@/data/primedBehaviors';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -142,6 +143,16 @@ export function GoalCard({ goal, index, onEdit, onDelete, onPlanMilestones, onMa
               <p>Averaging {actualValue.toFixed(1)}/10, exceeding target of {goal.target_value}</p>
             </TooltipContent>
           </Tooltip>
+        )}
+        {goal.pillar && (
+          <Badge 
+            variant="outline" 
+            className="text-xs uppercase tracking-wide gap-1"
+            style={{ borderColor: PILLARS[goal.pillar].color, color: PILLARS[goal.pillar].color }}
+          >
+            <Hexagon className="h-3 w-3" />
+            {PILLARS[goal.pillar].letter}
+          </Badge>
         )}
         {!isLoading && !isHabit && !isWoop && (
           <Badge variant={hasMilestones ? 'default' : 'secondary'} className="text-xs uppercase tracking-wide">

@@ -1,13 +1,18 @@
 import { useState } from 'react';
-import { Play, Target, Link2 } from 'lucide-react';
+import { Play, Target, Link2, Clock, Timer, Flame, CheckCircle, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 import { useGoals } from '@/hooks/useGoals';
 import { useBigTen } from '@/hooks/useBigTen';
 import { useQuickTasks } from '@/hooks/useQuickTasks';
+import { EditSessionDialog } from './EditSessionDialog';
+import { isToday } from 'date-fns';
+import type { FocusSession } from '@/hooks/useFocusSessions';
 
 const DURATION_PRESETS = [
   { value: 10, label: '10 min', description: 'Quick' },
@@ -25,23 +30,45 @@ interface SessionSetupProps {
     linkedBigTenTaskId?: string;
   }) => void;
   isStarting: boolean;
+  sessions?: FocusSession[];
+  todayMinutes?: number;
+  todayCount?: number;
+  streak?: number;
+  onUpdateSession?: (
+    id: string,
+    data: { status: 'completed' | 'abandoned'; rating: 'bad' | 'good' | 'great' | null; notes: string | null }
+  ) => void;
+  onResumeSession?: () => void;
 }
 
-export function SessionSetup({ onStart, isStarting }: SessionSetupProps) {
+export function SessionSetup({ 
+  onStart, 
+  isStarting,
+  sessions = [],
+  todayMinutes = 0,
+  todayCount = 0,
+  streak = 0,
+  onUpdateSession,
+  onResumeSession,
+}: SessionSetupProps) {
   const [objective, setObjective] = useState('');
   const [duration, setDuration] = useState(25);
   const [customDuration, setCustomDuration] = useState('');
   const [linkType, setLinkType] = useState<'none' | 'goal' | 'task' | 'bigten'>('none');
   const [linkedId, setLinkedId] = useState('');
+  const [editingSession, setEditingSession] = useState<FocusSession | null>(null);
 
   const { goals } = useGoals();
   const { projects } = useBigTen();
   const { tasks: quickTasks } = useQuickTasks();
 
   const pendingQuickTasks = quickTasks.filter(t => !t.completed);
-  // Extract all tasks from projects
   const allBigTenTasks = projects.flatMap(p => p.tasks || []);
   const pendingBigTenTasks = allBigTenTasks.filter(t => !t.completed);
+
+  // Filter today's sessions
+  const todaySessions = sessions.filter(s => isToday(new Date(s.started_at)));
+  const activeSession = sessions.find(s => s.status === 'active');
 
   const handleDurationSelect = (value: number) => {
     setDuration(value);
@@ -68,143 +95,296 @@ export function SessionSetup({ onStart, isStarting }: SessionSetupProps) {
     });
   };
 
+  const handleSessionClick = (session: FocusSession) => {
+    if (session.status === 'active' && onResumeSession) {
+      onResumeSession();
+    }
+  };
+
   const canStart = objective.trim().length > 0;
 
+  const getRatingColor = (rating: string | null) => {
+    switch (rating) {
+      case 'great': return 'text-chart-2';
+      case 'good': return 'text-primary';
+      case 'bad': return 'text-chart-1';
+      default: return 'text-muted-foreground';
+    }
+  };
+
   return (
-    <Card className="max-w-2xl mx-auto">
-      <CardHeader className="text-center">
-        <CardTitle className="text-2xl flex items-center justify-center gap-2">
-          <Target className="h-6 w-6 text-primary" />
-          Start Focus Session
-        </CardTitle>
-        <CardDescription>
-          Set your objective and duration for distraction-free work
-        </CardDescription>
-      </CardHeader>
+    <>
+      <Card className="mx-auto">
+        <CardHeader className="text-center pb-4">
+          <CardTitle className="text-xl flex items-center justify-center gap-2">
+            <Target className="h-5 w-5 text-primary" />
+            Start Focus Session
+          </CardTitle>
+        </CardHeader>
 
-      <CardContent className="space-y-6">
-        {/* Objective */}
-        <div className="space-y-2">
-          <Label htmlFor="objective">What will you focus on?</Label>
-          <Input
-            id="objective"
-            placeholder="e.g., Write the introduction for my blog post"
-            value={objective}
-            onChange={(e) => setObjective(e.target.value)}
-            className="text-lg"
-          />
-        </div>
-
-        {/* Duration Presets */}
-        <div className="space-y-2">
-          <Label>Duration</Label>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {DURATION_PRESETS.map(preset => (
-              <Button
-                key={preset.value}
-                variant={duration === preset.value && !customDuration ? 'default' : 'outline'}
-                className="flex flex-col h-auto py-3"
-                onClick={() => handleDurationSelect(preset.value)}
-              >
-                <span className="font-semibold">{preset.label}</span>
-                <span className="text-xs text-muted-foreground">{preset.description}</span>
-              </Button>
-            ))}
-          </div>
-          <div className="flex items-center gap-2 mt-2">
+        <CardContent className="space-y-6">
+          {/* Objective */}
+          <div className="space-y-2">
+            <Label htmlFor="objective">What will you focus on?</Label>
             <Input
-              type="number"
-              placeholder="Custom minutes"
-              value={customDuration}
-              onChange={(e) => handleCustomDuration(e.target.value)}
-              className="w-32"
-              min={1}
-              max={240}
+              id="objective"
+              placeholder="e.g., Write the introduction for my blog post"
+              value={objective}
+              onChange={(e) => setObjective(e.target.value)}
             />
-            <span className="text-sm text-muted-foreground">minutes</span>
           </div>
-        </div>
 
-        {/* Link to Goal/Task */}
-        <div className="space-y-2">
-          <Label className="flex items-center gap-2">
-            <Link2 className="h-4 w-4" />
-            Link to (optional)
-          </Label>
-          <div className="grid grid-cols-2 gap-2">
-            <Select value={linkType} onValueChange={(v) => { setLinkType(v as typeof linkType); setLinkedId(''); }}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No link</SelectItem>
-                <SelectItem value="goal">Cycle Goal</SelectItem>
-                <SelectItem value="task">Quick Task</SelectItem>
-                <SelectItem value="bigten">Big 10 Task</SelectItem>
-              </SelectContent>
-            </Select>
+          {/* Duration Presets */}
+          <div className="space-y-2">
+            <Label>Duration</Label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {DURATION_PRESETS.map(preset => (
+                <Button
+                  key={preset.value}
+                  variant={duration === preset.value && !customDuration ? 'default' : 'outline'}
+                  className="flex flex-col h-auto py-2"
+                  onClick={() => handleDurationSelect(preset.value)}
+                >
+                  <span className="font-semibold text-sm">{preset.label}</span>
+                  <span className="text-xs text-muted-foreground">{preset.description}</span>
+                </Button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <Input
+                type="number"
+                placeholder="Custom"
+                value={customDuration}
+                onChange={(e) => handleCustomDuration(e.target.value)}
+                className="w-24"
+                min={1}
+                max={240}
+              />
+              <span className="text-sm text-muted-foreground">minutes</span>
+            </div>
+          </div>
 
-            {linkType === 'goal' && goals.length > 0 && (
-              <Select value={linkedId} onValueChange={setLinkedId}>
+          {/* Link to Goal/Task */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Link2 className="h-4 w-4" />
+              Link to (optional)
+            </Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Select value={linkType} onValueChange={(v) => { setLinkType(v as typeof linkType); setLinkedId(''); }}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select goal" />
+                  <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {goals.map(goal => (
-                    <SelectItem key={goal.id} value={goal.id}>
-                      {goal.title}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="none">No link</SelectItem>
+                  <SelectItem value="goal">Cycle Goal</SelectItem>
+                  <SelectItem value="task">Quick Task</SelectItem>
+                  <SelectItem value="bigten">Big 10 Task</SelectItem>
                 </SelectContent>
               </Select>
-            )}
 
-            {linkType === 'task' && pendingQuickTasks.length > 0 && (
-              <Select value={linkedId} onValueChange={setLinkedId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select task" />
-                </SelectTrigger>
-                <SelectContent>
-                  {pendingQuickTasks.map(task => (
-                    <SelectItem key={task.id} value={task.id}>
-                      {task.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-
-            {linkType === 'bigten' && pendingBigTenTasks.length > 0 && (
-              <Select value={linkedId} onValueChange={setLinkedId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select task" />
-                </SelectTrigger>
-                <SelectContent>
-                  {pendingBigTenTasks.map(task => {
-                    const project = projects.find(p => p.id === task.project_id);
-                    return (
-                      <SelectItem key={task.id} value={task.id}>
-                        {project?.title}: {task.title}
+              {linkType === 'goal' && goals.length > 0 && (
+                <Select value={linkedId} onValueChange={setLinkedId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select goal" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {goals.map(goal => (
+                      <SelectItem key={goal.id} value={goal.id}>
+                        {goal.title}
                       </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-        </div>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
 
-        {/* Start Button */}
-        <Button
-          size="lg"
-          className="w-full gap-2 text-lg py-6"
-          onClick={handleStart}
-          disabled={!canStart || isStarting}
-        >
-          <Play className="h-5 w-5" />
-          Start Focus Session
-        </Button>
-      </CardContent>
-    </Card>
+              {linkType === 'task' && pendingQuickTasks.length > 0 && (
+                <Select value={linkedId} onValueChange={setLinkedId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select task" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pendingQuickTasks.map(task => (
+                      <SelectItem key={task.id} value={task.id}>
+                        {task.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              {linkType === 'bigten' && pendingBigTenTasks.length > 0 && (
+                <Select value={linkedId} onValueChange={setLinkedId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select task" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pendingBigTenTasks.map(task => {
+                      const project = projects.find(p => p.id === task.project_id);
+                      return (
+                        <SelectItem key={task.id} value={task.id}>
+                          {project?.title}: {task.title}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          </div>
+
+          {/* Start Button */}
+          <Button
+            size="lg"
+            className="w-full gap-2"
+            onClick={handleStart}
+            disabled={!canStart || isStarting}
+          >
+            <Play className="h-5 w-5" />
+            Start Focus Session
+          </Button>
+
+          {/* Tabs for Today's Sessions and Tips */}
+          <Tabs defaultValue="today" className="mt-6">
+            <TabsList className="w-full grid grid-cols-2">
+              <TabsTrigger value="today" className="gap-2">
+                <Clock className="h-4 w-4" />
+                Today
+              </TabsTrigger>
+              <TabsTrigger value="tips" className="gap-2">
+                <Timer className="h-4 w-4" />
+                Tips
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="today" className="mt-4">
+              {/* Quick Stats */}
+              <div className="grid grid-cols-3 gap-4 mb-4 text-center">
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <div className="text-xl font-bold text-primary">{todayMinutes}m</div>
+                  <div className="text-xs text-muted-foreground">Focused</div>
+                </div>
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <div className="text-xl font-bold">{todayCount}</div>
+                  <div className="text-xs text-muted-foreground">Sessions</div>
+                </div>
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <div className="text-xl font-bold flex items-center justify-center gap-1">
+                    {streak > 0 && <Flame className="h-4 w-4 text-chart-1" />}
+                    {streak}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Day Streak</div>
+                </div>
+              </div>
+
+              {/* Active Session */}
+              {activeSession && (
+                <div 
+                  className="p-3 rounded-lg bg-primary/10 border border-primary/20 cursor-pointer hover:bg-primary/20 transition-colors mb-3"
+                  onClick={() => handleSessionClick(activeSession)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                      <span className="font-medium text-sm">{activeSession.objective}</span>
+                    </div>
+                    <Badge variant="outline" className="text-primary border-primary">
+                      Active
+                    </Badge>
+                  </div>
+                </div>
+              )}
+
+              {/* Today's Sessions List */}
+              {todaySessions.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No sessions yet today. Start your first focus session!
+                </p>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {todaySessions
+                    .filter(s => s.status !== 'active')
+                    .slice(0, 5)
+                    .map((session) => (
+                      <div
+                        key={session.id}
+                        className="flex items-center justify-between p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors group"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <CheckCircle className={`h-4 w-4 flex-shrink-0 ${
+                            session.status === 'completed' ? 'text-chart-2' : 'text-muted-foreground'
+                          }`} />
+                          <span className="text-sm truncate">{session.objective}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {session.status === 'completed' && (
+                            <Badge variant="secondary" className="text-xs">
+                              {session.actual_duration_minutes || session.planned_duration_minutes}m
+                            </Badge>
+                          )}
+                          <span className={`text-xs ${getRatingColor(session.rating)}`}>
+                            {session.rating ? session.rating.charAt(0).toUpperCase() + session.rating.slice(1) : ''}
+                          </span>
+                          {onUpdateSession && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingSession(session);
+                              }}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="tips" className="mt-4">
+              <div className="space-y-3 text-sm text-muted-foreground">
+                <p className="flex items-start gap-2">
+                  <span className="text-primary">•</span>
+                  Start with 25-minute sessions (Pomodoro)
+                </p>
+                <p className="flex items-start gap-2">
+                  <span className="text-primary">•</span>
+                  Take short breaks between sessions
+                </p>
+                <p className="flex items-start gap-2">
+                  <span className="text-primary">•</span>
+                  Link sessions to goals for tracking
+                </p>
+                <p className="flex items-start gap-2">
+                  <span className="text-primary">•</span>
+                  Use ambient sounds to block distractions
+                </p>
+                <p className="flex items-start gap-2">
+                  <span className="text-primary">•</span>
+                  Set a clear, specific objective
+                </p>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+
+      {/* Edit Session Dialog */}
+      {editingSession && onUpdateSession && (
+        <EditSessionDialog
+          session={editingSession}
+          open={!!editingSession}
+          onOpenChange={(open) => !open && setEditingSession(null)}
+          onSave={(data) => {
+            onUpdateSession(editingSession.id, data);
+            setEditingSession(null);
+          }}
+        />
+      )}
+    </>
   );
 }

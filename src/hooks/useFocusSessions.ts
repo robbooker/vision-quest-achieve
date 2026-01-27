@@ -17,6 +17,7 @@ export type FocusSession = {
   completed_at: string | null;
   status: 'active' | 'completed' | 'paused' | 'abandoned';
   notes: string | null;
+  rating: 'bad' | 'good' | 'great' | null;
   break_duration_minutes: number | null;
   ambient_sound: string | null;
   created_at: string;

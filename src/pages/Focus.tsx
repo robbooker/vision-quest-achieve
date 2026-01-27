@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { Target, Timer, Flame } from 'lucide-react';
+import { Target } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { SessionSetup } from '@/components/focus/SessionSetup';
 import { FocusTimer } from '@/components/focus/FocusTimer';
 import { SessionComplete } from '@/components/focus/SessionComplete';
@@ -186,143 +186,92 @@ export default function Focus() {
       </Helmet>
 
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <Target className="h-8 w-8 text-primary" />
-              Focus Mode
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Distraction-free deep work sessions
-            </p>
-          </div>
-
-          {/* Quick Stats */}
-          <div className="hidden sm:flex items-center gap-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-primary">{todayMinutes}m</div>
-              <div className="text-xs text-muted-foreground">Today</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold">{todayCompletedCount}</div>
-              <div className="text-xs text-muted-foreground">Sessions</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold flex items-center justify-center gap-1">
-                {streak > 0 && <Flame className="h-5 w-5 text-chart-1" />}
-                {streak}
-              </div>
-              <div className="text-xs text-muted-foreground">Streak</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Main Panel */}
-          <div className="lg:col-span-2 space-y-6">
-            {viewState === 'setup' && (
-              <>
-                <SessionSetup
-                  onStart={handleStartSession}
-                  isStarting={createSession.isPending}
-                />
-                
-                {/* Ambient Sounds - available anytime */}
-                <Card>
-                  <CardContent className="pt-4 pb-4">
-                    <AudioErrorBoundary fallback={<div className="text-sm text-muted-foreground">Audio temporarily unavailable</div>}>
-                      <AmbientSounds 
-                        isBreakMode={false}
-                        shouldStop={false}
-                      />
-                    </AudioErrorBoundary>
-                  </CardContent>
-                </Card>
-              </>
-            )}
-
-            {viewState === 'active' && activeSession && (
+        {/* Main Content - Full width, no sidebar */}
+        <div className="max-w-2xl mx-auto space-y-6">
+          {viewState === 'setup' && (
+            <>
+              <SessionSetup
+                onStart={handleStartSession}
+                isStarting={createSession.isPending}
+                sessions={sessions}
+                todayMinutes={todayMinutes}
+                todayCount={todayCompletedCount}
+                streak={streak}
+                onUpdateSession={handleUpdateSession}
+                onResumeSession={() => setViewState('active')}
+              />
+              
+              {/* Ambient Sounds - available anytime */}
               <Card>
-                <CardContent className="pt-6">
-                  <FocusTimer
-                    plannedMinutes={activeSession.planned_duration_minutes}
-                    objective={activeSession.objective}
-                    startTime={new Date(activeSession.started_at)}
-                    onComplete={handleCompleteSession}
-                    onCancel={handleCancelSession}
-                    onExtend={handleExtendSession}
-                  />
-                  
-                  {/* Ambient Sounds */}
-                  <div className="mt-6 pt-6 border-t">
-                    <AudioErrorBoundary fallback={<div className="text-sm text-muted-foreground">Audio temporarily unavailable</div>}>
-                      <AmbientSounds 
-                        isBreakMode={false}
-                        shouldStop={false}
-                      />
-                    </AudioErrorBoundary>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Audio persists during break - shown separately */}
-            {viewState === 'break' && (
-              <Card className="mb-4">
                 <CardContent className="pt-4 pb-4">
                   <AudioErrorBoundary fallback={<div className="text-sm text-muted-foreground">Audio temporarily unavailable</div>}>
                     <AmbientSounds 
-                      isBreakMode={true}
+                      isBreakMode={false}
                       shouldStop={false}
                     />
                   </AudioErrorBoundary>
                 </CardContent>
               </Card>
-            )}
+            </>
+          )}
 
-            {viewState === 'break' && (
-              <>
-                <BreakTimer
-                  onClose={() => setViewState('setup')}
-                  onBreakComplete={handleBreakComplete}
-                />
-                <SessionSetup
-                  onStart={handleStartSession}
-                  isStarting={createSession.isPending}
-                />
-              </>
-            )}
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            <FocusHistory
-              sessions={sessions}
-              todayMinutes={todayMinutes}
-              todayCount={todayCompletedCount}
-              streak={streak}
-              onUpdateSession={handleUpdateSession}
-              onResumeSession={() => setViewState('active')}
-            />
-
-            {/* Tips Card */}
+          {viewState === 'active' && activeSession && (
             <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Timer className="h-4 w-4" />
-                  Focus Tips
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground space-y-2">
-                <p>• Start with 25-minute sessions (Pomodoro)</p>
-                <p>• Take short breaks between sessions</p>
-                <p>• Link sessions to goals for tracking</p>
-                <p>• Use ambient sounds to block distractions</p>
+              <CardContent className="pt-6">
+                <FocusTimer
+                  plannedMinutes={activeSession.planned_duration_minutes}
+                  objective={activeSession.objective}
+                  startTime={new Date(activeSession.started_at)}
+                  onComplete={handleCompleteSession}
+                  onCancel={handleCancelSession}
+                  onExtend={handleExtendSession}
+                />
+                
+                {/* Ambient Sounds */}
+                <div className="mt-6 pt-6 border-t">
+                  <AudioErrorBoundary fallback={<div className="text-sm text-muted-foreground">Audio temporarily unavailable</div>}>
+                    <AmbientSounds 
+                      isBreakMode={false}
+                      shouldStop={false}
+                    />
+                  </AudioErrorBoundary>
+                </div>
               </CardContent>
             </Card>
-          </div>
+          )}
+
+          {/* Audio persists during break - shown separately */}
+          {viewState === 'break' && (
+            <Card className="mb-4">
+              <CardContent className="pt-4 pb-4">
+                <AudioErrorBoundary fallback={<div className="text-sm text-muted-foreground">Audio temporarily unavailable</div>}>
+                  <AmbientSounds 
+                    isBreakMode={true}
+                    shouldStop={false}
+                  />
+                </AudioErrorBoundary>
+              </CardContent>
+            </Card>
+          )}
+
+          {viewState === 'break' && (
+            <>
+              <BreakTimer
+                onClose={() => setViewState('setup')}
+                onBreakComplete={handleBreakComplete}
+              />
+              <SessionSetup
+                onStart={handleStartSession}
+                isStarting={createSession.isPending}
+                sessions={sessions}
+                todayMinutes={todayMinutes}
+                todayCount={todayCompletedCount}
+                streak={streak}
+                onUpdateSession={handleUpdateSession}
+                onResumeSession={() => setViewState('active')}
+              />
+            </>
+          )}
         </div>
       </div>
 

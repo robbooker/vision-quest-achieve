@@ -23,6 +23,7 @@ const DURATION_PRESETS = [
 
 const FOCUS_OPTIONS = [
   'Meditation',
+  'Fitness: Walk',
   'Fitness',
   'Gratitude',
   'Mindfully journal',

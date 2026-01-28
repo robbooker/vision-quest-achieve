@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -9,34 +9,85 @@ import {
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { useOuraMetrics } from '@/hooks/useOuraMetrics';
-import { format, subDays } from 'date-fns';
-import { Moon, Star, Clock } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useOuraMetrics, OuraMetrics } from '@/hooks/useOuraMetrics';
+import { format, subDays, parseISO } from 'date-fns';
+import { Moon, Star, Clock, CalendarIcon, Info, Heart, Activity } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 interface ManualSleepEntryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  existingEntry?: OuraMetrics | null; // For edit mode
+  initialDate?: Date; // For creating entry on specific date
 }
 
-export function ManualSleepEntryDialog({ open, onOpenChange }: ManualSleepEntryDialogProps) {
+export function ManualSleepEntryDialog({ 
+  open, 
+  onOpenChange, 
+  existingEntry,
+  initialDate 
+}: ManualSleepEntryDialogProps) {
   const { logManualSleep, formatSleepDuration } = useOuraMetrics();
   
-  // Defaults: yesterday 10pm bedtime, today 7am wake
-  const yesterday = subDays(new Date(), 1);
+  const isEditMode = !!existingEntry;
+  
+  // Date state for selecting which day to log
+  const [selectedDate, setSelectedDate] = useState<Date>(initialDate || new Date());
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  
+  // Defaults: 10pm bedtime, 7am wake
   const [bedtime, setBedtime] = useState('22:00');
   const [wakeTime, setWakeTime] = useState('07:00');
   const [quality, setQuality] = useState(3);
 
+  // Pre-populate fields when editing
+  useEffect(() => {
+    if (existingEntry) {
+      setSelectedDate(parseISO(existingEntry.metric_date));
+      
+      if (existingEntry.manual_bedtime) {
+        const bedDate = new Date(existingEntry.manual_bedtime);
+        setBedtime(format(bedDate, 'HH:mm'));
+      }
+      if (existingEntry.manual_wake_time) {
+        const wakeDate = new Date(existingEntry.manual_wake_time);
+        setWakeTime(format(wakeDate, 'HH:mm'));
+      }
+      if (existingEntry.manual_sleep_quality) {
+        setQuality(existingEntry.manual_sleep_quality);
+      } else if (existingEntry.sleep_score) {
+        // Convert sleep score back to quality rating
+        setQuality(Math.round(existingEntry.sleep_score / 20));
+      }
+    } else {
+      // Reset to defaults for new entry
+      setBedtime('22:00');
+      setWakeTime('07:00');
+      setQuality(3);
+      if (initialDate) {
+        setSelectedDate(initialDate);
+      } else {
+        setSelectedDate(new Date());
+      }
+    }
+  }, [existingEntry, initialDate, open]);
+
+  // Calculate bedtime date (night before selected date)
+  const getBedtimeDate = () => {
+    return subDays(selectedDate, 1);
+  };
+
   // Calculate duration
   const calculateDuration = () => {
-    const bedDate = new Date(`${format(yesterday, 'yyyy-MM-dd')}T${bedtime}:00`);
-    const wakeDate = new Date(`${format(new Date(), 'yyyy-MM-dd')}T${wakeTime}:00`);
+    const bedtimeDateValue = getBedtimeDate();
+    const bedDate = new Date(`${format(bedtimeDateValue, 'yyyy-MM-dd')}T${bedtime}:00`);
+    const wakeDate = new Date(`${format(selectedDate, 'yyyy-MM-dd')}T${wakeTime}:00`);
     
-    // Handle overnight sleep
     let diffMs = wakeDate.getTime() - bedDate.getTime();
     if (diffMs < 0) {
-      // If negative, wake time is before bedtime on same day logic issue
-      // This shouldn't happen with our date setup, but just in case
       diffMs = 0;
     }
     
@@ -44,13 +95,16 @@ export function ManualSleepEntryDialog({ open, onOpenChange }: ManualSleepEntryD
   };
 
   const handleSubmit = () => {
-    const bedtimeISO = new Date(`${format(yesterday, 'yyyy-MM-dd')}T${bedtime}:00`).toISOString();
-    const wakeTimeISO = new Date(`${format(new Date(), 'yyyy-MM-dd')}T${wakeTime}:00`).toISOString();
+    const bedtimeDateValue = getBedtimeDate();
+    const bedtimeISO = new Date(`${format(bedtimeDateValue, 'yyyy-MM-dd')}T${bedtime}:00`).toISOString();
+    const wakeTimeISO = new Date(`${format(selectedDate, 'yyyy-MM-dd')}T${wakeTime}:00`).toISOString();
     
     logManualSleep.mutate({
       bedtime: bedtimeISO,
       wakeTime: wakeTimeISO,
       quality,
+      date: format(selectedDate, 'yyyy-MM-dd'),
+      entryId: existingEntry?.id,
     }, {
       onSuccess: () => onOpenChange(false),
     });
@@ -65,19 +119,103 @@ export function ManualSleepEntryDialog({ open, onOpenChange }: ManualSleepEntryD
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Moon className="h-5 w-5 text-indigo-400" />
-            Log Last Night's Sleep
+            {isEditMode ? 'Edit Sleep Entry' : 'Log Sleep'}
           </DialogTitle>
           <DialogDescription>
-            Enter your bedtime and wake time to track your sleep
+            {isEditMode 
+              ? 'Update your sleep data for this day' 
+              : 'Enter your bedtime and wake time to track your sleep'}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
+          {/* Date Selector (hidden in edit mode) */}
+          {!isEditMode && (
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                Date (morning you woke up)
+              </Label>
+              <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !selectedDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(selectedDate, 'EEEE, MMM d, yyyy')}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(date) => {
+                      if (date) {
+                        setSelectedDate(date);
+                        setDatePickerOpen(false);
+                      }
+                    }}
+                    disabled={(date) => date > new Date()}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
+
+          {/* Show date in edit mode (read-only) */}
+          {isEditMode && (
+            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+              <div className="flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">{format(selectedDate, 'EEEE, MMM d, yyyy')}</span>
+              </div>
+              <Badge variant="secondary">
+                {existingEntry?.source === 'oura' ? 'Oura' : 'Manual'}
+              </Badge>
+            </div>
+          )}
+
+          {/* Show Oura biometrics if editing an Oura entry (read-only) */}
+          {isEditMode && existingEntry?.source === 'oura' && (
+            <div className="p-3 rounded-lg bg-muted/30 space-y-2">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Info className="h-4 w-4" />
+                Oura biometrics (read-only)
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-sm">
+                {existingEntry.readiness_score && (
+                  <div className="flex items-center gap-1">
+                    <Activity className="h-3 w-3" />
+                    <span>Readiness: {existingEntry.readiness_score}</span>
+                  </div>
+                )}
+                {existingEntry.hrv_balance && (
+                  <div className="flex items-center gap-1">
+                    <Activity className="h-3 w-3" />
+                    <span>HRV: {existingEntry.hrv_balance}</span>
+                  </div>
+                )}
+                {existingEntry.resting_heart_rate && (
+                  <div className="flex items-center gap-1">
+                    <Heart className="h-3 w-3" />
+                    <span>RHR: {existingEntry.resting_heart_rate}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Bedtime */}
           <div className="space-y-2">
             <Label htmlFor="bedtime" className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-muted-foreground" />
-              Bedtime (last night)
+              Bedtime (night before)
             </Label>
             <Input
               id="bedtime"
@@ -86,7 +224,7 @@ export function ManualSleepEntryDialog({ open, onOpenChange }: ManualSleepEntryD
               onChange={(e) => setBedtime(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              {format(yesterday, 'EEEE, MMM d')}
+              {format(getBedtimeDate(), 'EEEE, MMM d')}
             </p>
           </div>
 
@@ -94,7 +232,7 @@ export function ManualSleepEntryDialog({ open, onOpenChange }: ManualSleepEntryD
           <div className="space-y-2">
             <Label htmlFor="wakeTime" className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-muted-foreground" />
-              Wake time (this morning)
+              Wake time
             </Label>
             <Input
               id="wakeTime"
@@ -103,7 +241,7 @@ export function ManualSleepEntryDialog({ open, onOpenChange }: ManualSleepEntryD
               onChange={(e) => setWakeTime(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              {format(new Date(), 'EEEE, MMM d')}
+              {format(selectedDate, 'EEEE, MMM d')}
             </p>
           </div>
 
@@ -153,7 +291,11 @@ export function ManualSleepEntryDialog({ open, onOpenChange }: ManualSleepEntryD
             onClick={handleSubmit}
             disabled={logManualSleep.isPending}
           >
-            {logManualSleep.isPending ? 'Saving...' : 'Save Sleep'}
+            {logManualSleep.isPending 
+              ? 'Saving...' 
+              : isEditMode 
+                ? 'Update Sleep' 
+                : 'Save Sleep'}
           </Button>
         </div>
       </DialogContent>

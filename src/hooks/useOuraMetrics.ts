@@ -44,6 +44,14 @@ export interface OuraProfile {
   manual_sleep_enabled: boolean;
 }
 
+export interface ManualSleepData {
+  bedtime: string;
+  wakeTime: string;
+  quality: number;
+  date?: string; // Optional, defaults to today
+  entryId?: string; // If provided, updates instead of inserts
+}
+
 export function useOuraMetrics() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -194,48 +202,78 @@ export function useOuraMetrics() {
     },
   });
 
-  // Log manual sleep entry
+  // Log or update manual sleep entry (hybrid mode - works regardless of Oura connection)
   const logManualSleep = useMutation({
-    mutationFn: async (data: {
-      bedtime: string;
-      wakeTime: string;
-      quality: number;
-    }) => {
+    mutationFn: async (data: ManualSleepData) => {
       if (!user?.id) throw new Error('Not authenticated');
       
+      const targetDate = data.date || today;
       const bedtimeDate = new Date(data.bedtime);
       const wakeDate = new Date(data.wakeTime);
       const totalSleepSeconds = Math.floor((wakeDate.getTime() - bedtimeDate.getTime()) / 1000);
       const sleepScore = data.quality * 20; // 1-5 → 20-100
       
-      const { error } = await supabase
-        .from('oura_daily_metrics')
-        .upsert({
-          user_id: user.id,
-          metric_date: today,
-          source: 'manual',
-          manual_bedtime: data.bedtime,
-          manual_wake_time: data.wakeTime,
-          manual_sleep_quality: data.quality,
-          total_sleep_seconds: totalSleepSeconds,
-          sleep_score: sleepScore,
-          synced_at: new Date().toISOString(),
-        }, { onConflict: 'user_id,metric_date' });
-      
-      if (error) throw error;
+      if (data.entryId) {
+        // Update existing entry - preserve Oura biometric data if present
+        const { error } = await supabase
+          .from('oura_daily_metrics')
+          .update({
+            manual_bedtime: data.bedtime,
+            manual_wake_time: data.wakeTime,
+            manual_sleep_quality: data.quality,
+            total_sleep_seconds: totalSleepSeconds,
+            sleep_score: sleepScore,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', data.entryId)
+          .eq('user_id', user.id);
+        
+        if (error) throw error;
+      } else {
+        // Create new entry or upsert
+        const { error } = await supabase
+          .from('oura_daily_metrics')
+          .upsert({
+            user_id: user.id,
+            metric_date: targetDate,
+            source: 'manual',
+            manual_bedtime: data.bedtime,
+            manual_wake_time: data.wakeTime,
+            manual_sleep_quality: data.quality,
+            total_sleep_seconds: totalSleepSeconds,
+            sleep_score: sleepScore,
+            synced_at: new Date().toISOString(),
+          }, { onConflict: 'user_id,metric_date' });
+        
+        if (error) throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['oura-metrics'] });
-      toast({ title: 'Sleep logged successfully' });
+      toast({ title: variables.entryId ? 'Sleep entry updated' : 'Sleep logged successfully' });
     },
     onError: (error: Error) => {
       toast({ 
-        title: 'Failed to log sleep', 
+        title: 'Failed to save sleep', 
         description: error.message,
         variant: 'destructive' 
       });
     },
   });
+
+  // Get entry for a specific date (for editing)
+  const getEntryForDate = async (date: string): Promise<OuraMetrics | null> => {
+    if (!user?.id) return null;
+    const { data, error } = await supabase
+      .from('oura_daily_metrics')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('metric_date', date)
+      .maybeSingle();
+    
+    if (error) throw error;
+    return data as OuraMetrics | null;
+  };
 
   // Helper functions
   const formatSleepDuration = (seconds: number | null): string => {
@@ -279,6 +317,7 @@ export function useOuraMetrics() {
     disconnectOura,
     toggleManualMode,
     logManualSleep,
+    getEntryForDate,
     formatSleepDuration,
     getReadinessTier,
     getResilienceColor,

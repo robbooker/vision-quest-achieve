@@ -95,3 +95,6 @@ verify_jwt = false
 
 [functions.share-list-sms]
 verify_jwt = false
+
+[functions.fetch-link-metadata]
+verify_jwt = false

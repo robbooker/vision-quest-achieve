@@ -108,7 +108,10 @@ export function useListItems(listId: string | undefined) {
     mutationFn: async ({ id, ...updates }: Partial<ListItem> & { id: string }) => {
       const { error } = await supabase
         .from("list_items")
-        .update(updates)
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", id);
 
       if (error) throw error;

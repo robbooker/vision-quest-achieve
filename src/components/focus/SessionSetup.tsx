@@ -74,6 +74,7 @@ export function SessionSetup({
   onUpdateSession,
   onResumeSession,
 }: SessionSetupProps) {
+  console.log('[SessionSetup] Rendering with sessions:', sessions?.length);
   const [selectedFocus, setSelectedFocus] = useState('');
   const [customObjective, setCustomObjective] = useState('');
   const [duration, setDuration] = useState(25);
@@ -454,6 +455,14 @@ export function SessionSetup({
               <TabsContent value="history" className="mt-0">
                 {/* Past Sessions - last 7 days excluding today */}
                 {(() => {
+                  if (!sessions || sessions.length === 0) {
+                    return (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        No past sessions in the last 7 days.
+                      </p>
+                    );
+                  }
+                  
                   const pastSessions = sessions
                     .filter(s => !isToday(new Date(s.started_at)) && isAfter(new Date(s.started_at), subDays(new Date(), 7)))
                     .sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime());

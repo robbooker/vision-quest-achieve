@@ -6,7 +6,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { SessionSetup } from '@/components/focus/SessionSetup';
 import { FocusTimer } from '@/components/focus/FocusTimer';
 import { SessionComplete } from '@/components/focus/SessionComplete';
-import { FocusHistory } from '@/components/focus/FocusHistory';
 import { AmbientSounds } from '@/components/focus/AmbientSounds';
 import { AudioErrorBoundary } from '@/components/focus/AudioErrorBoundary';
 import { BreakTimer } from '@/components/focus/BreakTimer';
@@ -16,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 type ViewState = 'setup' | 'active' | 'complete' | 'break';
 
 export default function Focus() {
+  console.log('[Focus] Page rendering');
   const { toast } = useToast();
   const [viewState, setViewState] = useState<ViewState>('setup');
   const [completedSessionData, setCompletedSessionData] = useState<{
@@ -37,6 +37,8 @@ export default function Focus() {
     isLoading,
     isLoadingActive,
   } = useFocusSessions();
+  
+  console.log('[Focus] Hook data:', { isLoading, isLoadingActive, sessionsCount: sessions?.length, hasActiveSession: !!activeSession });
 
   // If there's an active session on load, show the timer
   useEffect(() => {

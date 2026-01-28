@@ -1,14 +1,27 @@
 import { format } from "date-fns";
-import { Calendar, Clock, ExternalLink, Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Calendar, Clock, ExternalLink, Plus, MoreHorizontal, Pencil, Trash2, Hexagon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
+import { useCalendarEventPillars } from "@/hooks/useCalendarEventPillars";
+
+const PRIMED_PILLARS = [
+  { value: 'physical', label: 'Physical', color: 'bg-red-500/20 text-red-700 dark:text-red-400' },
+  { value: 'relations', label: 'Relations', color: 'bg-pink-500/20 text-pink-700 dark:text-pink-400' },
+  { value: 'income', label: 'Income', color: 'bg-green-500/20 text-green-700 dark:text-green-400' },
+  { value: 'mental', label: 'Mental', color: 'bg-blue-500/20 text-blue-700 dark:text-blue-400' },
+  { value: 'excellence', label: 'Excellence', color: 'bg-purple-500/20 text-purple-700 dark:text-purple-400' },
+  { value: 'direction', label: 'Direction', color: 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400' },
+];
 
 export interface CalendarEventData {
   id: string;
@@ -33,6 +46,51 @@ interface TodayScheduleProps {
 
 export function TodaySchedule({ events, isLoading, isConnected, onConnect, onAddEvent, showTomorrow = false, onToggleDay, onEditEvent, onDeleteEvent }: TodayScheduleProps) {
   const scheduleLabel = showTomorrow ? "Tomorrow's Schedule" : "Today's Schedule";
+  const { getPillarForEvent, isManuallySet, setPillar } = useCalendarEventPillars();
+
+  const getPillarBadge = (eventId: string, title: string) => {
+    const pillar = getPillarForEvent(eventId, title);
+    if (!pillar) return null;
+    
+    const pillarConfig = PRIMED_PILLARS.find(p => p.value === pillar);
+    if (!pillarConfig) return null;
+    
+    const isManual = isManuallySet(eventId);
+    
+    return (
+      <Badge 
+        variant="secondary" 
+        className={`text-[10px] h-4 px-1 ${pillarConfig.color} ${!isManual ? 'opacity-60' : ''}`}
+        title={isManual ? 'Manually tagged' : 'Auto-detected'}
+      >
+        {pillarConfig.label.charAt(0)}
+      </Badge>
+    );
+  };
+
+  const renderPillarMenu = (eventId: string, title: string) => {
+    const currentPillar = getPillarForEvent(eventId, title);
+    
+    return (
+      <>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+          <Hexagon className="h-3 w-3 inline mr-1" />
+          PRIMED Pillar
+        </DropdownMenuLabel>
+        <DropdownMenuItem onClick={() => setPillar.mutate({ calendarEventId: eventId, pillar: null })}>
+          None
+          {!currentPillar && ' ✓'}
+        </DropdownMenuItem>
+        {PRIMED_PILLARS.map((p) => (
+          <DropdownMenuItem key={p.value} onClick={() => setPillar.mutate({ calendarEventId: eventId, pillar: p.value })}>
+            {p.label}
+            {currentPillar === p.value && ' ✓'}
+          </DropdownMenuItem>
+        ))}
+      </>
+    );
+  };
   
   if (!isConnected) {
     return (
@@ -132,29 +190,29 @@ export function TodaySchedule({ events, isLoading, isConnected, onConnect, onAdd
                   >
                     <span className="text-xs text-muted-foreground font-medium">All day</span>
                     <span className="truncate flex-1">{event.title}</span>
-                    {(onEditEvent || onDeleteEvent) && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <MoreHorizontal className="h-3 w-3" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {onEditEvent && (
-                            <DropdownMenuItem onClick={() => onEditEvent(event)}>
-                              <Pencil className="h-3 w-3 mr-2" />
-                              Edit
-                            </DropdownMenuItem>
-                          )}
-                          {onDeleteEvent && (
-                            <DropdownMenuItem onClick={() => onDeleteEvent(event.id)} className="text-destructive focus:text-destructive">
-                              <Trash2 className="h-3 w-3 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
+                    {getPillarBadge(event.id, event.title)}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <MoreHorizontal className="h-3 w-3" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {onEditEvent && (
+                          <DropdownMenuItem onClick={() => onEditEvent(event)}>
+                            <Pencil className="h-3 w-3 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                        )}
+                        {onDeleteEvent && (
+                          <DropdownMenuItem onClick={() => onDeleteEvent(event.id)} className="text-destructive focus:text-destructive">
+                            <Trash2 className="h-3 w-3 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        )}
+                        {renderPillarMenu(event.id, event.title)}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 ))}
               </div>
@@ -174,7 +232,10 @@ export function TodaySchedule({ events, isLoading, isConnected, onConnect, onAdd
                     {startTimeStr}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm truncate">{event.title}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm truncate">{event.title}</p>
+                      {getPillarBadge(event.id, event.title)}
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       {startTimeStr} - {endTimeStr}
                     </p>
@@ -189,29 +250,28 @@ export function TodaySchedule({ events, isLoading, isConnected, onConnect, onAdd
                         <ExternalLink className="h-3 w-3 text-muted-foreground hover:text-foreground" />
                       </a>
                     )}
-                    {(onEditEvent || onDeleteEvent) && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-6 w-6">
-                            <MoreHorizontal className="h-3 w-3" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {onEditEvent && (
-                            <DropdownMenuItem onClick={() => onEditEvent(event)}>
-                              <Pencil className="h-3 w-3 mr-2" />
-                              Edit
-                            </DropdownMenuItem>
-                          )}
-                          {onDeleteEvent && (
-                            <DropdownMenuItem onClick={() => onDeleteEvent(event.id)} className="text-destructive focus:text-destructive">
-                              <Trash2 className="h-3 w-3 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6">
+                          <MoreHorizontal className="h-3 w-3" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {onEditEvent && (
+                          <DropdownMenuItem onClick={() => onEditEvent(event)}>
+                            <Pencil className="h-3 w-3 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                        )}
+                        {onDeleteEvent && (
+                          <DropdownMenuItem onClick={() => onDeleteEvent(event.id)} className="text-destructive focus:text-destructive">
+                            <Trash2 className="h-3 w-3 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        )}
+                        {renderPillarMenu(event.id, event.title)}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               );

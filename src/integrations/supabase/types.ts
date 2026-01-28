@@ -351,6 +351,33 @@ export type Database = {
         }
         Relationships: []
       }
+      calendar_event_pillars: {
+        Row: {
+          calendar_event_id: string
+          created_at: string
+          id: string
+          pillar: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          calendar_event_id: string
+          created_at?: string
+          id?: string
+          pillar: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          calendar_event_id?: string
+          created_at?: string
+          id?: string
+          pillar?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           content: string

@@ -11,8 +11,9 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Switch } from '@/components/ui/switch';
 import { useOuraMetrics, OuraMetrics } from '@/hooks/useOuraMetrics';
-import { format, subDays, parseISO } from 'date-fns';
+import { format, subDays, parseISO, isSameDay } from 'date-fns';
 import { Moon, Star, Clock, CalendarIcon, Info, Heart, Activity } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -41,16 +42,24 @@ export function ManualSleepEntryDialog({
   // Defaults: 10pm bedtime, 7am wake
   const [bedtime, setBedtime] = useState('22:00');
   const [wakeTime, setWakeTime] = useState('07:00');
+  const [bedtimeAfterMidnight, setBedtimeAfterMidnight] = useState(false);
   const [quality, setQuality] = useState(3);
 
   // Pre-populate fields when editing
   useEffect(() => {
     if (existingEntry) {
-      setSelectedDate(parseISO(existingEntry.metric_date));
+      const metricDate = parseISO(existingEntry.metric_date);
+      setSelectedDate(metricDate);
       
       if (existingEntry.manual_bedtime) {
         const bedDate = new Date(existingEntry.manual_bedtime);
         setBedtime(format(bedDate, 'HH:mm'));
+        
+        // Check if bedtime was on same day as wake (after midnight)
+        if (existingEntry.manual_wake_time) {
+          const wakeDate = new Date(existingEntry.manual_wake_time);
+          setBedtimeAfterMidnight(isSameDay(bedDate, wakeDate));
+        }
       }
       if (existingEntry.manual_wake_time) {
         const wakeDate = new Date(existingEntry.manual_wake_time);
@@ -67,6 +76,7 @@ export function ManualSleepEntryDialog({
       setBedtime('22:00');
       setWakeTime('07:00');
       setQuality(3);
+      setBedtimeAfterMidnight(false);
       if (initialDate) {
         setSelectedDate(initialDate);
       } else {
@@ -75,8 +85,21 @@ export function ManualSleepEntryDialog({
     }
   }, [existingEntry, initialDate, open]);
 
-  // Calculate bedtime date (night before selected date)
+  // Auto-detect after-midnight bedtime (00:00-06:00)
+  useEffect(() => {
+    if (!existingEntry) {
+      const hour = parseInt(bedtime.split(':')[0], 10);
+      if (hour >= 0 && hour < 6) {
+        setBedtimeAfterMidnight(true);
+      }
+    }
+  }, [bedtime, existingEntry]);
+
+  // Calculate bedtime date (night before or same day if after midnight)
   const getBedtimeDate = () => {
+    if (bedtimeAfterMidnight) {
+      return selectedDate;
+    }
     return subDays(selectedDate, 1);
   };
 
@@ -215,7 +238,7 @@ export function ManualSleepEntryDialog({
           <div className="space-y-2">
             <Label htmlFor="bedtime" className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-muted-foreground" />
-              Bedtime (night before)
+              {bedtimeAfterMidnight ? 'Bedtime (same day)' : 'Bedtime (night before)'}
             </Label>
             <Input
               id="bedtime"
@@ -226,6 +249,18 @@ export function ManualSleepEntryDialog({
             <p className="text-xs text-muted-foreground">
               {format(getBedtimeDate(), 'EEEE, MMM d')}
             </p>
+          </div>
+
+          {/* After midnight toggle */}
+          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+            <Label htmlFor="after-midnight" className="text-sm cursor-pointer">
+              I went to bed after midnight
+            </Label>
+            <Switch
+              id="after-midnight"
+              checked={bedtimeAfterMidnight}
+              onCheckedChange={setBedtimeAfterMidnight}
+            />
           </div>
 
           {/* Wake time */}

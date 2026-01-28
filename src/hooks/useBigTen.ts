@@ -27,7 +27,11 @@ export interface BigTenProject {
   created_at: string;
   updated_at: string;
   category: BigTenCategory | null;
+  pillar: string | null;
+  goal_id: string | null;
   tasks?: BigTenTask[];
+  // Joined data
+  goal_title?: string;
 }
 
 export function useBigTen() {
@@ -56,11 +60,27 @@ export function useBigTen() {
 
       if (tasksError) throw tasksError;
 
-      // Map tasks to their projects
-      const projectsWithTasks = (projectsData || []).map((project) => ({
-        ...project,
-        tasks: (tasksData || []).filter((task) => task.project_id === project.id),
-      }));
+      // Map tasks to their projects and get goal titles
+      const projectsWithTasks = await Promise.all(
+        (projectsData || []).map(async (project) => {
+          const proj = project as { goal_id?: string | null } & typeof project;
+          let goal_title: string | undefined;
+          if (proj.goal_id) {
+            const { data: goal } = await supabase
+              .from('goals')
+              .select('title')
+              .eq('id', proj.goal_id)
+              .maybeSingle();
+            goal_title = goal?.title;
+          }
+
+          return {
+            ...project,
+            tasks: (tasksData || []).filter((task) => task.project_id === project.id),
+            goal_title,
+          };
+        })
+      );
 
       return projectsWithTasks as BigTenProject[];
     },
@@ -68,7 +88,19 @@ export function useBigTen() {
   });
 
   const createProject = useMutation({
-    mutationFn: async ({ title, position, category }: { title: string; position: number; category?: BigTenCategory }) => {
+    mutationFn: async ({ 
+      title, 
+      position, 
+      category,
+      pillar,
+      goal_id,
+    }: { 
+      title: string; 
+      position: number; 
+      category?: BigTenCategory;
+      pillar?: string;
+      goal_id?: string;
+    }) => {
       if (!user?.id) throw new Error('Not authenticated');
 
       const { data, error } = await supabase
@@ -78,6 +110,8 @@ export function useBigTen() {
           title,
           position,
           category: category || null,
+          pillar: pillar || null,
+          goal_id: goal_id || null,
         })
         .select()
         .single();
@@ -103,12 +137,16 @@ export function useBigTen() {
       target_date,
       completed,
       category,
+      pillar,
+      goal_id,
     }: {
       id: string;
       title?: string;
       target_date?: string | null;
       completed?: boolean;
       category?: BigTenCategory | null;
+      pillar?: string | null;
+      goal_id?: string | null;
     }) => {
       const updates: Record<string, unknown> = {};
       if (title !== undefined) updates.title = title;
@@ -118,6 +156,8 @@ export function useBigTen() {
         updates.completed_at = completed ? new Date().toISOString() : null;
       }
       if (category !== undefined) updates.category = category;
+      if (pillar !== undefined) updates.pillar = pillar;
+      if (goal_id !== undefined) updates.goal_id = goal_id;
 
       const { data, error } = await supabase
         .from('big_ten_projects')

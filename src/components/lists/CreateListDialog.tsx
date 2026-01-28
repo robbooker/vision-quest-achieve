@@ -83,7 +83,7 @@ export function CreateListDialog({ open, onOpenChange, onCreate, isLoading }: Cr
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Create new list</DialogTitle>
+          <DialogTitle>Create new note</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -93,7 +93,7 @@ export function CreateListDialog({ open, onOpenChange, onCreate, isLoading }: Cr
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="My List"
+              placeholder="My Note"
               autoFocus
             />
           </div>
@@ -104,7 +104,7 @@ export function CreateListDialog({ open, onOpenChange, onCreate, isLoading }: Cr
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="What's this list for?"
+              placeholder="What's this note for?"
               rows={2}
             />
           </div>

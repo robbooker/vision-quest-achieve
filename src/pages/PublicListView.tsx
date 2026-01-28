@@ -1,7 +1,7 @@
 import { useParams } from "react-router-dom";
 import { usePublicListByToken } from "@/hooks/useListShares";
 import { ListItemComponent } from "@/components/lists/ListItem";
-import { List, Loader2 } from "lucide-react";
+import { FileText, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 export default function PublicListView() {
@@ -21,11 +21,11 @@ export default function PublicListView() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="p-4 rounded-full bg-muted inline-block mb-4">
-            <List className="h-8 w-8 text-muted-foreground" />
+            <FileText className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h1 className="text-xl font-semibold mb-2">List not found</h1>
+          <h1 className="text-xl font-semibold mb-2">Note not found</h1>
           <p className="text-muted-foreground">
-            This list may have been deleted or the link is invalid.
+            This note may have been deleted or the link is invalid.
           </p>
         </div>
       </div>
@@ -41,7 +41,7 @@ export default function PublicListView() {
           <CardHeader>
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-primary/10">
-                <List className="h-5 w-5 text-primary" />
+                <FileText className="h-5 w-5 text-primary" />
               </div>
               <div>
                 <h1 className="text-xl font-semibold">{list.title}</h1>
@@ -54,14 +54,18 @@ export default function PublicListView() {
           <CardContent>
             {items.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
-                This list is empty.
+                This note is empty.
               </p>
             ) : (
               <div className="space-y-2">
                 {items.map((item) => (
                   <ListItemComponent
                     key={item.id}
-                    item={item}
+                    item={{
+                      ...item,
+                      contributor_id: (item as any).contributor_id || null,
+                      contributor_name: (item as any).contributor_name || null,
+                    }}
                     onToggle={() => {}}
                     onDelete={() => {}}
                     onUpdate={() => {}}

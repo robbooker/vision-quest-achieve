@@ -53,7 +53,7 @@ export function ShareListDialog({ list, open, onOpenChange }: ShareListDialogPro
         <DialogHeader>
           <DialogTitle>Share "{list?.title}"</DialogTitle>
           <DialogDescription>
-            Share this list via text message. Recipients can view the list without an account.
+            Share this note via text message. Recipients can view and add to the note without an account.
           </DialogDescription>
         </DialogHeader>
 
@@ -79,7 +79,7 @@ export function ShareListDialog({ list, open, onOpenChange }: ShareListDialogPro
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              They'll receive a text with a link to view this list.
+              They'll receive a text with a link to view and contribute to this note.
             </p>
           </div>
 

@@ -5,10 +5,10 @@ import { useLists, useList } from "@/hooks/useLists";
 import { ListCard } from "@/components/lists/ListCard";
 import { ListDetail } from "@/components/lists/ListDetail";
 import { CreateListDialog } from "@/components/lists/CreateListDialog";
-import { Plus, List } from "lucide-react";
+import { Plus, FileText } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export default function Lists() {
+export default function Notes() {
   const { lists, isLoading, createList, deleteList, updateList } = useLists();
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -48,17 +48,17 @@ export default function Lists() {
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-primary/10">
-                  <List className="h-6 w-6 text-primary" />
+                  <FileText className="h-6 w-6 text-primary" />
                 </div>
-                <h1 className="text-2xl font-bold">Lists</h1>
+                <h1 className="text-2xl font-bold">Notes</h1>
               </div>
               <Button onClick={() => setCreateOpen(true)}>
                 <Plus className="h-4 w-4 mr-1" />
-                New List
+                New Note
               </Button>
             </div>
 
-            {/* Lists grid */}
+            {/* Notes grid */}
             {isLoading ? (
               <div className="grid gap-4 sm:grid-cols-2">
                 {[1, 2, 3].map((i) => (
@@ -68,15 +68,15 @@ export default function Lists() {
             ) : lists.length === 0 ? (
               <div className="text-center py-12">
                 <div className="p-4 rounded-full bg-muted inline-block mb-4">
-                  <List className="h-8 w-8 text-muted-foreground" />
+                  <FileText className="h-8 w-8 text-muted-foreground" />
                 </div>
-                <h2 className="text-lg font-medium mb-2">No lists yet</h2>
+                <h2 className="text-lg font-medium mb-2">No notes yet</h2>
                 <p className="text-muted-foreground mb-4">
-                  Create your first list to get started
+                  Create your first note to get started
                 </p>
                 <Button onClick={() => setCreateOpen(true)}>
                   <Plus className="h-4 w-4 mr-1" />
-                  Create List
+                  Create Note
                 </Button>
               </div>
             ) : (

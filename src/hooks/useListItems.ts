@@ -17,6 +17,8 @@ export interface ListItem {
   position: number;
   created_at: string;
   updated_at: string;
+  contributor_id: string | null;
+  contributor_name: string | null;
 }
 
 export function useListItems(listId: string | undefined) {
@@ -67,7 +69,17 @@ export function useListItems(listId: string | undefined) {
   }, [listId, queryClient]);
 
   const addItem = useMutation({
-    mutationFn: async ({ content, linkUrl }: { content: string; linkUrl?: string }) => {
+    mutationFn: async ({ 
+      content, 
+      linkUrl,
+      contributorId,
+      contributorName,
+    }: { 
+      content: string; 
+      linkUrl?: string;
+      contributorId?: string;
+      contributorName?: string;
+    }) => {
       if (!user || !listId) throw new Error("Not authenticated or no list");
 
       // Get max position
@@ -88,6 +100,8 @@ export function useListItems(listId: string | undefined) {
           content,
           link_url: linkUrl || null,
           position: nextPosition,
+          contributor_id: contributorId || null,
+          contributor_name: contributorName || null,
         })
         .select()
         .single();

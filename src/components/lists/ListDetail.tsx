@@ -205,7 +205,7 @@ export function ListDetail({ list, onBack, onDelete, onUpdateTitle }: ListDetail
 
       {items.length === 0 && (
         <p className="text-center text-muted-foreground py-8">
-          No items yet. Add your first item above!
+          No notes yet. Add your first note above!
         </p>
       )}
 
@@ -220,9 +220,9 @@ export function ListDetail({ list, onBack, onDelete, onUpdateTitle }: ListDetail
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete list?</AlertDialogTitle>
+            <AlertDialogTitle>Delete note?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete "{list.title}" and all its items. This action cannot be undone.
+              This will permanently delete "{list.title}" and all its content. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

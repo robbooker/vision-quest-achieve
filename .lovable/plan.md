@@ -1,229 +1,176 @@
 
-
-# Lists Refinement: Apple Notes Style
+# Plan: Pillar Detail View + Auto-Generated Journal AI Insight
 
 ## Overview
-
-Transform the current checklist-style Lists into a note-taking experience similar to Apple Notes. Each list item becomes a "note block" that can contain multi-line text and paragraphs. When a link is detected in the content, the system automatically fetches and displays a rich preview with image, title, and description.
-
----
-
-## Key Changes
-
-### Current State
-- Single-line input field for items
-- Checkbox-style completion
-- Items feel like a to-do list
-- Link preview exists but link metadata is never fetched
-
-### Target State
-- Multi-line textarea for rich note content
-- Optional checkbox (can be toggled on/off per item or removed entirely)
-- Items feel like note blocks
-- Automatic link detection and preview fetching
-- Clean, Apple Notes-inspired aesthetic
+This plan implements two connected features that deepen the P.R.I.M.E.D. integration:
+1. **Pillar Detail View** - A dedicated view when clicking a pillar card, showing all related activity with goal creation
+2. **Auto-Generated AI Insight** - An automatic paragraph on each journal entry analyzing pillar alignment
 
 ---
 
-## Technical Implementation
+## Feature 1: Pillar Detail View
 
-### 1. UI Component Changes
+### User Experience
+When a user taps a pillar card on the PRIMED page:
+1. Opens a full-screen dialog/sheet showing everything related to that pillar
+2. Displays: active goals, habits, recent focus sessions, quick tasks, and notes tagged to that pillar
+3. Has a prominent "Add Goal" button that opens the goal creation dialog pre-filled with the selected pillar
 
-**ListItemForm.tsx** - Replace Input with Textarea:
-- Use auto-resizing textarea instead of single-line input
-- Support Shift+Enter for new lines, Enter to save
-- Placeholder: "Write a note..." instead of "Add item..."
-- Remove the "Add" button - save on blur or Enter
-
-**ListItem.tsx** - Rich content display:
-- Render content with preserved line breaks (whitespace-pre-wrap)
-- Auto-detect URLs in content using regex
-- When URL detected and no link metadata exists, trigger fetch
-- Display link preview card below the text content
-- Remove or make checkbox optional (can add a toggle in list settings later)
-- Use textarea for editing instead of single-line input
-
-**New: LinkPreviewCard.tsx** - Dedicated preview component:
-- Horizontal card layout with image on left
-- Title, description, and domain display
-- Click opens link in new tab
-- Loading skeleton while fetching
-- Graceful fallback if fetch fails
-
-### 2. Link Metadata Fetching
-
-**New Edge Function: fetch-link-metadata**
+### UI Layout
 ```text
-Purpose: Fetch Open Graph metadata from a URL
-
-Request: { url: "https://example.com/article" }
-
-Response: {
-  title: "Article Title",
-  description: "Article description...",
-  image: "https://example.com/og-image.jpg",
-  siteName: "Example.com"
-}
-
-Logic:
-1. Validate URL format
-2. Fetch HTML with timeout (5s)
-3. Parse og:title, og:description, og:image
-4. Fallback to <title> and meta description
-5. Extract domain for display
-6. Return metadata or error
++------------------------------------------+
+| ← Back to PRIMED     [Physical] Lv 2     |
++------------------------------------------+
+| "Build sustainable health habits"        |
+|                                          |
+| GOALS (1)                     [+ Add Goal]
+| ┌────────────────────────────────────┐   |
+| │ Run 100 miles         45/100 mi   │   |
+| └────────────────────────────────────┘   |
+|                                          |
+| HABITS (3)                               |
+| • Morning stretches      ✓ 5-day streak  |
+| • 10k steps daily        ✓ Today done    |
+| • Hydration tracking                     |
+|                                          |
+| RECENT FOCUS (2 this week)               |
+| • Gym workout prep       25m  Yesterday  |
+| • Meal planning          45m  Today      |
+|                                          |
+| QUICK TASKS (4 active)                   |
+| • Schedule annual checkup                |
+| • Research running shoes                 |
++------------------------------------------+
 ```
 
-**New Hook: useLinkMetadata.ts**
-- Accepts a URL string
-- Calls the edge function
-- Returns { metadata, isLoading, error }
-- Caches results to avoid re-fetching
+### Technical Implementation
 
-**Update useListItems.ts**
-- Add `fetchLinkMetadata` mutation
-- After content is saved, detect URLs
-- If URL found and no metadata stored, call edge function
-- Update item with link_url, link_title, link_description, link_image
+**New component: `PillarDetailSheet.tsx`**
+- Full-screen sheet/dialog triggered from `PillarDetailCard` click
+- Fetches pillar-specific data using existing hooks with filter parameters
+- Pre-populates goal creation with the pillar value
 
-### 3. UX Flow
+**Data queries needed:**
+- Goals where `pillar = selectedPillar` (from `useGoals`)
+- Habits/tactics where goal has `pillar = selectedPillar` (via join)
+- Focus sessions where `pillar = selectedPillar` (already in schema)
+- Quick tasks where `pillar = selectedPillar` (already in schema)
+- Notes where `pillar = selectedPillar` (already in schema)
+
+**Files to create:**
+- `src/components/primed/PillarDetailSheet.tsx` - Main detail view component
+
+**Files to modify:**
+- `src/components/primed/PillarDetailCard.tsx` - Add onClick handler to open sheet
+- `src/components/primed/PrimedDashboard.tsx` - Manage sheet open state and selected pillar
+- `src/hooks/usePrimedProgress.ts` - May need to expand to return actual entities, not just counts
+
+---
+
+## Feature 2: Auto-Generated AI Insight on Journal Entries
+
+### User Experience
+When a journal entry is created, the system automatically:
+1. Analyzes completed tasks, habits, and focus sessions
+2. Cross-references with the user's PRIMED pillar levels and active goals
+3. Generates a warm, insightful paragraph answering:
+   - "Did today's activities align with your growth priorities?"
+   - "What pillars did you invest in today?"
+   - "Was this meaningful progress or just busy work?"
+
+### Example Output
+> "Today you invested heavily in your **Physical** foundation with that 45-minute gym focus session and hitting your 10k steps. Your **Income** pillar also got attention through the client proposal task. Notably absent today: **Relations** and **Direction**—both flagged as priorities in your last assessment. Consider: was today's energy allocation intentional, or did urgent tasks crowd out important ones?"
+
+### Technical Implementation
+
+**Database changes:**
+- Add column `ai_daily_insight` (text, nullable) to `journal_entries` table
+
+**New Edge Function: `generate-daily-insight`**
+- Triggered automatically when journal entry is created
+- Fetches:
+  - The entry's completed tasks, habits, focus sessions
+  - User's current PRIMED assessment levels
+  - Active goals per pillar
+- Uses Gemini to generate a reflective paragraph
+- Updates the journal entry with the insight
+
+**Prompt structure:**
+```text
+You are a thoughtful personal development coach. Analyze this day's activities 
+against the user's PRIMED pillar priorities and goals.
+
+USER'S PILLAR STATUS:
+- Physical: Level 2 (foundation)
+- Relations: Level 1 (needs work)
+- Income: Level 2
+- Mental: Level 2 (foundation)
+- Excellence: Level 1
+- Direction: Level 0 (blocked until foundation complete)
+
+TODAY'S ACTIVITIES:
+[tasks, habits, focus sessions with their pillar tags]
+
+ACTIVE GOALS:
+[goals with their pillar assignments]
+
+Write a brief, warm paragraph (3-5 sentences) that:
+1. Acknowledges what pillars received attention today
+2. Notes any gaps or imbalances
+3. Offers a gentle insight or question for reflection
+4. Never lectures—be encouraging and curious
+
+Do NOT use bullet points. Write in flowing prose.
+```
+
+**Files to create:**
+- `supabase/functions/generate-daily-insight/index.ts` - Edge function
+
+**Files to modify:**
+- `supabase/migrations/` - Add `ai_daily_insight` column to `journal_entries`
+- `src/hooks/useJournal.ts` - Update `JournalEntry` interface to include `ai_daily_insight`
+- `src/components/journal/JournalEntryCard.tsx` - Display the AI insight section
+- Edge function `generate-journal-image/index.ts` or the journal creation flow - Trigger insight generation
+
+### UI Display in Journal Entry
+The insight appears as a distinct section with a subtle AI indicator:
 
 ```text
-User types note content with a link:
-┌─────────────────────────────────────────────────────────┐
-│ Check out this article about productivity tips:        │
-│ https://example.com/productivity-tips                  │
-│                                                        │
-│ Really changed how I think about morning routines.     │
-└─────────────────────────────────────────────────────────┘
-
-After saving, system detects URL and fetches metadata:
-┌─────────────────────────────────────────────────────────┐
-│ Check out this article about productivity tips:        │
-│ https://example.com/productivity-tips                  │
-│                                                        │
-│ Really changed how I think about morning routines.     │
-│                                                        │
-│ ┌─────────────────────────────────────────────────────┐│
-│ │ [Image]  10 Productivity Tips That Actually Work   ││
-│ │          Simple strategies to boost your daily...  ││
-│ │          example.com                               ││
-│ └─────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────┘
-```
-
-### 4. Visual Design Updates
-
-**Note Block Styling:**
-- Softer borders, more padding
-- Content uses readable line-height
-- Subtle hover state
-- Drag handle only visible on hover
-- Optional: remove checkboxes entirely (or make them a list-level setting)
-
-**Link Preview Card:**
-- Image: 80x80px, rounded corners, object-cover
-- Title: Bold, single line, truncated
-- Description: 2 lines max, muted color
-- Domain: Small text at bottom
-- Entire card is clickable
-
----
-
-## File Changes
-
-### New Files
-```text
-src/components/lists/LinkPreviewCard.tsx    -- Link preview component
-src/hooks/useLinkMetadata.ts                -- Hook for fetching metadata
-supabase/functions/fetch-link-metadata/     -- Edge function
-```
-
-### Modified Files
-```text
-src/components/lists/ListItemForm.tsx       -- Textarea instead of Input
-src/components/lists/ListItem.tsx           -- Multi-line display, preview integration
-src/hooks/useListItems.ts                   -- Add metadata fetching logic
-src/components/lists/ListDetail.tsx         -- Minor layout adjustments
-supabase/config.toml                        -- Register new edge function
+┌─────────────────────────────────────────┐
+│ Tuesday, January 28, 2025               │
+│ 3 tasks · 2 habits · 1 focus session    │
+├─────────────────────────────────────────┤
+│ [AI Generated Image]                    │
+├─────────────────────────────────────────┤
+│ ✨ Daily Insight                        │
+│                                         │
+│ "Today you invested heavily in your     │
+│ Physical foundation with that gym       │
+│ session..."                             │
+│                                         │
+│ [🔄 Regenerate]                         │
+├─────────────────────────────────────────┤
+│ 🎤 Voice Journal (1 recording)          │
+└─────────────────────────────────────────┘
 ```
 
 ---
 
-## Implementation Details
+## Implementation Order
 
-### Auto-Resizing Textarea
-```typescript
-// Use a ref and resize on content change
-const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-useEffect(() => {
-  if (textareaRef.current) {
-    textareaRef.current.style.height = 'auto';
-    textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
-  }
-}, [content]);
-```
-
-### URL Detection Regex
-```typescript
-const URL_REGEX = /https?:\/\/[^\s<>"{}|\\^`[\]]+/gi;
-
-const extractUrls = (text: string): string[] => {
-  return text.match(URL_REGEX) || [];
-};
-```
-
-### Link Metadata Fetch Flow
-```typescript
-// In useListItems.ts after saving content
-const urls = extractUrls(content);
-if (urls.length > 0 && !item.link_url) {
-  // Fetch metadata for first URL found
-  const metadata = await fetchLinkMetadata(urls[0]);
-  if (metadata) {
-    await updateItem({
-      id: item.id,
-      link_url: urls[0],
-      link_title: metadata.title,
-      link_description: metadata.description,
-      link_image: metadata.image,
-    });
-  }
-}
-```
+1. **Database migration** - Add `ai_daily_insight` column
+2. **Edge function** - Create `generate-daily-insight`
+3. **Journal hook updates** - Include new field in types
+4. **Journal UI** - Display insight in entry cards with regenerate option
+5. **Pillar detail sheet** - New component with data fetching
+6. **Wire up PRIMED page** - Connect pillar cards to detail sheet
 
 ---
 
-## Edge Cases Handled
+## Technical Considerations
 
-1. **Multiple URLs**: Only fetch preview for the first URL (keeps it clean)
-2. **Invalid URLs**: Edge function validates and returns null gracefully
-3. **Slow/Failed Fetches**: Show loading skeleton, then hide if failed
-4. **URL Removed**: If user edits content and removes URL, clear metadata
-5. **Private/Blocked Sites**: Some sites block scraping - show URL-only fallback
-
----
-
-## Optional Enhancements (Future)
-
-- **Checklist Toggle**: Per-list setting to enable/disable checkboxes
-- **Rich Text**: Basic formatting (bold, italic) using markdown
-- **Multiple Link Previews**: Show previews for all URLs, not just first
-- **Image Uploads**: Allow inline images (not just link previews)
-
----
-
-## Summary
-
-This refinement transforms Lists from a checklist tool into a flexible note-taking feature:
-
-| Before | After |
-|--------|-------|
-| Single-line items | Multi-line notes with paragraphs |
-| Checkbox-focused | Content-focused |
-| No link previews | Auto-fetched rich link previews |
-| "Add item" button | Seamless textarea input |
-
-The implementation leverages the existing database schema (content, link_url, link_title, link_description, link_image are already there) and adds the missing metadata fetching layer.
+- **Rate limiting**: Insight generation happens once per entry creation; regenerate button is rate-limited
+- **Loading state**: Show skeleton while insight generates (async after entry creation)
+- **Empty state**: If no activities logged, skip insight or show "No activities to analyze today"
+- **Foundation enforcement**: Insight can gently remind about foundation pillars when creating goals in advanced pillars
 

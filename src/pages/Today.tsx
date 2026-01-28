@@ -16,6 +16,7 @@ import { QuickTaskList } from '@/components/dashboard/QuickTaskList';
 import { DailyPnLLogger } from '@/components/dashboard/DailyPnLLogger';
 import { CompactResetCard } from '@/components/reset/CompactResetCard';
 import { PrimedWeeklySummaryWidget } from '@/components/primed/PrimedWeeklySummaryWidget';
+import { PerformanceAuditCard } from '@/components/dashboard/PerformanceAuditCard';
 
 import { TodaySchedule, CalendarEventData } from '@/components/dashboard/TodaySchedule';
 import { AddCalendarEventDialog } from '@/components/dashboard/AddCalendarEventDialog';
@@ -427,6 +428,7 @@ export default function Today() {
             <QuickTaskList />
           </div>
           <div className="space-y-6">
+            <PerformanceAuditCard />
             <PrimedWeeklySummaryWidget />
             <DailyPnLLogger />
           </div>

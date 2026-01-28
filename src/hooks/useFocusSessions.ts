@@ -94,7 +94,7 @@ export const useFocusSessions = () => {
   });
 
   // Fetch active session
-  const { data: activeSession } = useQuery({
+  const { data: activeSession, isLoading: isLoadingActive } = useQuery({
     queryKey: ['focus-session-active', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
@@ -318,6 +318,7 @@ export const useFocusSessions = () => {
     todaySessions,
     activeSession,
     isLoading,
+    isLoadingActive,
     createSession,
     completeSession,
     abandonSession,

@@ -19,6 +19,7 @@ type JournalContext = {
   activeCycle: any;
   vision: any;
   tradingPnL: any[];
+  primedProgress: any;
 };
 
 type SemanticResult = {
@@ -42,10 +43,11 @@ export const useJournalChat = () => {
   const fetchContext = useCallback(async (): Promise<JournalContext> => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      return { recentTasks: [], pendingTasks: [], recentHabits: [], journalEntries: [], focusSessions: [], goals: [], activeCycle: null, vision: null, tradingPnL: [] };
+      return { recentTasks: [], pendingTasks: [], recentHabits: [], journalEntries: [], focusSessions: [], goals: [], activeCycle: null, vision: null, tradingPnL: [], primedProgress: null };
     }
 
     const sevenDaysAgo = format(subDays(new Date(), 7), 'yyyy-MM-dd');
+    const thirtyDaysAgo = format(subDays(new Date(), 30), 'yyyy-MM-dd');
 
     // Fetch all context data in parallel
     const [
@@ -57,7 +59,11 @@ export const useJournalChat = () => {
       goalsResult,
       activeCycleResult,
       visionResult,
-      tradingPnLResult
+      tradingPnLResult,
+      // PRIMED progress queries
+      focusByPillarResult,
+      tasksByPillarResult,
+      currentAssessmentResult
     ] = await Promise.all([
       // Fetch recent completed tasks
       supabase
@@ -102,17 +108,17 @@ export const useJournalChat = () => {
       // Fetch recent focus sessions
       supabase
         .from('focus_sessions')
-        .select('objective, actual_duration_minutes, planned_duration_minutes, status, started_at')
+        .select('objective, actual_duration_minutes, planned_duration_minutes, status, started_at, pillar')
         .eq('user_id', user.id)
         .gte('started_at', sevenDaysAgo)
         .order('started_at', { ascending: false })
         .limit(10),
       
-      // Fetch goals with milestones
+      // Fetch goals with milestones and pillar
       supabase
         .from('goals')
         .select(`
-          title, target_value, metric_type, why, goal_type,
+          title, target_value, metric_type, why, goal_type, pillar,
           obstacles, strategies, vision_connection,
           milestones(week_number, target_value, description)
         `)
@@ -142,7 +148,33 @@ export const useJournalChat = () => {
         .eq('user_id', user.id)
         .gte('trade_date', sevenDaysAgo)
         .order('trade_date', { ascending: false })
-        .limit(7)
+        .limit(7),
+      
+      // PRIMED: Focus sessions by pillar (last 30 days)
+      supabase
+        .from('focus_sessions')
+        .select('pillar, actual_duration_minutes')
+        .eq('user_id', user.id)
+        .eq('status', 'completed')
+        .not('pillar', 'is', null)
+        .gte('started_at', thirtyDaysAgo),
+      
+      // PRIMED: Tasks by pillar (last 30 days)
+      supabase
+        .from('quick_tasks')
+        .select('pillar, completed')
+        .eq('user_id', user.id)
+        .not('pillar', 'is', null)
+        .gte('created_at', thirtyDaysAgo),
+      
+      // Current PRIMED assessment
+      supabase
+        .from('primed_assessments')
+        .select('physical_level, relations_level, income_level, mental_level, excellence_level, direction_level')
+        .eq('user_id', user.id)
+        .order('assessed_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
     ]);
 
     // Transform habit data to include tactic title
@@ -151,6 +183,32 @@ export const useJournalChat = () => {
       completed_count: h.completed_count,
       tactic_title: (h.goal_tactics as any)?.title || 'Unknown habit'
     })) || [];
+
+    // Build PRIMED progress summary
+    const pillars = ['physical', 'relations', 'income', 'mental', 'excellence', 'direction'];
+    const pillarProgress: Record<string, { focusMinutes: number; tasksCompleted: number; tasksTotal: number }> = {};
+    
+    pillars.forEach(pillar => {
+      const focusForPillar = focusByPillarResult.data?.filter(f => f.pillar === pillar) || [];
+      const tasksForPillar = tasksByPillarResult.data?.filter(t => t.pillar === pillar) || [];
+      
+      pillarProgress[pillar] = {
+        focusMinutes: focusForPillar.reduce((sum, f) => sum + (f.actual_duration_minutes || 0), 0),
+        tasksCompleted: tasksForPillar.filter(t => t.completed).length,
+        tasksTotal: tasksForPillar.length,
+      };
+    });
+
+    const primedProgress = {
+      pillarProgress,
+      currentLevels: currentAssessmentResult.data || null,
+      goalsPerPillar: goalsResult.data?.reduce((acc: Record<string, number>, g: any) => {
+        if (g.pillar) {
+          acc[g.pillar] = (acc[g.pillar] || 0) + 1;
+        }
+        return acc;
+      }, {}) || {},
+    };
 
     return {
       recentTasks: recentTasksResult.data || [],
@@ -162,6 +220,7 @@ export const useJournalChat = () => {
       activeCycle: activeCycleResult.data || null,
       vision: visionResult.data || null,
       tradingPnL: tradingPnLResult.data || [],
+      primedProgress,
     };
   }, []);
 

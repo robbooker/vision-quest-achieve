@@ -31,10 +31,11 @@ import { useWeekReviews } from '@/hooks/useWeekReviews';
 import { useMilestones } from '@/hooks/useMilestones';
 import { useBigTen } from '@/hooks/useBigTen';
 import { useQuickTasks } from '@/hooks/useQuickTasks';
-import { TrendingUp, BarChart3, Target, AlertTriangle, Calendar, CheckSquare, FolderKanban, ListTodo, RotateCcw, Flame, Trophy, Zap, Clock, Timer, Globe, Sparkles } from 'lucide-react';
+import { TrendingUp, BarChart3, Target, AlertTriangle, Calendar, CheckSquare, FolderKanban, ListTodo, RotateCcw, Flame, Trophy, Zap, Clock, Timer, Globe, Sparkles, Hexagon } from 'lucide-react';
 import { HabitChainCalendar } from '@/components/reports/HabitChainCalendar';
 import { CumulativeProgressCard } from '@/components/reports/CumulativeProgressCard';
 import { SitewideStats } from '@/components/reports/SitewideStats';
+import { PillarAnalyticsSection } from '@/components/reports/PillarAnalyticsSection';
 import { AuditStrip } from '@/components/reset/AuditStrip';
 import { useResetAudits } from '@/hooks/useResetAudits';
 import { useResetPreference } from '@/hooks/useResetPreference';
@@ -249,6 +250,10 @@ export default function Reports() {
             <TabsTrigger value="personal" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               My Stats
+            </TabsTrigger>
+            <TabsTrigger value="primed" className="flex items-center gap-2">
+              <Hexagon className="h-4 w-4" />
+              P.R.I.M.E.D.
             </TabsTrigger>
             <TabsTrigger value="sitewide" className="flex items-center gap-2">
               <Globe className="h-4 w-4" />
@@ -753,6 +758,10 @@ export default function Reports() {
           </div>
         )}
 
+          </TabsContent>
+
+          <TabsContent value="primed" className="space-y-6 mt-6">
+            <PillarAnalyticsSection />
           </TabsContent>
 
           <TabsContent value="sitewide" className="mt-6">

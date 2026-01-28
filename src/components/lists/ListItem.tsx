@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { ListItem as ListItemType } from "@/hooks/useListItems";
 import { LinkPreviewCard } from "./LinkPreviewCard";
-import { Trash2, GripVertical, Check, X } from "lucide-react";
+import { Trash2, GripVertical, Check, X, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { extractUrls, useLinkMetadata } from "@/hooks/useLinkMetadata";
 
@@ -162,6 +163,14 @@ export function ListItemComponent({
             )}>
               {item.content}
             </p>
+
+            {/* Contributor badge */}
+            {item.contributor_name && (
+              <Badge variant="secondary" className="text-xs gap-1 mt-2">
+                <User className="h-3 w-3" />
+                Added by {item.contributor_name}
+              </Badge>
+            )}
 
             {/* Link preview */}
             {displayUrl && (

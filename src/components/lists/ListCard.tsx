@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { List as ListType } from "@/hooks/useLists";
-import { List, Share2, Lock, Target, Timer, Hexagon } from "lucide-react";
+import { FileText, Share2, Lock, Target, Timer, Hexagon } from "lucide-react";
 
 interface ListCardProps {
   list: ListType;
@@ -26,7 +26,7 @@ export function ListCard({ list, onClick }: ListCardProps) {
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
           <div className="p-2 rounded-lg bg-primary/10">
-            <List className="h-5 w-5 text-primary" />
+            <FileText className="h-5 w-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="font-medium truncate">{list.title}</h3>
@@ -61,7 +61,7 @@ export function ListCard({ list, onClick }: ListCardProps) {
             )}
 
             <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-              <span>{list.item_count || 0} items</span>
+              <span>{list.item_count || 0} notes</span>
               {(list.share_count || 0) > 0 ? (
                 <span className="flex items-center gap-1">
                   <Share2 className="h-3 w-3" />

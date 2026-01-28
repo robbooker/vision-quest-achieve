@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -30,25 +30,16 @@ export function EditSessionDialog({ session, open, onOpenChange, onSave }: EditS
   const [notes, setNotes] = useState('');
   const [pillar, setPillar] = useState<string | null>(null);
 
-  // Reset form when session changes
-  useState(() => {
-    if (session) {
+  // Reset form when session changes or dialog opens
+  useEffect(() => {
+    if (session && open) {
       setStatus(session.status === 'abandoned' ? 'abandoned' : 'completed');
       setRating((session as any).rating || null);
       setNotes(session.notes || '');
       setPillar(session.pillar || null);
     }
-  });
+  }, [session, open]);
 
-  const handleOpenChange = (newOpen: boolean) => {
-    if (newOpen && session) {
-      setStatus(session.status === 'abandoned' ? 'abandoned' : 'completed');
-      setRating((session as any).rating || null);
-      setNotes(session.notes || '');
-      setPillar(session.pillar || null);
-    }
-    onOpenChange(newOpen);
-  };
 
   const handleSave = () => {
     onSave({ status, rating, notes: notes || null, pillar });
@@ -62,7 +53,7 @@ export function EditSessionDialog({ session, open, onOpenChange, onSave }: EditS
   ];
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Edit Focus Session</DialogTitle>

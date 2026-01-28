@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Play, Target, Link2, Clock, Timer, Flame, CheckCircle, Pencil, Hexagon } from 'lucide-react';
+import { Play, Target, Link2, Clock, Timer, Flame, CheckCircle, Pencil, Hexagon, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,7 +11,7 @@ import { useGoals } from '@/hooks/useGoals';
 import { useBigTen } from '@/hooks/useBigTen';
 import { useQuickTasks } from '@/hooks/useQuickTasks';
 import { EditSessionDialog } from './EditSessionDialog';
-import { isToday } from 'date-fns';
+import { isToday, format, subDays, isAfter } from 'date-fns';
 import type { FocusSession } from '@/hooks/useFocusSessions';
 
 const PRIMED_PILLARS = [
@@ -59,7 +59,7 @@ interface SessionSetupProps {
   streak?: number;
   onUpdateSession?: (
     id: string,
-    data: { status: 'completed' | 'abandoned'; rating: 'bad' | 'good' | 'great' | null; notes: string | null }
+    data: { status: 'completed' | 'abandoned'; rating: 'bad' | 'good' | 'great' | null; notes: string | null; pillar?: string | null }
   ) => void;
   onResumeSession?: () => void;
 }
@@ -168,6 +168,13 @@ export function SessionSetup({
               >
                 <Timer className="h-3.5 w-3.5 mr-1.5" />
                 Tips
+              </TabsTrigger>
+              <TabsTrigger 
+                value="history" 
+                className="px-3 py-1.5 text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md"
+              >
+                <History className="h-3.5 w-3.5 mr-1.5" />
+                Past
               </TabsTrigger>
             </TabsList>
 
@@ -442,6 +449,83 @@ export function SessionSetup({
                     Set a clear, specific objective
                   </p>
                 </div>
+              </TabsContent>
+
+              <TabsContent value="history" className="mt-0">
+                {/* Past Sessions - last 7 days excluding today */}
+                {(() => {
+                  const pastSessions = sessions
+                    .filter(s => !isToday(new Date(s.started_at)) && isAfter(new Date(s.started_at), subDays(new Date(), 7)))
+                    .sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime());
+                  
+                  if (pastSessions.length === 0) {
+                    return (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        No past sessions in the last 7 days.
+                      </p>
+                    );
+                  }
+
+                  // Group sessions by date
+                  const groupedByDate: { [date: string]: FocusSession[] } = {};
+                  pastSessions.forEach(session => {
+                    const dateKey = format(new Date(session.started_at), 'yyyy-MM-dd');
+                    if (!groupedByDate[dateKey]) groupedByDate[dateKey] = [];
+                    groupedByDate[dateKey].push(session);
+                  });
+
+                  return (
+                    <div className="space-y-4 max-h-64 overflow-y-auto">
+                      {Object.entries(groupedByDate).map(([dateKey, dateSessions]) => (
+                        <div key={dateKey}>
+                          <div className="text-xs font-medium text-muted-foreground mb-2">
+                            {format(new Date(dateKey), 'EEEE, MMM d')}
+                          </div>
+                          <div className="space-y-2">
+                            {dateSessions.map((session) => (
+                              <div
+                                key={session.id}
+                                className="flex items-center justify-between p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors group"
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <CheckCircle className={`h-4 w-4 flex-shrink-0 ${
+                                    session.status === 'completed' ? 'text-chart-2' : 'text-muted-foreground'
+                                  }`} />
+                                  <span className="text-sm truncate">{session.objective}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {session.pillar && (
+                                    <Badge variant="outline" className="text-xs capitalize">
+                                      {session.pillar}
+                                    </Badge>
+                                  )}
+                                  {session.status === 'completed' && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      {session.actual_duration_minutes || session.planned_duration_minutes}m
+                                    </Badge>
+                                  )}
+                                  {onUpdateSession && (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setEditingSession(session);
+                                      }}
+                                    >
+                                      <Pencil className="h-3 w-3" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </TabsContent>
             </CardContent>
           </Tabs>

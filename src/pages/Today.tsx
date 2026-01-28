@@ -19,13 +19,11 @@ import { CompactResetCard } from '@/components/reset/CompactResetCard';
 import { TodaySchedule, CalendarEventData } from '@/components/dashboard/TodaySchedule';
 import { AddCalendarEventDialog } from '@/components/dashboard/AddCalendarEventDialog';
 import { EditCalendarEventDialog } from '@/components/dashboard/EditCalendarEventDialog';
-import { useQuickTasks } from '@/hooks/useQuickTasks';
 import { useCalendarConnection, useCalendarEvents } from '@/hooks/useCalendar';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Plus,
   Calendar,
   Repeat,
   Clock,
@@ -42,21 +40,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useSickDays } from '@/hooks/useSickDays';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Today() {
@@ -117,16 +100,11 @@ export default function Today() {
     }
   };
 
-  const [addTaskOpen, setAddTaskOpen] = useState(false);
   const [addCalendarEventOpen, setAddCalendarEventOpen] = useState(false);
   const [editCalendarEventOpen, setEditCalendarEventOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEventData | null>(null);
   const [isCreatingEvent, setIsCreatingEvent] = useState(false);
   const [isUpdatingEvent, setIsUpdatingEvent] = useState(false);
-  const [newQuickTask, setNewQuickTask] = useState({
-    title: '',
-    category: 'personal' as 'personal' | 'business',
-  });
 
   // Handle habit toggle/increment
   const handleHabitToggle = async (tacticId: string, newCount: number) => {
@@ -144,23 +122,6 @@ export default function Today() {
       }
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to update habit', variant: 'destructive' });
-    }
-  };
-
-  const { createTask: createQuickTask } = useQuickTasks();
-  
-  const handleAddTask = async () => {
-    if (!newQuickTask.title.trim()) return;
-    try {
-      await createQuickTask.mutateAsync({
-        title: newQuickTask.title.trim(),
-        category: newQuickTask.category,
-      });
-      toast({ title: 'Task added' });
-      setAddTaskOpen(false);
-      setNewQuickTask({ title: '', category: 'personal' });
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to add task', variant: 'destructive' });
     }
   };
 
@@ -276,10 +237,6 @@ export default function Today() {
                 {format(new Date(), 'EEEE, MMMM d, yyyy')}
               </p>
             </div>
-            <Button onClick={() => setAddTaskOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Task
-            </Button>
           </div>
 
           {/* Quick Task List - available without a cycle */}
@@ -296,51 +253,6 @@ export default function Today() {
             </CardContent>
           </Card>
         </div>
-
-        {/* Add Task Dialog */}
-        <Dialog open={addTaskOpen} onOpenChange={setAddTaskOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add Task for Today</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <Label>Task Title</Label>
-                <Input
-                  placeholder="What do you need to do?"
-                  value={newQuickTask.title}
-                  onChange={(e) => setNewQuickTask({ ...newQuickTask, title: e.target.value })}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleAddTask();
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Category</Label>
-                <Select
-                  value={newQuickTask.category}
-                  onValueChange={(v) => setNewQuickTask({ ...newQuickTask, category: v as 'personal' | 'business' })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="personal">Personal</SelectItem>
-                    <SelectItem value="business">Business</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex justify-end gap-2 pt-4">
-                <Button variant="outline" onClick={() => setAddTaskOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleAddTask} disabled={!newQuickTask.title.trim()}>
-                  Add Task
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
       </DashboardLayout>
     );
   }
@@ -357,10 +269,6 @@ export default function Today() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button onClick={() => setAddTaskOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Task
-            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon">
@@ -523,51 +431,6 @@ export default function Today() {
         {/* Daily Score Logger */}
         <DailyScoreLogger goals={goals} />
       </div>
-
-      {/* Add Task Dialog */}
-      <Dialog open={addTaskOpen} onOpenChange={setAddTaskOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Task for Today</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 pt-4">
-            <div className="space-y-2">
-              <Label>Task Title</Label>
-              <Input
-                placeholder="What do you need to do?"
-                value={newQuickTask.title}
-                onChange={(e) => setNewQuickTask({ ...newQuickTask, title: e.target.value })}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleAddTask();
-                }}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Category</Label>
-              <Select
-                value={newQuickTask.category}
-                onValueChange={(v) => setNewQuickTask({ ...newQuickTask, category: v as 'personal' | 'business' })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="personal">Personal</SelectItem>
-                  <SelectItem value="business">Business</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={() => setAddTaskOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleAddTask} disabled={!newQuickTask.title.trim()}>
-                Add Task
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Add Calendar Event Dialog */}
       <AddCalendarEventDialog

@@ -31,6 +31,8 @@ function getToastIcon(type: string) {
       return <Check className="h-4 w-4 text-amber-900 dark:text-amber-100" />;
     case "friend_request":
       return <UserPlus className="h-4 w-4 text-amber-900 dark:text-amber-100" />;
+    case "note_updated":
+      return <Share2 className="h-4 w-4 text-amber-900 dark:text-amber-100" />;
     default:
       return <Bell className="h-4 w-4 text-amber-900 dark:text-amber-100" />;
   }

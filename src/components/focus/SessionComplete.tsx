@@ -47,7 +47,7 @@ export function SessionComplete({
   const ratingOptions: { value: Rating; label: string; icon: React.ReactNode; color: string }[] = [
     { value: 'bad', label: 'Bad', icon: <Frown className="h-6 w-6" />, color: 'text-destructive' },
     { value: 'good', label: 'Good', icon: <Smile className="h-6 w-6" />, color: 'text-chart-3' },
-    { value: 'great', label: 'Great', icon: <Star className="h-6 w-6" />, color: 'text-chart-2' },
+    { value: 'great', label: 'Great', icon: <Star className="h-6 w-6" />, color: 'text-primary' },
   ];
 
   return (
@@ -72,13 +72,13 @@ export function SessionComplete({
               <div className="text-xs text-muted-foreground">Minutes</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-chart-2">{formatDuration(todayMinutes)}</div>
+              <div className="text-3xl font-bold text-primary">{formatDuration(todayMinutes)}</div>
               <div className="text-xs text-muted-foreground">Today Total</div>
             </div>
             <div className="text-center">
               <div className={cn(
                 "text-3xl font-bold",
-                streak >= 7 ? "text-chart-1" : streak >= 3 ? "text-chart-3" : "text-foreground"
+                streak >= 7 ? "text-chart-1" : streak >= 3 ? "text-primary" : "text-foreground"
               )}>
                 {streak}
               </div>
@@ -91,7 +91,7 @@ export function SessionComplete({
             <div className={cn(
               "text-center text-sm py-2 px-4 rounded-md",
               actualMinutes > plannedMinutes 
-                ? "bg-chart-2/10 text-chart-2" 
+                ? "bg-primary/10 text-primary" 
                 : "bg-muted text-muted-foreground"
             )}>
               <Clock className="h-4 w-4 inline-block mr-1" />
@@ -149,7 +149,7 @@ export function SessionComplete({
 
           {/* Encouragement */}
           {todaySessions >= 3 && (
-            <p className="text-center text-sm text-chart-2">
+            <p className="text-center text-sm text-primary font-medium">
               🔥 {todaySessions} sessions completed today! You're on fire!
             </p>
           )}

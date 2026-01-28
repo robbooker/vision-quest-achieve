@@ -7,9 +7,13 @@ const corsHeaders = {
 };
 
 interface TranscriptionRequest {
-  audioUrl: string;
-  entryId: string;
+  audioUrl?: string;
+  entryId?: string;
   recordingId?: string; // New: for saving to journal_audio_recordings table
+  // Simple mode for quick transcription (no storage needed)
+  audioData?: string; // base64 encoded audio
+  mimeType?: string;
+  mode?: 'simple' | 'full';
 }
 
 interface TranscriptionResult {
@@ -100,11 +104,88 @@ serve(async (req) => {
       );
     }
 
-    const { audioUrl, entryId, recordingId } = await req.json() as TranscriptionRequest;
+    const { audioUrl, entryId, recordingId, audioData, mimeType, mode } = await req.json() as TranscriptionRequest;
 
+    // Simple mode: just transcribe and return (no storage, no journal entry)
+    if (mode === 'simple' && audioData) {
+      console.log(`Simple transcription mode for user ${user.id}`);
+      
+      const audioMimeType = mimeType || 'audio/webm';
+      
+      // Call Gemini for simple transcription only
+      const geminiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${lovableApiKey}`,
+        },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: `Transcribe this audio recording accurately. Write down exactly what you hear the person saying, word for word. Respond with ONLY the transcription text, no formatting, no quotes, no prefixes like "Transcription:". Just the raw transcribed words.`
+                },
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: `data:${audioMimeType};base64,${audioData}`
+                  }
+                }
+              ]
+            }
+          ],
+          max_tokens: 2000,
+          temperature: 0.1,
+        }),
+      });
+
+      if (!geminiResponse.ok) {
+        const errorText = await geminiResponse.text();
+        console.error("Gemini API error (simple mode):", errorText);
+        
+        if (geminiResponse.status === 429) {
+          return new Response(
+            JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        if (geminiResponse.status === 402) {
+          return new Response(
+            JSON.stringify({ error: "AI credits exhausted. Please add credits to continue." }),
+            { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        
+        throw new Error(`Transcription service error: ${geminiResponse.status}`);
+      }
+
+      const geminiData = await geminiResponse.json();
+      const transcript = geminiData.choices?.[0]?.message?.content?.trim() || '';
+
+      if (!transcript) {
+        throw new Error("No transcription returned");
+      }
+
+      console.log(`Simple transcription complete: ${transcript.length} chars`);
+
+      return new Response(
+        JSON.stringify({ 
+          success: true,
+          transcript,
+          text: transcript, // Alias for compatibility
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Full mode: requires audioUrl and entryId for journal transcription
     if (!audioUrl || !entryId) {
       return new Response(
-        JSON.stringify({ error: "audioUrl and entryId are required" }),
+        JSON.stringify({ error: "audioUrl and entryId are required for full transcription mode" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -131,17 +212,17 @@ serve(async (req) => {
     console.log(`Downloading audio from storage path: ${storagePath}`);
 
     // Download the file using the service role (private bucket)
-    const { data: audioData, error: downloadError } = await supabaseAdmin
+    const { data: audioFileData, error: downloadError } = await supabaseAdmin
       .storage
       .from("journal-audio")
       .download(storagePath);
 
-    if (downloadError || !audioData) {
+    if (downloadError || !audioFileData) {
       console.error("Storage download error:", downloadError);
       throw new Error(`Failed to fetch audio: ${downloadError?.message || "Unknown error"}`);
     }
 
-    const audioBuffer = await audioData.arrayBuffer();
+    const audioBuffer = await audioFileData.arrayBuffer();
     
     // Convert to base64 in chunks to avoid stack overflow
     const uint8Array = new Uint8Array(audioBuffer);
@@ -154,7 +235,7 @@ serve(async (req) => {
     const audioBase64 = btoa(binaryString);
     
     // Determine MIME type from URL
-    const mimeType = audioUrl.includes('.webm') ? 'audio/webm' 
+    const audioFileMimeType = audioUrl.includes('.webm') ? 'audio/webm' 
       : audioUrl.includes('.mp3') ? 'audio/mp3'
       : audioUrl.includes('.m4a') ? 'audio/mp4'
       : audioUrl.includes('.wav') ? 'audio/wav'
@@ -202,7 +283,7 @@ Respond ONLY with valid JSON in this exact format:
               {
                 type: "image_url",
                 image_url: {
-                  url: `data:${mimeType};base64,${audioBase64}`
+                  url: `data:${audioFileMimeType};base64,${audioBase64}`
                 }
               }
             ]

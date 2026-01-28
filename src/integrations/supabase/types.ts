@@ -1085,6 +1085,8 @@ export type Database = {
       list_items: {
         Row: {
           content: string
+          contributor_id: string | null
+          contributor_name: string | null
           created_at: string
           id: string
           is_completed: boolean
@@ -1099,6 +1101,8 @@ export type Database = {
         }
         Insert: {
           content: string
+          contributor_id?: string | null
+          contributor_name?: string | null
           created_at?: string
           id?: string
           is_completed?: boolean
@@ -1113,6 +1117,8 @@ export type Database = {
         }
         Update: {
           content?: string
+          contributor_id?: string | null
+          contributor_name?: string | null
           created_at?: string
           id?: string
           is_completed?: boolean

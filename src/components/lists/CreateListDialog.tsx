@@ -58,8 +58,8 @@ export function CreateListDialog({ open, onOpenChange, onCreate, isLoading }: Cr
     await onCreate({ 
       title: title.trim(), 
       description: description.trim() || undefined,
-      pillar: pillar || undefined,
-      goal_id: goalId || undefined,
+      pillar: pillar && pillar !== "none" ? pillar : undefined,
+      goal_id: goalId && goalId !== "none" ? goalId : undefined,
     });
     
     setTitle("");
@@ -116,7 +116,7 @@ export function CreateListDialog({ open, onOpenChange, onCreate, isLoading }: Cr
                 <SelectValue placeholder="Select a pillar..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="none">None</SelectItem>
                 {PILLARS.map((p) => (
                   <SelectItem key={p.value} value={p.value}>
                     {p.label}
@@ -133,8 +133,8 @@ export function CreateListDialog({ open, onOpenChange, onCreate, isLoading }: Cr
                 <SelectTrigger>
                   <SelectValue placeholder="Select a goal..." />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+              <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
                   {goals.map((g) => (
                     <SelectItem key={g.id} value={g.id}>
                       {g.title}

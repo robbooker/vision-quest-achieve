@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Calendar as CalendarIcon, X } from 'lucide-react';
+import { Calendar as CalendarIcon, X, Hexagon } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -17,7 +17,23 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+
+const PRIMED_PILLARS = [
+  { value: 'physical', label: 'Physical' },
+  { value: 'relations', label: 'Relations' },
+  { value: 'income', label: 'Income' },
+  { value: 'mental', label: 'Mental' },
+  { value: 'excellence', label: 'Excellence' },
+  { value: 'direction', label: 'Direction' },
+];
 
 interface EditQuickTaskDialogProps {
   open: boolean;
@@ -26,8 +42,9 @@ interface EditQuickTaskDialogProps {
     id: string;
     title: string;
     due_date: string | null;
+    pillar: string | null;
   } | null;
-  onSave: (id: string, title: string, dueDate: string | null) => Promise<void>;
+  onSave: (id: string, title: string, dueDate: string | null, pillar: string | null) => Promise<void>;
 }
 
 export function EditQuickTaskDialog({
@@ -38,12 +55,14 @@ export function EditQuickTaskDialog({
 }: EditQuickTaskDialogProps) {
   const [title, setTitle] = useState('');
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
+  const [pillar, setPillar] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (task) {
       setTitle(task.title);
       setDueDate(task.due_date ? new Date(task.due_date) : undefined);
+      setPillar(task.pillar || null);
     }
   }, [task]);
 
@@ -55,7 +74,8 @@ export function EditQuickTaskDialog({
       await onSave(
         task.id,
         title.trim(),
-        dueDate ? format(dueDate, 'yyyy-MM-dd') : null
+        dueDate ? format(dueDate, 'yyyy-MM-dd') : null,
+        pillar
       );
       onOpenChange(false);
     } finally {
@@ -122,6 +142,25 @@ export function EditQuickTaskDialog({
                 </Button>
               )}
             </div>
+          </div>
+          <div className="grid gap-2">
+            <Label className="flex items-center gap-2">
+              <Hexagon className="h-4 w-4" />
+              PRIMED Pillar (optional)
+            </Label>
+            <Select value={pillar || ''} onValueChange={(v) => setPillar(v || null)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select pillar" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">None</SelectItem>
+                {PRIMED_PILLARS.map((p) => (
+                  <SelectItem key={p.value} value={p.value}>
+                    {p.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
         <DialogFooter>

@@ -551,6 +551,7 @@ export type Database = {
           linked_task_id: string | null
           notes: string | null
           objective: string
+          pillar: string | null
           planned_duration_minutes: number
           rating: string | null
           started_at: string
@@ -570,6 +571,7 @@ export type Database = {
           linked_task_id?: string | null
           notes?: string | null
           objective: string
+          pillar?: string | null
           planned_duration_minutes?: number
           rating?: string | null
           started_at?: string
@@ -589,6 +591,7 @@ export type Database = {
           linked_task_id?: string | null
           notes?: string | null
           objective?: string
+          pillar?: string | null
           planned_duration_minutes?: number
           rating?: string | null
           started_at?: string
@@ -1650,6 +1653,7 @@ export type Database = {
           due_date: string | null
           goal_id: string | null
           id: string
+          pillar: string | null
           position: number
           title: string
           updated_at: string
@@ -1663,6 +1667,7 @@ export type Database = {
           due_date?: string | null
           goal_id?: string | null
           id?: string
+          pillar?: string | null
           position?: number
           title: string
           updated_at?: string
@@ -1676,6 +1681,7 @@ export type Database = {
           due_date?: string | null
           goal_id?: string | null
           id?: string
+          pillar?: string | null
           position?: number
           title?: string
           updated_at?: string

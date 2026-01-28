@@ -312,12 +312,12 @@ export function SessionSetup({
                     <Hexagon className="h-4 w-4" />
                     PRIMED Pillar (optional)
                   </Label>
-                  <Select value={pillar} onValueChange={setPillar}>
+                  <Select value={pillar || 'none'} onValueChange={(v) => setPillar(v === 'none' ? '' : v)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select pillar" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
                       {PRIMED_PILLARS.map((p) => (
                         <SelectItem key={p.value} value={p.value}>
                           {p.label}

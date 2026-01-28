@@ -1006,6 +1006,7 @@ export type Database = {
           completed_habits: Json | null
           completed_tasks: Json | null
           created_at: string
+          created_notes: Json | null
           entry_date: string
           id: string
           image_prompt: string | null
@@ -1025,6 +1026,7 @@ export type Database = {
           completed_habits?: Json | null
           completed_tasks?: Json | null
           created_at?: string
+          created_notes?: Json | null
           entry_date: string
           id?: string
           image_prompt?: string | null
@@ -1044,6 +1046,7 @@ export type Database = {
           completed_habits?: Json | null
           completed_tasks?: Json | null
           created_at?: string
+          created_notes?: Json | null
           entry_date?: string
           id?: string
           image_prompt?: string | null

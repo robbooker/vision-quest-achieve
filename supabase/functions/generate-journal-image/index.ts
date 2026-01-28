@@ -150,6 +150,7 @@ serve(async (req) => {
     const tasks = (entry.completed_tasks as any[]) || [];
     const habits = (entry.completed_habits as any[]) || [];
     const focusSessions = (entry.completed_focus_sessions as any[]) || [];
+    const createdNotes = (entry.created_notes as any[]) || [];
 
     const accomplishments: string[] = [];
     
@@ -166,6 +167,10 @@ serve(async (req) => {
     });
     focusSessions.slice(0, 3).forEach((s: any) => {
       accomplishments.push(`Focus session: ${s.objective} (${s.actual_duration_minutes} min)`);
+    });
+    createdNotes.slice(0, 3).forEach((n: any) => {
+      const pillarNote = n.pillar ? ` [${n.pillar}]` : '';
+      accomplishments.push(`Created note: ${n.title}${pillarNote}`);
     });
 
     if (accomplishments.length === 0) {

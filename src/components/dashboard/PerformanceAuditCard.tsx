@@ -15,13 +15,16 @@ import {
   AlertTriangle,
   Crown,
   Info,
-  Settings
+  Settings,
+  Pencil,
+  Plus
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export function PerformanceAuditCard() {
   const navigate = useNavigate();
   const [manualSleepOpen, setManualSleepOpen] = useState(false);
+  const [editEntry, setEditEntry] = useState<typeof todayMetrics>(null);
   
   const {
     todayMetrics,
@@ -34,6 +37,23 @@ export function PerformanceAuditCard() {
     getResilienceColor,
     getRhrStatus,
   } = useOuraMetrics();
+
+  const handleEditClick = () => {
+    setEditEntry(todayMetrics);
+    setManualSleepOpen(true);
+  };
+
+  const handleNewEntryClick = () => {
+    setEditEntry(null);
+    setManualSleepOpen(true);
+  };
+
+  const handleDialogClose = (open: boolean) => {
+    setManualSleepOpen(open);
+    if (!open) {
+      setEditEntry(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -64,16 +84,31 @@ export function PerformanceAuditCard() {
         <CardContent className="flex flex-col items-center justify-center py-6 text-center">
           <Activity className="h-8 w-8 text-muted-foreground mb-3" />
           <p className="text-sm text-muted-foreground mb-3">
-            Connect Oura Ring or enable manual sleep logging to track your biometric performance
+            Connect Oura Ring or log sleep manually to track your biometric performance
           </p>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => navigate('/settings')}
-          >
-            <Settings className="h-4 w-4 mr-2" />
-            Set Up in Settings
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => navigate('/settings')}
+            >
+              <Settings className="h-4 w-4 mr-2" />
+              Connect Oura
+            </Button>
+            <Button 
+              variant="default" 
+              size="sm"
+              onClick={handleNewEntryClick}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Log Sleep
+            </Button>
+          </div>
+          <ManualSleepEntryDialog 
+            open={manualSleepOpen} 
+            onOpenChange={handleDialogClose}
+            existingEntry={editEntry}
+          />
         </CardContent>
       </Card>
     );
@@ -84,39 +119,8 @@ export function PerformanceAuditCard() {
   const rhrStatus = getRhrStatus(metrics?.resting_heart_rate ?? null, metrics?.rhr_baseline_14d ?? null);
   const resilienceColor = getResilienceColor(metrics?.resilience_level ?? null);
 
-  // Manual mode but no data yet
-  if (isManualMode && !metrics) {
-    return (
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Zap className="h-4 w-4 text-primary" />
-            Performance Audit
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col items-center justify-center py-6 text-center">
-          <Moon className="h-8 w-8 text-muted-foreground mb-3" />
-          <p className="text-sm text-muted-foreground mb-3">
-            No sleep data for today yet
-          </p>
-          <Button 
-            variant="default" 
-            size="sm"
-            onClick={() => setManualSleepOpen(true)}
-          >
-            Log Last Night's Sleep
-          </Button>
-          <ManualSleepEntryDialog 
-            open={manualSleepOpen} 
-            onOpenChange={setManualSleepOpen} 
-          />
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Oura connected but no data yet
-  if (isOuraConnected && !metrics) {
+  // No data yet - show options for both Oura sync and manual entry
+  if (!metrics) {
     return (
       <Card>
         <CardHeader className="pb-3">
@@ -125,29 +129,49 @@ export function PerformanceAuditCard() {
               <Zap className="h-4 w-4 text-primary" />
               Performance Audit
             </CardTitle>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => syncMetrics.mutate()}
-              disabled={syncMetrics.isPending}
-            >
-              <RefreshCw className={`h-4 w-4 ${syncMetrics.isPending ? 'animate-spin' : ''}`} />
-            </Button>
+            {isOuraConnected && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => syncMetrics.mutate()}
+                disabled={syncMetrics.isPending}
+              >
+                <RefreshCw className={`h-4 w-4 ${syncMetrics.isPending ? 'animate-spin' : ''}`} />
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent className="flex flex-col items-center justify-center py-6 text-center">
-          <Activity className="h-8 w-8 text-muted-foreground mb-3" />
+          <Moon className="h-8 w-8 text-muted-foreground mb-3" />
           <p className="text-sm text-muted-foreground mb-3">
-            No Oura data synced for today
+            No sleep data for today yet
           </p>
-          <Button 
-            variant="default" 
-            size="sm"
-            onClick={() => syncMetrics.mutate()}
-            disabled={syncMetrics.isPending}
-          >
-            {syncMetrics.isPending ? 'Syncing...' : 'Sync from Oura'}
-          </Button>
+          <div className="flex gap-2">
+            {isOuraConnected && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => syncMetrics.mutate()}
+                disabled={syncMetrics.isPending}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${syncMetrics.isPending ? 'animate-spin' : ''}`} />
+                {syncMetrics.isPending ? 'Syncing...' : 'Sync Oura'}
+              </Button>
+            )}
+            <Button 
+              variant="default" 
+              size="sm"
+              onClick={handleNewEntryClick}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Log Manually
+            </Button>
+          </div>
+          <ManualSleepEntryDialog 
+            open={manualSleepOpen} 
+            onOpenChange={handleDialogClose}
+            existingEntry={editEntry}
+          />
         </CardContent>
       </Card>
     );
@@ -250,10 +274,10 @@ export function PerformanceAuditCard() {
             </Tooltip>
           </div>
 
-          {/* Sleep summary */}
+          {/* Sleep summary with Edit button */}
           <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/30">
-            <Moon className="h-4 w-4 text-indigo-400" />
-            <span className="text-sm">
+            <Moon className="h-4 w-4 text-indigo-400 flex-shrink-0" />
+            <span className="text-sm flex-1">
               Last Night: <strong>{formatSleepDuration(metrics?.total_sleep_seconds ?? null)}</strong>
               {metrics?.sleep_score && (
                 <> • Score: <strong>{metrics.sleep_score}</strong></>
@@ -262,7 +286,16 @@ export function PerformanceAuditCard() {
                 <> • HRV: <strong className={metrics.hrv_balance < 70 ? 'text-yellow-500' : ''}>{metrics.hrv_balance}</strong></>
               )}
             </span>
-            <Badge variant="secondary" className="ml-auto text-xs">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2"
+              onClick={handleEditClick}
+            >
+              <Pencil className="h-3 w-3 mr-1" />
+              Edit
+            </Button>
+            <Badge variant="secondary" className="text-xs">
               {metrics?.source === 'oura' ? 'Oura' : 'Manual'}
             </Badge>
           </div>
@@ -310,23 +343,22 @@ export function PerformanceAuditCard() {
             </div>
           )}
 
-          {/* Manual sleep entry button for manual mode */}
-          {isManualMode && (
-            <>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full"
-                onClick={() => setManualSleepOpen(true)}
-              >
-                Update Sleep Entry
-              </Button>
-              <ManualSleepEntryDialog 
-                open={manualSleepOpen} 
-                onOpenChange={setManualSleepOpen} 
-              />
-            </>
-          )}
+          {/* Always show manual entry button for adding new entries */}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="w-full"
+            onClick={handleNewEntryClick}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Log Sleep Manually
+          </Button>
+          
+          <ManualSleepEntryDialog 
+            open={manualSleepOpen} 
+            onOpenChange={handleDialogClose}
+            existingEntry={editEntry}
+          />
         </CardContent>
       </Card>
     </TooltipProvider>

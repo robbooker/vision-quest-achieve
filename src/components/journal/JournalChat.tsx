@@ -9,12 +9,13 @@ import ReactMarkdown from 'react-markdown';
 
 const PRESET_QUESTIONS = [
   { label: "Add a task", prompt: "Add a task to my list" },
+  { label: "Pillar balance", prompt: "How much time did I spend on each PRIMED pillar this month?" },
   { label: "Recent progress", prompt: "What have I accomplished in the last few days?" },
   { label: "Long-term patterns", prompt: "What patterns do you see across my entire history?" },
   { label: "Focus insights", prompt: "When am I most productive based on my focus sessions?" },
   { label: "Habit consistency", prompt: "Which habits have I been most consistent with over time?" },
   { label: "What am I avoiding?", prompt: "Are there any goals or tasks I seem to be avoiding?" },
-  { label: "Best days", prompt: "What do my most productive days have in common?" },
+  { label: "Which pillar needs work?", prompt: "Which PRIMED pillar have I been neglecting and should focus on?" },
 ];
 
 export const JournalChat = () => {

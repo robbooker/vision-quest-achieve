@@ -24,6 +24,27 @@ You have access to multiple types of context:
 5. **Active Cycle** - Current planning cycle info and week number
 6. **Personal Vision** - 3-year vision, long-term vision, and core values
 7. **Trading P&L** - Daily trading profit/loss data if they trade
+8. **P.R.I.M.E.D. Progress** - Pillar-based life balance framework with activity breakdown
+
+**P.R.I.M.E.D. PILLAR AWARENESS:**
+You have access to the user's P.R.I.M.E.D. framework data, which tracks their life balance across six pillars:
+- **P**hysical - Health, fitness, sleep, nutrition
+- **R**elations - Family, friends, community, social connections
+- **I**ncome - Career, finances, business, wealth building
+- **M**ental - Mindset, learning, emotional health, therapy
+- **E**xcellence - Skills, mastery, craft, creative pursuits
+- **D**irection - Purpose, vision, long-term planning, spirituality
+
+When the user asks about pillar progress (e.g., "How much time did I spend on Physical this month?"), you have:
+- Focus sessions per pillar with duration
+- Quick tasks per pillar with completion status
+- Goals per pillar with progress
+- Habits/tactics per pillar with completion rates
+
+Use this data to provide specific answers like:
+- "You spent 4.5 hours on Physical focus sessions this week"
+- "Your Income pillar received the most attention with 12 completed tasks"
+- "Relations seems neglected - only 1 task completed this week"
 
 **GOAL & VISION AWARENESS:**
 You have access to the user's 6-Week Sprint goals, their weekly milestones, and their personal vision.
@@ -57,6 +78,7 @@ When analyzing their data:
 - Connect daily tasks and habits to their active goals and milestones
 - Use their vision and core values to provide meaningful encouragement
 - If they trade, correlate trading outcomes with their daily routines
+- Reference pillar balance when discussing productivity or life priorities
 
 **TASK CREATION:**
 When the user wants to add, create, or remind themselves about a task, use the create_task tool to add it to their task list. Examples:
@@ -229,6 +251,58 @@ serve(async (req) => {
           const emoji = amount >= 0 ? '🟢' : '🔴';
           contextMessage += `${emoji} ${pnl.trade_date}: $${amount.toFixed(2)}${pnl.trade_count ? ` (${pnl.trade_count} trades)` : ''}\n`;
         });
+      }
+
+      // Add PRIMED pillar progress context
+      if (context.primedProgress) {
+        const { pillarProgress, currentLevels, goalsPerPillar } = context.primedProgress;
+        
+        contextMessage += "\n\n**🎯 P.R.I.M.E.D. Pillar Progress (last 30 days):**\n";
+        
+        const pillarNames: Record<string, string> = {
+          physical: 'Physical',
+          relations: 'Relations',
+          income: 'Income',
+          mental: 'Mental',
+          excellence: 'Excellence',
+          direction: 'Direction'
+        };
+        
+        const pillarEmojis: Record<string, string> = {
+          physical: '💪',
+          relations: '❤️',
+          income: '💰',
+          mental: '🧠',
+          excellence: '⭐',
+          direction: '🧭'
+        };
+        
+        Object.entries(pillarProgress).forEach(([pillar, data]: [string, any]) => {
+          const emoji = pillarEmojis[pillar] || '📊';
+          const name = pillarNames[pillar] || pillar;
+          const level = currentLevels ? currentLevels[`${pillar}_level`] : null;
+          const goalCount = goalsPerPillar[pillar] || 0;
+          
+          contextMessage += `${emoji} **${name}**${level !== null ? ` (Level ${level})` : ''}: `;
+          contextMessage += `${data.focusMinutes}m focused, ${data.tasksCompleted}/${data.tasksTotal} tasks`;
+          if (goalCount > 0) contextMessage += `, ${goalCount} active goal${goalCount > 1 ? 's' : ''}`;
+          contextMessage += '\n';
+        });
+        
+        // Identify balance insights
+        const entries = Object.entries(pillarProgress) as [string, any][];
+        const totalFocus = entries.reduce((sum, [_, d]) => sum + d.focusMinutes, 0);
+        const neglected = entries.filter(([_, d]) => d.focusMinutes === 0 && d.tasksCompleted === 0);
+        
+        if (neglected.length > 0) {
+          contextMessage += `\n⚠️ Neglected pillars: ${neglected.map(([p]) => pillarNames[p]).join(', ')}\n`;
+        }
+        
+        if (totalFocus > 0) {
+          const topPillar = entries.sort((a, b) => b[1].focusMinutes - a[1].focusMinutes)[0];
+          const topPercent = Math.round((topPillar[1].focusMinutes / totalFocus) * 100);
+          contextMessage += `📊 Most invested: ${pillarNames[topPillar[0]]} (${topPercent}% of focus time)\n`;
+        }
       }
     }
 

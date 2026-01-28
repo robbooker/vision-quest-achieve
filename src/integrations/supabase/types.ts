@@ -1079,6 +1079,136 @@ export type Database = {
         }
         Relationships: []
       }
+      list_items: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_completed: boolean
+          link_description: string | null
+          link_image: string | null
+          link_title: string | null
+          link_url: string | null
+          list_id: string
+          position: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          link_description?: string | null
+          link_image?: string | null
+          link_title?: string | null
+          link_url?: string | null
+          list_id: string
+          position?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          link_description?: string | null
+          link_image?: string | null
+          link_title?: string | null
+          link_url?: string | null
+          list_id?: string
+          position?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "list_items_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      list_shares: {
+        Row: {
+          access_token: string
+          created_at: string
+          first_viewed_at: string | null
+          id: string
+          list_id: string
+          phone_number: string
+          shared_by_id: string
+          sms_sent_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token?: string
+          created_at?: string
+          first_viewed_at?: string | null
+          id?: string
+          list_id: string
+          phone_number: string
+          shared_by_id: string
+          sms_sent_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          first_viewed_at?: string | null
+          id?: string
+          list_id?: string
+          phone_number?: string
+          shared_by_id?: string
+          sms_sent_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "list_shares_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lists: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_public: boolean
+          slug: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          slug: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          slug?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       master_items: {
         Row: {
           category: string

@@ -787,12 +787,13 @@ export function QuickTaskList() {
     setEditingQuickTask(task);
   };
 
-  const handleSaveQuickTaskWithDueDate = async (id: string, title: string, dueDate: string | null) => {
+  const handleSaveQuickTaskWithDueDate = async (id: string, title: string, dueDate: string | null, pillar: string | null) => {
     try {
       await updateQuickTask.mutateAsync({
         id,
         title,
         due_date: dueDate,
+        pillar,
       });
       toast({ title: 'Task updated' });
     } catch (error) {

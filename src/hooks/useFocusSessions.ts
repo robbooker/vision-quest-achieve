@@ -20,6 +20,7 @@ export type FocusSession = {
   rating: 'bad' | 'good' | 'great' | null;
   break_duration_minutes: number | null;
   ambient_sound: string | null;
+  pillar: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -31,6 +32,7 @@ type CreateSessionInput = {
   linked_task_id?: string | null;
   linked_big_ten_task_id?: string | null;
   ambient_sound?: string | null;
+  pillar?: string | null;
 };
 
 type CompleteSessionInput = {
@@ -122,6 +124,7 @@ export const useFocusSessions = () => {
           linked_task_id: input.linked_task_id || null,
           linked_big_ten_task_id: input.linked_big_ten_task_id || null,
           ambient_sound: input.ambient_sound || null,
+          pillar: input.pillar || null,
           status: 'active',
           started_at: new Date().toISOString(),
         })

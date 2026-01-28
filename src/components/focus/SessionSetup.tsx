@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Play, Target, Link2, Clock, Timer, Flame, CheckCircle, Pencil } from 'lucide-react';
+import { Play, Target, Link2, Clock, Timer, Flame, CheckCircle, Pencil, Hexagon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,6 +13,15 @@ import { useQuickTasks } from '@/hooks/useQuickTasks';
 import { EditSessionDialog } from './EditSessionDialog';
 import { isToday } from 'date-fns';
 import type { FocusSession } from '@/hooks/useFocusSessions';
+
+const PRIMED_PILLARS = [
+  { value: 'physical', label: 'Physical' },
+  { value: 'relations', label: 'Relations' },
+  { value: 'income', label: 'Income' },
+  { value: 'mental', label: 'Mental' },
+  { value: 'excellence', label: 'Excellence' },
+  { value: 'direction', label: 'Direction' },
+];
 
 const DURATION_PRESETS = [
   { value: 5, label: '5 min', description: 'Quick' },
@@ -41,6 +50,7 @@ interface SessionSetupProps {
     linkedGoalId?: string;
     linkedTaskId?: string;
     linkedBigTenTaskId?: string;
+    pillar?: string;
   }) => void;
   isStarting: boolean;
   sessions?: FocusSession[];
@@ -70,6 +80,7 @@ export function SessionSetup({
   const [customDuration, setCustomDuration] = useState('');
   const [linkType, setLinkType] = useState<'none' | 'goal' | 'task' | 'bigten'>('none');
   const [linkedId, setLinkedId] = useState('');
+  const [pillar, setPillar] = useState<string>('');
   const [editingSession, setEditingSession] = useState<FocusSession | null>(null);
 
   // Compute the actual objective based on selection
@@ -109,6 +120,7 @@ export function SessionSetup({
       linkedGoalId: linkType === 'goal' ? linkedId : undefined,
       linkedTaskId: linkType === 'task' ? linkedId : undefined,
       linkedBigTenTaskId: linkType === 'bigten' ? linkedId : undefined,
+      pillar: pillar || undefined,
     });
   };
 
@@ -284,6 +296,27 @@ export function SessionSetup({
                       </Select>
                     )}
                   </div>
+                </div>
+
+                {/* PRIMED Pillar */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Hexagon className="h-4 w-4" />
+                    PRIMED Pillar (optional)
+                  </Label>
+                  <Select value={pillar} onValueChange={setPillar}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select pillar" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">None</SelectItem>
+                      {PRIMED_PILLARS.map((p) => (
+                        <SelectItem key={p.value} value={p.value}>
+                          {p.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Start Button */}

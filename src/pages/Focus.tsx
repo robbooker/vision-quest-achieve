@@ -50,6 +50,7 @@ export default function Focus() {
     linkedGoalId?: string;
     linkedTaskId?: string;
     linkedBigTenTaskId?: string;
+    pillar?: string;
   }) => {
     try {
       await createSession.mutateAsync({
@@ -58,6 +59,7 @@ export default function Focus() {
         linked_goal_id: data.linkedGoalId || null,
         linked_task_id: data.linkedTaskId || null,
         linked_big_ten_task_id: data.linkedBigTenTaskId || null,
+        pillar: data.pillar || null,
       });
       setViewState('active');
       toast({

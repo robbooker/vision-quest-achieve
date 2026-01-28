@@ -5,8 +5,9 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { PILLARS, LEVEL_NAMES, PillarKey, PillarLevel } from '@/data/primedBehaviors';
-import { Plus, Target, Repeat, Clock, FileText, Check, ArrowLeft } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { PILLARS, LEVEL_NAMES, PillarKey, PillarLevel, getBehaviorsForPillarAndLevel, LEVEL_DESCRIPTIONS } from '@/data/primedBehaviors';
+import { Plus, Target, Repeat, Clock, FileText, Check, ArrowLeft, ArrowUp, Circle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -28,6 +29,10 @@ export function PillarDetailSheet({ pillar, level, open, onOpenChange }: PillarD
   const [showCreateGoal, setShowCreateGoal] = useState(false);
 
   const pillarInfo = pillar ? PILLARS[pillar] : null;
+  
+  // Get next level requirements
+  const nextLevel = level < 3 ? (level + 1) as PillarLevel : null;
+  const nextLevelBehaviors = pillar && nextLevel !== null ? getBehaviorsForPillarAndLevel(pillar, nextLevel) : [];
 
   // Fetch goals for this pillar
   const { data: goals, isLoading: goalsLoading } = useQuery({
@@ -178,6 +183,42 @@ export function PillarDetailSheet({ pillar, level, open, onOpenChange }: PillarD
                 </div>
               ) : (
                 <>
+                  {/* Next Level Requirements */}
+                  {nextLevel !== null && nextLevelBehaviors.length > 0 && (
+                    <Alert className="border-primary/30 bg-primary/5">
+                      <ArrowUp className="h-4 w-4" />
+                      <AlertDescription>
+                        <div className="space-y-2">
+                          <p className="font-semibold text-sm">
+                            To reach Level {nextLevel} ({LEVEL_NAMES[nextLevel]}):
+                          </p>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            {LEVEL_DESCRIPTIONS[nextLevel]}
+                          </p>
+                          <ul className="space-y-1.5">
+                            {nextLevelBehaviors.map((behavior) => (
+                              <li key={behavior.key} className="flex items-start gap-2 text-xs">
+                                <Circle className="h-3 w-3 mt-0.5 text-muted-foreground flex-shrink-0" />
+                                <span>{behavior.text}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  
+                  {level === 3 && (
+                    <Alert className="border-primary/30 bg-primary/5">
+                      <Check className="h-4 w-4 text-primary" />
+                      <AlertDescription>
+                        <p className="font-semibold text-sm">You've reached Significance!</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Continue maintaining this pillar and mentoring others.
+                        </p>
+                      </AlertDescription>
+                    </Alert>
+                  )}
                   {/* Goals Section */}
                   <section>
                     <div className="flex items-center justify-between mb-3">

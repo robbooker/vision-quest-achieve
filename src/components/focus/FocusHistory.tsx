@@ -15,7 +15,7 @@ interface FocusHistoryProps {
   todayMinutes: number;
   todayCount: number;
   streak: number;
-  onUpdateSession?: (id: string, data: { status: 'completed' | 'abandoned'; rating: 'bad' | 'good' | 'great' | null; notes: string | null }) => void;
+  onUpdateSession?: (id: string, data: { status: 'completed' | 'abandoned'; rating: 'bad' | 'good' | 'great' | null; notes: string | null; pillar?: string | null }) => void;
   onResumeSession?: () => void;
 }
 
@@ -34,7 +34,7 @@ export function FocusHistory({ sessions, todayMinutes, todayCount, streak, onUpd
     format(new Date(s.started_at), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
   );
 
-  const handleSave = (data: { status: 'completed' | 'abandoned'; rating: 'bad' | 'good' | 'great' | null; notes: string | null }) => {
+  const handleSave = (data: { status: 'completed' | 'abandoned'; rating: 'bad' | 'good' | 'great' | null; notes: string | null; pillar: string | null }) => {
     if (editingSession && onUpdateSession) {
       onUpdateSession(editingSession.id, data);
     }

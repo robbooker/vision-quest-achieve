@@ -48,6 +48,7 @@ type UpdateSessionInput = {
   rating?: 'bad' | 'good' | 'great' | null;
   notes?: string | null;
   planned_duration_minutes?: number;
+  pillar?: string | null;
 };
 
 export const useFocusSessions = () => {
@@ -210,6 +211,7 @@ export const useFocusSessions = () => {
       if (input.rating !== undefined) updateData.rating = input.rating;
       if (input.notes !== undefined) updateData.notes = input.notes;
       if (input.planned_duration_minutes !== undefined) updateData.planned_duration_minutes = input.planned_duration_minutes;
+      if (input.pillar !== undefined) updateData.pillar = input.pillar;
 
       const { data, error } = await supabase
         .from('focus_sessions')

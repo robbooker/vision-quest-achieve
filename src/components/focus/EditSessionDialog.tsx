@@ -3,21 +3,32 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { ThumbsDown, Meh, ThumbsUp } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ThumbsDown, Meh, ThumbsUp, Hexagon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { FocusSession } from '@/hooks/useFocusSessions';
+
+const PRIMED_PILLARS = [
+  { value: 'physical', label: 'Physical' },
+  { value: 'relations', label: 'Relations' },
+  { value: 'income', label: 'Income' },
+  { value: 'mental', label: 'Mental' },
+  { value: 'excellence', label: 'Excellence' },
+  { value: 'direction', label: 'Direction' },
+];
 
 interface EditSessionDialogProps {
   session: FocusSession | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (data: { status: 'completed' | 'abandoned'; rating: 'bad' | 'good' | 'great' | null; notes: string | null }) => void;
+  onSave: (data: { status: 'completed' | 'abandoned'; rating: 'bad' | 'good' | 'great' | null; notes: string | null; pillar: string | null }) => void;
 }
 
 export function EditSessionDialog({ session, open, onOpenChange, onSave }: EditSessionDialogProps) {
   const [status, setStatus] = useState<'completed' | 'abandoned'>('completed');
   const [rating, setRating] = useState<'bad' | 'good' | 'great' | null>(null);
   const [notes, setNotes] = useState('');
+  const [pillar, setPillar] = useState<string | null>(null);
 
   // Reset form when session changes
   useState(() => {
@@ -25,6 +36,7 @@ export function EditSessionDialog({ session, open, onOpenChange, onSave }: EditS
       setStatus(session.status === 'abandoned' ? 'abandoned' : 'completed');
       setRating((session as any).rating || null);
       setNotes(session.notes || '');
+      setPillar(session.pillar || null);
     }
   });
 
@@ -33,19 +45,20 @@ export function EditSessionDialog({ session, open, onOpenChange, onSave }: EditS
       setStatus(session.status === 'abandoned' ? 'abandoned' : 'completed');
       setRating((session as any).rating || null);
       setNotes(session.notes || '');
+      setPillar(session.pillar || null);
     }
     onOpenChange(newOpen);
   };
 
   const handleSave = () => {
-    onSave({ status, rating, notes: notes || null });
+    onSave({ status, rating, notes: notes || null, pillar });
     onOpenChange(false);
   };
 
   const ratingOptions = [
     { value: 'bad' as const, label: 'Bad', icon: ThumbsDown, color: 'text-destructive' },
     { value: 'good' as const, label: 'Good', icon: Meh, color: 'text-chart-3' },
-    { value: 'great' as const, label: 'Great', icon: ThumbsUp, color: 'text-chart-2' },
+    { value: 'great' as const, label: 'Great', icon: ThumbsUp, color: 'text-primary' },
   ];
 
   return (
@@ -109,6 +122,27 @@ export function EditSessionDialog({ session, open, onOpenChange, onSave }: EditS
               </div>
             </div>
           )}
+
+          {/* PRIMED Pillar */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Hexagon className="h-4 w-4" />
+              PRIMED Pillar (optional)
+            </Label>
+            <Select value={pillar || 'none'} onValueChange={(v) => setPillar(v === 'none' ? null : v)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select pillar" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {PRIMED_PILLARS.map((p) => (
+                  <SelectItem key={p.value} value={p.value}>
+                    {p.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           {/* Notes */}
           <div className="space-y-2">

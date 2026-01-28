@@ -5,12 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface ShortScoutEntry {
-  entry_date: string;
-  trade_count: number;
-  total_pnl: number;
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -25,6 +19,8 @@ Deno.serve(async (req) => {
       throw new Error('Short Scout credentials not configured');
     }
 
+    console.log('Short Scout URL:', shortScoutUrl);
+
     // Get local Supabase credentials
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -33,13 +29,11 @@ Deno.serve(async (req) => {
     const shortScoutClient = createClient(shortScoutUrl, shortScoutKey);
     const localClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Parse request body for optional user_id filter or date range
-    let userId: string | null = null;
-    let syncDays = 30; // Default to last 30 days
+    // Parse request body for optional parameters
+    let syncDays = 30;
     
     try {
       const body = await req.json();
-      userId = body.user_id || null;
       syncDays = body.sync_days || 30;
     } catch {
       // No body provided, use defaults
@@ -52,8 +46,20 @@ Deno.serve(async (req) => {
 
     console.log(`Syncing trading journal from ${startDateStr} to today...`);
 
+    // Test connection first with a simple query
+    const { count, error: countError } = await shortScoutClient
+      .from('trade_journal_entries')
+      .select('*', { count: 'exact', head: true });
+
+    if (countError) {
+      console.error('Connection test failed:', countError);
+      // If we can't even count, the table might not exist or RLS is blocking
+      throw new Error(`Cannot access Short Scout table: ${countError.message}`);
+    }
+
+    console.log(`Short Scout has approximately ${count} total entries`);
+
     // Fetch aggregated data from Short Scout
-    // Using RPC would be ideal but we'll query directly
     const { data: rawEntries, error: fetchError } = await shortScoutClient
       .from('trade_journal_entries')
       .select('entry_date, calculated_pnl, user_id')
@@ -66,72 +72,47 @@ Deno.serve(async (req) => {
     }
 
     if (!rawEntries || rawEntries.length === 0) {
-      console.log('No trading entries found in Short Scout');
+      console.log('No trading entries found in Short Scout for the date range');
       return new Response(
         JSON.stringify({ success: true, message: 'No entries to sync', synced: 0 }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    console.log(`Found ${rawEntries.length} raw entries from Short Scout`);
+
     // Aggregate by user_id and entry_date
-    const aggregated = new Map<string, { trade_count: number; total_pnl: number; user_id: string }>();
+    const aggregated = new Map<string, { trade_count: number; total_pnl: number; user_id: string; entry_date: string }>();
     
     for (const entry of rawEntries) {
       const key = `${entry.user_id}:${entry.entry_date}`;
-      const existing = aggregated.get(key) || { trade_count: 0, total_pnl: 0, user_id: entry.user_id };
+      const existing = aggregated.get(key) || { 
+        trade_count: 0, 
+        total_pnl: 0, 
+        user_id: entry.user_id,
+        entry_date: entry.entry_date 
+      };
       existing.trade_count += 1;
       existing.total_pnl += Number(entry.calculated_pnl) || 0;
       aggregated.set(key, existing);
     }
 
-    console.log(`Found ${aggregated.size} unique user/date combinations to sync`);
+    console.log(`Aggregated into ${aggregated.size} unique user/date combinations`);
 
-    // Find matching users in Groovy Planning by looking at profiles
-    // We need to map Short Scout user_ids to Groovy Planning user_ids
-    // For now, we'll assume the same user has the same email in both systems
-    
-    // Get all Short Scout user IDs
-    const shortScoutUserIds = [...new Set(rawEntries.map(e => e.user_id))];
-    
-    // For each aggregated entry, upsert into trading_pnl
-    // Since we can't easily map users between systems, we'll need a way to link them
-    // Option 1: Same user ID (if user exists in both)
-    // Option 2: Match by email (requires profile lookup)
-    // For simplicity, let's check if the user exists in our profiles table
-    
+    // Get local profiles to map users
     const { data: localProfiles } = await localClient
       .from('profiles')
-      .select('user_id, email')
-      .not('email', 'is', null);
+      .select('user_id');
 
-    // Create email-to-userId map for Groovy Planning
-    const emailToLocalUserId = new Map<string, string>();
-    for (const profile of localProfiles || []) {
-      if (profile.email) {
-        emailToLocalUserId.set(profile.email.toLowerCase(), profile.user_id);
-      }
-    }
+    const localUserIds = new Set((localProfiles || []).map(p => p.user_id));
+    console.log(`Found ${localUserIds.size} local users to potentially match`);
 
-    // Fetch Short Scout user emails (this may not work without service role)
-    // We'll try direct user_id matching first
     let syncedCount = 0;
     const errors: string[] = [];
 
-    for (const [key, data] of aggregated) {
-      const [ssUserId, entryDate] = key.split(':');
-      
-      // Try to find this user in Groovy Planning
-      // First, check if user_id directly exists
-      const { data: existingProfile } = await localClient
-        .from('profiles')
-        .select('user_id')
-        .eq('user_id', ssUserId)
-        .maybeSingle();
-
-      const localUserId = existingProfile?.user_id;
-
-      if (!localUserId) {
-        // Skip users that don't exist in Groovy Planning
+    for (const [, data] of aggregated) {
+      // Only sync if the user exists in Groovy Planning
+      if (!localUserIds.has(data.user_id)) {
         continue;
       }
 
@@ -139,8 +120,8 @@ Deno.serve(async (req) => {
       const { error: upsertError } = await localClient
         .from('trading_pnl')
         .upsert({
-          user_id: localUserId,
-          trade_date: entryDate,
+          user_id: data.user_id,
+          trade_date: data.entry_date,
           pnl_amount: data.total_pnl,
           trade_count: data.trade_count,
           notes: 'Synced from Short Scout',
@@ -150,8 +131,8 @@ Deno.serve(async (req) => {
         });
 
       if (upsertError) {
-        console.error(`Error upserting for ${entryDate}:`, upsertError);
-        errors.push(`${entryDate}: ${upsertError.message}`);
+        console.error(`Error upserting for ${data.entry_date}:`, upsertError);
+        errors.push(`${data.entry_date}: ${upsertError.message}`);
       } else {
         syncedCount++;
       }
@@ -163,7 +144,8 @@ Deno.serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         synced: syncedCount,
-        total_found: aggregated.size,
+        total_found: rawEntries.length,
+        aggregated_count: aggregated.size,
         errors: errors.length > 0 ? errors : undefined
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

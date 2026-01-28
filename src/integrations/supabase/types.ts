@@ -483,6 +483,57 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_nutrition: {
+        Row: {
+          calories: number | null
+          carbs_g: number | null
+          created_at: string
+          entry_date: string
+          fats_g: number | null
+          fiber_g: number | null
+          id: string
+          meal_description: string
+          meal_type: string | null
+          protein_g: number | null
+          source: string
+          sugar_g: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          calories?: number | null
+          carbs_g?: number | null
+          created_at?: string
+          entry_date?: string
+          fats_g?: number | null
+          fiber_g?: number | null
+          id?: string
+          meal_description: string
+          meal_type?: string | null
+          protein_g?: number | null
+          source?: string
+          sugar_g?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          calories?: number | null
+          carbs_g?: number | null
+          created_at?: string
+          entry_date?: string
+          fats_g?: number | null
+          fiber_g?: number | null
+          id?: string
+          meal_description?: string
+          meal_type?: string | null
+          protein_g?: number | null
+          source?: string
+          sugar_g?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       feedback: {
         Row: {
           added_to_tasks: boolean
@@ -2394,6 +2445,39 @@ export type Database = {
           refresh_token?: string
           token_expires_at?: string
           updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_nutrition_settings: {
+        Row: {
+          carbs_goal_g: number | null
+          created_at: string
+          daily_calorie_goal: number | null
+          fats_goal_g: number | null
+          id: string
+          protein_goal_g: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          carbs_goal_g?: number | null
+          created_at?: string
+          daily_calorie_goal?: number | null
+          fats_goal_g?: number | null
+          id?: string
+          protein_goal_g?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          carbs_goal_g?: number | null
+          created_at?: string
+          daily_calorie_goal?: number | null
+          fats_goal_g?: number | null
+          id?: string
+          protein_goal_g?: number | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: []

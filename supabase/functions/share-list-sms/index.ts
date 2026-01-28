@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
     const listTitle = (share.lists as any)?.title || "a list";
 
     // Build the public URL
-    const publicUrl = `https://vision-quest-achieve.lovable.app/list/view/${share.access_token}`;
+    const publicUrl = `https://groovyplanning.ai/list/view/${share.access_token}`;
 
     // Send SMS via Twilio
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;

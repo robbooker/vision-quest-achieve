@@ -109,12 +109,12 @@ export default function PublicRecap() {
           <p className="text-sm text-muted-foreground">
             Created with{" "}
             <a 
-              href="https://vision-quest-achieve.lovable.app" 
+              href="https://groovyplanning.ai" 
               className="text-primary hover:underline"
               target="_blank"
               rel="noopener noreferrer"
             >
-              Vision Quest
+              Groovy Planning
             </a>
           </p>
         </div>

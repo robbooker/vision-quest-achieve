@@ -1,105 +1,279 @@
 
 
-# Fix Manual Sleep Entry for After-Midnight Bedtimes
+# Fuel & Nutrition Integration - Complete Implementation Plan
 
-## Problem
-When you go to bed after midnight (e.g., 1:00 AM Wednesday) and wake up later that same morning (e.g., 7:00 AM Wednesday), the current system incorrectly assumes bedtime was on the previous day (Tuesday at 1:00 AM), resulting in a wrong 30+ hour sleep duration calculation.
+## Overview
 
-## Root Cause
-The dialog currently assumes bedtime is **always** on the night before the wake date, using `subDays(selectedDate, 1)` unconditionally.
+Add a comprehensive **Fuel & Nutrition** tracking system to the Physical pillar of Groovy Planning. This feature will allow users to log meals via audio transcription or manual entry, with AI-powered macro extraction using the already-configured Lovable AI (Gemini).
 
----
-
-## Solution: Add "Same Day" Toggle
-
-Add a simple toggle switch that lets users indicate whether they went to bed before or after midnight. This is the clearest UX approach.
+**Key Advantage**: Using Gemini AI for nutrition parsing eliminates the need for external API keys (no Nutritionix, Edamam, or API-Ninjas required).
 
 ---
 
-## Implementation Details
+## Architecture
 
-### File: `src/components/dashboard/ManualSleepEntryDialog.tsx`
-
-**Changes:**
-
-1. **Add new state for same-day bedtime:**
-   - `const [bedtimeAfterMidnight, setBedtimeAfterMidnight] = useState(false);`
-
-2. **Update `getBedtimeDate()` function:**
-   ```typescript
-   const getBedtimeDate = () => {
-     // If user went to bed after midnight, bedtime is on the same day as wake time
-     if (bedtimeAfterMidnight) {
-       return selectedDate;
-     }
-     return subDays(selectedDate, 1);
-   };
-   ```
-
-3. **Add toggle UI below the bedtime input:**
-   - Label: "I went to bed after midnight"
-   - When checked, bedtime date shows the same day as wake date
-   - The "night before" label dynamically updates
-
-4. **Update helper text:**
-   - When toggle is OFF: "Bedtime (night before)" → shows previous day date
-   - When toggle is ON: "Bedtime (same day)" → shows same day date
-
-5. **Auto-detect logic (optional enhancement):**
-   - If bedtime is between 00:00-06:00 (midnight to 6 AM), auto-suggest same-day mode
-
-### Visual Changes
-
-**Before:**
-```
-Bedtime (night before)
-[10:00 PM]
-Tuesday, Jan 27
-
-Wake time
-[7:00 AM]
-Wednesday, Jan 28
-```
-
-**After (with toggle OFF - normal):**
-```
-Bedtime (night before)
-[10:00 PM]
-Tuesday, Jan 27
-
-[Toggle] I went to bed after midnight
-
-Wake time
-[7:00 AM]
-Wednesday, Jan 28
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                        TODAY PAGE                                │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │ Daily Fuel Card                                             │ │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │ │
+│  │  │ 🎤 Voice Log │  │ ✏️ Manual    │  │ 📊 Macro Summary │  │ │
+│  │  └──────────────┘  └──────────────┘  └──────────────────┘  │ │
+│  │                                                             │ │
+│  │  Meal List:                                                 │ │
+│  │  ┌──────────────────────────────────────────────────────┐  │ │
+│  │  │ 🍳 3 eggs, wheat toast   │ 420 cal │ 28g P │ [Edit]  │  │ │
+│  │  │ 🥗 Chicken salad         │ 380 cal │ 35g P │ [Edit]  │  │ │
+│  │  └──────────────────────────────────────────────────────┘  │ │
+│  │                                                             │ │
+│  │  Daily Totals vs Goals:                                    │ │
+│  │  Calories: 800 / 2000  │  Protein: 63g / 150g              │ │
+│  │  Net Energy: +450 (Active Cal: 350)                        │ │
+│  └────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    EDGE FUNCTION                                 │
+│  parse-nutrition                                                 │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │ Input: "I ate 3 scrambled eggs and a piece of toast"       │ │
+│  │                        ▼                                    │ │
+│  │ Gemini AI (google/gemini-2.5-flash)                        │ │
+│  │                        ▼                                    │ │
+│  │ Output: { calories: 420, protein_g: 28, carbs_g: 32, ... } │ │
+│  └────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    AI DAILY INSIGHT                              │
+│  generate-daily-insight (enhanced)                               │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │ New Strategic Warnings:                                     │ │
+│  │ • Low Protein + High Activity → Recovery meal suggestion   │ │
+│  │ • High Carbs + Low Readiness → Cognitive Slump warning     │ │
+│  │ • Net Fuel calculation (Active Cal vs Consumed Cal)        │ │
+│  └────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-**After (with toggle ON - late night):**
-```
-Bedtime (same day)
-[01:00 AM]
-Wednesday, Jan 28    ← Now shows same day!
+---
 
-[Toggle ✓] I went to bed after midnight
+## Implementation Tasks
 
-Wake time
-[7:00 AM]
-Wednesday, Jan 28
+### Task 1: Create Nutrition Parsing Edge Function
+
+**File**: `supabase/functions/parse-nutrition/index.ts`
+
+**Purpose**: Parse natural language meal descriptions into structured nutrition data using Gemini AI.
+
+**Key Logic**:
+```typescript
+const prompt = `You are a nutrition expert. Parse this meal description and estimate macros.
+
+Meal: "${mealDescription}"
+
+Respond ONLY with valid JSON:
+{
+  "calories": 420,
+  "protein_g": 28,
+  "carbs_g": 32,
+  "fats_g": 18,
+  "sugar_g": 5,
+  "fiber_g": 4,
+  "parsed_items": ["3 scrambled eggs", "1 slice whole wheat toast"]
+}`;
 ```
+
+**Configuration**: Add to `supabase/config.toml`:
+```toml
+[functions.parse-nutrition]
+verify_jwt = false
+```
+
+---
+
+### Task 2: Create Nutrition Data Hook
+
+**File**: `src/hooks/useNutrition.ts`
+
+**Purpose**: Manage nutrition state, CRUD operations, and settings.
+
+**Features**:
+- `useTodayNutrition()` - Fetch today's meal entries
+- `useNutritionSettings()` - Fetch/update calorie/macro goals
+- `logMeal()` - Create new meal entry
+- `updateMeal()` - Edit existing meal entry
+- `deleteMeal()` - Remove meal entry
+- `getTodayTotals()` - Calculate daily macro totals
+- `getNetEnergy()` - Compare consumed vs burned (using Oura active calories)
+
+---
+
+### Task 3: Build Daily Fuel UI Component
+
+**File**: `src/components/nutrition/DailyFuelCard.tsx`
+
+**Purpose**: Main nutrition tracking interface on Today page.
+
+**Features**:
+- Audio input button (opens voice recorder for meal logging)
+- Manual "Add Meal" button
+- List of today's meals with edit capability
+- Macro progress bars (Protein/Carbs/Fats)
+- Net Energy indicator showing balance vs Oura active calories
+- Daily goal settings access
+
+---
+
+### Task 4: Create Meal Entry Dialog
+
+**File**: `src/components/nutrition/MealEntryDialog.tsx`
+
+**Purpose**: Modal for adding/editing meal entries.
+
+**Features**:
+- Text input for meal description
+- Voice input option (reuses existing audio transcription pattern)
+- Auto-populated macro fields after AI parsing
+- Manual override for all macro values
+- Save/Cancel/Delete actions
+
+---
+
+### Task 5: Create Voice Meal Logger
+
+**File**: `src/components/nutrition/VoiceMealRecorder.tsx`
+
+**Purpose**: Simplified voice input for quick meal logging.
+
+**Flow**:
+1. User taps microphone → starts recording
+2. User describes meal → stops recording
+3. Audio sent to `transcribe-audio` function (lightweight transcription only)
+4. Transcript sent to `parse-nutrition` function
+5. Parsed macros displayed for confirmation
+6. User can edit before saving
+
+---
+
+### Task 6: Create Nutrition Settings Component
+
+**File**: `src/components/nutrition/NutritionSettingsDialog.tsx`
+
+**Purpose**: Configure daily calorie/macro goals.
+
+**Fields**:
+- Daily Calorie Goal (default: 2000)
+- Protein Goal (g) (default: 150)
+- Carbs Goal (g) (default: 200)
+- Fats Goal (g) (default: 65)
+
+---
+
+### Task 7: Integrate with AI Daily Insight
+
+**File**: `supabase/functions/generate-daily-insight/index.ts` (modify)
+
+**Enhancements**:
+1. Fetch daily nutrition totals for the journal date
+2. Calculate Net Fuel: `Active Calories (Oura) - Calories Consumed`
+3. Add new strategic warnings:
+
+```typescript
+// Low Protein + High Activity Warning
+if (totalProtein < 100 && ouraMetrics.active_calories > 500) {
+  strategicWarnings.push(
+    "**🥩 Recovery Gap:** High activity with only ${totalProtein}g protein. " +
+    "Suggest a protein-rich meal to support muscle recovery."
+  );
+}
+
+// High Carbs + Low Readiness Warning
+if (totalCarbs > 200 && (ouraMetrics.readiness_score ?? 100) < 70) {
+  strategicWarnings.push(
+    "**⚠️ Cognitive Slump Risk:** High carb intake (${totalCarbs}g) combined with " +
+    "low readiness. Afternoon brain fog likely—consider lighter carbs and caffeine timing."
+  );
+}
+
+// Net Energy Status
+const netFuel = consumedCalories - activeCalories;
+if (netFuel > 500) {
+  strategicWarnings.push(
+    `**📊 Fuel Surplus:** +${netFuel} net calories. Good for recovery days; ` +
+    `watch accumulation on consecutive rest days.`
+  );
+} else if (netFuel < -300) {
+  strategicWarnings.push(
+    `**📊 Fuel Deficit:** ${netFuel} net calories. Sustainable for fat loss; ` +
+    `ensure protein stays high to preserve lean mass.`
+  );
+}
+```
+
+---
+
+### Task 8: Add to Today Page Layout
+
+**File**: `src/pages/Today.tsx` (modify)
+
+**Changes**:
+- Import `DailyFuelCard`
+- Add to grid layout in the right column alongside PerformanceAuditCard
+- Pass Oura active calories to component for Net Energy calculation
+
+---
+
+## Database Schema (Already Created)
+
+The migration has already created:
+
+**`daily_nutrition`** table:
+- `id`, `user_id`, `entry_date`
+- `meal_description`, `meal_type`
+- `calories`, `protein_g`, `carbs_g`, `fats_g`, `sugar_g`, `fiber_g`
+- `source` ('manual' | 'audio')
+- RLS policies enabled
+
+**`user_nutrition_settings`** table:
+- `daily_calorie_goal`, `protein_goal_g`, `carbs_goal_g`, `fats_goal_g`
+- Unique per user
 
 ---
 
 ## File Changes Summary
 
-| File | Change |
-|------|--------|
-| `src/components/dashboard/ManualSleepEntryDialog.tsx` | Add toggle state, update date logic, add toggle UI |
+| File | Action | Description |
+|------|--------|-------------|
+| `supabase/functions/parse-nutrition/index.ts` | Create | AI-powered nutrition parsing |
+| `supabase/config.toml` | Modify | Add parse-nutrition config |
+| `src/hooks/useNutrition.ts` | Create | Nutrition data management |
+| `src/components/nutrition/DailyFuelCard.tsx` | Create | Main UI component |
+| `src/components/nutrition/MealEntryDialog.tsx` | Create | Add/edit meal modal |
+| `src/components/nutrition/VoiceMealRecorder.tsx` | Create | Voice input for meals |
+| `src/components/nutrition/NutritionSettingsDialog.tsx` | Create | Goal configuration |
+| `supabase/functions/generate-daily-insight/index.ts` | Modify | Add nutrition-based warnings |
+| `src/pages/Today.tsx` | Modify | Integrate DailyFuelCard |
 
 ---
 
-## Edge Case Handling
+## Strategic AI Logic Summary
 
-- **Toggle persists** during edit mode if the existing entry has bedtime on same day as wake
-- **Duration calculation** automatically adjusts based on toggle state
-- **Validation**: If toggled ON but bedtime > wakeTime (e.g., 8 AM bedtime, 7 AM wake), show error
+| Condition | Warning Type | Message |
+|-----------|--------------|---------|
+| Protein < 100g AND Active Cal > 500 | Recovery Gap | Suggest protein-rich meal |
+| Carbs > 200g AND Readiness < 70 | Cognitive Slump | Warn of afternoon fatigue for trading |
+| Net Fuel > +500 | Fuel Surplus | Good for recovery, watch accumulation |
+| Net Fuel < -300 | Fuel Deficit | Sustainable for fat loss, prioritize protein |
+| Sugar > 50g AND Readiness < 75 | Compounded Fatigue | Blood sugar crash + low recovery |
+
+---
+
+## Technical Notes
+
+1. **No External API Keys Required**: Gemini AI handles nutrition parsing via the existing LOVABLE_API_KEY
+2. **Voice Input Reuse**: Leverages existing audio transcription infrastructure
+3. **Hybrid Data**: Works alongside Oura metrics for comprehensive biometric + nutrition insights
+4. **RLS Protected**: All nutrition data is user-scoped with proper row-level security
 

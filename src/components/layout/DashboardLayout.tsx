@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useTerminalMode } from '@/hooks/useTerminalMode';
@@ -20,6 +20,7 @@ import { Footer } from '@/components/layout/Footer';
 import gpLogo from '@/assets/gp-logo.png';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { JournalChat } from '@/components/journal/JournalChat';
+import { UniversalSearch, SearchTrigger } from '@/components/search/UniversalSearch';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -50,6 +51,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { isTerminal, labels } = useTerminalMode();
   const { isAdmin } = useUserRole();
   const location = useLocation();
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const userInitials = user?.email
     ? user.email.substring(0, 2).toUpperCase()
@@ -114,6 +116,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
 
           <div className="flex items-center gap-2">
+            <SearchTrigger onClick={() => setSearchOpen(true)} />
             <span data-tour="notifications">
               <NotificationBell />
             </span>
@@ -228,6 +231,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       
       {/* Global Reflection Assistant */}
       <JournalChat />
+      
+      {/* Universal Search */}
+      <UniversalSearch open={searchOpen} onOpenChange={setSearchOpen} />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -9,12 +9,23 @@ import { CreateListDialog } from "@/components/lists/CreateListDialog";
 import { Plus, FileText, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
+import { useSharedNotesRealtime, markNoteAsViewed } from "@/hooks/useSharedNotesRealtime";
+import { useToastNotification } from "@/components/notifications/ToastProvider";
 
 export default function Notes() {
   const { lists, isLoading, createList, deleteList, updateList } = useLists();
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  
+  const { showToast } = useToastNotification();
+  
+  // Hook up realtime notifications for shared notes
+  const handleToast = useCallback((notification: { title: string; message: string; type: string }) => {
+    showToast(notification);
+  }, [showToast]);
+  
+  useSharedNotesRealtime(handleToast);
 
   const { data: selectedList } = useList(selectedListId || undefined);
 
@@ -38,6 +49,11 @@ export default function Notes() {
     if (selectedListId) {
       updateList.mutate({ id: selectedListId, title });
     }
+  };
+
+  const handleSelectNote = (listId: string) => {
+    markNoteAsViewed(listId);
+    setSelectedListId(listId);
   };
 
   return (
@@ -110,7 +126,7 @@ export default function Notes() {
                   <ListCard
                     key={list.id}
                     list={list}
-                    onClick={() => setSelectedListId(list.id)}
+                    onClick={() => handleSelectNote(list.id)}
                   />
                 ))}
               </div>

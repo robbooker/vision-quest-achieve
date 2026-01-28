@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { format, parseISO } from 'date-fns';
+import ReactMarkdown from 'react-markdown';
 import { 
   ImageIcon, 
   RefreshCw, 
@@ -326,9 +327,9 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
               <Skeleton className="h-4 w-4/6" />
             </div>
           ) : entry.ai_daily_insight ? (
-            <p className="text-sm text-muted-foreground italic leading-relaxed">
-              "{entry.ai_daily_insight}"
-            </p>
+            <div className="prose prose-sm dark:prose-invert max-w-none text-sm text-muted-foreground [&>p]:mb-3 [&>p:last-child]:mb-0 [&>strong]:text-foreground [&>strong]:font-semibold">
+              <ReactMarkdown>{entry.ai_daily_insight}</ReactMarkdown>
+            </div>
           ) : totalAccomplishments > 0 ? (
             <Button
               size="sm"

@@ -176,26 +176,28 @@ serve(async (req) => {
     // Build goals context
     const activeGoals = (goals || []).map((g) => `- ${g.title} (${g.pillar})`).join("\n");
 
-    // Build prompt
-    const prompt = `You are a thoughtful personal development coach. Analyze this day's activities against the user's P.R.I.M.E.D. pillar priorities.
+    // Build prompt - Strategic performance coach style
+    const prompt = `Act as a high-level performance coach and strategist. Analyze the user's journal and habit data for ${entry.entry_date}.
 
 ${assessment ? `USER'S CURRENT PILLAR STATUS:
-${pillarStatus.map((p) => `- ${p.name}: Level ${p.level}${p.isFoundation ? " (foundation pillar)" : ""}`).join("\n")}
-
-Foundation pillars (Physical, Mental, Relations) must reach Level 1 before advancing others.` : "No PRIMED assessment completed yet."}
+${pillarStatus.map((p) => `- ${p.name}: Level ${p.level}${p.isFoundation ? " (foundation pillar)" : ""}`).join("\n")}` : "No PRIMED assessment completed yet."}
 
 TODAY'S ACTIVITIES:
 ${activitiesWithPillars.join("\n") || "No activities logged"}
 
-${activeGoals ? `ACTIVE GOALS BY PILLAR:\n${activeGoals}` : "No active goals with pillars assigned."}
+${activeGoals ? `ACTIVE GOALS BY PILLAR:\n${activeGoals}` : ""}
 
-Write a brief, warm paragraph (3-5 sentences) that:
-1. Acknowledges what pillars received attention today
-2. Notes any gaps or imbalances compared to their assessment priorities
-3. Offers a gentle insight or question for reflection
-4. Never lectures—be encouraging and curious
+Provide a brief analysis in this exact structure:
 
-Write in flowing prose. Do NOT use bullet points or lists. Be conversational and supportive.`;
+**The Audit:** Briefly highlight the strongest pillar of the day with a 'Why it mattered' insight.
+
+**The Divergence:** Identify the pillar that was most neglected and hypothesize one small 'frictionless' way to address it tomorrow.
+
+**The Mental Model:** Connect today's effort to a concept (e.g., Stoic 'Amor Fati', Munger's 'Inversion', or 'Compounding Interest').
+
+TONE: Be intelligent, slightly witty, and direct. Use declarative, insightful sentences. Never say "It's wonderful to see..." or "I wonder if...". No filler phrases.
+
+Keep the response concise - 3-4 sentences per section maximum.`;
 
     console.log("Generating daily insight...");
 
@@ -217,7 +219,7 @@ Write in flowing prose. Do NOT use bullet points or lists. Be conversational and
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [{ role: "user", content: prompt }],
-        max_tokens: 300,
+        max_tokens: 600,
       }),
     });
 

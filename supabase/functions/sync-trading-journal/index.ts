@@ -44,63 +44,38 @@ Deno.serve(async (req) => {
 
     console.log(`Syncing trading journal from ${startDateStr} to today...`);
 
-    // Get Short Scout profiles to map user_id -> email
-    const { data: ssProfiles, error: ssProfilesError } = await shortScoutClient
+    // Get profiles with Short Scout user_id mappings
+    const { data: profiles, error: profilesError } = await localClient
       .from('profiles')
-      .select('user_id, email');
+      .select('user_id, short_scout_user_id')
+      .not('short_scout_user_id', 'is', null);
 
-    if (ssProfilesError) {
-      console.error('Error fetching Short Scout profiles:', ssProfilesError);
-      throw new Error(`Cannot access Short Scout profiles: ${ssProfilesError.message}`);
+    if (profilesError) {
+      console.error('Error fetching profiles:', profilesError);
+      throw new Error(`Cannot fetch profiles: ${profilesError.message}`);
     }
 
-    // Create Short Scout user_id -> email map
-    const ssUserIdToEmail = new Map<string, string>();
-    for (const profile of ssProfiles || []) {
-      if (profile.email) {
-        ssUserIdToEmail.set(profile.user_id, profile.email.toLowerCase());
-      }
-    }
-
-    console.log(`Found ${ssUserIdToEmail.size} Short Scout users with emails`);
-
-    // Get local profiles to map email -> user_id
-    const { data: localProfiles } = await localClient
-      .from('profiles')
-      .select('user_id, email');
-
-    const emailToLocalUserId = new Map<string, string>();
-    for (const profile of localProfiles || []) {
-      if (profile.email) {
-        emailToLocalUserId.set(profile.email.toLowerCase(), profile.user_id);
-      }
-    }
-
-    console.log(`Found ${emailToLocalUserId.size} Groovy Planning users with emails`);
-
-    // Build Short Scout user_id -> Groovy Planning user_id mapping
-    const ssToLocalUserMap = new Map<string, string>();
-    for (const [ssUserId, email] of ssUserIdToEmail) {
-      const localUserId = emailToLocalUserId.get(email);
-      if (localUserId) {
-        ssToLocalUserMap.set(ssUserId, localUserId);
-        console.log(`Matched user: ${email}`);
-      }
-    }
-
-    if (ssToLocalUserMap.size === 0) {
+    if (!profiles || profiles.length === 0) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          message: 'No matching users found between Short Scout and Groovy Planning. Make sure you use the same email in both apps.' 
+          message: 'No users have linked their Short Scout account. Go to Settings → Profile to add your Short Scout user ID.' 
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Matched ${ssToLocalUserMap.size} users between projects`);
+    // Build mapping: Short Scout user_id -> Groovy Planning user_id
+    const ssToLocalUserMap = new Map<string, string>();
+    for (const profile of profiles) {
+      if (profile.short_scout_user_id) {
+        ssToLocalUserMap.set(profile.short_scout_user_id, profile.user_id);
+      }
+    }
 
-    // Fetch trading entries for matched users
+    console.log(`Found ${ssToLocalUserMap.size} users with Short Scout linked`);
+
+    // Fetch trading entries for mapped users
     const matchedSsUserIds = [...ssToLocalUserMap.keys()];
     
     const { data: rawEntries, error: fetchError } = await shortScoutClient
@@ -116,7 +91,7 @@ Deno.serve(async (req) => {
     }
 
     if (!rawEntries || rawEntries.length === 0) {
-      console.log('No trading entries found in Short Scout for matched users');
+      console.log('No trading entries found in Short Scout for linked users');
       return new Response(
         JSON.stringify({ success: true, message: 'No entries to sync', synced: 0 }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -179,7 +154,7 @@ Deno.serve(async (req) => {
         success: true, 
         synced: syncedCount,
         total_found: rawEntries.length,
-        matched_users: ssToLocalUserMap.size,
+        linked_users: ssToLocalUserMap.size,
         errors: errors.length > 0 ? errors : undefined
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

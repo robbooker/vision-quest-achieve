@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { User, Check, Loader2, Phone, MessageSquare, Trash2, Hash } from 'lucide-react';
+import { User, Check, Loader2, Phone, MessageSquare, Trash2, Hash, Link2, RefreshCw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -20,6 +20,7 @@ interface ProfileData {
   consent_sms: boolean | null;
   consent_whatsapp: boolean | null;
   member_pin: string | null;
+  short_scout_user_id: string | null;
 }
 
 export function ProfileSettings() {
@@ -31,11 +32,13 @@ export function ProfileSettings() {
   const [consentSms, setConsentSms] = useState(false);
   const [consentWhatsapp, setConsentWhatsapp] = useState(false);
   const [memberPin, setMemberPin] = useState<string | null>(null);
+  const [shortScoutUserId, setShortScoutUserId] = useState('');
   
   const [originalData, setOriginalData] = useState<ProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const formatUsPhone = (value: string) => {
     const digits = value.replace(/\D/g, "").slice(0, 10);
@@ -56,7 +59,7 @@ export function ProfileSettings() {
       
       const { data, error } = await supabase
         .from('profiles')
-        .select('display_name, phone_us, phone_whatsapp, consent_email, consent_sms, consent_whatsapp, member_pin')
+        .select('display_name, phone_us, phone_whatsapp, consent_email, consent_sms, consent_whatsapp, member_pin, short_scout_user_id')
         .eq('user_id', user.id)
         .single();
       
@@ -70,7 +73,11 @@ export function ProfileSettings() {
         setConsentSms(data.consent_sms || false);
         setConsentWhatsapp(data.consent_whatsapp || false);
         setMemberPin(data.member_pin);
-        setOriginalData(data);
+        setShortScoutUserId(data.short_scout_user_id || '');
+        setOriginalData({
+          ...data,
+          short_scout_user_id: data.short_scout_user_id || null
+        });
       }
       setIsLoading(false);
     }
@@ -87,8 +94,31 @@ export function ProfileSettings() {
       phoneWhatsapp !== (originalData.phone_whatsapp || '') ||
       consentEmail !== (originalData.consent_email || false) ||
       consentSms !== (originalData.consent_sms || false) ||
-      consentWhatsapp !== (originalData.consent_whatsapp || false)
+      consentWhatsapp !== (originalData.consent_whatsapp || false) ||
+      shortScoutUserId !== (originalData.short_scout_user_id || '')
     );
+  };
+
+  const handleSyncShortScout = async () => {
+    setIsSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-trading-journal', {
+        body: { sync_days: 60 }
+      });
+      
+      if (error) throw error;
+      
+      if (data.success) {
+        toast.success(`Synced ${data.synced} trading entries from Short Scout`);
+      } else {
+        toast.info(data.message || 'No entries to sync');
+      }
+    } catch (error) {
+      console.error('Sync error:', error);
+      toast.error('Failed to sync trading data');
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const handleSave = async () => {
@@ -99,6 +129,7 @@ export function ProfileSettings() {
     const phoneUsDigits = phoneUs.replace(/\D/g, '') || null;
     const phoneWhatsappValue = phoneWhatsapp.trim() || null;
     const hasAnyConsent = consentEmail || consentSms || consentWhatsapp;
+    const shortScoutId = shortScoutUserId.trim() || null;
     
     const { error } = await supabase
       .from('profiles')
@@ -110,6 +141,7 @@ export function ProfileSettings() {
         consent_sms: consentSms,
         consent_whatsapp: consentWhatsapp,
         consent_timestamp: hasAnyConsent ? new Date().toISOString() : null,
+        short_scout_user_id: shortScoutId,
       })
       .eq('user_id', user.id);
     
@@ -125,6 +157,7 @@ export function ProfileSettings() {
         consent_sms: consentSms,
         consent_whatsapp: consentWhatsapp,
         member_pin: memberPin,
+        short_scout_user_id: shortScoutId,
       });
       toast.success('Profile updated');
     }
@@ -180,6 +213,62 @@ export function ProfileSettings() {
             <p className="text-sm text-muted-foreground">Not assigned</p>
           )}
           <p className="text-xs text-muted-foreground">Your unique member PIN</p>
+        </div>
+
+        <Separator />
+
+        {/* Short Scout Integration */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Link2 className="h-4 w-4 text-primary" />
+            <Label className="text-base font-medium">Short Scout Integration</Label>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Link your Short Scout account to automatically sync your trading P&L data.
+          </p>
+          
+          {isLoading ? (
+            <div className="h-10 bg-muted animate-pulse rounded-md max-w-md" />
+          ) : (
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="shortScoutUserId" className="text-sm text-muted-foreground">
+                  Short Scout User ID
+                </Label>
+                <Input
+                  id="shortScoutUserId"
+                  value={shortScoutUserId}
+                  onChange={(e) => setShortScoutUserId(e.target.value)}
+                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  className="max-w-md font-mono text-sm"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Find this in Short Scout's Settings page or browser developer tools (check your auth token).
+                </p>
+              </div>
+              
+              {shortScoutUserId && !hasChanges() && (
+                <Button 
+                  variant="outline" 
+                  onClick={handleSyncShortScout}
+                  disabled={isSyncing}
+                  className="mt-2"
+                >
+                  {isSyncing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Syncing...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Sync Trading Data Now
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          )}
         </div>
 
         <Separator />

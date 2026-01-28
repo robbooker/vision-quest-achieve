@@ -1590,6 +1590,7 @@ export type Database = {
           onboarding_completed: boolean | null
           phone_us: string | null
           phone_whatsapp: string | null
+          short_scout_user_id: string | null
           updated_at: string
           user_id: string
         }
@@ -1607,6 +1608,7 @@ export type Database = {
           onboarding_completed?: boolean | null
           phone_us?: string | null
           phone_whatsapp?: string | null
+          short_scout_user_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -1624,6 +1626,7 @@ export type Database = {
           onboarding_completed?: boolean | null
           phone_us?: string | null
           phone_whatsapp?: string | null
+          short_scout_user_id?: string | null
           updated_at?: string
           user_id?: string
         }

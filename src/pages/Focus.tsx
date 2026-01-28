@@ -138,7 +138,7 @@ export default function Focus() {
 
   const handleUpdateSession = async (
     id: string, 
-    data: { status: 'completed' | 'abandoned'; rating: 'bad' | 'good' | 'great' | null; notes: string | null }
+    data: { status: 'completed' | 'abandoned'; rating: 'bad' | 'good' | 'great' | null; notes: string | null; pillar?: string | null }
   ) => {
     try {
       await updateSession.mutateAsync({
@@ -146,6 +146,7 @@ export default function Focus() {
         status: data.status,
         rating: data.rating,
         notes: data.notes,
+        pillar: data.pillar,
       });
       toast({
         title: 'Session updated',

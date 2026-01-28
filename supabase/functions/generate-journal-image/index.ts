@@ -151,6 +151,7 @@ serve(async (req) => {
     const habits = (entry.completed_habits as any[]) || [];
     const focusSessions = (entry.completed_focus_sessions as any[]) || [];
     const createdNotes = (entry.created_notes as any[]) || [];
+    const birdSightings = (entry.bird_sightings as any[]) || [];
 
     const accomplishments: string[] = [];
     
@@ -171,6 +172,10 @@ serve(async (req) => {
     createdNotes.slice(0, 3).forEach((n: any) => {
       const pillarNote = n.pillar ? ` [${n.pillar}]` : '';
       accomplishments.push(`Created note: ${n.title}${pillarNote}`);
+    });
+    birdSightings.slice(0, 5).forEach((s: any) => {
+      const locationNote = s.location_name ? ` at ${s.location_name}` : '';
+      accomplishments.push(`Spotted bird: ${s.species_name}${locationNote}`);
     });
 
     if (accomplishments.length === 0) {

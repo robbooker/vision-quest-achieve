@@ -1002,6 +1002,7 @@ export type Database = {
           audio_metadata: Json | null
           audio_transcript: string | null
           audio_url: string | null
+          bird_sightings: Json | null
           completed_focus_sessions: Json | null
           completed_habits: Json | null
           completed_tasks: Json | null
@@ -1022,6 +1023,7 @@ export type Database = {
           audio_metadata?: Json | null
           audio_transcript?: string | null
           audio_url?: string | null
+          bird_sightings?: Json | null
           completed_focus_sessions?: Json | null
           completed_habits?: Json | null
           completed_tasks?: Json | null
@@ -1042,6 +1044,7 @@ export type Database = {
           audio_metadata?: Json | null
           audio_transcript?: string | null
           audio_url?: string | null
+          bird_sightings?: Json | null
           completed_focus_sessions?: Json | null
           completed_habits?: Json | null
           completed_tasks?: Json | null

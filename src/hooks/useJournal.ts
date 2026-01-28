@@ -52,6 +52,12 @@ export interface CreatedNote {
   pillar: string | null;
 }
 
+export interface BirdSighting {
+  id: string;
+  species_name: string;
+  location_name: string | null;
+}
+
 export interface JournalEntry {
   id: string;
   user_id: string;
@@ -60,6 +66,7 @@ export interface JournalEntry {
   completed_habits: CompletedHabit[];
   completed_focus_sessions: CompletedFocusSession[];
   created_notes: CreatedNote[];
+  bird_sightings: BirdSighting[];
   trading_pnl: TradingPnLData | null;
   image_url: string | null;
   image_prompt: string | null;
@@ -97,6 +104,7 @@ export const useJournalEntries = (limit: number = 3) => {
         completed_habits: (entry.completed_habits || []) as unknown as CompletedHabit[],
         completed_focus_sessions: ((entry as any).completed_focus_sessions || []) as unknown as CompletedFocusSession[],
         created_notes: ((entry as any).created_notes || []) as unknown as CreatedNote[],
+        bird_sightings: ((entry as any).bird_sightings || []) as unknown as BirdSighting[],
         user_photos: (entry.user_photos || []) as unknown as UserPhoto[],
         trading_pnl: (entry as any).trading_pnl || null,
       })) as JournalEntry[];
@@ -127,7 +135,7 @@ export const useCreateJournalEntry = () => {
       const startOfDay = `${date}T00:00:00.000Z`;
       const endOfDay = `${date}T23:59:59.999Z`;
 
-      const [tasksResult, tacticLogsResult, focusSessionsResult, tradingPnLResult, notesResult] = await Promise.all([
+      const [tasksResult, tacticLogsResult, focusSessionsResult, tradingPnLResult, notesResult, birdSightingsResult] = await Promise.all([
         // Fetch completed tasks
         supabase
           .from('quick_tasks')
@@ -173,6 +181,13 @@ export const useCreateJournalEntry = () => {
           .eq('user_id', user.id)
           .gte('created_at', startOfDay)
           .lte('created_at', endOfDay),
+
+        // Fetch bird sightings for that day
+        supabase
+          .from('bird_sightings')
+          .select('id, species_name, location_name')
+          .eq('user_id', user.id)
+          .eq('sighting_date', date),
       ]);
 
       const completedTasks: CompletedTask[] = (tasksResult.data || []).map(t => ({
@@ -203,6 +218,12 @@ export const useCreateJournalEntry = () => {
         pillar: n.pillar,
       }));
 
+      const birdSightings: BirdSighting[] = (birdSightingsResult.data || []).map(s => ({
+        id: s.id,
+        species_name: s.species_name,
+        location_name: s.location_name,
+      }));
+
       const tradingPnLData: TradingPnLData | null = tradingPnLResult.data ? {
         pnl_amount: Number(tradingPnLResult.data.pnl_amount),
         trade_count: tradingPnLResult.data.trade_count,
@@ -218,6 +239,7 @@ export const useCreateJournalEntry = () => {
           completed_habits: completedHabits as unknown as any,
           completed_focus_sessions: completedFocusSessions as unknown as any,
           created_notes: createdNotes as unknown as any,
+          bird_sightings: birdSightings as unknown as any,
         })
         .select()
         .single();
@@ -230,6 +252,7 @@ export const useCreateJournalEntry = () => {
         completed_habits: completedHabits,
         completed_focus_sessions: completedFocusSessions,
         created_notes: createdNotes,
+        bird_sightings: birdSightings,
         user_photos: [] as UserPhoto[],
         trading_pnl: tradingPnLData,
       } as JournalEntry;

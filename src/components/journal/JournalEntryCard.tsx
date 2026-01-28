@@ -111,7 +111,8 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
   const formattedDate = format(parseISO(entry.entry_date), 'EEEE, MMMM d, yyyy');
 
   const focusSessions = entry.completed_focus_sessions || [];
-  const totalAccomplishments = entry.completed_tasks.length + entry.completed_habits.length + focusSessions.length;
+  const createdNotes = entry.created_notes || [];
+  const totalAccomplishments = entry.completed_tasks.length + entry.completed_habits.length + focusSessions.length + createdNotes.length;
 
   const formatFocusDuration = (minutes: number) => {
     if (minutes < 60) return `${minutes}m`;
@@ -129,6 +130,9 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
           <Badge variant="secondary">{entry.completed_habits.length} habits</Badge>
           {focusSessions.length > 0 && (
             <Badge variant="secondary">{focusSessions.length} focus sessions</Badge>
+          )}
+          {createdNotes.length > 0 && (
+            <Badge variant="secondary">{createdNotes.length} notes</Badge>
           )}
         </div>
       </CardHeader>
@@ -394,6 +398,23 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
                           <span className="text-xs text-muted-foreground capitalize">
                             {session.rating}
                           </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {createdNotes.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-1">Notes Created</h4>
+                  <ul className="space-y-1">
+                    {createdNotes.map((note) => (
+                      <li key={note.id} className="text-sm flex items-center gap-2">
+                        <Check className="w-3 h-3 text-primary" />
+                        <span>{note.title}</span>
+                        {note.pillar && (
+                          <Badge variant="outline" className="text-xs capitalize">{note.pillar}</Badge>
                         )}
                       </li>
                     ))}

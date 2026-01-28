@@ -46,6 +46,12 @@ export interface TradingPnLData {
   trade_count: number | null;
 }
 
+export interface CreatedNote {
+  id: string;
+  title: string;
+  pillar: string | null;
+}
+
 export interface JournalEntry {
   id: string;
   user_id: string;
@@ -53,6 +59,7 @@ export interface JournalEntry {
   completed_tasks: CompletedTask[];
   completed_habits: CompletedHabit[];
   completed_focus_sessions: CompletedFocusSession[];
+  created_notes: CreatedNote[];
   trading_pnl: TradingPnLData | null;
   image_url: string | null;
   image_prompt: string | null;
@@ -89,6 +96,7 @@ export const useJournalEntries = (limit: number = 3) => {
         completed_tasks: (entry.completed_tasks || []) as unknown as CompletedTask[],
         completed_habits: (entry.completed_habits || []) as unknown as CompletedHabit[],
         completed_focus_sessions: ((entry as any).completed_focus_sessions || []) as unknown as CompletedFocusSession[],
+        created_notes: ((entry as any).created_notes || []) as unknown as CreatedNote[],
         user_photos: (entry.user_photos || []) as unknown as UserPhoto[],
         trading_pnl: (entry as any).trading_pnl || null,
       })) as JournalEntry[];
@@ -119,58 +127,69 @@ export const useCreateJournalEntry = () => {
       const startOfDay = `${date}T00:00:00.000Z`;
       const endOfDay = `${date}T23:59:59.999Z`;
 
-      const { data: tasks } = await supabase
-        .from('quick_tasks')
-        .select('id, title, category, completed_at')
-        .eq('user_id', user.id)
-        .eq('completed', true)
-        .gte('completed_at', startOfDay)
-        .lte('completed_at', endOfDay);
+      const [tasksResult, tacticLogsResult, focusSessionsResult, tradingPnLResult, notesResult] = await Promise.all([
+        // Fetch completed tasks
+        supabase
+          .from('quick_tasks')
+          .select('id, title, category, completed_at')
+          .eq('user_id', user.id)
+          .eq('completed', true)
+          .gte('completed_at', startOfDay)
+          .lte('completed_at', endOfDay),
 
-      // Fetch completed habits (tactic logs) for that date
-      const { data: tacticLogs } = await supabase
-        .from('tactic_logs')
-        .select(`
-          id,
-          completed_count,
-          goal_tactics!inner(title, goals!inner(title))
-        `)
-        .eq('user_id', user.id)
-        .eq('logged_date', date)
-        .gt('completed_count', 0);
+        // Fetch completed habits (tactic logs)
+        supabase
+          .from('tactic_logs')
+          .select(`
+            id,
+            completed_count,
+            goal_tactics!inner(title, goals!inner(title))
+          `)
+          .eq('user_id', user.id)
+          .eq('logged_date', date)
+          .gt('completed_count', 0),
 
-      // Fetch completed focus sessions for that date
-      const { data: focusSessions } = await supabase
-        .from('focus_sessions')
-        .select('id, objective, actual_duration_minutes, rating, completed_at')
-        .eq('user_id', user.id)
-        .eq('status', 'completed')
-        .gte('completed_at', startOfDay)
-        .lte('completed_at', endOfDay);
+        // Fetch completed focus sessions
+        supabase
+          .from('focus_sessions')
+          .select('id, objective, actual_duration_minutes, rating, completed_at')
+          .eq('user_id', user.id)
+          .eq('status', 'completed')
+          .gte('completed_at', startOfDay)
+          .lte('completed_at', endOfDay),
 
-      // Fetch trading P&L for that date
-      const { data: tradingPnL } = await supabase
-        .from('trading_pnl')
-        .select('pnl_amount, trade_count')
-        .eq('user_id', user.id)
-        .eq('trade_date', date)
-        .maybeSingle();
+        // Fetch trading P&L
+        supabase
+          .from('trading_pnl')
+          .select('pnl_amount, trade_count')
+          .eq('user_id', user.id)
+          .eq('trade_date', date)
+          .maybeSingle(),
 
-      const completedTasks: CompletedTask[] = (tasks || []).map(t => ({
+        // Fetch notes created that day
+        supabase
+          .from('lists')
+          .select('id, title, pillar')
+          .eq('user_id', user.id)
+          .gte('created_at', startOfDay)
+          .lte('created_at', endOfDay),
+      ]);
+
+      const completedTasks: CompletedTask[] = (tasksResult.data || []).map(t => ({
         id: t.id,
         title: t.title,
         category: t.category,
         completed_at: t.completed_at || '',
       }));
 
-      const completedHabits: CompletedHabit[] = (tacticLogs || []).map((log: any) => ({
+      const completedHabits: CompletedHabit[] = (tacticLogsResult.data || []).map((log: any) => ({
         id: log.id,
         title: log.goal_tactics?.title || '',
         completed_count: log.completed_count,
         goal_title: log.goal_tactics?.goals?.title || '',
       }));
 
-      const completedFocusSessions: CompletedFocusSession[] = (focusSessions || []).map(s => ({
+      const completedFocusSessions: CompletedFocusSession[] = (focusSessionsResult.data || []).map(s => ({
         id: s.id,
         objective: s.objective,
         actual_duration_minutes: s.actual_duration_minutes || 0,
@@ -178,9 +197,15 @@ export const useCreateJournalEntry = () => {
         completed_at: s.completed_at || '',
       }));
 
-      const tradingPnLData: TradingPnLData | null = tradingPnL ? {
-        pnl_amount: Number(tradingPnL.pnl_amount),
-        trade_count: tradingPnL.trade_count,
+      const createdNotes: CreatedNote[] = (notesResult.data || []).map(n => ({
+        id: n.id,
+        title: n.title,
+        pillar: n.pillar,
+      }));
+
+      const tradingPnLData: TradingPnLData | null = tradingPnLResult.data ? {
+        pnl_amount: Number(tradingPnLResult.data.pnl_amount),
+        trade_count: tradingPnLResult.data.trade_count,
       } : null;
 
       // Create the journal entry
@@ -192,6 +217,7 @@ export const useCreateJournalEntry = () => {
           completed_tasks: completedTasks as unknown as any,
           completed_habits: completedHabits as unknown as any,
           completed_focus_sessions: completedFocusSessions as unknown as any,
+          created_notes: createdNotes as unknown as any,
         })
         .select()
         .single();
@@ -203,6 +229,7 @@ export const useCreateJournalEntry = () => {
         completed_tasks: completedTasks,
         completed_habits: completedHabits,
         completed_focus_sessions: completedFocusSessions,
+        created_notes: createdNotes,
         user_photos: [] as UserPhoto[],
         trading_pnl: tradingPnLData,
       } as JournalEntry;

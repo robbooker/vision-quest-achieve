@@ -1,11 +1,21 @@
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { List as ListType } from "@/hooks/useLists";
-import { List, Share2, Lock } from "lucide-react";
+import { List, Share2, Lock, Target, Timer, Hexagon } from "lucide-react";
 
 interface ListCardProps {
   list: ListType;
   onClick: () => void;
 }
+
+const PILLAR_LABELS: Record<string, string> = {
+  physical: "Physical",
+  relations: "Relations",
+  income: "Income",
+  mental: "Mental",
+  excellence: "Excellence",
+  direction: "Direction",
+};
 
 export function ListCard({ list, onClick }: ListCardProps) {
   return (
@@ -25,6 +35,31 @@ export function ListCard({ list, onClick }: ListCardProps) {
                 {list.description}
               </p>
             )}
+
+            {/* Relationship badges */}
+            {(list.pillar || list.goal_id || list.focus_session_id) && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {list.pillar && (
+                  <Badge variant="secondary" className="text-xs gap-1">
+                    <Hexagon className="h-3 w-3" />
+                    {PILLAR_LABELS[list.pillar] || list.pillar}
+                  </Badge>
+                )}
+                {list.goal_id && list.goal_title && (
+                  <Badge variant="outline" className="text-xs gap-1">
+                    <Target className="h-3 w-3" />
+                    {list.goal_title}
+                  </Badge>
+                )}
+                {list.focus_session_id && list.focus_objective && (
+                  <Badge variant="outline" className="text-xs gap-1">
+                    <Timer className="h-3 w-3" />
+                    {list.focus_objective}
+                  </Badge>
+                )}
+              </div>
+            )}
+
             <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
               <span>{list.item_count || 0} items</span>
               {(list.share_count || 0) > 0 ? (

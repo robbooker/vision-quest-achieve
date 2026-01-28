@@ -10,10 +10,16 @@ export interface List {
   description: string | null;
   slug: string;
   is_public: boolean;
+  pillar: string | null;
+  goal_id: string | null;
+  focus_session_id: string | null;
   created_at: string;
   updated_at: string;
   item_count?: number;
   share_count?: number;
+  // Joined data
+  goal_title?: string;
+  focus_objective?: string;
 }
 
 function generateSlug(): string {
@@ -38,7 +44,7 @@ export function useLists() {
 
       if (error) throw error;
 
-      // Get item counts
+      // Get item counts and related data
       const listsWithCounts = await Promise.all(
         (lists || []).map(async (list) => {
           const { count: itemCount } = await supabase
@@ -51,10 +57,34 @@ export function useLists() {
             .select("*", { count: "exact", head: true })
             .eq("list_id", list.id);
 
+          // Get goal title if linked
+          let goal_title: string | undefined;
+          if (list.goal_id) {
+            const { data: goal } = await supabase
+              .from("goals")
+              .select("title")
+              .eq("id", list.goal_id)
+              .maybeSingle();
+            goal_title = goal?.title;
+          }
+
+          // Get focus session objective if linked
+          let focus_objective: string | undefined;
+          if (list.focus_session_id) {
+            const { data: session } = await supabase
+              .from("focus_sessions")
+              .select("objective")
+              .eq("id", list.focus_session_id)
+              .maybeSingle();
+            focus_objective = session?.objective;
+          }
+
           return {
             ...list,
             item_count: itemCount || 0,
             share_count: shareCount || 0,
+            goal_title,
+            focus_objective,
           };
         })
       );
@@ -65,7 +95,19 @@ export function useLists() {
   });
 
   const createList = useMutation({
-    mutationFn: async ({ title, description }: { title: string; description?: string }) => {
+    mutationFn: async ({ 
+      title, 
+      description,
+      pillar,
+      goal_id,
+      focus_session_id,
+    }: { 
+      title: string; 
+      description?: string;
+      pillar?: string;
+      goal_id?: string;
+      focus_session_id?: string;
+    }) => {
       if (!user) throw new Error("Not authenticated");
 
       const { data, error } = await supabase
@@ -75,6 +117,9 @@ export function useLists() {
           title,
           description: description || null,
           slug: generateSlug(),
+          pillar: pillar || null,
+          goal_id: goal_id || null,
+          focus_session_id: focus_session_id || null,
         })
         .select()
         .single();
@@ -92,11 +137,30 @@ export function useLists() {
   });
 
   const updateList = useMutation({
-    mutationFn: async ({ id, title, description, is_public }: { id: string; title?: string; description?: string; is_public?: boolean }) => {
+    mutationFn: async ({ 
+      id, 
+      title, 
+      description, 
+      is_public,
+      pillar,
+      goal_id,
+      focus_session_id,
+    }: { 
+      id: string; 
+      title?: string; 
+      description?: string; 
+      is_public?: boolean;
+      pillar?: string | null;
+      goal_id?: string | null;
+      focus_session_id?: string | null;
+    }) => {
       const updates: Record<string, unknown> = {};
       if (title !== undefined) updates.title = title;
       if (description !== undefined) updates.description = description;
       if (is_public !== undefined) updates.is_public = is_public;
+      if (pillar !== undefined) updates.pillar = pillar;
+      if (goal_id !== undefined) updates.goal_id = goal_id;
+      if (focus_session_id !== undefined) updates.focus_session_id = focus_session_id;
 
       const { error } = await supabase
         .from("lists")

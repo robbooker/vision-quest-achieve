@@ -1180,8 +1180,11 @@ export type Database = {
         Row: {
           created_at: string
           description: string | null
+          focus_session_id: string | null
+          goal_id: string | null
           id: string
           is_public: boolean
+          pillar: string | null
           slug: string
           title: string
           updated_at: string
@@ -1190,8 +1193,11 @@ export type Database = {
         Insert: {
           created_at?: string
           description?: string | null
+          focus_session_id?: string | null
+          goal_id?: string | null
           id?: string
           is_public?: boolean
+          pillar?: string | null
           slug: string
           title: string
           updated_at?: string
@@ -1200,14 +1206,32 @@ export type Database = {
         Update: {
           created_at?: string
           description?: string | null
+          focus_session_id?: string | null
+          goal_id?: string | null
           id?: string
           is_public?: boolean
+          pillar?: string | null
           slug?: string
           title?: string
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "lists_focus_session_id_fkey"
+            columns: ["focus_session_id"]
+            isOneToOne: false
+            referencedRelation: "focus_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lists_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       master_items: {
         Row: {

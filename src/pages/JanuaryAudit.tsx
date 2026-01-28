@@ -15,13 +15,16 @@ import {
   Flame,
   ArrowUp,
   ArrowDown,
+  User,
 } from 'lucide-react';
 import { useJanuaryAuditData } from '@/hooks/useJanuaryAuditData';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from 'recharts';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useRecap } from '@/hooks/useMonthlyRecap';
-
+import { useAuth } from '@/hooks/useAuth';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 // Stock Ticker Marquee Component
 function StockTicker({ data }: { data: { label: string; value: string; change?: number }[] }) {
   return (
@@ -136,6 +139,24 @@ function generateEditorial(data: ReturnType<typeof useJanuaryAuditData>['data'])
 export default function JanuaryAudit() {
   const { data, isLoading, month } = useJanuaryAuditData('2025-01');
   const { data: existingRecap } = useRecap('2025-01');
+  const { user } = useAuth();
+  
+  // Fetch profile for display name
+  const { data: profile } = useQuery({
+    queryKey: ['profile', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data } = await supabase
+        .from('profiles')
+        .select('display_name, email')
+        .eq('user_id', user.id)
+        .single();
+      return data;
+    },
+    enabled: !!user,
+  });
+  
+  const displayName = profile?.display_name || profile?.email?.split('@')[0] || user?.email?.split('@')[0] || 'Anonymous';
   
   const editorial = generateEditorial(data);
   
@@ -179,9 +200,13 @@ export default function JanuaryAudit() {
               The {format(new Date(2025, 0), 'MMMM')} Audit
             </h1>
             
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <span>{format(new Date(), 'EEEE, MMMM d, yyyy')}</span>
-              <span className="text-primary font-semibold">Vol. 1, No. 1</span>
+            <div className="flex items-center gap-4 text-sm">
+              <span className="flex items-center gap-1.5 font-semibold text-foreground">
+                <User className="h-4 w-4" />
+                {displayName}
+              </span>
+              <span className="text-muted-foreground">{format(new Date(), 'EEEE, MMMM d, yyyy')}</span>
+              <span className="text-foreground/70 font-mono font-semibold">Vol. 1, No. 1</span>
             </div>
           </div>
         </header>

@@ -15,6 +15,7 @@ import { DailyScoreLogger } from '@/components/dashboard/DailyScoreLogger';
 import { QuickTaskList } from '@/components/dashboard/QuickTaskList';
 import { DailyPnLLogger } from '@/components/dashboard/DailyPnLLogger';
 import { CompactResetCard } from '@/components/reset/CompactResetCard';
+import { PrimedWeeklySummaryWidget } from '@/components/primed/PrimedWeeklySummaryWidget';
 
 import { TodaySchedule, CalendarEventData } from '@/components/dashboard/TodaySchedule';
 import { AddCalendarEventDialog } from '@/components/dashboard/AddCalendarEventDialog';
@@ -420,12 +421,15 @@ export default function Today() {
           />
         </div>
 
-        {/* Task List + P&L Logger */}
+        {/* Task List + P&L Logger + PRIMED Summary */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div data-tour="quick-tasks" className="md:col-span-2">
             <QuickTaskList />
           </div>
-          <DailyPnLLogger />
+          <div className="space-y-6">
+            <PrimedWeeklySummaryWidget />
+            <DailyPnLLogger />
+          </div>
         </div>
 
         {/* Daily Score Logger */}

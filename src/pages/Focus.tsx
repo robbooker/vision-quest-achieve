@@ -39,10 +39,10 @@ export default function Focus() {
 
   // If there's an active session on load, show the timer
   useEffect(() => {
-    if (activeSession && viewState === 'setup') {
+    if (!isLoading && activeSession && viewState === 'setup') {
       setViewState('active');
     }
-  }, [activeSession, viewState]);
+  }, [activeSession, viewState, isLoading]);
 
   const handleStartSession = async (data: {
     objective: string;
@@ -218,27 +218,36 @@ export default function Focus() {
             </>
           )}
 
-          {viewState === 'active' && activeSession && (
+          {viewState === 'active' && (
             <Card>
               <CardContent className="pt-6">
-                <FocusTimer
-                  plannedMinutes={activeSession.planned_duration_minutes}
-                  objective={activeSession.objective}
-                  startTime={new Date(activeSession.started_at)}
-                  onComplete={handleCompleteSession}
-                  onCancel={handleCancelSession}
-                  onExtend={handleExtendSession}
-                />
-                
-                {/* Ambient Sounds */}
-                <div className="mt-6 pt-6 border-t">
-                  <AudioErrorBoundary fallback={<div className="text-sm text-muted-foreground">Audio temporarily unavailable</div>}>
-                    <AmbientSounds 
-                      isBreakMode={false}
-                      shouldStop={false}
+                {isLoading || !activeSession ? (
+                  <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                    <Target className="h-8 w-8 animate-pulse text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">Loading session...</p>
+                  </div>
+                ) : (
+                  <>
+                    <FocusTimer
+                      plannedMinutes={activeSession.planned_duration_minutes}
+                      objective={activeSession.objective}
+                      startTime={new Date(activeSession.started_at)}
+                      onComplete={handleCompleteSession}
+                      onCancel={handleCancelSession}
+                      onExtend={handleExtendSession}
                     />
-                  </AudioErrorBoundary>
-                </div>
+                    
+                    {/* Ambient Sounds */}
+                    <div className="mt-6 pt-6 border-t">
+                      <AudioErrorBoundary fallback={<div className="text-sm text-muted-foreground">Audio temporarily unavailable</div>}>
+                        <AmbientSounds 
+                          isBreakMode={false}
+                          shouldStop={false}
+                        />
+                      </AudioErrorBoundary>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           )}

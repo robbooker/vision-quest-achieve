@@ -57,6 +57,7 @@ import TradingPnL from "./pages/TradingPnL";
 import Primed from "./pages/Primed";
 import Notes from "./pages/Notes";
 import PublicListView from "./pages/PublicListView";
+import JanuaryAudit from "./pages/JanuaryAudit";
 
 const queryClient = new QueryClient();
 
@@ -124,6 +125,7 @@ const App = () => (
                     <Route path="/recap/:slug" element={<PublicRecap />} />
                     <Route path="/list/view/:token" element={<PublicListView />} />
                     <Route path="/monthly-recap" element={<ProtectedRoute><MonthlyRecap /></ProtectedRoute>} />
+                    <Route path="/january-audit" element={<ProtectedRoute><JanuaryAudit /></ProtectedRoute>} />
                     <Route path="/trading" element={<ProtectedRoute><TradingPnL /></ProtectedRoute>} />
                     <Route path="/notes" element={<ProtectedRoute><Notes /></ProtectedRoute>} />
                     <Route path="/lists" element={<ProtectedRoute><Notes /></ProtectedRoute>} />

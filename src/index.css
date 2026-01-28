@@ -866,3 +866,21 @@ html.text-size-large {
     0 4px 0 hsl(280 60% 20%),
     0 0 30px hsl(330 100% 60% / 0.6) !important;
 }
+
+/* Marquee animation for stock tickers */
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee 30s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}

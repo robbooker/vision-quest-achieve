@@ -1,176 +1,75 @@
 
-# Plan: Pillar Detail View + Auto-Generated Journal AI Insight
+# Plan: Backfill January Calendar Events with PRIMED Pillars
 
 ## Overview
-This plan implements two connected features that deepen the P.R.I.M.E.D. integration:
-1. **Pillar Detail View** - A dedicated view when clicking a pillar card, showing all related activity with goal creation
-2. **Auto-Generated AI Insight** - An automatic paragraph on each journal entry analyzing pillar alignment
+Create an automated backfill process that fetches all your January 2025 calendar events from Google Calendar, applies the keyword detection logic, and stores pillar assignments in the database.
 
----
+## How It Will Work
+1. A new edge function will fetch all events from January 1-31, 2025
+2. Each event title will be analyzed using the existing keyword detection rules
+3. Detected pillars will be saved to the `calendar_event_pillars` table
+4. Future views of January events will show the pillar badges automatically
 
-## Feature 1: Pillar Detail View
+## Current Keyword Detection Rules
+Based on the existing logic, these keywords will be matched:
+- **Physical**: gym, workout, fitness, walk, cardio, run, exercise, yoga, swim, bike, hike, sport
+- **Mental**: meditation, meditate, therapy, journal, mindfulness, breathe, mental health, counseling
+- **Relations**: dinner with, lunch with, coffee with, call with, meeting with, isaac, family, date night, hangout, catch up
+- **Income**: client, sales, interview, pitch, business, investor, networking, work
+- **Excellence**: practice, learn, study, course, training, skill, class, lesson
+- **Direction**: planning, goals, strategy, vision, review, reflect
 
-### User Experience
-When a user taps a pillar card on the PRIMED page:
-1. Opens a full-screen dialog/sheet showing everything related to that pillar
-2. Displays: active goals, habits, recent focus sessions, quick tasks, and notes tagged to that pillar
-3. Has a prominent "Add Goal" button that opens the goal creation dialog pre-filled with the selected pillar
+## Implementation Steps
 
-### UI Layout
-```text
-+------------------------------------------+
-| ← Back to PRIMED     [Physical] Lv 2     |
-+------------------------------------------+
-| "Build sustainable health habits"        |
-|                                          |
-| GOALS (1)                     [+ Add Goal]
-| ┌────────────────────────────────────┐   |
-| │ Run 100 miles         45/100 mi   │   |
-| └────────────────────────────────────┘   |
-|                                          |
-| HABITS (3)                               |
-| • Morning stretches      ✓ 5-day streak  |
-| • 10k steps daily        ✓ Today done    |
-| • Hydration tracking                     |
-|                                          |
-| RECENT FOCUS (2 this week)               |
-| • Gym workout prep       25m  Yesterday  |
-| • Meal planning          45m  Today      |
-|                                          |
-| QUICK TASKS (4 active)                   |
-| • Schedule annual checkup                |
-| • Research running shoes                 |
-+------------------------------------------+
-```
+### Step 1: Create Backfill Edge Function
+Create `supabase/functions/backfill-calendar-pillars/index.ts` that:
+- Fetches January 2025 events from Google Calendar
+- Applies keyword detection to each event title
+- Inserts pillar assignments into `calendar_event_pillars` (skipping events that already have manual assignments)
+- Returns a summary of what was processed
 
-### Technical Implementation
+### Step 2: Add UI Trigger
+Add a "Backfill January" button in Settings or as a one-time admin action that calls the edge function.
 
-**New component: `PillarDetailSheet.tsx`**
-- Full-screen sheet/dialog triggered from `PillarDetailCard` click
-- Fetches pillar-specific data using existing hooks with filter parameters
-- Pre-populates goal creation with the pillar value
+### Step 3: Display Results
+Show the user how many events were processed and tagged by pillar.
 
-**Data queries needed:**
-- Goals where `pillar = selectedPillar` (from `useGoals`)
-- Habits/tactics where goal has `pillar = selectedPillar` (via join)
-- Focus sessions where `pillar = selectedPillar` (already in schema)
-- Quick tasks where `pillar = selectedPillar` (already in schema)
-- Notes where `pillar = selectedPillar` (already in schema)
-
-**Files to create:**
-- `src/components/primed/PillarDetailSheet.tsx` - Main detail view component
-
-**Files to modify:**
-- `src/components/primed/PillarDetailCard.tsx` - Add onClick handler to open sheet
-- `src/components/primed/PrimedDashboard.tsx` - Manage sheet open state and selected pillar
-- `src/hooks/usePrimedProgress.ts` - May need to expand to return actual entities, not just counts
-
----
-
-## Feature 2: Auto-Generated AI Insight on Journal Entries
-
-### User Experience
-When a journal entry is created, the system automatically:
-1. Analyzes completed tasks, habits, and focus sessions
-2. Cross-references with the user's PRIMED pillar levels and active goals
-3. Generates a warm, insightful paragraph answering:
-   - "Did today's activities align with your growth priorities?"
-   - "What pillars did you invest in today?"
-   - "Was this meaningful progress or just busy work?"
-
-### Example Output
-> "Today you invested heavily in your **Physical** foundation with that 45-minute gym focus session and hitting your 10k steps. Your **Income** pillar also got attention through the client proposal task. Notably absent today: **Relations** and **Direction**—both flagged as priorities in your last assessment. Consider: was today's energy allocation intentional, or did urgent tasks crowd out important ones?"
-
-### Technical Implementation
-
-**Database changes:**
-- Add column `ai_daily_insight` (text, nullable) to `journal_entries` table
-
-**New Edge Function: `generate-daily-insight`**
-- Triggered automatically when journal entry is created
-- Fetches:
-  - The entry's completed tasks, habits, focus sessions
-  - User's current PRIMED assessment levels
-  - Active goals per pillar
-- Uses Gemini to generate a reflective paragraph
-- Updates the journal entry with the insight
-
-**Prompt structure:**
-```text
-You are a thoughtful personal development coach. Analyze this day's activities 
-against the user's PRIMED pillar priorities and goals.
-
-USER'S PILLAR STATUS:
-- Physical: Level 2 (foundation)
-- Relations: Level 1 (needs work)
-- Income: Level 2
-- Mental: Level 2 (foundation)
-- Excellence: Level 1
-- Direction: Level 0 (blocked until foundation complete)
-
-TODAY'S ACTIVITIES:
-[tasks, habits, focus sessions with their pillar tags]
-
-ACTIVE GOALS:
-[goals with their pillar assignments]
-
-Write a brief, warm paragraph (3-5 sentences) that:
-1. Acknowledges what pillars received attention today
-2. Notes any gaps or imbalances
-3. Offers a gentle insight or question for reflection
-4. Never lectures—be encouraging and curious
-
-Do NOT use bullet points. Write in flowing prose.
-```
-
-**Files to create:**
-- `supabase/functions/generate-daily-insight/index.ts` - Edge function
-
-**Files to modify:**
-- `supabase/migrations/` - Add `ai_daily_insight` column to `journal_entries`
-- `src/hooks/useJournal.ts` - Update `JournalEntry` interface to include `ai_daily_insight`
-- `src/components/journal/JournalEntryCard.tsx` - Display the AI insight section
-- Edge function `generate-journal-image/index.ts` or the journal creation flow - Trigger insight generation
-
-### UI Display in Journal Entry
-The insight appears as a distinct section with a subtle AI indicator:
+## Technical Details
 
 ```text
-┌─────────────────────────────────────────┐
-│ Tuesday, January 28, 2025               │
-│ 3 tasks · 2 habits · 1 focus session    │
-├─────────────────────────────────────────┤
-│ [AI Generated Image]                    │
-├─────────────────────────────────────────┤
-│ ✨ Daily Insight                        │
-│                                         │
-│ "Today you invested heavily in your     │
-│ Physical foundation with that gym       │
-│ session..."                             │
-│                                         │
-│ [🔄 Regenerate]                         │
-├─────────────────────────────────────────┤
-│ 🎤 Voice Journal (1 recording)          │
-└─────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                    Backfill Process Flow                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   User clicks "Backfill January"                                │
+│              │                                                  │
+│              ▼                                                  │
+│   Edge Function: backfill-calendar-pillars                      │
+│              │                                                  │
+│              ▼                                                  │
+│   Fetch events from Google Calendar API                         │
+│   (timeMin: 2025-01-01, timeMax: 2025-01-31)                    │
+│              │                                                  │
+│              ▼                                                  │
+│   For each event:                                               │
+│     1. Check if already has manual pillar assignment            │
+│     2. If not, apply keyword detection                          │
+│     3. If pillar detected, insert into calendar_event_pillars   │
+│              │                                                  │
+│              ▼                                                  │
+│   Return summary: { processed: N, tagged: M, byPillar: {...} }  │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
----
+## Files to Create/Modify
+- **Create**: `supabase/functions/backfill-calendar-pillars/index.ts`
+- **Modify**: `src/components/settings/CalendarSettings.tsx` (add backfill button)
 
-## Implementation Order
+## Questions Before Proceeding
+Are there any specific calendar event titles from January that you'd like me to add to the keyword detection? For example:
+- Any recurring events with specific names?
+- Work meetings that should map to Income?
+- Personal activities that don't match current keywords?
 
-1. **Database migration** - Add `ai_daily_insight` column
-2. **Edge function** - Create `generate-daily-insight`
-3. **Journal hook updates** - Include new field in types
-4. **Journal UI** - Display insight in entry cards with regenerate option
-5. **Pillar detail sheet** - New component with data fetching
-6. **Wire up PRIMED page** - Connect pillar cards to detail sheet
-
----
-
-## Technical Considerations
-
-- **Rate limiting**: Insight generation happens once per entry creation; regenerate button is rate-limited
-- **Loading state**: Show skeleton while insight generates (async after entry creation)
-- **Empty state**: If no activities logged, skip insight or show "No activities to analyze today"
-- **Foundation enforcement**: Insight can gently remind about foundation pillars when creating goals in advanced pillars
-
+This will ensure maximum coverage during the backfill.

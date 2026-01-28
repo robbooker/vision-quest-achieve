@@ -1349,6 +1349,54 @@ export type Database = {
           },
         ]
       }
+      monthly_audits: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          editorial_content: Json | null
+          id: string
+          month: string
+          pillar_analytics: Json | null
+          privacy: string
+          slug: string | null
+          stats_snapshot: Json | null
+          status: string
+          updated_at: string
+          user_id: string
+          view_count: number
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          editorial_content?: Json | null
+          id?: string
+          month: string
+          pillar_analytics?: Json | null
+          privacy?: string
+          slug?: string | null
+          stats_snapshot?: Json | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          view_count?: number
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          editorial_content?: Json | null
+          id?: string
+          month?: string
+          pillar_analytics?: Json | null
+          privacy?: string
+          slug?: string | null
+          stats_snapshot?: Json | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          view_count?: number
+        }
+        Relationships: []
+      }
       monthly_recaps: {
         Row: {
           charts_data: Json | null
@@ -2500,6 +2548,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_audit_view: { Args: { audit_id: string }; Returns: undefined }
       increment_recap_view: { Args: { recap_id: string }; Returns: undefined }
       is_shared_task_owner: { Args: { task_id: string }; Returns: boolean }
       is_task_shared_with_me: { Args: { task_id: string }; Returns: boolean }

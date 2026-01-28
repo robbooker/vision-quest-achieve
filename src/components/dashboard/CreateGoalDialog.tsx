@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useGoals } from '@/hooks/useGoals';
+import { useCycles } from '@/hooks/useCycles';
 import { useToast } from '@/hooks/use-toast';
 import { PillarSelector } from '@/components/primed/PillarSelector';
 import { FoundationWarning } from '@/components/primed/FoundationWarning';
@@ -21,27 +22,40 @@ import { useCurrentAssessment } from '@/hooks/usePrimedAssessment';
 interface CreateGoalDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  cycleId: string;
-  existingGoalsCount: number;
+  cycleId?: string;
+  existingGoalsCount?: number;
+  defaultPillar?: PillarKey;
 }
 
 export function CreateGoalDialog({
   open,
   onOpenChange,
   cycleId,
-  existingGoalsCount,
+  existingGoalsCount = 0,
+  defaultPillar,
 }: CreateGoalDialogProps) {
   const [title, setTitle] = useState('');
   const [metricType, setMetricType] = useState('');
   const [targetValue, setTargetValue] = useState('');
   const [why, setWhy] = useState('');
-  const [pillar, setPillar] = useState<PillarKey | null>(null);
+  const [pillar, setPillar] = useState<PillarKey | null>(defaultPillar ?? null);
   const [showFoundationWarning, setShowFoundationWarning] = useState(false);
   
-  const { createGoal } = useGoals(cycleId);
+  // Import useCycles to get active cycle if not provided
+  const { getActiveCycle } = useCycles();
+  const activeCycle = getActiveCycle();
+  const effectiveCycleId = cycleId || activeCycle?.id;
+  
+  const { createGoal } = useGoals(effectiveCycleId || '');
   const { toast } = useToast();
   const { assessment } = useCurrentAssessment();
 
+  // Sync defaultPillar when dialog opens
+  useEffect(() => {
+    if (open && defaultPillar) {
+      setPillar(defaultPillar);
+    }
+  }, [open, defaultPillar]);
   const checkFoundationWarning = (): boolean => {
     if (!pillar || !assessment) return false;
     if (!ADVANCED_PILLARS.includes(pillar)) return false;
@@ -100,9 +114,18 @@ export function CreateGoalDialog({
   };
 
   const submitGoal = async () => {
+    if (!effectiveCycleId) {
+      toast({
+        title: 'No active cycle',
+        description: 'Please create a cycle first before adding goals.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     try {
       await createGoal.mutateAsync({
-        cycle_id: cycleId,
+        cycle_id: effectiveCycleId,
         title: title.trim(),
         metric_type: metricType.trim(),
         target_value: Number(targetValue),

@@ -1,59 +1,105 @@
-# Add Sleep Entry Editing & Hybrid Mode Support
 
-## Status: ✅ COMPLETED
 
-## Overview
-Enhanced the biometric tracking system to support a hybrid approach where users can:
-1. Have Oura sync data automatically
-2. Enter manual sleep data (even if Oura is connected)
-3. Edit any existing entry (whether from Oura or manual)
+# Fix Manual Sleep Entry for After-Midnight Bedtimes
 
----
+## Problem
+When you go to bed after midnight (e.g., 1:00 AM Wednesday) and wake up later that same morning (e.g., 7:00 AM Wednesday), the current system incorrectly assumes bedtime was on the previous day (Tuesday at 1:00 AM), resulting in a wrong 30+ hour sleep duration calculation.
 
-## What Was Implemented
-
-### useOuraMetrics.ts
-- Added `ManualSleepData` interface with optional `date` and `entryId` parameters
-- Updated `logManualSleep` mutation to support both create and update operations
-- Added `getEntryForDate` function for fetching specific date entries
-- Preserved Oura biometric data when editing (only manual fields get updated)
-
-### ManualSleepEntryDialog.tsx
-- Added `existingEntry` prop for edit mode
-- Added `initialDate` prop for creating entries on specific dates
-- Added date picker for selecting which day to log (hidden in edit mode)
-- Pre-populates fields when editing existing entry
-- Shows read-only Oura biometrics when editing an Oura entry
-- Dynamic button text: "Save Sleep" vs "Update Sleep"
-
-### PerformanceAuditCard.tsx
-- Added "Edit" button next to sleep summary
-- Added "Log Sleep Manually" button that's always visible (hybrid mode)
-- No longer requires manual mode toggle to log sleep manually
-- Shows both "Sync Oura" and "Log Manually" buttons when no data exists
-- Proper edit/new entry state management
+## Root Cause
+The dialog currently assumes bedtime is **always** on the night before the wake date, using `subDays(selectedDate, 1)` unconditionally.
 
 ---
 
-## User Experience Flows
+## Solution: Add "Same Day" Toggle
 
-### Flow 1: Oura Connected + Want to Edit ✅
-1. See Performance Audit card with Oura data
-2. Click "Edit" on sleep summary
-3. Adjust bedtime/wake time if Oura detection was off
-4. Save → Updates the entry, keeps Oura biometrics
+Add a simple toggle switch that lets users indicate whether they went to bed before or after midnight. This is the clearest UX approach.
 
-### Flow 2: Oura Connected + No Data Yet ✅
-1. Card shows "No sleep data for today"
-2. Buttons: "Sync Oura" AND "Log Manually"
-3. User can choose either
+---
 
-### Flow 3: Manual Entry for Any Date ✅
-1. Click "Log Sleep Manually"
-2. Select date (date picker)
-3. Enter bedtime, wake time, quality
-4. Save
+## Implementation Details
 
-### Flow 4: No Oura, No Manual Mode ✅
-1. Card shows setup options
-2. Can go to settings OR log manually immediately
+### File: `src/components/dashboard/ManualSleepEntryDialog.tsx`
+
+**Changes:**
+
+1. **Add new state for same-day bedtime:**
+   - `const [bedtimeAfterMidnight, setBedtimeAfterMidnight] = useState(false);`
+
+2. **Update `getBedtimeDate()` function:**
+   ```typescript
+   const getBedtimeDate = () => {
+     // If user went to bed after midnight, bedtime is on the same day as wake time
+     if (bedtimeAfterMidnight) {
+       return selectedDate;
+     }
+     return subDays(selectedDate, 1);
+   };
+   ```
+
+3. **Add toggle UI below the bedtime input:**
+   - Label: "I went to bed after midnight"
+   - When checked, bedtime date shows the same day as wake date
+   - The "night before" label dynamically updates
+
+4. **Update helper text:**
+   - When toggle is OFF: "Bedtime (night before)" → shows previous day date
+   - When toggle is ON: "Bedtime (same day)" → shows same day date
+
+5. **Auto-detect logic (optional enhancement):**
+   - If bedtime is between 00:00-06:00 (midnight to 6 AM), auto-suggest same-day mode
+
+### Visual Changes
+
+**Before:**
+```
+Bedtime (night before)
+[10:00 PM]
+Tuesday, Jan 27
+
+Wake time
+[7:00 AM]
+Wednesday, Jan 28
+```
+
+**After (with toggle OFF - normal):**
+```
+Bedtime (night before)
+[10:00 PM]
+Tuesday, Jan 27
+
+[Toggle] I went to bed after midnight
+
+Wake time
+[7:00 AM]
+Wednesday, Jan 28
+```
+
+**After (with toggle ON - late night):**
+```
+Bedtime (same day)
+[01:00 AM]
+Wednesday, Jan 28    ← Now shows same day!
+
+[Toggle ✓] I went to bed after midnight
+
+Wake time
+[7:00 AM]
+Wednesday, Jan 28
+```
+
+---
+
+## File Changes Summary
+
+| File | Change |
+|------|--------|
+| `src/components/dashboard/ManualSleepEntryDialog.tsx` | Add toggle state, update date logic, add toggle UI |
+
+---
+
+## Edge Case Handling
+
+- **Toggle persists** during edit mode if the existing entry has bedtime on same day as wake
+- **Duration calculation** automatically adjusts based on toggle state
+- **Validation**: If toggled ON but bedtime > wakeTime (e.g., 8 AM bedtime, 7 AM wake), show error
+

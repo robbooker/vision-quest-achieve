@@ -3,7 +3,22 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { usePnLHistory, usePnLStats } from '@/hooks/useTradingPnL';
 import { useBirdwatching } from '@/hooks/useBirdwatching';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format, endOfMonth, differenceInDays } from 'date-fns';
+
+export interface PillarBreakdown {
+  pillar: string;
+  focusMinutes: number;
+  tasksCompleted: number;
+  calendarEvents: number;
+  habitLogs: number;
+  percentageOfTotal: number;
+}
+
+export interface PillarAnalytics {
+  breakdown: PillarBreakdown[];
+  mostActivePillar: string;
+  leastActivePillar: string;
+}
 
 export interface AuditData {
   tradingStats: {
@@ -35,9 +50,27 @@ export interface AuditData {
     snippets: string[];
   };
   tasksCompleted: number;
+  pillarAnalytics: PillarAnalytics;
 }
 
-export function useJanuaryAuditData(month: string = '2025-01') {
+// Check if month can be audited
+export function canGenerateAudit(month: string): { canGenerate: boolean; reason?: string; daysUntilAvailable?: number } {
+  const [year, monthNum] = month.split('-').map(Number);
+  const monthEnd = endOfMonth(new Date(year, monthNum - 1));
+  const now = new Date();
+  
+  if (now <= monthEnd) {
+    const daysLeft = differenceInDays(monthEnd, now) + 1;
+    return { 
+      canGenerate: false, 
+      reason: `${daysLeft} days until ${format(new Date(year, monthNum - 1), 'MMMM')} ends`,
+      daysUntilAvailable: daysLeft,
+    };
+  }
+  return { canGenerate: true };
+}
+
+export function useMonthlyAuditData(month: string = '2025-01') {
   const { user } = useAuth();
   const { data: pnlHistory = [] } = usePnLHistory('ytd');
   const pnlStats = usePnLStats('ytd');
@@ -215,17 +248,30 @@ export function useJanuaryAuditData(month: string = '2025-01') {
     },
     habitCompletion: {
       totalLogs: habitData?.totalLogs || 0,
-      streaks: [], // Would need streak calculation
+      streaks: [],
       topHabits: habitData?.topHabits || [],
     },
     focusStats: focusData || { totalMinutes: 0, sessions: 0, avgSessionLength: 0 },
     journalHighlights: journalData || { entriesCount: 0, snippets: [] },
     tasksCompleted: tasksData || 0,
+    pillarAnalytics: {
+      breakdown: [],
+      mostActivePillar: 'none',
+      leastActivePillar: 'none',
+    },
   };
+
+  const { canGenerate, reason, daysUntilAvailable } = canGenerateAudit(month);
 
   return {
     data: auditData,
     isLoading: !habitData || !focusData || !journalData,
     month: format(new Date(year, monthNum - 1), 'MMMM yyyy'),
+    canGenerate,
+    reason,
+    daysUntilAvailable,
   };
 }
+
+// Alias for backward compatibility
+export const useJanuaryAuditData = useMonthlyAuditData;

@@ -41,7 +41,7 @@ const dropdownNavItems = [
   { href: '/big-ten', label: 'Big 10', icon: Star },
   { href: '/books', label: 'Books', icon: Library },
   { href: '/trips', label: 'Trips', icon: Plane },
-  { href: '/monthly-recap', label: 'Monthly Recap', icon: CalendarDays },
+  { href: '/monthly-audit', label: 'Month in Review', icon: CalendarDays },
   { href: '/reset', label: 'Reset', icon: RotateCcw },
   { href: '/reports', label: 'Reports', icon: BarChart3 },
 ];

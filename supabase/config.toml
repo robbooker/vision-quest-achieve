@@ -104,3 +104,6 @@ verify_jwt = false
 
 [functions.backfill-calendar-pillars]
 verify_jwt = false
+
+[functions.generate-monthly-audit]
+verify_jwt = false

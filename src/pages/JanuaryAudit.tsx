@@ -17,7 +17,7 @@ import {
   ArrowDown,
   User,
 } from 'lucide-react';
-import { useJanuaryAuditData } from '@/hooks/useJanuaryAuditData';
+import { useJanuaryAuditData } from '@/hooks/useMonthlyAuditData';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from 'recharts';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';

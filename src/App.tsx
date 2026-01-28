@@ -51,7 +51,6 @@ import Feedback from "./pages/Feedback";
 import AdminFeedback from "./pages/AdminFeedback";
 import Birdwatching from "./pages/Birdwatching";
 import PublicBirdProfile from "./pages/PublicBirdProfile";
-import MonthlyRecap from "./pages/MonthlyRecap";
 import PublicRecap from "./pages/PublicRecap";
 import TradingPnL from "./pages/TradingPnL";
 import Primed from "./pages/Primed";
@@ -124,8 +123,8 @@ const App = () => (
                     <Route path="/birds/:username" element={<PublicBirdProfile />} />
                     <Route path="/recap/:slug" element={<PublicRecap />} />
                     <Route path="/list/view/:token" element={<PublicListView />} />
-                    <Route path="/monthly-recap" element={<ProtectedRoute><MonthlyRecap /></ProtectedRoute>} />
-                    <Route path="/january-audit" element={<ProtectedRoute><JanuaryAudit /></ProtectedRoute>} />
+                    <Route path="/monthly-audit" element={<ProtectedRoute><JanuaryAudit /></ProtectedRoute>} />
+                    <Route path="/monthly-audit/:month" element={<ProtectedRoute><JanuaryAudit /></ProtectedRoute>} />
                     <Route path="/trading" element={<ProtectedRoute><TradingPnL /></ProtectedRoute>} />
                     <Route path="/notes" element={<ProtectedRoute><Notes /></ProtectedRoute>} />
                     <Route path="/lists" element={<ProtectedRoute><Notes /></ProtectedRoute>} />

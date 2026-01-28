@@ -13,7 +13,8 @@ import {
   Camera,
   Plus,
   Timer,
-  Lightbulb
+  Lightbulb,
+  Bird
 } from 'lucide-react';
 import { ImageLightbox } from '@/components/ui/image-lightbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -112,7 +113,8 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
 
   const focusSessions = entry.completed_focus_sessions || [];
   const createdNotes = entry.created_notes || [];
-  const totalAccomplishments = entry.completed_tasks.length + entry.completed_habits.length + focusSessions.length + createdNotes.length;
+  const birdSightings = entry.bird_sightings || [];
+  const totalAccomplishments = entry.completed_tasks.length + entry.completed_habits.length + focusSessions.length + createdNotes.length + birdSightings.length;
 
   const formatFocusDuration = (minutes: number) => {
     if (minutes < 60) return `${minutes}m`;
@@ -133,6 +135,9 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
           )}
           {createdNotes.length > 0 && (
             <Badge variant="secondary">{createdNotes.length} notes</Badge>
+          )}
+          {birdSightings.length > 0 && (
+            <Badge variant="secondary">{birdSightings.length} birds</Badge>
           )}
         </div>
       </CardHeader>
@@ -415,6 +420,23 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
                         <span>{note.title}</span>
                         {note.pillar && (
                           <Badge variant="outline" className="text-xs capitalize">{note.pillar}</Badge>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {birdSightings.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-1">Birds Spotted</h4>
+                  <ul className="space-y-1">
+                    {birdSightings.map((sighting) => (
+                      <li key={sighting.id} className="text-sm flex items-center gap-2">
+                        <Bird className="w-3 h-3 text-primary" />
+                        <span>{sighting.species_name}</span>
+                        {sighting.location_name && (
+                          <span className="text-xs text-muted-foreground">@ {sighting.location_name}</span>
                         )}
                       </li>
                     ))}

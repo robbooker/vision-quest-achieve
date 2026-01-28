@@ -7,6 +7,7 @@ import { ProfileSettings } from '@/components/settings/ProfileSettings';
 import { HardQuestions } from '@/components/settings/HardQuestions';
 import { JournalSettings } from '@/components/settings/JournalSettings';
 import { VoiceCallHistory } from '@/components/settings/VoiceCallHistory';
+import { OuraSettings } from '@/components/settings/OuraSettings';
 import { SubscriptionSettings } from '@/components/subscription/SubscriptionSettings';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -90,6 +91,10 @@ export default function Settings() {
         
         <div data-tour="settings-calendar">
           <CalendarSettings />
+        </div>
+
+        <div data-tour="settings-oura">
+          <OuraSettings />
         </div>
 
         <div data-tour="settings-journal">

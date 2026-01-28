@@ -107,3 +107,6 @@ verify_jwt = false
 
 [functions.generate-monthly-audit]
 verify_jwt = false
+
+[functions.oura-sync-performance]
+verify_jwt = false

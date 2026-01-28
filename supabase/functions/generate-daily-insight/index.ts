@@ -103,6 +103,23 @@ serve(async (req) => {
       .gte("completed_at", startOfDay)
       .lte("completed_at", endOfDay);
 
+    // Fetch Oura biometric data for the journal date
+    const { data: ouraMetrics } = await supabase
+      .from("oura_daily_metrics")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("metric_date", entry.entry_date)
+      .maybeSingle();
+
+    // Fetch pending task count for workload comparison
+    const { data: pendingTasks } = await supabase
+      .from("quick_tasks")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("completed", false);
+    
+    const pendingTaskCount = pendingTasks?.length || 0;
+
     // Build pillar status from assessment
     const pillarStatus: PillarStatus[] = assessment ? [
       { name: "Physical", level: assessment.physical_level, isFoundation: true },
@@ -176,20 +193,75 @@ serve(async (req) => {
     // Build goals context
     const activeGoals = (goals || []).map((g) => `- ${g.title} (${g.pillar})`).join("\n");
 
-    // Build prompt - Strategic performance coach style
+    // Build biometric context for Strategic Auditor
+    let biometricContext = "";
+    let strategicWarnings: string[] = [];
+
+    if (ouraMetrics) {
+      const readinessTier = (ouraMetrics.readiness_score ?? 0) >= 85 ? "Optimal" : 
+                            (ouraMetrics.readiness_score ?? 0) >= 70 ? "Good" : "Pay Attention";
+      
+      const sleepHours = ouraMetrics.total_sleep_seconds 
+        ? Math.floor(ouraMetrics.total_sleep_seconds / 3600) + "h " + 
+          Math.floor((ouraMetrics.total_sleep_seconds % 3600) / 60) + "m"
+        : "Unknown";
+
+      biometricContext = `
+**BIOMETRIC PERFORMANCE DATA (from ${ouraMetrics.source === 'oura' ? 'Oura Ring' : 'Manual Entry'}):**
+- Readiness Score: ${ouraMetrics.readiness_score ?? 'N/A'}/100 (${readinessTier})
+- Resilience Level: ${ouraMetrics.resilience_level ? ouraMetrics.resilience_level.charAt(0).toUpperCase() + ouraMetrics.resilience_level.slice(1) : 'N/A'}
+- HRV Balance: ${ouraMetrics.hrv_balance ?? 'N/A'}/100${ouraMetrics.hrv_strain_alert ? ' (LOW - Strain Alert)' : ''}
+- Resting Heart Rate: ${ouraMetrics.resting_heart_rate ?? 'N/A'} bpm${ouraMetrics.rhr_spike_alert ? ` (+${(ouraMetrics.resting_heart_rate ?? 0) - (ouraMetrics.rhr_baseline_14d ?? 0)} above baseline - ELEVATED)` : ''}
+- Last Night's Sleep: ${sleepHours} (Score: ${ouraMetrics.sleep_score ?? 'N/A'})
+${ouraMetrics.critical_deficit_alert ? '- 🔴 CRITICAL RECOVERY DEFICIT ACTIVE' : ''}
+${ouraMetrics.hrv_strain_alert && !ouraMetrics.critical_deficit_alert ? '- ⚠️ Nervous System Strain Alert' : ''}
+${ouraMetrics.rhr_spike_alert && !ouraMetrics.critical_deficit_alert ? '- ⚠️ Elevated RHR Alert' : ''}`;
+
+      // Calculate strategic warnings based on the logic map
+      if ((ouraMetrics.readiness_score ?? 100) < 75 && pendingTaskCount > 5) {
+        strategicWarnings.push("**⚠️ Productivity Friction:** Your biological readiness doesn't match your task load. Consider deferring complex work.");
+      }
+
+      if (ouraMetrics.hrv_balance && ouraMetrics.hrv_balance < 70) {
+        strategicWarnings.push("**⚠️ Trading Alpha Warning:** Emotional regulation and risk patience may be lowered. Stick to mechanical exits.");
+      }
+
+      if ((ouraMetrics.readiness_score ?? 0) >= 85) {
+        strategicWarnings.push("**💪 High Operating Leverage:** Today is optimal for complex coding or high-conviction deep dives.");
+      }
+
+      if (ouraMetrics.resilience_level === 'limited') {
+        strategicWarnings.push("**🛡️ Conservation Mode:** Long-term recovery buffer is depleted. Focus on recovery activities.");
+      }
+
+      if (ouraMetrics.critical_deficit_alert) {
+        strategicWarnings.push("**🔴 CRITICAL RECOVERY DEFICIT:** Your nervous system is under significant strain. Consider this a forced rest day for high-stakes decisions.");
+      }
+    }
+
+    const workloadContext = `
+**TODAY'S WORKLOAD:**
+- Pending Tasks: ${pendingTaskCount}
+- Completed Activities: ${totalActivities}`;
+
+    // Build prompt - Strategic performance coach style with biometric awareness
     const prompt = `Act as a high-level performance coach and strategist. Analyze the user's journal and habit data for ${entry.entry_date}.
 
 ${assessment ? `USER'S CURRENT PILLAR STATUS:
 ${pillarStatus.map((p) => `- ${p.name}: Level ${p.level}${p.isFoundation ? " (foundation pillar)" : ""}`).join("\n")}` : "No PRIMED assessment completed yet."}
+${biometricContext}
+${workloadContext}
 
 TODAY'S ACTIVITIES:
 ${activitiesWithPillars.join("\n") || "No activities logged"}
 
 ${activeGoals ? `ACTIVE GOALS BY PILLAR:\n${activeGoals}` : ""}
 
+${strategicWarnings.length > 0 ? `**STRATEGIC ALERTS TO ADDRESS:**\n${strategicWarnings.join("\n")}` : ""}
+
 Provide a brief analysis in this exact structure:
 
-**The Audit:** Briefly highlight the strongest pillar of the day with a 'Why it mattered' insight.
+${strategicWarnings.length > 0 ? `**The Strategic Alert:** Lead with the most important biometric warning above. If there's a Productivity Friction or Critical Deficit, address it first with specific advice.\n\n` : ''}**The Audit:** Briefly highlight the strongest pillar of the day with a 'Why it mattered' insight.
 
 **The Divergence:** Identify the pillar that was most neglected and hypothesize one small 'frictionless' way to address it tomorrow.
 

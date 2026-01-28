@@ -1529,6 +1529,90 @@ export type Database = {
         }
         Relationships: []
       }
+      oura_daily_metrics: {
+        Row: {
+          created_at: string
+          critical_deficit_alert: boolean | null
+          deep_sleep_seconds: number | null
+          hrv_balance: number | null
+          hrv_baseline_14d: number | null
+          hrv_strain_alert: boolean | null
+          id: string
+          light_sleep_seconds: number | null
+          manual_bedtime: string | null
+          manual_sleep_quality: number | null
+          manual_wake_time: string | null
+          metric_date: string
+          readiness_score: number | null
+          rem_sleep_seconds: number | null
+          resilience_level: string | null
+          resting_heart_rate: number | null
+          rhr_baseline_14d: number | null
+          rhr_spike_alert: boolean | null
+          sleep_efficiency: number | null
+          sleep_score: number | null
+          source: string
+          synced_at: string | null
+          total_sleep_seconds: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          critical_deficit_alert?: boolean | null
+          deep_sleep_seconds?: number | null
+          hrv_balance?: number | null
+          hrv_baseline_14d?: number | null
+          hrv_strain_alert?: boolean | null
+          id?: string
+          light_sleep_seconds?: number | null
+          manual_bedtime?: string | null
+          manual_sleep_quality?: number | null
+          manual_wake_time?: string | null
+          metric_date: string
+          readiness_score?: number | null
+          rem_sleep_seconds?: number | null
+          resilience_level?: string | null
+          resting_heart_rate?: number | null
+          rhr_baseline_14d?: number | null
+          rhr_spike_alert?: boolean | null
+          sleep_efficiency?: number | null
+          sleep_score?: number | null
+          source?: string
+          synced_at?: string | null
+          total_sleep_seconds?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          critical_deficit_alert?: boolean | null
+          deep_sleep_seconds?: number | null
+          hrv_balance?: number | null
+          hrv_baseline_14d?: number | null
+          hrv_strain_alert?: boolean | null
+          id?: string
+          light_sleep_seconds?: number | null
+          manual_bedtime?: string | null
+          manual_sleep_quality?: number | null
+          manual_wake_time?: string | null
+          metric_date?: string
+          readiness_score?: number | null
+          rem_sleep_seconds?: number | null
+          resilience_level?: string | null
+          resting_heart_rate?: number | null
+          rhr_baseline_14d?: number | null
+          rhr_spike_alert?: boolean | null
+          sleep_efficiency?: number | null
+          sleep_score?: number | null
+          source?: string
+          synced_at?: string | null
+          total_sleep_seconds?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       primed_assessment_behaviors: {
         Row: {
           assessment_id: string
@@ -1661,8 +1745,11 @@ export type Database = {
           display_name: string | null
           email: string | null
           id: string
+          manual_sleep_enabled: boolean | null
           member_pin: string | null
           onboarding_completed: boolean | null
+          oura_access_token: string | null
+          oura_connected_at: string | null
           phone_us: string | null
           phone_whatsapp: string | null
           short_scout_user_id: string | null
@@ -1679,8 +1766,11 @@ export type Database = {
           display_name?: string | null
           email?: string | null
           id?: string
+          manual_sleep_enabled?: boolean | null
           member_pin?: string | null
           onboarding_completed?: boolean | null
+          oura_access_token?: string | null
+          oura_connected_at?: string | null
           phone_us?: string | null
           phone_whatsapp?: string | null
           short_scout_user_id?: string | null
@@ -1697,8 +1787,11 @@ export type Database = {
           display_name?: string | null
           email?: string | null
           id?: string
+          manual_sleep_enabled?: boolean | null
           member_pin?: string | null
           onboarding_completed?: boolean | null
+          oura_access_token?: string | null
+          oura_connected_at?: string | null
           phone_us?: string | null
           phone_whatsapp?: string | null
           short_scout_user_id?: string | null

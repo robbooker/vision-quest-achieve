@@ -101,3 +101,6 @@ verify_jwt = false
 
 [functions.generate-daily-insight]
 verify_jwt = false
+
+[functions.backfill-calendar-pillars]
+verify_jwt = false

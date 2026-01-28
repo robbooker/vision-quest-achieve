@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { useCalendarConnection, useUserPreferences } from '@/hooks/useCalendar';
-import { Calendar, CheckCircle, Loader2, Settings, Unplug } from 'lucide-react';
+import { Calendar, CheckCircle, Loader2, Settings, Unplug, RefreshCw } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,6 +18,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => ({
   value: i.toString(),
@@ -44,6 +46,44 @@ const BUFFER_SIZES = [
 export function CalendarSettings() {
   const { isConnected, isLoading, isConnecting, connect, disconnect } = useCalendarConnection();
   const { preferences, isLoading: prefsLoading, updatePreferences } = useUserPreferences();
+  const [isBackfilling, setIsBackfilling] = useState(false);
+
+  const handleBackfillJanuary = async () => {
+    setIsBackfilling(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Please log in to backfill calendar events');
+        return;
+      }
+
+      const response = await supabase.functions.invoke('backfill-calendar-pillars', {
+        body: { startDate: '2025-01-01', endDate: '2025-01-31' },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      const results = response.data;
+      toast.success(
+        `Backfill complete! Processed ${results.processed} events, tagged ${results.tagged} with pillars.`,
+        { duration: 5000 }
+      );
+
+      if (results.tagged > 0) {
+        const pillarSummary = Object.entries(results.byPillar)
+          .map(([pillar, count]) => `${pillar}: ${count}`)
+          .join(', ');
+        toast.info(`Pillars assigned: ${pillarSummary}`, { duration: 5000 });
+      }
+    } catch (error) {
+      console.error('Backfill error:', error);
+      toast.error('Failed to backfill calendar events');
+    } finally {
+      setIsBackfilling(false);
+    }
+  };
 
   if (isLoading || prefsLoading) {
     return (
@@ -124,6 +164,39 @@ export function CalendarSettings() {
             </Button>
           )}
         </div>
+
+        {/* Pillar Backfill Section - Only show when connected */}
+        {isConnected && (
+          <>
+            <Separator />
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <RefreshCw className="h-4 w-4 text-muted-foreground" />
+                <h3 className="font-medium">PRIMED Pillar Backfill</h3>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Automatically assign PRIMED pillars to your January 2025 calendar events based on keywords in event titles.
+              </p>
+              <Button
+                onClick={handleBackfillJanuary}
+                disabled={isBackfilling}
+                variant="outline"
+              >
+                {isBackfilling ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Backfilling...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Backfill January 2025
+                  </>
+                )}
+              </Button>
+            </div>
+          </>
+        )}
 
         {/* Work Hours Settings */}
         <Separator />

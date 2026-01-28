@@ -110,3 +110,6 @@ verify_jwt = false
 
 [functions.oura-sync-performance]
 verify_jwt = false
+
+[functions.parse-nutrition]
+verify_jwt = false

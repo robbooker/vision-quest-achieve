@@ -17,6 +17,7 @@ import { DailyPnLLogger } from '@/components/dashboard/DailyPnLLogger';
 import { CompactResetCard } from '@/components/reset/CompactResetCard';
 import { PrimedWeeklySummaryWidget } from '@/components/primed/PrimedWeeklySummaryWidget';
 import { PerformanceAuditCard } from '@/components/dashboard/PerformanceAuditCard';
+import { DailyFuelCard } from '@/components/nutrition/DailyFuelCard';
 
 import { TodaySchedule, CalendarEventData } from '@/components/dashboard/TodaySchedule';
 import { AddCalendarEventDialog } from '@/components/dashboard/AddCalendarEventDialog';
@@ -429,6 +430,7 @@ export default function Today() {
           </div>
           <div className="space-y-6">
             <PerformanceAuditCard />
+            <DailyFuelCard />
             <PrimedWeeklySummaryWidget />
             <DailyPnLLogger />
           </div>

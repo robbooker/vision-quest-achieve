@@ -120,6 +120,25 @@ serve(async (req) => {
     
     const pendingTaskCount = pendingTasks?.length || 0;
 
+    // Fetch nutrition data for the journal date
+    const { data: nutritionEntries } = await supabase
+      .from("daily_nutrition")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("entry_date", entry.entry_date);
+
+    // Calculate nutrition totals
+    const nutritionTotals = (nutritionEntries || []).reduce(
+      (acc: any, entry: any) => ({
+        calories: acc.calories + (entry.calories || 0),
+        protein_g: acc.protein_g + (entry.protein_g || 0),
+        carbs_g: acc.carbs_g + (entry.carbs_g || 0),
+        fats_g: acc.fats_g + (entry.fats_g || 0),
+        sugar_g: acc.sugar_g + (entry.sugar_g || 0),
+      }),
+      { calories: 0, protein_g: 0, carbs_g: 0, fats_g: 0, sugar_g: 0 }
+    );
+
     // Build pillar status from assessment
     const pillarStatus: PillarStatus[] = assessment ? [
       { name: "Physical", level: assessment.physical_level, isFoundation: true },
@@ -237,6 +256,56 @@ ${ouraMetrics.rhr_spike_alert && !ouraMetrics.critical_deficit_alert ? '- ⚠️
       if (ouraMetrics.critical_deficit_alert) {
         strategicWarnings.push("**🔴 CRITICAL RECOVERY DEFICIT:** Your nervous system is under significant strain. Consider this a forced rest day for high-stakes decisions.");
       }
+
+      // Nutrition-based warnings with Oura integration
+      const activeCalories = 350; // Approximate from Oura activity - could be enhanced later
+      
+      // Low Protein + High Activity Warning
+      if (nutritionTotals.protein_g < 100 && activeCalories > 400) {
+        strategicWarnings.push(
+          `**🥩 Recovery Gap:** High activity (${activeCalories} cal burned) with only ${Math.round(nutritionTotals.protein_g)}g protein. Prioritize a protein-rich meal to support muscle recovery.`
+        );
+      }
+
+      // High Carbs + Low Readiness Warning (Cognitive Slump)
+      if (nutritionTotals.carbs_g > 200 && (ouraMetrics.readiness_score ?? 100) < 70) {
+        strategicWarnings.push(
+          `**⚠️ Cognitive Slump Risk:** High carb intake (${Math.round(nutritionTotals.carbs_g)}g) combined with low readiness (${ouraMetrics.readiness_score}). Afternoon brain fog likely—consider lighter carbs and strategic caffeine timing.`
+        );
+      }
+
+      // High Sugar + Low Readiness (Compounded Fatigue)
+      if (nutritionTotals.sugar_g > 50 && (ouraMetrics.readiness_score ?? 100) < 75) {
+        strategicWarnings.push(
+          `**🍬 Compounded Fatigue:** High sugar (${Math.round(nutritionTotals.sugar_g)}g) + low recovery creates blood sugar volatility. Energy crashes likely—stick to mechanical trading decisions.`
+        );
+      }
+
+      // Net Fuel status
+      if (nutritionTotals.calories > 0) {
+        const netFuel = nutritionTotals.calories - activeCalories;
+        if (netFuel > 500) {
+          strategicWarnings.push(
+            `**📊 Fuel Surplus:** +${netFuel} net calories. Good for recovery days; watch accumulation on consecutive rest days.`
+          );
+        } else if (netFuel < -300) {
+          strategicWarnings.push(
+            `**📊 Fuel Deficit:** ${netFuel} net calories. Sustainable for fat loss if protein stays high (${Math.round(nutritionTotals.protein_g)}g today).`
+          );
+        }
+      }
+    }
+
+    // Build nutrition context for AI prompt
+    let nutritionContext = "";
+    if (nutritionTotals.calories > 0) {
+      nutritionContext = `
+**NUTRITION DATA:**
+- Calories Consumed: ${nutritionTotals.calories} kcal
+- Protein: ${Math.round(nutritionTotals.protein_g)}g
+- Carbs: ${Math.round(nutritionTotals.carbs_g)}g
+- Fats: ${Math.round(nutritionTotals.fats_g)}g
+- Sugar: ${Math.round(nutritionTotals.sugar_g)}g`;
     }
 
     const workloadContext = `
@@ -250,6 +319,7 @@ ${ouraMetrics.rhr_spike_alert && !ouraMetrics.critical_deficit_alert ? '- ⚠️
 ${assessment ? `USER'S CURRENT PILLAR STATUS:
 ${pillarStatus.map((p) => `- ${p.name}: Level ${p.level}${p.isFoundation ? " (foundation pillar)" : ""}`).join("\n")}` : "No PRIMED assessment completed yet."}
 ${biometricContext}
+${nutritionContext}
 ${workloadContext}
 
 TODAY'S ACTIVITIES:

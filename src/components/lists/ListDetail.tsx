@@ -47,7 +47,12 @@ function SortableItem({ item, onToggle, onDelete, onUpdate }: {
   item: ListItem;
   onToggle: (id: string, completed: boolean) => void;
   onDelete: (id: string) => void;
-  onUpdate: (id: string, content: string) => void;
+  onUpdate: (id: string, content: string, linkMetadata?: {
+    link_url: string | null;
+    link_title: string | null;
+    link_description: string | null;
+    link_image: string | null;
+  }) => void;
 }) {
   const {
     attributes,
@@ -191,7 +196,7 @@ export function ListDetail({ list, onBack, onDelete, onUpdateTitle }: ListDetail
                 item={item}
                 onToggle={(id, completed) => toggleComplete.mutate({ id, is_completed: completed })}
                 onDelete={(id) => deleteItem.mutate(id)}
-                onUpdate={(id, content) => updateItem.mutate({ id, content })}
+                onUpdate={(id, content, linkMetadata) => updateItem.mutate({ id, content, ...linkMetadata })}
               />
             ))}
           </div>

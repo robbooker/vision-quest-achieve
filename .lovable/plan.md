@@ -1,310 +1,339 @@
 
-# P.R.I.M.E.D. Framework Implementation Plan
+# Lists Feature Implementation Plan
 
-## Executive Summary
+## Overview
 
-This plan implements a comprehensive personal development framework that maps user evolution across six life domains (Physical, Relations, Income, Mental, Excellence, Direction) through four mastery levels (0-3). P.R.I.M.E.D. becomes the PRIMARY goal-setting framework, with cycles becoming optional "sprints" within it.
+Build an Apple Notes-style "Lists" feature where users can create shareable lists containing text items and links (with optional preview images). Lists can be shared externally via SMS invitations to non-users who can view them on a public page.
 
-**Core Innovation**: Mental, Physical, Relations must reach Level 1 before users can set goals in Income, Excellence, Direction. This enforces the "foundation first" philosophy.
+---
+
+## Key Features
+
+1. **List Management**: Create, edit, delete lists with titles and descriptions
+2. **List Items**: Text items with optional links and link preview metadata
+3. **SMS Sharing**: Share lists with external users via phone number (SMS invitation sent)
+4. **Public View Page**: Recipients can view shared lists without logging in
+5. **Realtime Sync**: Updates appear in real-time for all viewers
+6. **Navigation**: Accessible via user dropdown menu
+
+---
+
+## Database Schema
+
+### New Tables
+
+```text
+lists
+├── id (uuid, PK)
+├── user_id (uuid, FK → auth.users)
+├── title (text, required)
+├── description (text, nullable)
+├── slug (text, unique) -- For public URL like /list/{slug}
+├── is_public (boolean, default false)
+├── created_at (timestamptz)
+└── updated_at (timestamptz)
+
+list_items
+├── id (uuid, PK)
+├── list_id (uuid, FK → lists)
+├── user_id (uuid, FK → auth.users)
+├── content (text, required) -- The item text
+├── link_url (text, nullable) -- Optional URL
+├── link_title (text, nullable) -- Fetched meta title
+├── link_description (text, nullable) -- Fetched meta description
+├── link_image (text, nullable) -- Fetched og:image URL
+├── is_completed (boolean, default false) -- For checklist-style use
+├── position (integer) -- For drag-and-drop ordering
+├── created_at (timestamptz)
+└── updated_at (timestamptz)
+
+list_shares
+├── id (uuid, PK)
+├── list_id (uuid, FK → lists)
+├── shared_by_id (uuid, FK → auth.users) -- Who shared
+├── phone_number (text, required) -- Recipient's phone
+├── access_token (text, unique) -- Unique token for access
+├── sms_sent_at (timestamptz, nullable) -- When invitation was sent
+├── first_viewed_at (timestamptz, nullable) -- When recipient first opened
+├── created_at (timestamptz)
+└── updated_at (timestamptz)
+```
+
+### RLS Policies
+
+**lists table:**
+- Owner can CRUD their own lists
+- Anyone can SELECT lists WHERE is_public = true
+
+**list_items table:**
+- Owner can CRUD items in their lists
+- Anyone can SELECT items from public lists
+
+**list_shares table:**
+- Owner can manage shares for their lists
+- Public SELECT for invitation lookup by access_token
+
+---
+
+## SMS Sharing Flow
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ User clicks "Share List" → Enters phone number            │
+│                  ↓                                          │
+│ System generates access_token and creates list_share       │
+│                  ↓                                          │
+│ Edge Function sends SMS via Twilio:                        │
+│ "Rob shared a list with you: [title]                       │
+│  View it here: https://vision-quest-achieve.lovable.app    │
+│  /list/view/{access_token}"                                │
+│                  ↓                                          │
+│ Recipient clicks link → PublicListView loads               │
+│                  ↓                                          │
+│ First view records first_viewed_at timestamp               │
+│                  ↓                                          │
+│ Recipient sees list (read-only, no account needed)         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## File Structure
+
+### New Files
+
+```text
+src/pages/
+├── Lists.tsx                      -- Main lists page (protected)
+└── PublicListView.tsx             -- Public view for shared lists
+
+src/components/lists/
+├── ListCard.tsx                   -- Preview card for a list
+├── ListDetail.tsx                 -- Full list view with items
+├── ListHeader.tsx                 -- List title/description editor
+├── ListItem.tsx                   -- Individual item component
+├── ListItemForm.tsx               -- Add/edit item form
+├── ShareListDialog.tsx            -- Phone number input for sharing
+├── LinkPreviewCard.tsx            -- Displays link metadata
+
+src/hooks/
+├── useLists.ts                    -- CRUD for lists
+├── useListItems.ts                -- CRUD for list items
+├── useListShares.ts               -- Manage shares/invitations
+└── useLinkMetadata.ts             -- Fetch link previews
+
+supabase/functions/
+├── share-list-sms/index.ts        -- Send SMS invitation
+└── fetch-link-metadata/index.ts   -- Fetch og:title, og:image etc.
+```
+
+### Modified Files
+
+```text
+src/App.tsx                        -- Add /lists and /list/view/:token routes
+src/components/layout/DashboardLayout.tsx  -- Add Lists to dropdown menu
+supabase/config.toml               -- Configure new edge functions
+```
+
+---
+
+## UI Design
+
+### Lists Page (/lists)
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│  Lists                                        [+ New List]  │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌──────────────────┐  ┌──────────────────┐                │
+│  │ 🛒 Grocery List  │  │ 📚 Books to Read │                │
+│  │ 5 items          │  │ 12 items         │                │
+│  │ Shared with 1    │  │ Private          │                │
+│  └──────────────────┘  └──────────────────┘                │
+│                                                             │
+│  ┌──────────────────┐                                      │
+│  │ 🎯 Project Ideas │                                      │
+│  │ 3 items          │                                      │
+│  │ Private          │                                      │
+│  └──────────────────┘                                      │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### List Detail View
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│  ← Back         Grocery List              [Share] [Delete] │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ + Add item...                                       │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ☐ Milk                                                    │
+│  ☐ Eggs                                                    │
+│  ☑ Bread (completed)                                       │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ 🔗 https://example.com/recipe                       │   │
+│  │ ┌─────────────────────────────────────────────────┐ │   │
+│  │ │ [Preview Image]  Delicious Pasta Recipe        │ │   │
+│  │ │                  Easy 30-minute meal...        │ │   │
+│  │ └─────────────────────────────────────────────────┘ │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Share Dialog
+
+```text
+┌────────────────────────────────────────────┐
+│           Share "Grocery List"             │
+├────────────────────────────────────────────┤
+│                                            │
+│  Phone number:                             │
+│  ┌────────────────────────────────────┐   │
+│  │ +1 (555) 123-4567                  │   │
+│  └────────────────────────────────────┘   │
+│                                            │
+│  They'll receive a text with a link to    │
+│  view this list.                           │
+│                                            │
+│  ────────────────────────────────────────  │
+│  Currently shared with:                    │
+│  • +1 555-987-6543 (viewed)               │
+│  • +1 555-111-2222 (pending)       [×]    │
+│                                            │
+│           [Cancel]    [Send Invite]        │
+└────────────────────────────────────────────┘
+```
+
+---
+
+## Edge Functions
+
+### share-list-sms
+
+**Purpose**: Send SMS invitation when user shares a list
+
+**Request**:
+```json
+{
+  "list_id": "uuid",
+  "phone_number": "+15551234567"
+}
+```
+
+**Logic**:
+1. Verify user owns the list
+2. Generate unique access_token
+3. Create list_share record
+4. Send SMS via Twilio:
+   ```
+   {user_name} shared a list with you: "{list_title}"
+   View it here: https://vision-quest-achieve.lovable.app/list/view/{access_token}
+   ```
+5. Update sms_sent_at timestamp
+
+### fetch-link-metadata
+
+**Purpose**: Fetch Open Graph metadata for link previews
+
+**Request**:
+```json
+{
+  "url": "https://example.com/article"
+}
+```
+
+**Response**:
+```json
+{
+  "title": "Article Title",
+  "description": "Article description...",
+  "image": "https://example.com/og-image.jpg"
+}
+```
+
+**Logic**:
+1. Fetch HTML from URL
+2. Parse og:title, og:description, og:image meta tags
+3. Fall back to title tag and meta description if no OG tags
+4. Return metadata (or null for each missing field)
 
 ---
 
 ## Implementation Phases
 
-### Phase 1: Assessment + Dashboard (This Plan)
-- Database schema for assessments + history
-- Self-assessment flow with behavioral indicators
-- P.R.I.M.E.D. dashboard with radar chart + pillar cards
-- Required pillar tagging on new goals
-- Foundation enforcement (warning for non-foundation goals)
+### Phase 1: Core Lists (This Sprint)
+1. Database schema and migrations
+2. Basic CRUD for lists and items
+3. Lists page and detail view
+4. Add to navigation dropdown
+5. Drag-and-drop reordering
 
-### Phase 2: AI Integration
-- AI chat that can challenge/verify assessments
-- Goal recommendations based on pillar levels
-- AI-verified level adjustments from behavior data
+### Phase 2: SMS Sharing
+1. share-list-sms edge function
+2. Share dialog UI
+3. Public list view page
+4. Access tracking (first_viewed_at)
 
-### Phase 3: Timeline + Re-Assessment
-- Progress timeline visualization
-- Cycle-end re-assessment prompts
-- Historical comparison views
+### Phase 3: Link Previews
+1. fetch-link-metadata edge function
+2. Link detection in items
+3. Preview card component
+4. Async metadata fetching
 
 ---
 
-## Phase 1 Technical Implementation
+## Technical Considerations
 
-### 1. Database Schema
+### Link Detection
+- Detect URLs in item content using regex
+- Auto-fetch metadata when URL is detected
+- Store metadata in list_items columns (not separate table to keep it simple)
 
-**New Tables:**
+### Realtime Updates
+- Enable realtime for list_items table
+- Subscribers see updates immediately
+- Use optimistic updates for smooth UX
 
-```text
-primed_assessments
-├── id (uuid, PK)
-├── user_id (uuid, FK → auth.users)
-├── assessed_at (timestamptz)
-├── physical_level (int, 0-3)
-├── relations_level (int, 0-3)
-├── income_level (int, 0-3)
-├── mental_level (int, 0-3)
-├── excellence_level (int, 0-3)
-├── direction_level (int, 0-3)
-├── ai_notes (text, nullable) -- For future AI verification notes
-├── created_at (timestamptz)
-└── updated_at (timestamptz)
+### Phone Number Formatting
+- Store E.164 format (+1XXXXXXXXXX)
+- Accept various input formats in UI
+- Validate before sending
 
-primed_assessment_behaviors
-├── id (uuid, PK)
-├── assessment_id (uuid, FK → primed_assessments)
-├── pillar (text) -- 'physical' | 'relations' | 'income' | 'mental' | 'excellence' | 'direction'
-├── level (int, 0-3)
-├── behavior_key (text) -- Unique key for each behavioral indicator
-├── behavior_text (text) -- The actual behavior text selected
-├── created_at (timestamptz)
-└── (composite unique: assessment_id + behavior_key)
+### Public Access Security
+- access_token is cryptographically random (UUID or similar)
+- Rate limit the SMS endpoint
+- Track first_viewed_at to detect if invitation was opened
 
-primed_goal_progress
-├── id (uuid, PK)
-├── assessment_id (uuid, FK → primed_assessments)
-├── pillar (text)
-├── goals_completed (int)
-├── habits_maintained (int)
-├── focus_minutes (int)
-├── created_at (timestamptz)
-└── (Stores snapshot of achievements per pillar at assessment time)
-```
+---
 
-**Schema Modifications:**
+## Navigation Update
 
-```text
-goals (existing table)
-└── ADD pillar (text, nullable initially, then required)
-    -- 'physical' | 'relations' | 'income' | 'mental' | 'excellence' | 'direction'
-```
-
-**RLS Policies:**
-- Users can only view/edit their own assessments
-- All tables get standard user_id-based RLS
-
-### 2. Assessment Flow
-
-**User Experience:**
-
-1. **Entry Point**: New "P.R.I.M.E.D." item in main navigation
-2. **Assessment Start**: Card explaining the framework with "Begin Assessment" button
-3. **Pillar-by-Pillar Flow**:
-   - User sees one pillar at a time (Physical → Relations → Income → Mental → Excellence → Direction)
-   - Each pillar shows 4 level cards (0-3) with behavioral indicators as checkboxes
-   - User checks behaviors that describe their TYPICAL state
-   - System determines level based on highest level where majority of behaviors are checked
-   - "Continue to AI Chat" optional button appears after self-rating
-
-4. **Summary Screen**: 
-   - Radar chart preview
-   - Foundation check (Mental/Physical/Relations at Level 1+?)
-   - "Save Assessment" to confirm
-
-**Assessment UI Components:**
-
-```text
-src/pages/Primed.tsx                    -- Main page with tabs/views
-src/components/primed/
-├── PrimedAssessment.tsx               -- Assessment flow container
-├── PillarAssessmentCard.tsx           -- Individual pillar rating UI
-├── BehaviorChecklist.tsx              -- Level behaviors with checkboxes
-├── AssessmentSummary.tsx              -- Final summary before save
-├── PrimedDashboard.tsx                -- Main dashboard view
-├── PrimedRadarChart.tsx               -- Recharts radar visualization
-├── PillarDetailCard.tsx               -- Expandable pillar details
-├── FoundationWarning.tsx              -- Warning component for non-foundation goals
-└── PillarSelector.tsx                 -- Dropdown for goal creation
-```
-
-### 3. Behavioral Indicators Data Structure
-
-Store as a constants file with all 24 level definitions (6 pillars × 4 levels):
-
-```text
-src/data/primedBehaviors.ts
-├── PILLARS constant (metadata for each pillar)
-├── BEHAVIORS constant (all indicators organized by pillar/level)
-└── Helper functions for level calculation
-```
-
-Each behavior will have:
-- Unique key (e.g., "physical_l1_meals_home")
-- Display text (e.g., "Prepares 50%+ meals at home")
-- Pillar reference
-- Level reference
-
-### 4. Dashboard Design
-
-**Layout:**
-
-```text
-┌─────────────────────────────────────────────────────┐
-│  P.R.I.M.E.D. Assessment                            │
-│  Last assessed: 2 weeks ago  [Re-Assess]            │
-├─────────────────────────────────────────────────────┤
-│                                                     │
-│         ┌─────────────────────┐                     │
-│         │                     │                     │
-│         │    RADAR CHART      │                     │
-│         │    (Recharts)       │                     │
-│         │                     │                     │
-│         └─────────────────────┘                     │
-│                                                     │
-│  ┌─────────┬─────────┬─────────┐                    │
-│  │Physical │Relations│ Income  │ ← Foundation Row   │
-│  │ Lv 1 ★  │ Lv 2 ★★ │ Lv 0 ⚠ │                    │
-│  └─────────┴─────────┴─────────┘                    │
-│  ┌─────────┬─────────┬─────────┐                    │
-│  │ Mental  │Excellence│Direction│ ← Advanced Row    │
-│  │ Lv 1 ★  │ Lv 1 ★  │ Lv 0 🔒 │   (locked visual  │
-│  └─────────┴─────────┴─────────┘    if foundation   │
-│                                      incomplete)    │
-│                                                     │
-│  [Timeline Tab] Shows assessment history over time  │
-│                                                     │
-└─────────────────────────────────────────────────────┘
-```
-
-**Pillar Cards expand to show:**
-- Current level with progress bar to next level
-- Key behaviors achieved at current level
-- Active goals tagged to this pillar
-- Habits/tactics contributing to this pillar
-
-### 5. Goal Integration
-
-**Goal Type Selector Update:**
-
-Add pillar selection AFTER goal type selection:
-1. User selects goal type (Standard, Time-Mastery, Habit, WOOP)
-2. NEW: User selects pillar (with foundation warning if applicable)
-3. Continues to goal details
-
-**Foundation Warning Logic:**
+Add "Lists" to the user dropdown in DashboardLayout.tsx:
 
 ```typescript
-const foundationPillars = ['mental', 'physical', 'relations'];
-const advancedPillars = ['income', 'excellence', 'direction'];
-
-// Get user's current assessment
-const assessment = useCurrentAssessment();
-
-// Check if trying to set goal in advanced pillar
-if (advancedPillars.includes(selectedPillar)) {
-  const foundationComplete = foundationPillars.every(p => 
-    assessment[`${p}_level`] >= 1
-  );
-  
-  if (!foundationComplete) {
-    // Show warning dialog (but allow proceeding)
-  }
-}
-```
-
-### 6. Hooks and Data Layer
-
-```text
-src/hooks/
-├── usePrimedAssessment.ts     -- CRUD for assessments
-├── usePrimedBehaviors.ts      -- Manage selected behaviors
-├── usePrimedProgress.ts       -- Calculate goal/habit progress per pillar
-├── useCurrentAssessment.ts    -- Get latest assessment for user
-└── usePrimedTimeline.ts       -- Historical assessment data
-```
-
-### 7. Navigation Update
-
-Add "P.R.I.M.E.D." to main navigation (top-level):
-- Icon: Could use a hexagon icon (6 pillars) or target icon
-- Route: /primed
-- Position: After Dashboard, before Today
-
-### 8. File Structure Summary
-
-```text
-New Files:
-├── src/pages/Primed.tsx
-├── src/components/primed/
-│   ├── PrimedAssessment.tsx
-│   ├── PillarAssessmentCard.tsx
-│   ├── BehaviorChecklist.tsx
-│   ├── AssessmentSummary.tsx
-│   ├── PrimedDashboard.tsx
-│   ├── PrimedRadarChart.tsx
-│   ├── PillarDetailCard.tsx
-│   ├── FoundationWarning.tsx
-│   ├── PillarSelector.tsx
-│   └── TimelineView.tsx
-├── src/data/primedBehaviors.ts
-├── src/hooks/usePrimedAssessment.ts
-├── src/hooks/usePrimedBehaviors.ts
-├── src/hooks/usePrimedProgress.ts
-├── src/hooks/useCurrentAssessment.ts
-└── src/hooks/usePrimedTimeline.ts
-
-Modified Files:
-├── src/components/dashboard/GoalTypeSelector.tsx (add pillar step)
-├── src/components/dashboard/CreateGoalDialog.tsx (integrate pillar)
-├── src/components/dashboard/CreateHabitGoalDialog.tsx (integrate pillar)
-├── src/components/dashboard/CreateTimeMasteryGoalDialog.tsx (integrate pillar)
-├── src/components/dashboard/CreateWoopGoalDialog.tsx (integrate pillar)
-├── src/hooks/useGoals.tsx (add pillar field)
-├── src/components/dashboard/GoalCard.tsx (show pillar badge)
-└── Navigation components (add P.R.I.M.E.D. link)
+const dropdownNavItems = [
+  { href: '/lists', label: 'Lists', icon: List },  // New
+  { href: '/trading', label: 'Trading P&L', icon: TrendingUp },
+  // ... existing items
+];
 ```
 
 ---
 
-## Migration Strategy
+## Summary
 
-### For Existing Goals (No Pillar)
+This feature creates a simple but powerful note-sharing system that:
+- Lives in the user dropdown (not main nav) to keep the interface clean
+- Allows external sharing via SMS without requiring recipients to have accounts
+- Supports links with rich previews (like Apple Notes)
+- Uses existing Twilio integration for SMS
+- Follows established patterns from shared_tasks and monthly_recaps
 
-Goals created before P.R.I.M.E.D. will have `pillar = null`. Options:
-1. **Soft migration**: Show "Untagged" badge, prompt users to tag when editing
-2. **AI suggestion**: When viewing old goals, AI suggests which pillar it belongs to
-3. **Grace period**: New goals require pillar, old goals grandfathered
-
-Recommended: Option 1 (Soft migration with prompts)
-
----
-
-## Phase 2 Preview (AI Integration)
-
-For context on what comes next:
-
-- **AI Assessment Chat**: After self-assessment, user can optionally chat with AI to challenge/validate their ratings
-- **Goal Recommendations**: AI analyzes pillar levels and suggests specific goals for weakest areas
-- **AI-Verified Levels**: System tracks goal completion, habit streaks, focus time per pillar and AI periodically suggests level adjustments
-
----
-
-## Phase 3 Preview (Timeline + Re-Assessment)
-
-- **Timeline View**: Line chart showing level progression over time for each pillar
-- **Cycle-End Prompts**: At week 6/7 of each cycle, prompt for re-assessment
-- **Comparison Mode**: Side-by-side view of two assessments
-
----
-
-## Success Metrics
-
-1. **Assessment Completion Rate**: % of users who complete full assessment
-2. **Foundation Compliance**: % of users who address foundation pillars first
-3. **Pillar Balance**: Distribution of goals across pillars
-4. **Level Progression**: Average time to level up in each pillar
-
----
-
-## Estimated Scope
-
-**Phase 1 Components:**
-- 3 new database tables + 1 schema modification
-- 1 new page + ~12 new components
-- 5 new hooks
-- 1 data constants file
-- Navigation updates
-- Goal creation flow modifications
-
-This is a significant but well-scoped Phase 1 that delivers immediate value while setting up the architecture for AI integration and timeline features.
+The phased approach delivers core value quickly while building toward the full vision.

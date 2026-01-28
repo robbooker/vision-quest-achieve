@@ -98,3 +98,6 @@ verify_jwt = false
 
 [functions.fetch-link-metadata]
 verify_jwt = false
+
+[functions.generate-daily-insight]
+verify_jwt = false

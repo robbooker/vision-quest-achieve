@@ -997,6 +997,7 @@ export type Database = {
       }
       journal_entries: {
         Row: {
+          ai_daily_insight: string | null
           audio_duration_seconds: number | null
           audio_metadata: Json | null
           audio_transcript: string | null
@@ -1015,6 +1016,7 @@ export type Database = {
           user_photos: Json | null
         }
         Insert: {
+          ai_daily_insight?: string | null
           audio_duration_seconds?: number | null
           audio_metadata?: Json | null
           audio_transcript?: string | null
@@ -1033,6 +1035,7 @@ export type Database = {
           user_photos?: Json | null
         }
         Update: {
+          ai_daily_insight?: string | null
           audio_duration_seconds?: number | null
           audio_metadata?: Json | null
           audio_transcript?: string | null

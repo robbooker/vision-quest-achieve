@@ -62,6 +62,7 @@ export interface JournalEntry {
   audio_transcript: string | null;
   audio_duration_seconds: number | null;
   audio_metadata: AudioMetadata | null;
+  ai_daily_insight: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -289,6 +290,33 @@ export const useGenerateJournalImage = () => {
     onError: (error) => {
       console.error('Failed to generate image:', error);
       toast.error('Failed to generate image');
+    },
+  });
+};
+
+export const useGenerateDailyInsight = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (entryId: string) => {
+      if (!user?.id) throw new Error('Not authenticated');
+
+      const { data, error } = await supabase.functions.invoke('generate-daily-insight', {
+        body: { entryId },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['journal-entries'] });
+      toast.success('Insight generated!');
+    },
+    onError: (error) => {
+      console.error('Failed to generate insight:', error);
+      toast.error('Failed to generate insight');
     },
   });
 };

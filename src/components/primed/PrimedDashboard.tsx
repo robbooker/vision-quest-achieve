@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PrimedRadarChart } from './PrimedRadarChart';
 import { PillarDetailCard } from './PillarDetailCard';
+import { PillarDetailSheet } from './PillarDetailSheet';
 import { PILLAR_ORDER, FOUNDATION_PILLARS, ADVANCED_PILLARS, isFoundationComplete, PillarKey, PillarLevel } from '@/data/primedBehaviors';
 import { usePrimedAssessments } from '@/hooks/usePrimedAssessment';
 import { usePrimedProgress } from '@/hooks/usePrimedProgress';
@@ -16,6 +18,13 @@ interface PrimedDashboardProps {
 export function PrimedDashboard({ onStartAssessment }: PrimedDashboardProps) {
   const { currentAssessment, isLoadingCurrent } = usePrimedAssessments();
   const { pillarProgress, getProgressForPillar } = usePrimedProgress();
+  const [selectedPillar, setSelectedPillar] = useState<PillarKey | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  const handlePillarClick = (pillar: PillarKey) => {
+    setSelectedPillar(pillar);
+    setSheetOpen(true);
+  };
 
   if (isLoadingCurrent) {
     return (
@@ -91,7 +100,7 @@ export function PrimedDashboard({ onStartAssessment }: PrimedDashboardProps) {
         <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
           Foundation Pillars
           {foundationComplete && (
-            <span className="text-xs bg-green-500/20 text-green-600 dark:text-green-400 px-2 py-0.5 rounded-full">
+            <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
               ✓ Complete
             </span>
           )}
@@ -103,6 +112,7 @@ export function PrimedDashboard({ onStartAssessment }: PrimedDashboardProps) {
               pillar={pillar}
               level={getPillarLevel(pillar)}
               progress={getProgressForPillar(pillar)}
+              onClick={() => handlePillarClick(pillar)}
             />
           ))}
         </div>
@@ -120,10 +130,19 @@ export function PrimedDashboard({ onStartAssessment }: PrimedDashboardProps) {
               isLocked={!foundationComplete}
               isFoundationIncomplete={!foundationComplete}
               progress={getProgressForPillar(pillar)}
+              onClick={() => handlePillarClick(pillar)}
             />
           ))}
         </div>
       </div>
+
+      {/* Pillar Detail Sheet */}
+      <PillarDetailSheet
+        pillar={selectedPillar}
+        level={selectedPillar ? getPillarLevel(selectedPillar) : 0}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+      />
     </div>
   );
 }

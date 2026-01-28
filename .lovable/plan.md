@@ -1,339 +1,229 @@
 
-# Lists Feature Implementation Plan
+
+# Lists Refinement: Apple Notes Style
 
 ## Overview
 
-Build an Apple Notes-style "Lists" feature where users can create shareable lists containing text items and links (with optional preview images). Lists can be shared externally via SMS invitations to non-users who can view them on a public page.
+Transform the current checklist-style Lists into a note-taking experience similar to Apple Notes. Each list item becomes a "note block" that can contain multi-line text and paragraphs. When a link is detected in the content, the system automatically fetches and displays a rich preview with image, title, and description.
 
 ---
 
-## Key Features
+## Key Changes
 
-1. **List Management**: Create, edit, delete lists with titles and descriptions
-2. **List Items**: Text items with optional links and link preview metadata
-3. **SMS Sharing**: Share lists with external users via phone number (SMS invitation sent)
-4. **Public View Page**: Recipients can view shared lists without logging in
-5. **Realtime Sync**: Updates appear in real-time for all viewers
-6. **Navigation**: Accessible via user dropdown menu
+### Current State
+- Single-line input field for items
+- Checkbox-style completion
+- Items feel like a to-do list
+- Link preview exists but link metadata is never fetched
+
+### Target State
+- Multi-line textarea for rich note content
+- Optional checkbox (can be toggled on/off per item or removed entirely)
+- Items feel like note blocks
+- Automatic link detection and preview fetching
+- Clean, Apple Notes-inspired aesthetic
 
 ---
 
-## Database Schema
+## Technical Implementation
 
-### New Tables
+### 1. UI Component Changes
 
+**ListItemForm.tsx** - Replace Input with Textarea:
+- Use auto-resizing textarea instead of single-line input
+- Support Shift+Enter for new lines, Enter to save
+- Placeholder: "Write a note..." instead of "Add item..."
+- Remove the "Add" button - save on blur or Enter
+
+**ListItem.tsx** - Rich content display:
+- Render content with preserved line breaks (whitespace-pre-wrap)
+- Auto-detect URLs in content using regex
+- When URL detected and no link metadata exists, trigger fetch
+- Display link preview card below the text content
+- Remove or make checkbox optional (can add a toggle in list settings later)
+- Use textarea for editing instead of single-line input
+
+**New: LinkPreviewCard.tsx** - Dedicated preview component:
+- Horizontal card layout with image on left
+- Title, description, and domain display
+- Click opens link in new tab
+- Loading skeleton while fetching
+- Graceful fallback if fetch fails
+
+### 2. Link Metadata Fetching
+
+**New Edge Function: fetch-link-metadata**
 ```text
-lists
-├── id (uuid, PK)
-├── user_id (uuid, FK → auth.users)
-├── title (text, required)
-├── description (text, nullable)
-├── slug (text, unique) -- For public URL like /list/{slug}
-├── is_public (boolean, default false)
-├── created_at (timestamptz)
-└── updated_at (timestamptz)
+Purpose: Fetch Open Graph metadata from a URL
 
-list_items
-├── id (uuid, PK)
-├── list_id (uuid, FK → lists)
-├── user_id (uuid, FK → auth.users)
-├── content (text, required) -- The item text
-├── link_url (text, nullable) -- Optional URL
-├── link_title (text, nullable) -- Fetched meta title
-├── link_description (text, nullable) -- Fetched meta description
-├── link_image (text, nullable) -- Fetched og:image URL
-├── is_completed (boolean, default false) -- For checklist-style use
-├── position (integer) -- For drag-and-drop ordering
-├── created_at (timestamptz)
-└── updated_at (timestamptz)
+Request: { url: "https://example.com/article" }
 
-list_shares
-├── id (uuid, PK)
-├── list_id (uuid, FK → lists)
-├── shared_by_id (uuid, FK → auth.users) -- Who shared
-├── phone_number (text, required) -- Recipient's phone
-├── access_token (text, unique) -- Unique token for access
-├── sms_sent_at (timestamptz, nullable) -- When invitation was sent
-├── first_viewed_at (timestamptz, nullable) -- When recipient first opened
-├── created_at (timestamptz)
-└── updated_at (timestamptz)
+Response: {
+  title: "Article Title",
+  description: "Article description...",
+  image: "https://example.com/og-image.jpg",
+  siteName: "Example.com"
+}
+
+Logic:
+1. Validate URL format
+2. Fetch HTML with timeout (5s)
+3. Parse og:title, og:description, og:image
+4. Fallback to <title> and meta description
+5. Extract domain for display
+6. Return metadata or error
 ```
 
-### RLS Policies
+**New Hook: useLinkMetadata.ts**
+- Accepts a URL string
+- Calls the edge function
+- Returns { metadata, isLoading, error }
+- Caches results to avoid re-fetching
 
-**lists table:**
-- Owner can CRUD their own lists
-- Anyone can SELECT lists WHERE is_public = true
+**Update useListItems.ts**
+- Add `fetchLinkMetadata` mutation
+- After content is saved, detect URLs
+- If URL found and no metadata stored, call edge function
+- Update item with link_url, link_title, link_description, link_image
 
-**list_items table:**
-- Owner can CRUD items in their lists
-- Anyone can SELECT items from public lists
-
-**list_shares table:**
-- Owner can manage shares for their lists
-- Public SELECT for invitation lookup by access_token
-
----
-
-## SMS Sharing Flow
+### 3. UX Flow
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│ User clicks "Share List" → Enters phone number            │
-│                  ↓                                          │
-│ System generates access_token and creates list_share       │
-│                  ↓                                          │
-│ Edge Function sends SMS via Twilio:                        │
-│ "Rob shared a list with you: [title]                       │
-│  View it here: https://vision-quest-achieve.lovable.app    │
-│  /list/view/{access_token}"                                │
-│                  ↓                                          │
-│ Recipient clicks link → PublicListView loads               │
-│                  ↓                                          │
-│ First view records first_viewed_at timestamp               │
-│                  ↓                                          │
-│ Recipient sees list (read-only, no account needed)         │
-└─────────────────────────────────────────────────────────────┘
+User types note content with a link:
+┌─────────────────────────────────────────────────────────┐
+│ Check out this article about productivity tips:        │
+│ https://example.com/productivity-tips                  │
+│                                                        │
+│ Really changed how I think about morning routines.     │
+└─────────────────────────────────────────────────────────┘
+
+After saving, system detects URL and fetches metadata:
+┌─────────────────────────────────────────────────────────┐
+│ Check out this article about productivity tips:        │
+│ https://example.com/productivity-tips                  │
+│                                                        │
+│ Really changed how I think about morning routines.     │
+│                                                        │
+│ ┌─────────────────────────────────────────────────────┐│
+│ │ [Image]  10 Productivity Tips That Actually Work   ││
+│ │          Simple strategies to boost your daily...  ││
+│ │          example.com                               ││
+│ └─────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────┘
 ```
+
+### 4. Visual Design Updates
+
+**Note Block Styling:**
+- Softer borders, more padding
+- Content uses readable line-height
+- Subtle hover state
+- Drag handle only visible on hover
+- Optional: remove checkboxes entirely (or make them a list-level setting)
+
+**Link Preview Card:**
+- Image: 80x80px, rounded corners, object-cover
+- Title: Bold, single line, truncated
+- Description: 2 lines max, muted color
+- Domain: Small text at bottom
+- Entire card is clickable
 
 ---
 
-## File Structure
+## File Changes
 
 ### New Files
-
 ```text
-src/pages/
-├── Lists.tsx                      -- Main lists page (protected)
-└── PublicListView.tsx             -- Public view for shared lists
-
-src/components/lists/
-├── ListCard.tsx                   -- Preview card for a list
-├── ListDetail.tsx                 -- Full list view with items
-├── ListHeader.tsx                 -- List title/description editor
-├── ListItem.tsx                   -- Individual item component
-├── ListItemForm.tsx               -- Add/edit item form
-├── ShareListDialog.tsx            -- Phone number input for sharing
-├── LinkPreviewCard.tsx            -- Displays link metadata
-
-src/hooks/
-├── useLists.ts                    -- CRUD for lists
-├── useListItems.ts                -- CRUD for list items
-├── useListShares.ts               -- Manage shares/invitations
-└── useLinkMetadata.ts             -- Fetch link previews
-
-supabase/functions/
-├── share-list-sms/index.ts        -- Send SMS invitation
-└── fetch-link-metadata/index.ts   -- Fetch og:title, og:image etc.
+src/components/lists/LinkPreviewCard.tsx    -- Link preview component
+src/hooks/useLinkMetadata.ts                -- Hook for fetching metadata
+supabase/functions/fetch-link-metadata/     -- Edge function
 ```
 
 ### Modified Files
-
 ```text
-src/App.tsx                        -- Add /lists and /list/view/:token routes
-src/components/layout/DashboardLayout.tsx  -- Add Lists to dropdown menu
-supabase/config.toml               -- Configure new edge functions
+src/components/lists/ListItemForm.tsx       -- Textarea instead of Input
+src/components/lists/ListItem.tsx           -- Multi-line display, preview integration
+src/hooks/useListItems.ts                   -- Add metadata fetching logic
+src/components/lists/ListDetail.tsx         -- Minor layout adjustments
+supabase/config.toml                        -- Register new edge function
 ```
 
 ---
 
-## UI Design
+## Implementation Details
 
-### Lists Page (/lists)
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│  Lists                                        [+ New List]  │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌──────────────────┐  ┌──────────────────┐                │
-│  │ 🛒 Grocery List  │  │ 📚 Books to Read │                │
-│  │ 5 items          │  │ 12 items         │                │
-│  │ Shared with 1    │  │ Private          │                │
-│  └──────────────────┘  └──────────────────┘                │
-│                                                             │
-│  ┌──────────────────┐                                      │
-│  │ 🎯 Project Ideas │                                      │
-│  │ 3 items          │                                      │
-│  │ Private          │                                      │
-│  └──────────────────┘                                      │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### List Detail View
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│  ← Back         Grocery List              [Share] [Delete] │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ + Add item...                                       │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│  ☐ Milk                                                    │
-│  ☐ Eggs                                                    │
-│  ☑ Bread (completed)                                       │
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ 🔗 https://example.com/recipe                       │   │
-│  │ ┌─────────────────────────────────────────────────┐ │   │
-│  │ │ [Preview Image]  Delicious Pasta Recipe        │ │   │
-│  │ │                  Easy 30-minute meal...        │ │   │
-│  │ └─────────────────────────────────────────────────┘ │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Share Dialog
-
-```text
-┌────────────────────────────────────────────┐
-│           Share "Grocery List"             │
-├────────────────────────────────────────────┤
-│                                            │
-│  Phone number:                             │
-│  ┌────────────────────────────────────┐   │
-│  │ +1 (555) 123-4567                  │   │
-│  └────────────────────────────────────┘   │
-│                                            │
-│  They'll receive a text with a link to    │
-│  view this list.                           │
-│                                            │
-│  ────────────────────────────────────────  │
-│  Currently shared with:                    │
-│  • +1 555-987-6543 (viewed)               │
-│  • +1 555-111-2222 (pending)       [×]    │
-│                                            │
-│           [Cancel]    [Send Invite]        │
-└────────────────────────────────────────────┘
-```
-
----
-
-## Edge Functions
-
-### share-list-sms
-
-**Purpose**: Send SMS invitation when user shares a list
-
-**Request**:
-```json
-{
-  "list_id": "uuid",
-  "phone_number": "+15551234567"
-}
-```
-
-**Logic**:
-1. Verify user owns the list
-2. Generate unique access_token
-3. Create list_share record
-4. Send SMS via Twilio:
-   ```
-   {user_name} shared a list with you: "{list_title}"
-   View it here: https://vision-quest-achieve.lovable.app/list/view/{access_token}
-   ```
-5. Update sms_sent_at timestamp
-
-### fetch-link-metadata
-
-**Purpose**: Fetch Open Graph metadata for link previews
-
-**Request**:
-```json
-{
-  "url": "https://example.com/article"
-}
-```
-
-**Response**:
-```json
-{
-  "title": "Article Title",
-  "description": "Article description...",
-  "image": "https://example.com/og-image.jpg"
-}
-```
-
-**Logic**:
-1. Fetch HTML from URL
-2. Parse og:title, og:description, og:image meta tags
-3. Fall back to title tag and meta description if no OG tags
-4. Return metadata (or null for each missing field)
-
----
-
-## Implementation Phases
-
-### Phase 1: Core Lists (This Sprint)
-1. Database schema and migrations
-2. Basic CRUD for lists and items
-3. Lists page and detail view
-4. Add to navigation dropdown
-5. Drag-and-drop reordering
-
-### Phase 2: SMS Sharing
-1. share-list-sms edge function
-2. Share dialog UI
-3. Public list view page
-4. Access tracking (first_viewed_at)
-
-### Phase 3: Link Previews
-1. fetch-link-metadata edge function
-2. Link detection in items
-3. Preview card component
-4. Async metadata fetching
-
----
-
-## Technical Considerations
-
-### Link Detection
-- Detect URLs in item content using regex
-- Auto-fetch metadata when URL is detected
-- Store metadata in list_items columns (not separate table to keep it simple)
-
-### Realtime Updates
-- Enable realtime for list_items table
-- Subscribers see updates immediately
-- Use optimistic updates for smooth UX
-
-### Phone Number Formatting
-- Store E.164 format (+1XXXXXXXXXX)
-- Accept various input formats in UI
-- Validate before sending
-
-### Public Access Security
-- access_token is cryptographically random (UUID or similar)
-- Rate limit the SMS endpoint
-- Track first_viewed_at to detect if invitation was opened
-
----
-
-## Navigation Update
-
-Add "Lists" to the user dropdown in DashboardLayout.tsx:
-
+### Auto-Resizing Textarea
 ```typescript
-const dropdownNavItems = [
-  { href: '/lists', label: 'Lists', icon: List },  // New
-  { href: '/trading', label: 'Trading P&L', icon: TrendingUp },
-  // ... existing items
-];
+// Use a ref and resize on content change
+const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+useEffect(() => {
+  if (textareaRef.current) {
+    textareaRef.current.style.height = 'auto';
+    textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+  }
+}, [content]);
 ```
+
+### URL Detection Regex
+```typescript
+const URL_REGEX = /https?:\/\/[^\s<>"{}|\\^`[\]]+/gi;
+
+const extractUrls = (text: string): string[] => {
+  return text.match(URL_REGEX) || [];
+};
+```
+
+### Link Metadata Fetch Flow
+```typescript
+// In useListItems.ts after saving content
+const urls = extractUrls(content);
+if (urls.length > 0 && !item.link_url) {
+  // Fetch metadata for first URL found
+  const metadata = await fetchLinkMetadata(urls[0]);
+  if (metadata) {
+    await updateItem({
+      id: item.id,
+      link_url: urls[0],
+      link_title: metadata.title,
+      link_description: metadata.description,
+      link_image: metadata.image,
+    });
+  }
+}
+```
+
+---
+
+## Edge Cases Handled
+
+1. **Multiple URLs**: Only fetch preview for the first URL (keeps it clean)
+2. **Invalid URLs**: Edge function validates and returns null gracefully
+3. **Slow/Failed Fetches**: Show loading skeleton, then hide if failed
+4. **URL Removed**: If user edits content and removes URL, clear metadata
+5. **Private/Blocked Sites**: Some sites block scraping - show URL-only fallback
+
+---
+
+## Optional Enhancements (Future)
+
+- **Checklist Toggle**: Per-list setting to enable/disable checkboxes
+- **Rich Text**: Basic formatting (bold, italic) using markdown
+- **Multiple Link Previews**: Show previews for all URLs, not just first
+- **Image Uploads**: Allow inline images (not just link previews)
 
 ---
 
 ## Summary
 
-This feature creates a simple but powerful note-sharing system that:
-- Lives in the user dropdown (not main nav) to keep the interface clean
-- Allows external sharing via SMS without requiring recipients to have accounts
-- Supports links with rich previews (like Apple Notes)
-- Uses existing Twilio integration for SMS
-- Follows established patterns from shared_tasks and monthly_recaps
+This refinement transforms Lists from a checklist tool into a flexible note-taking feature:
 
-The phased approach delivers core value quickly while building toward the full vision.
+| Before | After |
+|--------|-------|
+| Single-line items | Multi-line notes with paragraphs |
+| Checkbox-focused | Content-focused |
+| No link previews | Auto-fetched rich link previews |
+| "Add item" button | Seamless textarea input |
+
+The implementation leverages the existing database schema (content, link_url, link_title, link_description, link_image are already there) and adds the missing metadata fetching layer.
+

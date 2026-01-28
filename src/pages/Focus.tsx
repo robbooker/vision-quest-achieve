@@ -35,14 +35,15 @@ export default function Focus() {
     abandonSession,
     updateSession,
     isLoading,
+    isLoadingActive,
   } = useFocusSessions();
 
   // If there's an active session on load, show the timer
   useEffect(() => {
-    if (!isLoading && activeSession && viewState === 'setup') {
+    if (!isLoading && !isLoadingActive && activeSession && viewState === 'setup') {
       setViewState('active');
     }
-  }, [activeSession, viewState, isLoading]);
+  }, [activeSession, viewState, isLoading, isLoadingActive]);
 
   const handleStartSession = async (data: {
     objective: string;
@@ -221,7 +222,7 @@ export default function Focus() {
           {viewState === 'active' && (
             <Card>
               <CardContent className="pt-6">
-                {isLoading || !activeSession ? (
+                {isLoading || isLoadingActive || !activeSession ? (
                   <div className="flex flex-col items-center justify-center py-12 space-y-4">
                     <Target className="h-8 w-8 animate-pulse text-muted-foreground" />
                     <p className="text-sm text-muted-foreground">Loading session...</p>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -17,12 +18,18 @@ interface PrimedDashboardProps {
 }
 
 export function PrimedDashboard({ onStartAssessment, onReassessPillar }: PrimedDashboardProps) {
+  const navigate = useNavigate();
   const { currentAssessment, isLoadingCurrent } = usePrimedAssessments();
   const { pillarProgress, getProgressForPillar } = usePrimedProgress();
   const [selectedPillar, setSelectedPillar] = useState<PillarKey | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const handlePillarClick = (pillar: PillarKey) => {
+    // Physical pillar has its own full-page dashboard
+    if (pillar === 'physical') {
+      navigate('/primed/physical');
+      return;
+    }
     setSelectedPillar(pillar);
     setSheetOpen(true);
   };

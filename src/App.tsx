@@ -54,6 +54,7 @@ import PublicBirdProfile from "./pages/PublicBirdProfile";
 import PublicRecap from "./pages/PublicRecap";
 import TradingPnL from "./pages/TradingPnL";
 import Primed from "./pages/Primed";
+import PhysicalPillar from "./pages/PhysicalPillar";
 import Notes from "./pages/Notes";
 import PublicListView from "./pages/PublicListView";
 import JanuaryAudit from "./pages/JanuaryAudit";
@@ -108,6 +109,7 @@ const App = () => (
                     <Route path="/blog/affirmations" element={<AffirmationsBlog />} />
                     <Route path="/whats-new" element={<WhatsNew />} />
                     <Route path="/primed" element={<ProtectedRoute><Primed /></ProtectedRoute>} />
+                    <Route path="/primed/physical" element={<ProtectedRoute><PhysicalPillar /></ProtectedRoute>} />
                     <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                     <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                     <Route path="/today" element={<ProtectedRoute><Today /></ProtectedRoute>} />

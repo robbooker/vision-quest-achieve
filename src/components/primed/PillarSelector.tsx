@@ -2,17 +2,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PILLARS, PILLAR_ORDER, FOUNDATION_PILLARS, ADVANCED_PILLARS, isFoundationComplete, PillarKey } from '@/data/primedBehaviors';
+import { SPIRITUAL_PILLAR, AllPillarKey } from '@/data/allPillars';
 import { useCurrentAssessment } from '@/hooks/usePrimedAssessment';
 import { AlertTriangle } from 'lucide-react';
 
 interface PillarSelectorProps {
-  value: PillarKey | null;
-  onChange: (pillar: PillarKey) => void;
+  value: AllPillarKey | PillarKey | null;
+  onChange: (pillar: AllPillarKey) => void;
   label?: string;
   required?: boolean;
+  includeSpiritual?: boolean;
 }
 
-export function PillarSelector({ value, onChange, label = 'Life Pillar', required = false }: PillarSelectorProps) {
+export function PillarSelector({ value, onChange, label = 'Life Pillar', required = false, includeSpiritual = true }: PillarSelectorProps) {
   const { assessment, isLoading } = useCurrentAssessment();
 
   const foundationComplete = assessment ? isFoundationComplete({
@@ -21,7 +23,7 @@ export function PillarSelector({ value, onChange, label = 'Life Pillar', require
     mental_level: assessment.mental_level,
   }) : false;
 
-  const showFoundationWarning = value && ADVANCED_PILLARS.includes(value) && !foundationComplete;
+  const showFoundationWarning = value && ADVANCED_PILLARS.includes(value as PillarKey) && !foundationComplete;
 
   return (
     <div className="space-y-2">
@@ -30,7 +32,7 @@ export function PillarSelector({ value, onChange, label = 'Life Pillar', require
         {required && <span className="text-destructive ml-1">*</span>}
       </Label>
       
-      <Select value={value ?? undefined} onValueChange={(v) => onChange(v as PillarKey)}>
+      <Select value={value ?? undefined} onValueChange={(v) => onChange(v as AllPillarKey)}>
         <SelectTrigger id="pillar-select">
           <SelectValue placeholder="Select a pillar..." />
         </SelectTrigger>
@@ -78,6 +80,25 @@ export function PillarSelector({ value, onChange, label = 'Life Pillar', require
               </div>
             </SelectItem>
           ))}
+          
+          {includeSpiritual && (
+            <>
+              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground mt-2">
+                Spiritual
+              </div>
+              <SelectItem value="spiritual">
+                <div className="flex items-center gap-2">
+                  <span 
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-primary-foreground"
+                    style={{ backgroundColor: SPIRITUAL_PILLAR.color }}
+                  >
+                    {SPIRITUAL_PILLAR.letter}
+                  </span>
+                  <span>{SPIRITUAL_PILLAR.label}</span>
+                </div>
+              </SelectItem>
+            </>
+          )}
         </SelectContent>
       </Select>
 

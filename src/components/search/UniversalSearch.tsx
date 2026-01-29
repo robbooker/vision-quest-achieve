@@ -26,7 +26,8 @@ import {
   Star,
   Plane,
   Library,
-  Search
+  Search,
+  Sparkles
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -50,6 +51,7 @@ const navigationItems: SearchResult[] = [
   { id: 'nav-bigten', title: 'Big 10', type: 'navigation', href: '/big-ten', icon: Star },
   { id: 'nav-books', title: 'Books', type: 'navigation', href: '/books', icon: Library },
   { id: 'nav-trips', title: 'Trips', type: 'navigation', href: '/trips', icon: Plane },
+  { id: 'nav-spiritual', title: 'Spiritual', type: 'navigation', href: '/spiritual', icon: Sparkles },
   { id: 'nav-birdwatching', title: 'Birdwatching', type: 'navigation', href: '/birdwatching', icon: Bird },
   { id: 'nav-settings', title: 'Settings', type: 'navigation', href: '/settings', icon: Settings },
 ];

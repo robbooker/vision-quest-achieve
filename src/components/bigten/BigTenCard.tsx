@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import { BigTenProject, BigTenTask, BigTenCategory } from '@/hooks/useBigTen';
 import { PILLARS, PillarKey } from '@/data/primedBehaviors';
+import { ALL_PILLARS, AllPillarKey, getPillarByValue } from '@/data/allPillars';
 
 interface BigTenCardProps {
   project?: BigTenProject;
@@ -355,16 +356,16 @@ export function BigTenCard({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">No pillar</SelectItem>
-              {(Object.keys(PILLARS) as PillarKey[]).map((key) => (
-                <SelectItem key={key} value={key}>
+              {ALL_PILLARS.map((p) => (
+                <SelectItem key={p.value} value={p.value}>
                   <div className="flex items-center gap-2">
                     <span
                       className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold text-primary-foreground"
-                      style={{ backgroundColor: PILLARS[key].color }}
+                      style={{ backgroundColor: p.color }}
                     >
-                      {PILLARS[key].letter}
+                      {p.letter}
                     </span>
-                    {PILLARS[key].name}
+                    {p.label}
                   </div>
                 </SelectItem>
               ))}

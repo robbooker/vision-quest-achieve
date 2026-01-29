@@ -177,8 +177,9 @@ export function CreateGoalDialog({
 
             <PillarSelector
               value={pillar}
-              onChange={setPillar}
+              onChange={(p) => setPillar(p as PillarKey)}
               label="Life Pillar (P.R.I.M.E.D.)"
+              includeSpiritual={false}
             />
 
             <div className="grid grid-cols-2 gap-4">

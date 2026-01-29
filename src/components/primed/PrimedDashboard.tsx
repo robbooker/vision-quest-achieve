@@ -13,9 +13,10 @@ import { RefreshCw, Hexagon } from 'lucide-react';
 
 interface PrimedDashboardProps {
   onStartAssessment: () => void;
+  onReassessPillar?: (pillar: PillarKey) => void;
 }
 
-export function PrimedDashboard({ onStartAssessment }: PrimedDashboardProps) {
+export function PrimedDashboard({ onStartAssessment, onReassessPillar }: PrimedDashboardProps) {
   const { currentAssessment, isLoadingCurrent } = usePrimedAssessments();
   const { pillarProgress, getProgressForPillar } = usePrimedProgress();
   const [selectedPillar, setSelectedPillar] = useState<PillarKey | null>(null);
@@ -24,6 +25,11 @@ export function PrimedDashboard({ onStartAssessment }: PrimedDashboardProps) {
   const handlePillarClick = (pillar: PillarKey) => {
     setSelectedPillar(pillar);
     setSheetOpen(true);
+  };
+
+  const handleReassessPillar = (pillar: PillarKey) => {
+    setSheetOpen(false);
+    onReassessPillar?.(pillar);
   };
 
   if (isLoadingCurrent) {
@@ -142,6 +148,7 @@ export function PrimedDashboard({ onStartAssessment }: PrimedDashboardProps) {
         level={selectedPillar ? getPillarLevel(selectedPillar) : 0}
         open={sheetOpen}
         onOpenChange={setSheetOpen}
+        onReassess={handleReassessPillar}
       />
     </div>
   );

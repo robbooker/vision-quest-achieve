@@ -258,31 +258,20 @@ export function getBehaviorsForPillarAndLevel(pillar: PillarKey, level: PillarLe
 }
 
 export function calculateLevelFromBehaviors(pillar: PillarKey, checkedBehaviorKeys: string[]): PillarLevel {
-  // For each level, check if majority of behaviors are checked
-  // Return highest level where majority is met
+  // User must check ALL behaviors at a level to achieve it
+  // Start from level 1 and work up - user is level 0 until they complete ALL level 1 behaviors
   
-  for (let level = 3 as PillarLevel; level >= 0; level--) {
+  for (let level = 3 as PillarLevel; level >= 1; level--) {
     const behaviorsAtLevel = getBehaviorsForPillarAndLevel(pillar, level as PillarLevel);
     const checkedAtLevel = behaviorsAtLevel.filter(b => checkedBehaviorKeys.includes(b.key));
     
-    // For level 0, if majority are checked, user is at level 0
-    // For levels 1-3, majority means user has achieved that level
-    const majorityThreshold = Math.ceil(behaviorsAtLevel.length / 2);
-    
-    if (level === 0) {
-      // Level 0 is special - if NOT majority checked, user is above level 0
-      if (checkedAtLevel.length < majorityThreshold) {
-        continue; // Check higher levels
-      }
-      return 0;
-    } else {
-      if (checkedAtLevel.length >= majorityThreshold) {
-        return level as PillarLevel;
-      }
+    // ALL behaviors at this level must be checked to achieve it
+    if (checkedAtLevel.length === behaviorsAtLevel.length && behaviorsAtLevel.length > 0) {
+      return level as PillarLevel;
     }
   }
   
-  // Default to level 0 if no majority found
+  // If no level 1+ is fully complete, user is at level 0
   return 0;
 }
 

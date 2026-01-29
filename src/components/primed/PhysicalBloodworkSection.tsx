@@ -103,11 +103,15 @@ export function PhysicalBloodworkSection() {
               variant="outline"
               size="sm"
               className="w-full"
-              onClick={() => reanalyzeReport(latestReport.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('Triggering reanalyze for report:', latestReport.id, latestReport.report_date);
+                reanalyzeReport(latestReport.id);
+              }}
               disabled={isReanalyzing}
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${isReanalyzing ? 'animate-spin' : ''}`} />
-              {isReanalyzing ? 'Analyzing...' : 'Analyze with AI'}
+              {isReanalyzing ? 'Analyzing (may take 30s)...' : 'Analyze with AI'}
             </Button>
           )}
 

@@ -130,7 +130,12 @@ export function useBloodwork() {
         .eq('user_id', user.id)
         .single();
 
-      if (fetchError || !report) throw new Error('Report not found');
+      if (fetchError || !report) {
+        console.error('Report fetch error:', fetchError);
+        throw new Error('Report not found');
+      }
+
+      console.log('Calling parse-bloodwork for report:', reportId, 'with PDF:', report.pdf_url);
 
       // Call edge function to re-parse PDF
       const { data: sessionData } = await supabase.auth.getSession();
@@ -144,20 +149,23 @@ export function useBloodwork() {
         },
       });
 
+      console.log('parse-bloodwork response:', response);
+
       if (response.error) {
-        console.error('Reanalyze error:', response.error);
-        throw new Error('Failed to analyze report');
+        console.error('Edge function error:', response.error);
+        throw new Error(response.error.message || 'Failed to analyze report');
       }
 
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Reanalyze success, invalidating queries. Data:', data);
       queryClient.invalidateQueries({ queryKey: ['bloodwork-reports'] });
-      toast.success('Report re-analyzed successfully!');
+      toast.success('Report analyzed successfully!');
     },
     onError: (error) => {
-      console.error('Reanalyze error:', error);
-      toast.error('Failed to re-analyze report');
+      console.error('Reanalyze mutation error:', error);
+      toast.error(`Failed to analyze report: ${error.message}`);
     },
   });
 

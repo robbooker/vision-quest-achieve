@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { BehaviorChecklist } from './BehaviorChecklist';
@@ -22,7 +22,7 @@ export function SinglePillarAssessment({ pillar, onComplete, onBack }: SinglePil
   const [isSaving, setIsSaving] = useState(false);
 
   // Load existing behaviors on mount
-  useMemo(() => {
+  useEffect(() => {
     const loadBehaviors = async () => {
       if (currentAssessment?.id) {
         try {
@@ -38,7 +38,8 @@ export function SinglePillarAssessment({ pillar, onComplete, onBack }: SinglePil
       setIsLoading(false);
     };
     loadBehaviors();
-  }, [currentAssessment?.id, pillar, fetchBehaviors]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentAssessment?.id, pillar]);
 
   const calculatedLevel = useMemo(() => {
     const pillarBehaviorKeys = getBehaviorsForPillar(pillar).map(b => b.key);

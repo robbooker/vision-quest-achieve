@@ -14,23 +14,22 @@ interface BehaviorChecklistProps {
 
 export function BehaviorChecklist({ behaviors, level, checkedBehaviors, onToggle }: BehaviorChecklistProps) {
   const checkedCount = behaviors.filter(b => checkedBehaviors.has(b.key)).length;
-  const majorityThreshold = Math.ceil(behaviors.length / 2);
-  const hasMajority = checkedCount >= majorityThreshold;
+  const isComplete = checkedCount === behaviors.length && behaviors.length > 0;
 
   return (
     <Card className={cn(
       "transition-all",
-      hasMajority && level > 0 && "border-primary/50 bg-primary/5",
-      hasMajority && level === 0 && "border-destructive/50 bg-destructive/5"
+      isComplete && level > 0 && "border-primary/50 bg-primary/5",
+      isComplete && level === 0 && "border-destructive/50 bg-destructive/5"
     )}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="text-base flex items-center gap-2">
               Level {level}: {LEVEL_NAMES[level]}
-              {hasMajority && (
+              {isComplete && (
                 <Badge variant={level === 0 ? "destructive" : "default"} className="text-xs">
-                  ✓ Majority
+                  ✓ Complete
                 </Badge>
               )}
             </CardTitle>

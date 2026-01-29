@@ -48,28 +48,40 @@ export function ManualSleepEntryDialog({
   // Pre-populate fields when editing
   useEffect(() => {
     if (existingEntry) {
-      const metricDate = parseISO(existingEntry.metric_date);
-      setSelectedDate(metricDate);
-      
-      if (existingEntry.manual_bedtime) {
-        const bedDate = new Date(existingEntry.manual_bedtime);
-        setBedtime(format(bedDate, 'HH:mm'));
+      try {
+        const metricDate = parseISO(existingEntry.metric_date);
+        setSelectedDate(metricDate);
         
-        // Check if bedtime was on same day as wake (after midnight)
+        if (existingEntry.manual_bedtime) {
+          // Handle ISO timestamp strings safely
+          const bedDate = new Date(existingEntry.manual_bedtime);
+          if (!isNaN(bedDate.getTime())) {
+            setBedtime(format(bedDate, 'HH:mm'));
+            
+            // Check if bedtime was on same day as wake (after midnight)
+            if (existingEntry.manual_wake_time) {
+              const wakeDate = new Date(existingEntry.manual_wake_time);
+              if (!isNaN(wakeDate.getTime())) {
+                setBedtimeAfterMidnight(isSameDay(bedDate, wakeDate));
+              }
+            }
+          }
+        }
         if (existingEntry.manual_wake_time) {
           const wakeDate = new Date(existingEntry.manual_wake_time);
-          setBedtimeAfterMidnight(isSameDay(bedDate, wakeDate));
+          if (!isNaN(wakeDate.getTime())) {
+            setWakeTime(format(wakeDate, 'HH:mm'));
+          }
         }
-      }
-      if (existingEntry.manual_wake_time) {
-        const wakeDate = new Date(existingEntry.manual_wake_time);
-        setWakeTime(format(wakeDate, 'HH:mm'));
-      }
-      if (existingEntry.manual_sleep_quality) {
-        setQuality(existingEntry.manual_sleep_quality);
-      } else if (existingEntry.sleep_score) {
-        // Convert sleep score back to quality rating
-        setQuality(Math.round(existingEntry.sleep_score / 20));
+        if (existingEntry.manual_sleep_quality) {
+          setQuality(existingEntry.manual_sleep_quality);
+        } else if (existingEntry.sleep_score) {
+          // Convert sleep score back to quality rating
+          setQuality(Math.round(existingEntry.sleep_score / 20));
+        }
+      } catch (e) {
+        console.error('Error parsing sleep entry dates:', e);
+        // Keep defaults if parsing fails
       }
     } else {
       // Reset to defaults for new entry

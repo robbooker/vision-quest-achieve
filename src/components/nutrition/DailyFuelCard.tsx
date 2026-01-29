@@ -1,12 +1,16 @@
 import { useState } from 'react';
+import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useTodayNutrition, useNutritionSettings, calculateTotals } from '@/hooks/useNutrition';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useTodayNutrition, useNutritionByDate, useNutritionSettings, calculateTotals } from '@/hooks/useNutrition';
 import { MealEntryDialog } from './MealEntryDialog';
 import { NutritionSettingsDialog } from './NutritionSettingsDialog';
+import { cn } from '@/lib/utils';
 import { 
   Flame, 
   Plus, 
@@ -18,7 +22,8 @@ import {
   Edit2,
   TrendingUp,
   TrendingDown,
-  Minus
+  Minus,
+  CalendarIcon
 } from 'lucide-react';
 
 interface DailyFuelCardProps {
@@ -26,7 +31,19 @@ interface DailyFuelCardProps {
 }
 
 export function DailyFuelCard({ activeCalories = 0 }: DailyFuelCardProps) {
-  const { data: entries = [], isLoading } = useTodayNutrition();
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  
+  const selectedDateStr = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : today;
+  const isViewingToday = selectedDateStr === today;
+  
+  const { data: todayEntries = [], isLoading: todayLoading } = useTodayNutrition();
+  const { data: dateEntries = [], isLoading: dateLoading } = useNutritionByDate(selectedDateStr);
+  
+  const entries = isViewingToday ? todayEntries : dateEntries;
+  const isLoading = isViewingToday ? todayLoading : dateLoading;
+  
   const { data: settings } = useNutritionSettings();
   const [mealDialogOpen, setMealDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
@@ -178,7 +195,7 @@ export function DailyFuelCard({ activeCalories = 0 }: DailyFuelCardProps) {
           {entries.length > 0 ? (
             <div className="space-y-2">
               <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                Today's Meals
+                {isViewingToday ? "Today's Meals" : `Meals for ${format(selectedDate!, 'MMM d, yyyy')}`}
               </div>
               {entries.map((meal) => (
                 <div
@@ -211,9 +228,56 @@ export function DailyFuelCard({ activeCalories = 0 }: DailyFuelCardProps) {
           ) : (
             <div className="text-center py-4 text-sm text-muted-foreground">
               <Utensils className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              No meals logged yet today
+              {isViewingToday ? "No meals logged yet today" : `No meals logged for ${format(selectedDate!, 'MMM d')}`}
             </div>
           )}
+
+          {/* Date Picker */}
+          <div className="flex justify-center pt-2 border-t border-border/50">
+            <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "h-7 gap-1.5 text-xs",
+                    !isViewingToday && "text-primary"
+                  )}
+                >
+                  <CalendarIcon className="h-3.5 w-3.5" />
+                  {isViewingToday ? "View other dates" : format(selectedDate!, 'MMM d, yyyy')}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="center">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => {
+                    setSelectedDate(date);
+                    setDatePickerOpen(false);
+                  }}
+                  disabled={(date) => date > new Date()}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+                {selectedDate && (
+                  <div className="p-2 border-t border-border">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-xs"
+                      onClick={() => {
+                        setSelectedDate(undefined);
+                        setDatePickerOpen(false);
+                      }}
+                    >
+                      Back to today
+                    </Button>
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
+          </div>
         </CardContent>
       </Card>
 
@@ -221,6 +285,8 @@ export function DailyFuelCard({ activeCalories = 0 }: DailyFuelCardProps) {
         open={mealDialogOpen} 
         onOpenChange={handleCloseDialog}
         editingMealId={editingMeal}
+        entryDate={selectedDateStr}
+        entries={entries}
       />
       
       <NutritionSettingsDialog

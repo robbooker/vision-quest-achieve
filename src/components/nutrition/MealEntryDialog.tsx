@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { useNutritionMutations, useTodayNutrition } from '@/hooks/useNutrition';
+import { useNutritionMutations, NutritionEntry } from '@/hooks/useNutrition';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Sparkles, Trash2, Mic } from 'lucide-react';
 import { VoiceMealRecorder } from './VoiceMealRecorder';
@@ -20,11 +20,18 @@ interface MealEntryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingMealId?: string | null;
+  entryDate?: string;
+  entries?: NutritionEntry[];
 }
 
-export function MealEntryDialog({ open, onOpenChange, editingMealId }: MealEntryDialogProps) {
+export function MealEntryDialog({ 
+  open, 
+  onOpenChange, 
+  editingMealId,
+  entryDate,
+  entries = []
+}: MealEntryDialogProps) {
   const { toast } = useToast();
-  const { data: entries = [] } = useTodayNutrition();
   const { logMeal, updateMeal, deleteMeal, parseNutrition } = useNutritionMutations();
   
   const [description, setDescription] = useState('');
@@ -139,6 +146,7 @@ export function MealEntryDialog({ open, onOpenChange, editingMealId }: MealEntry
           sugar_g: sugar ? parseFloat(sugar) : undefined,
           fiber_g: fiber ? parseFloat(fiber) : undefined,
           source: parsedItems.length > 0 ? 'audio' : 'manual',
+          entry_date: entryDate,
         });
         toast({ title: 'Meal logged' });
       }

@@ -8,7 +8,7 @@ const corsHeaders = {
 
 const OURA_API_BASE = "https://api.ouraring.com/v2/usercollection";
 
-interface OuraSleepData {
+interface OuraDailySleepData {
   day: string;
   score: number | null;
   contributors?: {
@@ -18,6 +18,16 @@ interface OuraSleepData {
     light_sleep?: number;
     efficiency?: number;
   };
+}
+
+interface OuraSleepSession {
+  day: string;
+  total_sleep_duration: number | null;
+  deep_sleep_duration: number | null;
+  rem_sleep_duration: number | null;
+  light_sleep_duration: number | null;
+  efficiency: number | null;
+  type: string;
 }
 
 interface OuraReadinessData {
@@ -88,9 +98,12 @@ serve(async (req) => {
 
     console.log(`Fetching Oura data from ${startDateStr} to ${endDateStr}`);
 
-    // Fetch all three endpoints in parallel
-    const [sleepRes, readinessRes, resilienceRes] = await Promise.all([
+    // Fetch all endpoints in parallel (including sleep sessions for actual durations)
+    const [dailySleepRes, sleepSessionsRes, readinessRes, resilienceRes] = await Promise.all([
       fetch(`${OURA_API_BASE}/daily_sleep?start_date=${startDateStr}&end_date=${endDateStr}`, {
+        headers: { Authorization: `Bearer ${ouraToken}` },
+      }),
+      fetch(`${OURA_API_BASE}/sleep?start_date=${startDateStr}&end_date=${endDateStr}`, {
         headers: { Authorization: `Bearer ${ouraToken}` },
       }),
       fetch(`${OURA_API_BASE}/daily_readiness?start_date=${startDateStr}&end_date=${endDateStr}`, {
@@ -102,7 +115,8 @@ serve(async (req) => {
     ]);
 
     // Check for auth errors
-    if (sleepRes.status === 401 || readinessRes.status === 401 || resilienceRes.status === 401) {
+    if (dailySleepRes.status === 401 || sleepSessionsRes.status === 401 || 
+        readinessRes.status === 401 || resilienceRes.status === 401) {
       return new Response(JSON.stringify({ 
         error: "Oura token expired or invalid. Please reconnect your Oura Ring." 
       }), {
@@ -111,20 +125,52 @@ serve(async (req) => {
       });
     }
 
-    const sleepData = await sleepRes.json();
+    const dailySleepData = await dailySleepRes.json();
+    const sleepSessionsData = await sleepSessionsRes.json();
     const readinessData = await readinessRes.json();
     const resilienceData = await resilienceRes.json();
 
-    console.log(`Fetched: ${sleepData.data?.length || 0} sleep, ${readinessData.data?.length || 0} readiness, ${resilienceData.data?.length || 0} resilience records`);
+    console.log(`Fetched: ${dailySleepData.data?.length || 0} daily_sleep, ${sleepSessionsData.data?.length || 0} sleep sessions, ${readinessData.data?.length || 0} readiness, ${resilienceData.data?.length || 0} resilience records`);
 
     // Process and merge data by date
-    const sleepByDate: Record<string, OuraSleepData> = {};
+    const dailySleepByDate: Record<string, OuraDailySleepData> = {};
     const readinessByDate: Record<string, OuraReadinessData> = {};
     const resilienceByDate: Record<string, OuraResilienceData> = {};
+    
+    // Aggregate sleep sessions by date (only use "long_sleep" type, sum if multiple)
+    const sleepDurationsByDate: Record<string, {
+      total: number;
+      deep: number;
+      rem: number;
+      light: number;
+      efficiency: number | null;
+    }> = {};
 
-    (sleepData.data || []).forEach((d: OuraSleepData) => {
-      sleepByDate[d.day] = d;
+    (dailySleepData.data || []).forEach((d: OuraDailySleepData) => {
+      dailySleepByDate[d.day] = d;
     });
+
+    // Process sleep sessions - aggregate durations by date
+    (sleepSessionsData.data || []).forEach((session: OuraSleepSession) => {
+      // Only count "long_sleep" type sessions (ignore naps, rest periods)
+      if (session.type !== "long_sleep") return;
+      
+      const date = session.day;
+      if (!sleepDurationsByDate[date]) {
+        sleepDurationsByDate[date] = { total: 0, deep: 0, rem: 0, light: 0, efficiency: null };
+      }
+      
+      sleepDurationsByDate[date].total += session.total_sleep_duration || 0;
+      sleepDurationsByDate[date].deep += session.deep_sleep_duration || 0;
+      sleepDurationsByDate[date].rem += session.rem_sleep_duration || 0;
+      sleepDurationsByDate[date].light += session.light_sleep_duration || 0;
+      
+      // Take the efficiency from the main sleep session
+      if (session.efficiency !== null) {
+        sleepDurationsByDate[date].efficiency = session.efficiency;
+      }
+    });
+
     (readinessData.data || []).forEach((d: OuraReadinessData) => {
       readinessByDate[d.day] = d;
     });
@@ -134,7 +180,8 @@ serve(async (req) => {
 
     // Get all unique dates
     const allDates = [...new Set([
-      ...Object.keys(sleepByDate),
+      ...Object.keys(dailySleepByDate),
+      ...Object.keys(sleepDurationsByDate),
       ...Object.keys(readinessByDate),
       ...Object.keys(resilienceByDate),
     ])].sort();
@@ -172,7 +219,8 @@ serve(async (req) => {
 
     // Prepare upsert data
     const metricsToUpsert = allDates.map((date) => {
-      const sleep = sleepByDate[date];
+      const dailySleep = dailySleepByDate[date];
+      const sleepDurations = sleepDurationsByDate[date];
       const readiness = readinessByDate[date];
       const resilience = resilienceByDate[date];
 
@@ -190,13 +238,14 @@ serve(async (req) => {
         user_id: user.id,
         metric_date: date,
         source: 'oura',
-        // Sleep
-        sleep_score: sleep?.score ?? null,
-        total_sleep_seconds: sleep?.contributors?.total_sleep ?? null,
-        deep_sleep_seconds: sleep?.contributors?.deep_sleep ?? null,
-        rem_sleep_seconds: sleep?.contributors?.rem_sleep ?? null,
-        light_sleep_seconds: sleep?.contributors?.light_sleep ?? null,
-        sleep_efficiency: sleep?.contributors?.efficiency ?? null,
+        // Sleep score from daily_sleep endpoint
+        sleep_score: dailySleep?.score ?? null,
+        // Sleep durations from sleep sessions endpoint (actual seconds)
+        total_sleep_seconds: sleepDurations?.total ?? null,
+        deep_sleep_seconds: sleepDurations?.deep ?? null,
+        rem_sleep_seconds: sleepDurations?.rem ?? null,
+        light_sleep_seconds: sleepDurations?.light ?? null,
+        sleep_efficiency: sleepDurations?.efficiency ?? null,
         // Readiness
         readiness_score: readiness?.score ?? null,
         resting_heart_rate: rhr,

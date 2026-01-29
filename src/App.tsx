@@ -92,9 +92,9 @@ const App = () => (
               <Toaster />
               <Sonner />
               <NotificationListener />
-              <AnnouncementBar />
-              <div className="pt-10">
-                <BrowserRouter>
+              <BrowserRouter>
+                <AnnouncementBar />
+                <div className="pt-10">
                   <Routes>
                     <Route path="/" element={<Auth />} />
                     <Route path="/pricing" element={<Pricing />} />
@@ -140,9 +140,9 @@ const App = () => (
                     {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                     <Route path="*" element={<NotFound />} />
                   </Routes>
-                  <JournalChat />
+                    <JournalChat />
+                  </div>
                 </BrowserRouter>
-              </div>
             </TooltipProvider>
             </ToastProvider>
             </GlobalChatProvider>

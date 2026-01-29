@@ -100,6 +100,16 @@ export function BigTenCard({
         onUpdateTask(task.id, undefined, true);
         setCompletingTaskId(null);
         setExitingTaskId(null);
+        
+        // Check if all tasks will be completed after this one
+        // (excluding this task which is being completed)
+        const incompleteTasks = tasks.filter(t => !t.completed && t.id !== task.id);
+        if (incompleteTasks.length === 0 && tasks.length > 0 && project) {
+          // All tasks complete - auto-archive the project after a brief delay
+          setTimeout(() => {
+            onUpdateProject(project.id, undefined, undefined, true);
+          }, 300);
+        }
       }, 650);
     } else {
       onUpdateTask(task.id, undefined, false);

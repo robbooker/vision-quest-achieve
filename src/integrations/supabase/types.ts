@@ -314,6 +314,45 @@ export type Database = {
         }
         Relationships: []
       }
+      bloodwork_reports: {
+        Row: {
+          ai_insights: string | null
+          biomarkers: Json | null
+          created_at: string
+          id: string
+          lab_name: string | null
+          pdf_url: string
+          raw_text: string | null
+          report_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_insights?: string | null
+          biomarkers?: Json | null
+          created_at?: string
+          id?: string
+          lab_name?: string | null
+          pdf_url: string
+          raw_text?: string | null
+          report_date: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_insights?: string | null
+          biomarkers?: Json | null
+          created_at?: string
+          id?: string
+          lab_name?: string | null
+          pdf_url?: string
+          raw_text?: string | null
+          report_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       books: {
         Row: {
           author: string

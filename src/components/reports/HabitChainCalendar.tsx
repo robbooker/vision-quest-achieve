@@ -128,10 +128,17 @@ function GoalChainCard({ chain, streak, isSickDay }: GoalChainCardProps) {
             </CardDescription>
           </div>
           {streak > 0 && (
-            <Badge variant="secondary" className="flex items-center gap-1 shrink-0">
-              <Flame className="h-3 w-3 text-orange-500" />
-              {streak}
-            </Badge>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge variant="secondary" className="flex items-center gap-1 shrink-0">
+                  <Flame className="h-3 w-3 text-orange-500" />
+                  {streak} day{streak !== 1 ? 's' : ''}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs">Current streak of consecutive days with habit completed</p>
+              </TooltipContent>
+            </Tooltip>
           )}
         </div>
       </CardHeader>

@@ -1,12 +1,15 @@
+import { useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { BigTenCard } from '@/components/bigten/BigTenCard';
 import { BigTenEmptyState } from '@/components/bigten/BigTenEmptyState';
 import { useBigTen, BigTenCategory } from '@/hooks/useBigTen';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card } from '@/components/ui/card';
-import { Plus, Rocket, Mountain } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Plus, Rocket, Mountain, Archive, ChevronDown } from 'lucide-react';
 
 export default function BigTen() {
+  const [isArchiveOpen, setIsArchiveOpen] = useState(true);
   const {
     projects,
     isLoading,
@@ -188,27 +191,38 @@ export default function BigTen() {
               canAddChallenge
             )}
 
-            {/* Completed projects */}
+            {/* Archive - Completed projects */}
             {completedProjects.length > 0 && (
-              <div className="space-y-4">
-                <h2 className="text-xl font-semibold text-muted-foreground">Completed</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {completedProjects.map((project) => (
-                    <BigTenCard
-                      key={project.id}
-                      project={project}
-                      position={project.position}
-                      showAddButton={false}
-                      onCreateProject={() => {}}
-                      onUpdateProject={handleUpdateProject}
-                      onDeleteProject={handleDeleteProject}
-                      onCreateTask={handleCreateTask}
-                      onUpdateTask={handleUpdateTask}
-                      onDeleteTask={handleDeleteTask}
-                    />
-                  ))}
-                </div>
-              </div>
+              <Collapsible open={isArchiveOpen} onOpenChange={setIsArchiveOpen}>
+                <CollapsibleTrigger className="flex items-center gap-2 w-full py-3 px-4 bg-muted/50 rounded-lg hover:bg-muted transition-colors">
+                  <Archive className="h-5 w-5 text-muted-foreground" />
+                  <h2 className="text-xl font-semibold text-muted-foreground flex-1 text-left">
+                    Archive
+                  </h2>
+                  <span className="text-sm text-muted-foreground mr-2">
+                    {completedProjects.length} completed
+                  </span>
+                  <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${isArchiveOpen ? 'rotate-180' : ''}`} />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {completedProjects.map((project) => (
+                      <BigTenCard
+                        key={project.id}
+                        project={project}
+                        position={project.position}
+                        showAddButton={false}
+                        onCreateProject={() => {}}
+                        onUpdateProject={handleUpdateProject}
+                        onDeleteProject={handleDeleteProject}
+                        onCreateTask={handleCreateTask}
+                        onUpdateTask={handleUpdateTask}
+                        onDeleteTask={handleDeleteTask}
+                      />
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             )}
           </>
         )}

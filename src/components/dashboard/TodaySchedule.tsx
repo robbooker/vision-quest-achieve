@@ -21,6 +21,7 @@ const PRIMED_PILLARS = [
   { value: 'mental', label: 'Mental', color: 'bg-blue-500/20 text-blue-700 dark:text-blue-400' },
   { value: 'excellence', label: 'Excellence', color: 'bg-purple-500/20 text-purple-700 dark:text-purple-400' },
   { value: 'direction', label: 'Direction', color: 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400' },
+  { value: 'spiritual', label: 'Spiritual', color: 'bg-violet-500/20 text-violet-700 dark:text-violet-400' },
 ];
 
 export interface CalendarEventData {

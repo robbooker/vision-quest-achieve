@@ -33,6 +33,7 @@ const PRIMED_PILLARS = [
   { value: 'mental', label: 'Mental' },
   { value: 'excellence', label: 'Excellence' },
   { value: 'direction', label: 'Direction' },
+  { value: 'spiritual', label: 'Spiritual' },
 ];
 
 interface EditQuickTaskDialogProps {

@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { PILLARS, PillarKey } from '@/data/primedBehaviors';
+import { ALL_PILLARS, AllPillarKey } from '@/data/allPillars';
 import { usePillarAnalytics } from '@/hooks/usePillarAnalytics';
 import { PrimedWeeklySummary } from '@/components/primed/PrimedWeeklySummary';
 import { Clock, CheckSquare, Target, Repeat, Hexagon } from 'lucide-react';
@@ -21,8 +22,8 @@ const chartConfig = {
 };
 
 export function PillarAnalyticsSection() {
-  const [selectedPillar, setSelectedPillar] = useState<PillarKey | 'all'>('all');
-  const { data, isLoading } = usePillarAnalytics(selectedPillar);
+  const [selectedPillar, setSelectedPillar] = useState<AllPillarKey | 'all'>('all');
+  const { data, isLoading } = usePillarAnalytics(selectedPillar === 'spiritual' ? 'all' : selectedPillar);
 
   if (isLoading) {
     return (
@@ -36,7 +37,7 @@ export function PillarAnalyticsSection() {
     );
   }
 
-  const pillarInfo = selectedPillar !== 'all' ? PILLARS[selectedPillar] : null;
+  const pillarInfo = selectedPillar !== 'all' && selectedPillar !== 'spiritual' ? PILLARS[selectedPillar] : selectedPillar === 'spiritual' ? { name: 'Spiritual', color: 'hsl(280 70% 50%)', letter: 'S' } : null;
 
   return (
     <div className="space-y-4">
@@ -46,22 +47,22 @@ export function PillarAnalyticsSection() {
           <Hexagon className="h-5 w-5 text-primary" />
           P.R.I.M.E.D. Analytics
         </h2>
-        <Select value={selectedPillar} onValueChange={(v) => setSelectedPillar(v as PillarKey | 'all')}>
+        <Select value={selectedPillar} onValueChange={(v) => setSelectedPillar(v as AllPillarKey | 'all')}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Filter by pillar" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Pillars</SelectItem>
-            {(['physical', 'relations', 'income', 'mental', 'excellence', 'direction'] as PillarKey[]).map(pillar => (
-              <SelectItem key={pillar} value={pillar}>
+            {ALL_PILLARS.map(p => (
+              <SelectItem key={p.value} value={p.value}>
                 <div className="flex items-center gap-2">
                   <div 
                     className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold text-primary-foreground"
-                    style={{ backgroundColor: PILLARS[pillar].color }}
+                    style={{ backgroundColor: p.color }}
                   >
-                    {PILLARS[pillar].letter}
+                    {p.letter}
                   </div>
-                  {PILLARS[pillar].name}
+                  {p.label}
                 </div>
               </SelectItem>
             ))}

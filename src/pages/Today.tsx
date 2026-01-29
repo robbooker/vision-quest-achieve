@@ -34,7 +34,8 @@ import {
   Thermometer,
   MoreHorizontal,
   Bird,
-  Target
+  Target,
+  Mic
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -44,6 +45,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useSickDays } from '@/hooks/useSickDays';
 import { useToast } from '@/hooks/use-toast';
+import { UniversalVoiceRecorder } from '@/components/dashboard/UniversalVoiceRecorder';
 
 export default function Today() {
   const navigate = useNavigate();
@@ -108,7 +110,7 @@ export default function Today() {
   const [editingEvent, setEditingEvent] = useState<CalendarEventData | null>(null);
   const [isCreatingEvent, setIsCreatingEvent] = useState(false);
   const [isUpdatingEvent, setIsUpdatingEvent] = useState(false);
-
+  const [voiceRecorderOpen, setVoiceRecorderOpen] = useState(false);
   // Handle habit toggle/increment
   const handleHabitToggle = async (tacticId: string, newCount: number) => {
     try {
@@ -262,30 +264,39 @@ export default function Today() {
       <div className="space-y-4">
         {/* Date Header with Actions */}
         <div className="flex items-center justify-between">
-          <p className="text-muted-foreground">
+          <p className="text-base font-semibold text-foreground">
             {format(new Date(), 'EEEE, MMMM d, yyyy')} • Week {currentWeek}
           </p>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem 
-                onClick={() => toggleSickDay.mutate({ date: new Date() })}
-                disabled={sickDaysLoading || toggleSickDay.isPending}
-                className="text-amber-600 dark:text-amber-400"
-              >
-                <Thermometer className="h-4 w-4 mr-2" />
-                {todayIsSick ? 'Remove Sick Day' : 'Mark as Sick Day'}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate('/birdwatching')}>
-                <Bird className="h-4 w-4 mr-2" />
-                Birdwatching
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center gap-1">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => setVoiceRecorderOpen(true)}
+            >
+              <Mic className="h-4 w-4" />
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-popover">
+                <DropdownMenuItem 
+                  onClick={() => toggleSickDay.mutate({ date: new Date() })}
+                  disabled={sickDaysLoading || toggleSickDay.isPending}
+                  className="text-amber-600 dark:text-amber-400"
+                >
+                  <Thermometer className="h-4 w-4 mr-2" />
+                  {todayIsSick ? 'Remove Sick Day' : 'Mark as Sick Day'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/birdwatching')}>
+                  <Bird className="h-4 w-4 mr-2" />
+                  Birdwatching
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         {/* Compact Reset Card - when reset is active */}
@@ -423,10 +434,10 @@ export default function Today() {
 
         {/* Row 2: Quick Tasks (2/3) + Daily Fuel (1/3) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2" data-tour="quick-tasks">
+          <div className="lg:col-span-2 min-h-[420px]" data-tour="quick-tasks">
             <QuickTaskList />
           </div>
-          <div>
+          <div className="min-h-[420px]">
             <DailyFuelCard />
           </div>
         </div>
@@ -461,6 +472,12 @@ export default function Today() {
         onUpdate={handleUpdateCalendarEvent}
         onDelete={handleDeleteCalendarEvent}
         isLoading={isUpdatingEvent}
+      />
+
+      {/* Universal Voice Recorder */}
+      <UniversalVoiceRecorder
+        open={voiceRecorderOpen}
+        onOpenChange={setVoiceRecorderOpen}
       />
     </DashboardLayout>
   );

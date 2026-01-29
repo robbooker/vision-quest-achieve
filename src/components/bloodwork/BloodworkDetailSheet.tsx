@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
-import { Trash2, FileText, Calendar, Building2, Sparkles } from "lucide-react";
+import { Trash2, FileText, Calendar, Building2, Sparkles, RefreshCw, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import ReactMarkdown from "react-markdown";
 import { useBloodwork, Biomarker, BloodworkReport } from "@/hooks/useBloodwork";
@@ -44,7 +44,7 @@ const CATEGORY_ORDER = [
 ];
 
 export function BloodworkDetailSheet({ open, onOpenChange }: BloodworkDetailSheetProps) {
-  const { reports, latestReport, deleteReport, isDeleting } = useBloodwork();
+  const { reports, latestReport, deleteReport, isDeleting, reanalyzeReport, isReanalyzing } = useBloodwork();
 
   const groupBiomarkers = (biomarkers: Biomarker[]) => {
     const grouped: Record<string, Biomarker[]> = {};
@@ -114,21 +114,33 @@ export function BloodworkDetailSheet({ open, onOpenChange }: BloodworkDetailShee
             )}
 
             {/* Latest Report Details */}
-            {latestReport && latestReport.biomarkers.length > 0 && (
+            {latestReport && (
               <>
                 <Card>
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-base">Latest Report</CardTitle>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive"
-                        onClick={() => handleDelete(latestReport.id)}
-                        disabled={isDeleting}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => reanalyzeReport(latestReport.id)}
+                          disabled={isReanalyzing}
+                          title="Re-analyze with AI"
+                        >
+                          <RefreshCw className={`h-4 w-4 ${isReanalyzing ? 'animate-spin' : ''}`} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive"
+                          onClick={() => handleDelete(latestReport.id)}
+                          disabled={isDeleting}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                     <div className="flex gap-4 text-sm text-muted-foreground">
                       {latestReport.lab_name && (
@@ -145,12 +157,38 @@ export function BloodworkDetailSheet({ open, onOpenChange }: BloodworkDetailShee
                   </CardHeader>
                 </Card>
 
+                {/* Missing Analysis Warning */}
+                {latestReport.biomarkers.length === 0 && !latestReport.ai_insights && (
+                  <Card className="border-yellow-500/50 bg-yellow-500/5">
+                    <CardContent className="pt-4">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">Analysis Pending</p>
+                          <p className="text-xs text-muted-foreground">
+                            This report hasn't been analyzed yet. Click the refresh button above to analyze it with AI.
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => reanalyzeReport(latestReport.id)}
+                            disabled={isReanalyzing}
+                          >
+                            <RefreshCw className={`h-4 w-4 mr-2 ${isReanalyzing ? 'animate-spin' : ''}`} />
+                            {isReanalyzing ? 'Analyzing...' : 'Analyze Now'}
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* AI Insights */}
                 {latestReport.ai_insights && (
                   <Card>
                     <CardHeader className="pb-2">
                       <CardTitle className="text-base flex items-center gap-2">
-                        <Sparkles className="h-4 w-4 text-yellow-500" />
+                        <Sparkles className="h-4 w-4 text-primary" />
                         AI Health Insights
                       </CardTitle>
                     </CardHeader>

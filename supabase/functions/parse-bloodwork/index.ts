@@ -98,20 +98,23 @@ serve(async (req) => {
     // Download the PDF from storage
     const pathParts = pdf_url.split('/bloodwork-pdfs/');
     if (pathParts.length < 2) {
+      console.error('Invalid PDF URL format:', pdf_url);
       return new Response(JSON.stringify({ error: 'Invalid PDF URL format' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    const filePath = pathParts[1];
+    // Decode URI components in case of spaces or special characters
+    const filePath = decodeURIComponent(pathParts[1]);
+    console.log('Downloading file from path:', filePath);
 
     const { data: pdfData, error: downloadError } = await supabase.storage
       .from('bloodwork-pdfs')
       .download(filePath);
 
     if (downloadError || !pdfData) {
-      console.error('Download error:', downloadError);
-      return new Response(JSON.stringify({ error: 'Failed to download PDF' }), {
+      console.error('Download error:', downloadError, 'Path:', filePath);
+      return new Response(JSON.stringify({ error: 'Failed to download PDF', details: downloadError?.message }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

@@ -48,6 +48,18 @@ export function LogSightingForm() {
       ).slice(0, 8)
     : [];
 
+  // Listen for prefill event from SpeciesDetail
+  useEffect(() => {
+    const handlePrefill = (e: CustomEvent<{ species: string }>) => {
+      const prefillSpecies = e.detail.species;
+      setSpeciesInput(prefillSpecies);
+      setFormData(prev => ({ ...prev, species_name: prefillSpecies }));
+    };
+    
+    window.addEventListener('prefill-bird-sighting', handlePrefill as EventListener);
+    return () => window.removeEventListener('prefill-bird-sighting', handlePrefill as EventListener);
+  }, []);
+
   // Close suggestions when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {

@@ -313,11 +313,11 @@ ${ouraMetrics.rhr_spike_alert && !ouraMetrics.critical_deficit_alert ? '- ⚠️
 - Pending Tasks: ${pendingTaskCount}
 - Completed Activities: ${totalActivities}`;
 
-    // Build prompt - Strategic performance coach style with biometric awareness
-    const prompt = `Act as a high-level performance coach and strategist. Analyze the user's journal and habit data for ${entry.entry_date}.
+    // Build prompt - Matt Levine style: witty, dry humor, observational commentary
+    const prompt = `You are writing a daily commentary in the style of Matt Levine (Bloomberg's Money Stuff newsletter). Analyze everything about the user's day on ${entry.entry_date} with dry wit, observational humor, and tangential-but-insightful asides.
 
-${assessment ? `USER'S CURRENT PILLAR STATUS:
-${pillarStatus.map((p) => `- ${p.name}: Level ${p.level}${p.isFoundation ? " (foundation pillar)" : ""}`).join("\n")}` : "No PRIMED assessment completed yet."}
+${assessment ? `PILLAR STATUS (think of these as the user's personal "markets"):
+${pillarStatus.map((p) => `- ${p.name}: Level ${p.level}${p.isFoundation ? " (foundation)" : ""}`).join("\n")}` : ""}
 ${biometricContext}
 ${nutritionContext}
 ${workloadContext}
@@ -325,21 +325,30 @@ ${workloadContext}
 TODAY'S ACTIVITIES:
 ${activitiesWithPillars.join("\n") || "No activities logged"}
 
-${activeGoals ? `ACTIVE GOALS BY PILLAR:\n${activeGoals}` : ""}
+${activeGoals ? `ACTIVE GOALS:\n${activeGoals}` : ""}
 
-${strategicWarnings.length > 0 ? `**STRATEGIC ALERTS TO ADDRESS:**\n${strategicWarnings.join("\n")}` : ""}
+${strategicWarnings.length > 0 ? `THINGS THAT CAUGHT MY ATTENTION:\n${strategicWarnings.join("\n")}` : ""}
 
-Provide a brief analysis in this exact structure:
+Write a general commentary on their day. Look at EVERYTHING—biometrics, nutrition, what they actually did, what they didn't do, the patterns, the ironies, the small victories, the curious contradictions. This isn't just about goals; it's about the whole messy business of being a person trying to optimize themselves.
 
-${strategicWarnings.length > 0 ? `**The Strategic Alert:** Lead with the most important biometric warning above. If there's a Productivity Friction or Critical Deficit, address it first with specific advice.\n\n` : ''}**The Audit:** Briefly highlight the strongest pillar of the day with a 'Why it mattered' insight.
+STYLE GUIDE (channel Matt Levine):
+- Lead with an unexpected observation or ironic angle
+- Use parenthetical asides liberally (they're fun)
+- Make connections between seemingly unrelated things
+- Be genuinely helpful while also being entertaining
+- Dry humor > enthusiasm. Never be earnest or motivational-poster-y
+- Deadpan delivery. State absurdities matter-of-factly
+- Use "I guess" and "apparently" and "look" as transitions
+- Occasional meta-commentary on the act of tracking/optimizing itself is welcome
+- Reference concepts from finance, game theory, or systems thinking when apt
 
-**The Divergence:** Identify the pillar that was most neglected and hypothesize one small 'frictionless' way to address it tomorrow.
+DO NOT:
+- Say "Great job!" or any variant
+- Use exclamation points except ironically
+- Be preachy or lecture-y
+- Structure as bullet points or formal sections
 
-**The Mental Model:** Connect today's effort to a concept (e.g., Stoic 'Amor Fati', Munger's 'Inversion', or 'Compounding Interest').
-
-TONE: Be intelligent, slightly witty, and direct. Use declarative, insightful sentences. Never say "It's wonderful to see..." or "I wonder if...". No filler phrases.
-
-Keep the response concise - 3-4 sentences per section maximum.`;
+Write 3-5 short paragraphs. Be specific about what you see in the data. Be helpful, be honest, be funny.`;
 
     console.log("Generating daily insight...");
 

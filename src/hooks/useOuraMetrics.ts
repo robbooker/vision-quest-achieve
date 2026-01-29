@@ -129,7 +129,10 @@ export function useOuraMetrics() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['oura-metrics'] });
+      // Invalidate all oura-metrics queries (today's + weekly) to trigger refetch
+      queryClient.invalidateQueries({ queryKey: ['oura-metrics'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['oura-metrics-weekly'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['sleep-stats'], refetchType: 'active' });
       toast({ title: 'Oura data synced successfully' });
     },
     onError: (error: Error) => {
@@ -251,7 +254,9 @@ export function useOuraMetrics() {
       }
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['oura-metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['oura-metrics'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['oura-metrics-weekly'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['sleep-stats'], refetchType: 'active' });
       toast({ title: variables.entryId ? 'Sleep entry updated' : 'Sleep logged successfully' });
     },
     onError: (error: Error) => {
@@ -284,7 +289,9 @@ export function useOuraMetrics() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['oura-metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['oura-metrics'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['oura-metrics-weekly'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['sleep-stats'], refetchType: 'active' });
       toast({ title: 'Nap logged successfully' });
     },
     onError: (error: Error) => {

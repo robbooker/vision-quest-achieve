@@ -10,7 +10,7 @@ import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AdminRoute } from "@/components/auth/AdminRoute";
-import { InstallPrompt } from "@/components/pwa/InstallPrompt";
+
 import { TerminalModeProvider } from "@/hooks/useTerminalMode";
 import { GlobalChatProvider } from "@/hooks/useGlobalChat";
 import { ToastProvider } from "@/components/notifications/ToastProvider";
@@ -57,6 +57,7 @@ import Primed from "./pages/Primed";
 import Notes from "./pages/Notes";
 import PublicListView from "./pages/PublicListView";
 import JanuaryAudit from "./pages/JanuaryAudit";
+import WhatsNew from "./pages/WhatsNew";
 
 const queryClient = new QueryClient();
 
@@ -105,6 +106,7 @@ const App = () => (
                     <Route path="/blog/woop" element={<WoopBlog />} />
                     <Route path="/blog/reset" element={<ResetBlog />} />
                     <Route path="/blog/affirmations" element={<AffirmationsBlog />} />
+                    <Route path="/whats-new" element={<WhatsNew />} />
                     <Route path="/primed" element={<ProtectedRoute><Primed /></ProtectedRoute>} />
                     <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                     <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
@@ -141,7 +143,6 @@ const App = () => (
                   <JournalChat />
                 </BrowserRouter>
               </div>
-              <InstallPrompt />
             </TooltipProvider>
             </ToastProvider>
             </GlobalChatProvider>

@@ -1,9 +1,7 @@
-import { MessageCircle, Sparkles } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Sparkles, ArrowRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-
-const TOASTY_PHONE_DISPLAY = "989-266-5371";
-const TOASTY_PHONE_SMS = "sms:+19892665371";
 
 export function AnnouncementBar() {
   return (
@@ -13,16 +11,16 @@ export function AnnouncementBar() {
           <span className="inline-flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
             <span>
-              Text <span className="font-semibold">Toasty</span>, Your Groovy Planning Assistant
+              <span className="font-semibold">New:</span> AI journal insights, hydration tracking, voice logging & more
             </span>
           </span>
         </div>
 
-        <Button size="sm" asChild className="shrink-0">
-          <a href={TOASTY_PHONE_SMS} aria-label={`Text Toasty at ${TOASTY_PHONE_DISPLAY}`}>
-            <MessageCircle className="mr-2 h-4 w-4" />
-            {TOASTY_PHONE_DISPLAY}
-          </a>
+        <Button size="sm" variant="ghost" asChild className="shrink-0 gap-1.5">
+          <Link to="/whats-new">
+            See what's new
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
         </Button>
       </div>
     </div>

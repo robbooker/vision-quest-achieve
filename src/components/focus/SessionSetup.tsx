@@ -116,13 +116,18 @@ export function SessionSetup({
   const handleStart = () => {
     if (!objective.trim()) return;
 
+    // Auto-tag Meditation sessions to Spiritual pillar
+    const effectivePillar = objective.trim().toLowerCase() === 'meditation' && !pillar
+      ? 'spiritual'
+      : pillar;
+
     onStart({
       objective: objective.trim(),
       duration,
       linkedGoalId: linkType === 'goal' ? linkedId : undefined,
       linkedTaskId: linkType === 'task' ? linkedId : undefined,
       linkedBigTenTaskId: linkType === 'bigten' ? linkedId : undefined,
-      pillar: pillar || undefined,
+      pillar: effectivePillar || undefined,
     });
   };
 

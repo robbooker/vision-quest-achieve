@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Calendar, Plus, Trash2, Check, X, CheckCircle2, Rocket, Mountain } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -48,6 +48,16 @@ export function BigTenCard({
 
   const tasks = project?.tasks || [];
   const canAddTask = tasks.length < 5;
+
+  // Auto-archive: if all tasks are completed and project isn't already completed, mark it complete
+  useEffect(() => {
+    if (project && !project.completed && tasks.length > 0) {
+      const allTasksCompleted = tasks.every(t => t.completed);
+      if (allTasksCompleted) {
+        onUpdateProject(project.id, undefined, undefined, true);
+      }
+    }
+  }, [project, tasks, onUpdateProject]);
 
   const handleCreateProject = () => {
     onCreateProject('New Project', position);

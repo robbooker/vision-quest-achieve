@@ -50,7 +50,7 @@ export default function Birdwatching() {
           <AlertDescription>
             This feature is mostly for{' '}
             <Link 
-              to="/birds/rob" 
+              to="/birds/rob/gallery" 
               className="font-medium text-primary hover:underline"
             >
               Rob

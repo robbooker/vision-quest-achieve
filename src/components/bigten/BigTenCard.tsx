@@ -7,8 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { BigTenProject, BigTenTask, BigTenCategory } from '@/hooks/useBigTen';
+import { PILLARS, PillarKey } from '@/data/primedBehaviors';
 
 interface BigTenCardProps {
   project?: BigTenProject;
@@ -16,7 +18,7 @@ interface BigTenCardProps {
   showAddButton?: boolean;
   showCategoryPicker?: boolean;
   onCreateProject: (title: string, position: number) => void;
-  onUpdateProject: (id: string, title?: string, target_date?: string | null, completed?: boolean, category?: BigTenCategory | null) => void;
+  onUpdateProject: (id: string, title?: string, target_date?: string | null, completed?: boolean, category?: BigTenCategory | null, pillar?: string | null) => void;
   onDeleteProject: (id: string) => void;
   onCreateTask: (project_id: string, title: string, position: number) => void;
   onUpdateTask: (id: string, title?: string, completed?: boolean) => void;
@@ -66,7 +68,13 @@ export function BigTenCard({
 
   const handleCategoryChange = (category: BigTenCategory) => {
     if (project) {
-      onUpdateProject(project.id, undefined, undefined, undefined, category);
+      onUpdateProject(project.id, undefined, undefined, undefined, category, undefined);
+    }
+  };
+
+  const handlePillarChange = (pillar: string) => {
+    if (project) {
+      onUpdateProject(project.id, undefined, undefined, undefined, undefined, pillar === 'none' ? null : pillar);
     }
   };
 
@@ -314,6 +322,34 @@ export function BigTenCard({
               Add task
             </Button>
           ) : null}
+        </div>
+
+        {/* PRIMED Pillar selector */}
+        <div className="pt-2 border-t border-border">
+          <Select
+            value={project.pillar || 'none'}
+            onValueChange={handlePillarChange}
+          >
+            <SelectTrigger className="w-full h-8 text-sm">
+              <SelectValue placeholder="Assign to PRIMED pillar" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">No pillar</SelectItem>
+              {(Object.keys(PILLARS) as PillarKey[]).map((key) => (
+                <SelectItem key={key} value={key}>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold text-primary-foreground"
+                      style={{ backgroundColor: PILLARS[key].color }}
+                    >
+                      {PILLARS[key].letter}
+                    </span>
+                    {PILLARS[key].name}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Target date */}

@@ -46,9 +46,10 @@ export default function BigTen() {
     title?: string, 
     target_date?: string | null, 
     completed?: boolean,
-    category?: BigTenCategory | null
+    category?: BigTenCategory | null,
+    pillar?: string | null
   ) => {
-    updateProject.mutate({ id, title, target_date, completed, category });
+    updateProject.mutate({ id, title, target_date, completed, category, pillar });
   };
 
   const handleDeleteProject = (id: string) => {

@@ -37,7 +37,7 @@ interface PublicPhoto {
 }
 
 // Rob's user ID - this would normally be fetched from a profiles table with usernames
-const ROB_USER_ID = 'e28a3074-6c06-4686-a6c4-0e50b12aae26';
+const ROB_USER_ID = 'a0bff1ab-02c1-4d2a-ad68-2b48cf4bdd9a';
 
 export default function PublicBirdProfile() {
   const { username } = useParams<{ username: string }>();

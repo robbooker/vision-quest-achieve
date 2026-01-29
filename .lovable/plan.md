@@ -1,244 +1,150 @@
 
-
-# Fuel & Nutrition Integration - Complete Implementation Plan
+# Reports Page Overhaul - Clean, Focused, and Complete
 
 ## Overview
 
-Add a comprehensive **Fuel & Nutrition** tracking system to the Physical pillar of Groovy Planning. This feature will allow users to log meals via audio transcription or manual entry, with AI-powered macro extraction using the already-configured Lovable AI (Gemini).
-
-**Key Advantage**: Using Gemini AI for nutrition parsing eliminates the need for external API keys (no Nutritionix, Edamam, or API-Ninjas required).
+This plan addresses three key issues:
+1. **Clarifying the "active user" definition** - Add tooltip/documentation
+2. **Fixing % discrepancy confusion** - The 44% (cumulative progress) vs 10 (streak) are different metrics; improve labeling
+3. **Removing unused stats and adding new tracking** - Remove task_instances-based stats, add sleep/nutrition tracking
 
 ---
 
-## Architecture
+## Part 1: Active User Definition
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                        TODAY PAGE                                │
-│  ┌────────────────────────────────────────────────────────────┐ │
-│  │ Daily Fuel Card                                             │ │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │ │
-│  │  │ 🎤 Voice Log │  │ ✏️ Manual    │  │ 📊 Macro Summary │  │ │
-│  │  └──────────────┘  └──────────────┘  └──────────────────┘  │ │
-│  │                                                             │ │
-│  │  Meal List:                                                 │ │
-│  │  ┌──────────────────────────────────────────────────────┐  │ │
-│  │  │ 🍳 3 eggs, wheat toast   │ 420 cal │ 28g P │ [Edit]  │  │ │
-│  │  │ 🥗 Chicken salad         │ 380 cal │ 35g P │ [Edit]  │  │ │
-│  │  └──────────────────────────────────────────────────────┘  │ │
-│  │                                                             │ │
-│  │  Daily Totals vs Goals:                                    │ │
-│  │  Calories: 800 / 2000  │  Protein: 63g / 150g              │ │
-│  │  Net Energy: +450 (Active Cal: 350)                        │ │
-│  └────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    EDGE FUNCTION                                 │
-│  parse-nutrition                                                 │
-│  ┌────────────────────────────────────────────────────────────┐ │
-│  │ Input: "I ate 3 scrambled eggs and a piece of toast"       │ │
-│  │                        ▼                                    │ │
-│  │ Gemini AI (google/gemini-2.5-flash)                        │ │
-│  │                        ▼                                    │ │
-│  │ Output: { calories: 420, protein_g: 28, carbs_g: 32, ... } │ │
-│  └────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    AI DAILY INSIGHT                              │
-│  generate-daily-insight (enhanced)                               │
-│  ┌────────────────────────────────────────────────────────────┐ │
-│  │ New Strategic Warnings:                                     │ │
-│  │ • Low Protein + High Activity → Recovery meal suggestion   │ │
-│  │ • High Carbs + Low Readiness → Cognitive Slump warning     │ │
-│  │ • Net Fuel calculation (Active Cal vs Consumed Cal)        │ │
-│  └────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
-```
+**Current Definition**: A user is "active today" if they performed any of these actions on the current day:
+- Updated a Quick Task
+- Started a Focus Session
+- Created a Journal Entry
+- Logged a Habit
+
+**Implementation**: Add a tooltip to the "Active Today" stat explaining this definition.
+
+---
+
+## Part 2: Percentage Confusion Analysis
+
+The screenshot shows two numbers that look contradictory:
+- **Top card**: "44%" badge (530/1200 cumulative pushups)
+- **Habit Chain**: Flame icon with "10" 
+
+These are **different metrics**:
+- 44% = Progress toward 1,200 pushup goal (cumulative total)
+- 10 = Current streak (consecutive days with completed habit)
+
+**Implementation**: Improve labeling to make this distinction clearer:
+- Keep the cumulative progress card as-is (it's correct)
+- Add "day streak" label after the streak number in Habit Chain
+
+---
+
+## Part 3: Stats Page Cleanup
+
+### Stats to Remove (based on unused task_instances UI)
+
+The following rely on `task_instances` which has no creation UI:
+- Summary Cards: "Avg Score", "Hours Completed", "Hours Planned", "Reality Gap"
+- Charts: "Execution Score by Week", "Hours Breakdown by Week", "Reality Gap"
+
+### Stats to Keep
+
+- Cumulative Progress
+- Habit Chains
+- Affirmations
+- Projects & Tasks (Big Ten, Quick Tasks)
+- Focused Work section
+
+---
+
+## Part 4: New Stats to Add
+
+### Personal Stats Tab
+
+**Sleep Summary Card** (from oura_daily_metrics):
+- Average Sleep Score (last 7 days)
+- Average Readiness Score (last 7 days)
+- Current streak of 85+ sleep scores
+- Days with manual vs Oura-synced data
+
+**Nutrition Summary Card** (from daily_nutrition):
+- Average Daily Calories (last 7 days)
+- Average Protein intake
+- Days logged this week
+- Streak of logged days
+
+### Sitewide Stats Tab
+
+**Add to sitewide stats function**:
+- `sleep_entries_total` - Total manual + synced sleep entries
+- `nutrition_entries_total` - Total meal entries logged
+- `tasks_completed_daily_trend` - Already exists as daily_tasks but make more prominent
+
+**New Chart**: "Total Tasks Completed Over Time" - Area chart showing cumulative task completions over the past 14 days
 
 ---
 
 ## Implementation Tasks
 
-### Task 1: Create Nutrition Parsing Edge Function
+### Task 1: Update Habit Chain streak label
+**File**: `src/components/reports/HabitChainCalendar.tsx`
 
-**File**: `supabase/functions/parse-nutrition/index.ts`
+Change streak badge from just "{streak}" to "{streak} day streak" or add tooltip.
 
-**Purpose**: Parse natural language meal descriptions into structured nutrition data using Gemini AI.
+### Task 2: Add Active User tooltip
+**File**: `src/components/reports/SitewideStats.tsx`
 
-**Key Logic**:
-```typescript
-const prompt = `You are a nutrition expert. Parse this meal description and estimate macros.
+Add Tooltip explaining "Active = updated task, started focus session, journaled, or logged habit today"
 
-Meal: "${mealDescription}"
+### Task 3: Create Sleep & Nutrition Summary hooks
+**File**: `src/hooks/useSleepStats.ts` (new)
+**File**: `src/hooks/useNutritionStats.ts` (new)
 
-Respond ONLY with valid JSON:
-{
-  "calories": 420,
-  "protein_g": 28,
-  "carbs_g": 32,
-  "fats_g": 18,
-  "sugar_g": 5,
-  "fiber_g": 4,
-  "parsed_items": ["3 scrambled eggs", "1 slice whole wheat toast"]
-}`;
+Query last 7 days of oura_daily_metrics and daily_nutrition for personal stats.
+
+### Task 4: Create Summary Cards for Sleep and Nutrition
+**File**: `src/components/reports/SleepSummaryCard.tsx` (new)
+**File**: `src/components/reports/NutritionSummaryCard.tsx` (new)
+
+Display 7-day averages and streaks.
+
+### Task 5: Clean up Reports.tsx - Remove task_instances stats
+**File**: `src/pages/Reports.tsx`
+
+Remove:
+- Summary Cards section (lines ~514-553)
+- Execution Score by Week chart
+- Hours Breakdown by Week chart
+- Reality Gap chart
+- Milestone Attainment chart
+
+### Task 6: Add new summary cards to Reports.tsx
+**File**: `src/pages/Reports.tsx`
+
+Add SleepSummaryCard and NutritionSummaryCard after Focused Work section.
+
+### Task 7: Update sitewide stats database function
+**Migration**: Update `get_sitewide_stats` to include:
+- `sleep_entries_total` (count of oura_daily_metrics)
+- `nutrition_entries_total` (count of daily_nutrition)
+- `sleep_entries_today` (count for today)
+- `nutrition_entries_today` (count for today)
+
+### Task 8: Update SitewideStats component
+**File**: `src/components/reports/SitewideStats.tsx`
+
+Add new stats for sleep and nutrition tracking in the appropriate sections.
+
+---
+
+## Database Changes
+
+**Migration**: Update `get_sitewide_stats` function to add:
+```sql
+'sleep_entries_total', (SELECT COUNT(*) FROM oura_daily_metrics),
+'sleep_entries_today', (SELECT COUNT(*) FROM oura_daily_metrics WHERE metric_date = CURRENT_DATE),
+'nutrition_entries_total', (SELECT COUNT(*) FROM daily_nutrition),
+'nutrition_entries_today', (SELECT COUNT(*) FROM daily_nutrition WHERE entry_date = CURRENT_DATE)
 ```
-
-**Configuration**: Add to `supabase/config.toml`:
-```toml
-[functions.parse-nutrition]
-verify_jwt = false
-```
-
----
-
-### Task 2: Create Nutrition Data Hook
-
-**File**: `src/hooks/useNutrition.ts`
-
-**Purpose**: Manage nutrition state, CRUD operations, and settings.
-
-**Features**:
-- `useTodayNutrition()` - Fetch today's meal entries
-- `useNutritionSettings()` - Fetch/update calorie/macro goals
-- `logMeal()` - Create new meal entry
-- `updateMeal()` - Edit existing meal entry
-- `deleteMeal()` - Remove meal entry
-- `getTodayTotals()` - Calculate daily macro totals
-- `getNetEnergy()` - Compare consumed vs burned (using Oura active calories)
-
----
-
-### Task 3: Build Daily Fuel UI Component
-
-**File**: `src/components/nutrition/DailyFuelCard.tsx`
-
-**Purpose**: Main nutrition tracking interface on Today page.
-
-**Features**:
-- Audio input button (opens voice recorder for meal logging)
-- Manual "Add Meal" button
-- List of today's meals with edit capability
-- Macro progress bars (Protein/Carbs/Fats)
-- Net Energy indicator showing balance vs Oura active calories
-- Daily goal settings access
-
----
-
-### Task 4: Create Meal Entry Dialog
-
-**File**: `src/components/nutrition/MealEntryDialog.tsx`
-
-**Purpose**: Modal for adding/editing meal entries.
-
-**Features**:
-- Text input for meal description
-- Voice input option (reuses existing audio transcription pattern)
-- Auto-populated macro fields after AI parsing
-- Manual override for all macro values
-- Save/Cancel/Delete actions
-
----
-
-### Task 5: Create Voice Meal Logger
-
-**File**: `src/components/nutrition/VoiceMealRecorder.tsx`
-
-**Purpose**: Simplified voice input for quick meal logging.
-
-**Flow**:
-1. User taps microphone → starts recording
-2. User describes meal → stops recording
-3. Audio sent to `transcribe-audio` function (lightweight transcription only)
-4. Transcript sent to `parse-nutrition` function
-5. Parsed macros displayed for confirmation
-6. User can edit before saving
-
----
-
-### Task 6: Create Nutrition Settings Component
-
-**File**: `src/components/nutrition/NutritionSettingsDialog.tsx`
-
-**Purpose**: Configure daily calorie/macro goals.
-
-**Fields**:
-- Daily Calorie Goal (default: 2000)
-- Protein Goal (g) (default: 150)
-- Carbs Goal (g) (default: 200)
-- Fats Goal (g) (default: 65)
-
----
-
-### Task 7: Integrate with AI Daily Insight
-
-**File**: `supabase/functions/generate-daily-insight/index.ts` (modify)
-
-**Enhancements**:
-1. Fetch daily nutrition totals for the journal date
-2. Calculate Net Fuel: `Active Calories (Oura) - Calories Consumed`
-3. Add new strategic warnings:
-
-```typescript
-// Low Protein + High Activity Warning
-if (totalProtein < 100 && ouraMetrics.active_calories > 500) {
-  strategicWarnings.push(
-    "**🥩 Recovery Gap:** High activity with only ${totalProtein}g protein. " +
-    "Suggest a protein-rich meal to support muscle recovery."
-  );
-}
-
-// High Carbs + Low Readiness Warning
-if (totalCarbs > 200 && (ouraMetrics.readiness_score ?? 100) < 70) {
-  strategicWarnings.push(
-    "**⚠️ Cognitive Slump Risk:** High carb intake (${totalCarbs}g) combined with " +
-    "low readiness. Afternoon brain fog likely—consider lighter carbs and caffeine timing."
-  );
-}
-
-// Net Energy Status
-const netFuel = consumedCalories - activeCalories;
-if (netFuel > 500) {
-  strategicWarnings.push(
-    `**📊 Fuel Surplus:** +${netFuel} net calories. Good for recovery days; ` +
-    `watch accumulation on consecutive rest days.`
-  );
-} else if (netFuel < -300) {
-  strategicWarnings.push(
-    `**📊 Fuel Deficit:** ${netFuel} net calories. Sustainable for fat loss; ` +
-    `ensure protein stays high to preserve lean mass.`
-  );
-}
-```
-
----
-
-### Task 8: Add to Today Page Layout
-
-**File**: `src/pages/Today.tsx` (modify)
-
-**Changes**:
-- Import `DailyFuelCard`
-- Add to grid layout in the right column alongside PerformanceAuditCard
-- Pass Oura active calories to component for Net Energy calculation
-
----
-
-## Database Schema (Already Created)
-
-The migration has already created:
-
-**`daily_nutrition`** table:
-- `id`, `user_id`, `entry_date`
-- `meal_description`, `meal_type`
-- `calories`, `protein_g`, `carbs_g`, `fats_g`, `sugar_g`, `fiber_g`
-- `source` ('manual' | 'audio')
-- RLS policies enabled
-
-**`user_nutrition_settings`** table:
-- `daily_calorie_goal`, `protein_goal_g`, `carbs_goal_g`, `fats_goal_g`
-- Unique per user
 
 ---
 
@@ -246,34 +152,27 @@ The migration has already created:
 
 | File | Action | Description |
 |------|--------|-------------|
-| `supabase/functions/parse-nutrition/index.ts` | Create | AI-powered nutrition parsing |
-| `supabase/config.toml` | Modify | Add parse-nutrition config |
-| `src/hooks/useNutrition.ts` | Create | Nutrition data management |
-| `src/components/nutrition/DailyFuelCard.tsx` | Create | Main UI component |
-| `src/components/nutrition/MealEntryDialog.tsx` | Create | Add/edit meal modal |
-| `src/components/nutrition/VoiceMealRecorder.tsx` | Create | Voice input for meals |
-| `src/components/nutrition/NutritionSettingsDialog.tsx` | Create | Goal configuration |
-| `supabase/functions/generate-daily-insight/index.ts` | Modify | Add nutrition-based warnings |
-| `src/pages/Today.tsx` | Modify | Integrate DailyFuelCard |
+| `src/components/reports/HabitChainCalendar.tsx` | Modify | Clarify streak label |
+| `src/components/reports/SitewideStats.tsx` | Modify | Add tooltip for "Active Today", add sleep/nutrition stats |
+| `src/hooks/useSleepStats.ts` | Create | Personal sleep statistics |
+| `src/hooks/useNutritionStats.ts` | Create | Personal nutrition statistics |
+| `src/components/reports/SleepSummaryCard.tsx` | Create | Sleep averages and streaks |
+| `src/components/reports/NutritionSummaryCard.tsx` | Create | Nutrition averages |
+| `src/pages/Reports.tsx` | Modify | Remove unused stats, add new summary cards |
+| `src/hooks/useSitewideStats.ts` | Modify | Add new stat types to interface |
+| Database Migration | Create | Update get_sitewide_stats function |
 
 ---
 
-## Strategic AI Logic Summary
+## Visual Result
 
-| Condition | Warning Type | Message |
-|-----------|--------------|---------|
-| Protein < 100g AND Active Cal > 500 | Recovery Gap | Suggest protein-rich meal |
-| Carbs > 200g AND Readiness < 70 | Cognitive Slump | Warn of afternoon fatigue for trading |
-| Net Fuel > +500 | Fuel Surplus | Good for recovery, watch accumulation |
-| Net Fuel < -300 | Fuel Deficit | Sustainable for fat loss, prioritize protein |
-| Sugar > 50g AND Readiness < 75 | Compounded Fatigue | Blood sugar crash + low recovery |
+After implementation, the Reports "My Stats" tab will show:
+1. Cumulative Progress (numeric goals)
+2. Habit Chains (with clearer "X day streak" labels)
+3. Affirmations (if used)
+4. Projects & Tasks
+5. Focused Work
+6. **Sleep Summary** (NEW)
+7. **Nutrition Summary** (NEW)
 
----
-
-## Technical Notes
-
-1. **No External API Keys Required**: Gemini AI handles nutrition parsing via the existing LOVABLE_API_KEY
-2. **Voice Input Reuse**: Leverages existing audio transcription infrastructure
-3. **Hybrid Data**: Works alongside Oura metrics for comprehensive biometric + nutrition insights
-4. **RLS Protected**: All nutrition data is user-scoped with proper row-level security
-
+The Sitewide tab will include new metrics for sleep entries, nutrition entries, and improved task completion visibility over time.

@@ -164,7 +164,8 @@ serve(async (req) => {
     const readinessByDate: Record<string, OuraReadinessData> = {};
     const resilienceByDate: Record<string, OuraResilienceData> = {};
     
-    // Aggregate sleep sessions by date (only use "long_sleep" type, take the main one)
+    // Aggregate sleep sessions by date
+    // Only use "long_sleep" type for main sleep; track naps separately
     const sleepSessionsByDate: Record<string, {
       total: number;
       deep: number;
@@ -174,6 +175,9 @@ serve(async (req) => {
       bedtimeStart: string | null;
       bedtimeEnd: string | null;
     }> = {};
+
+    // Track naps separately
+    const napsByDate: Record<string, number> = {};
 
     (dailySleepData.data || []).forEach((d: OuraDailySleepData) => {
       dailySleepByDate[d.day] = d;
@@ -185,10 +189,6 @@ serve(async (req) => {
     // The daily_sleep score for 2026-01-29 refers to the sleep from 01-28 to 01-29,
     // which would have day=2026-01-29 in the sleep endpoint
     (sleepSessionsData.data || []).forEach((session: OuraSleepSession) => {
-      // Only count "long_sleep" or "sleep" type sessions (ignore naps, rest periods)
-      // Oura API v2 uses "long_sleep", but sometimes returns just "sleep"
-      if (session.type !== "long_sleep" && session.type !== "sleep") return;
-      
       const date = session.day;
       
       // Calculate total sleep from stage durations if total_sleep_duration is null
@@ -197,10 +197,30 @@ serve(async (req) => {
       const light = session.light_sleep_duration || 0;
       
       // Use total_sleep_duration if available, otherwise sum the stages
-      // Note: time_in_bed includes awake time, so we prefer summing stages
       const totalSleep = session.total_sleep_duration || (deep + rem + light);
       
-      console.log(`Processing session: date=${date}, type=${session.type}, totalSleep=${totalSleep}`);
+      // Identify naps: 
+      // - Type is explicitly "rest" or "nap"
+      // - OR type is "sleep" (not "long_sleep") AND duration is under 3 hours (10800 seconds)
+      const NAP_THRESHOLD = 10800; // 3 hours in seconds
+      const isNap = session.type === "rest" || 
+                    session.type === "nap" || 
+                    (session.type === "sleep" && totalSleep < NAP_THRESHOLD);
+      
+      if (isNap) {
+        // Track nap duration separately
+        console.log(`Tracking nap: date=${date}, type=${session.type}, duration=${totalSleep}s (${Math.round(totalSleep / 60)}m)`);
+        if (!napsByDate[date]) {
+          napsByDate[date] = 0;
+        }
+        napsByDate[date] += totalSleep;
+        return; // Don't add to main sleep
+      }
+      
+      // Only count "long_sleep" or substantial "sleep" sessions for main sleep
+      if (session.type !== "long_sleep" && session.type !== "sleep") return;
+      
+      console.log(`Processing main sleep session: date=${date}, type=${session.type}, totalSleep=${totalSleep}`);
       
       // If we already have data for this date, aggregate it (in case of multiple long_sleep sessions)
       if (!sleepSessionsByDate[date]) {
@@ -298,6 +318,8 @@ serve(async (req) => {
       const readiness = readinessByDate[date];
       const resilience = resilienceByDate[date];
       const activity = activityByDate[date];
+      const napDurationSeconds = napsByDate[date] ?? 0;
+      const napDurationMinutes = napDurationSeconds > 0 ? Math.round(napDurationSeconds / 60) : null;
 
       // IMPORTANT FIX: If we have a daily_sleep score for today but no sleep session,
       // that means the session data is attributed to "yesterday" (the wake-up day).
@@ -363,7 +385,7 @@ serve(async (req) => {
         lightSleepSeconds = null;
       }
 
-      console.log(`Building metrics for ${date}: sleep_score=${dailySleep?.score}, total_sleep=${totalSleepSeconds ?? 'null'} (raw session: ${sleepSession?.total ?? 'none'}), activity_score=${activity?.score ?? 'null'}, steps=${activity?.steps ?? 'null'}`);
+      console.log(`Building metrics for ${date}: sleep_score=${dailySleep?.score}, total_sleep=${totalSleepSeconds ?? 'null'} (raw session: ${sleepSession?.total ?? 'none'}), nap=${napDurationMinutes ?? 0}m, activity_score=${activity?.score ?? 'null'}, steps=${activity?.steps ?? 'null'}`);
 
       return {
         user_id: user.id,
@@ -403,6 +425,8 @@ serve(async (req) => {
         rhr_spike_alert: rhrSpikeAlert,
         hrv_strain_alert: hrvStrainAlert,
         critical_deficit_alert: criticalDeficitAlert,
+        // Nap duration from Oura (short sleep sessions)
+        nap_duration_minutes: napDurationMinutes,
         // Metadata
         synced_at: new Date().toISOString(),
       };

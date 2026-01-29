@@ -117,6 +117,50 @@ export function useBloodwork() {
     },
   });
 
+  // Re-analyze an existing report
+  const reanalyzeMutation = useMutation({
+    mutationFn: async (reportId: string) => {
+      if (!user?.id) throw new Error('Not authenticated');
+
+      // Get the report
+      const { data: report, error: fetchError } = await supabase
+        .from('bloodwork_reports')
+        .select('pdf_url')
+        .eq('id', reportId)
+        .eq('user_id', user.id)
+        .single();
+
+      if (fetchError || !report) throw new Error('Report not found');
+
+      // Call edge function to re-parse PDF
+      const { data: sessionData } = await supabase.auth.getSession();
+      const response = await supabase.functions.invoke('parse-bloodwork', {
+        body: {
+          pdf_url: report.pdf_url,
+          report_id: reportId,
+        },
+        headers: {
+          Authorization: `Bearer ${sessionData.session?.access_token}`,
+        },
+      });
+
+      if (response.error) {
+        console.error('Reanalyze error:', response.error);
+        throw new Error('Failed to analyze report');
+      }
+
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bloodwork-reports'] });
+      toast.success('Report re-analyzed successfully!');
+    },
+    onError: (error) => {
+      console.error('Reanalyze error:', error);
+      toast.error('Failed to re-analyze report');
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (reportId: string) => {
       if (!user?.id) throw new Error('Not authenticated');
@@ -171,6 +215,8 @@ export function useBloodwork() {
     isLoading,
     uploadReport: uploadMutation.mutate,
     isUploading: uploadMutation.isPending,
+    reanalyzeReport: reanalyzeMutation.mutate,
+    isReanalyzing: reanalyzeMutation.isPending,
     deleteReport: deleteMutation.mutate,
     isDeleting: deleteMutation.isPending,
   };

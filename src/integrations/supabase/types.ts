@@ -1594,6 +1594,7 @@ export type Database = {
           manual_sleep_quality: number | null
           manual_wake_time: string | null
           metric_date: string
+          nap_duration_minutes: number | null
           readiness_score: number | null
           rem_sleep_seconds: number | null
           resilience_level: string | null
@@ -1621,6 +1622,7 @@ export type Database = {
           manual_sleep_quality?: number | null
           manual_wake_time?: string | null
           metric_date: string
+          nap_duration_minutes?: number | null
           readiness_score?: number | null
           rem_sleep_seconds?: number | null
           resilience_level?: string | null
@@ -1648,6 +1650,7 @@ export type Database = {
           manual_sleep_quality?: number | null
           manual_wake_time?: string | null
           metric_date?: string
+          nap_duration_minutes?: number | null
           readiness_score?: number | null
           rem_sleep_seconds?: number | null
           resilience_level?: string | null

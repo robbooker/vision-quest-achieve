@@ -1,69 +1,70 @@
 
-# Bloodwork PDF Upload and AI Analysis Feature
+# Fix Bloodwork AI Parsing
 
-## Status: ✅ IMPLEMENTED
+## Problem Summary
+The bloodwork PDF parsing is failing because:
+1. The edge function calls Google's Gemini API directly with `GEMINI_API_KEY`, which is invalid
+2. The base64 conversion crashes on large PDFs due to stack overflow
 
-### Completed Components
+## Solution
 
-1. **Database & Storage** ✅
-   - `bloodwork_reports` table with RLS policies
-   - `bloodwork-pdfs` private storage bucket
+### 1. Update Edge Function to Use Lovable AI Gateway
+Switch from direct Gemini API calls to the Lovable AI proxy (like `parse-nutrition` and `journal-chat` do):
 
-2. **Edge Function** ✅
-   - `parse-bloodwork` - Uses Gemini Pro for PDF parsing and insights
+**Current (broken):**
+```text
+fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent')
+x-goog-api-key: GEMINI_API_KEY
+```
 
-3. **Frontend Components** ✅
-   - `useBloodwork.ts` - Data fetching and mutations
-   - `BloodworkUploadDialog.tsx` - PDF upload with drag-drop
-   - `BloodworkCard.tsx` - Summary card with key biomarkers
-   - `BloodworkDetailSheet.tsx` - Full biomarker list with AI insights
-   - `BloodworkTrendsChart.tsx` - Trend tracking across reports
+**Fixed:**
+```text
+fetch('https://ai.gateway.lovable.dev/v1/chat/completions')
+Authorization: Bearer LOVABLE_API_KEY
+model: google/gemini-2.5-pro
+```
 
----
+### 2. Fix Large PDF Base64 Encoding
+Replace the stack-overflow-prone code:
 
-# Physical Pillar Full-Page Dashboard
+**Current (crashes on large files):**
+```javascript
+const base64Pdf = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+```
 
-## Status: ✅ IMPLEMENTED
+**Fixed (chunked encoding):**
+```javascript
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const chunkSize = 8192;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode.apply(null, [...chunk]);
+  }
+  return btoa(binary);
+}
+```
 
-### Route
-- `/primed/physical` - Dedicated full-page dashboard for Physical pillar
+### 3. Two-Step AI Process
+Since Lovable AI uses OpenAI-compatible API (not Gemini's native multimodal format), we need to:
 
-### Components Created
+1. **Step 1: Extract text from PDF** using a multimodal model that accepts base64 inline data
+2. **Step 2: Parse biomarkers** from the extracted text using `gemini-2.5-pro`
+3. **Step 3: Generate insights** using `gemini-2.5-flash`
 
-1. **`PhysicalPillar.tsx`** (page) ✅
-   - Full-page dashboard layout with header showing level and re-assess button
-   - Grid of analytics cards
+### Files to Modify
+| File | Change |
+|------|--------|
+| `supabase/functions/parse-bloodwork/index.ts` | Complete rewrite to use Lovable AI gateway |
 
-2. **`PhysicalSleepSection.tsx`** ✅
-   - Sleep score and readiness averages
-   - 14-day trend chart
-   - 85+ streak tracking
-   - Source breakdown (Oura/Manual)
+### Where Analysis Appears After Fix
+Once working, users will see:
+- **Biomarker cards** grouped by category (Lipid Panel, Metabolic, etc.)
+- **Reference range bars** showing where values fall
+- **Status badges** (normal, high, low)
+- **AI Health Insights** card with personalized analysis
+- **Trends chart** when multiple reports exist
 
-3. **`PhysicalNutritionSection.tsx`** ✅
-   - Calorie and protein averages
-   - Protein bar chart with 150g reference
-   - Logging streak
-   - Food frequency analysis (collapsible)
-
-4. **`PhysicalMovementSection.tsx`** ✅
-   - Reset audit compliance for WAKE, MOVE, FUEL, RESET rules
-   - 7-day heatmap grid
-   - Compliance percentages per rule
-
-5. **`PhysicalBloodworkSection.tsx`** ✅
-   - Upload button
-   - Latest report summary
-   - Trends chart (inline if 2+ reports)
-   - Link to full detail sheet
-
-### Hooks Created
-
-1. **`useFoodFrequency.ts`** ✅
-   - Parses meal descriptions from last 30 days
-   - Extracts common food keywords
-   - Returns ranked list with frequency counts
-
-### Navigation
-- Clicking "Physical" pillar on PRIMED dashboard navigates to full-page view
-- Other pillars continue using slide-over sheet
+### Future Enhancement (Optional)
+Add bloodwork data to the `activity_embeddings` table for semantic search, allowing queries like "when was my cholesterol high?" in the Journal Chat.

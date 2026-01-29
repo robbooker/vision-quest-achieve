@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Input } from '@/components/ui/input';
 import { useTodayNutrition, useNutritionByDate, useNutritionSettings, useNutritionMutations, calculateTotals } from '@/hooks/useNutrition';
 import { MealEntryDialog } from './MealEntryDialog';
 import { NutritionSettingsDialog } from './NutritionSettingsDialog';
@@ -32,9 +33,10 @@ interface DailyFuelCardProps {
   activeCalories?: number; // From Oura
 }
 
-// Water goal: 3 liters = 3000ml ≈ 101 oz
-const WATER_GOAL_ML = 3000;
+// Water goal: 100 oz = ~2957ml
+const WATER_GOAL_OZ = 100;
 const ML_PER_OZ = 29.5735;
+const WATER_GOAL_ML = WATER_GOAL_OZ * ML_PER_OZ;
 
 export function DailyFuelCard({ activeCalories = 0 }: DailyFuelCardProps) {
   const { toast } = useToast();
@@ -56,6 +58,7 @@ export function DailyFuelCard({ activeCalories = 0 }: DailyFuelCardProps) {
   const [mealDialogOpen, setMealDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [editingMeal, setEditingMeal] = useState<string | null>(null);
+  const [customWaterOz, setCustomWaterOz] = useState('');
 
   const totals = calculateTotals(entries);
   const goals = {
@@ -89,18 +92,27 @@ export function DailyFuelCard({ activeCalories = 0 }: DailyFuelCardProps) {
     setEditingMeal(null);
   };
 
-  const handleLogWater = async (ml: number) => {
+  const handleLogWaterOz = async (oz: number) => {
     try {
+      const ml = Math.round(oz * ML_PER_OZ);
       await logWater.mutateAsync({ water_ml: ml, entry_date: selectedDateStr });
-      toast({ title: `+${ml}ml water logged` });
+      toast({ title: `+${oz} oz water logged` });
+      setCustomWaterOz('');
     } catch (error) {
       console.error('Log water error:', error);
       toast({ title: 'Failed to log water', variant: 'destructive' });
     }
   };
 
-  const waterProgressPercent = Math.min((totals.water_ml / WATER_GOAL_ML) * 100, 100);
+  const handleCustomWaterSubmit = () => {
+    const oz = parseFloat(customWaterOz);
+    if (oz > 0) {
+      handleLogWaterOz(oz);
+    }
+  };
+
   const waterOz = Math.round(totals.water_ml / ML_PER_OZ);
+  const waterProgressPercent = Math.min((waterOz / WATER_GOAL_OZ) * 100, 100);
 
   if (isLoading) {
     return (
@@ -203,13 +215,10 @@ export function DailyFuelCard({ activeCalories = 0 }: DailyFuelCardProps) {
               </div>
               <div className="text-right">
                 <span className="text-sm font-medium">
-                  {totals.water_ml}ml
+                  {waterOz} oz
                 </span>
                 <span className="text-xs text-muted-foreground ml-1">
-                  ({waterOz}oz)
-                </span>
-                <span className="text-xs text-muted-foreground ml-1">
-                  / 3L
+                  / {WATER_GOAL_OZ} oz
                 </span>
               </div>
             </div>
@@ -218,19 +227,41 @@ export function DailyFuelCard({ activeCalories = 0 }: DailyFuelCardProps) {
               className="h-2"
             />
             <div className="flex gap-1.5 flex-wrap">
-              {[250, 500, 750].map((ml) => (
+              {[8, 16, 24].map((oz) => (
                 <Button
-                  key={ml}
+                  key={oz}
                   variant="outline"
                   size="sm"
                   className="h-7 text-xs flex-1"
-                  onClick={() => handleLogWater(ml)}
+                  onClick={() => handleLogWaterOz(oz)}
                   disabled={logWater.isPending || !isViewingToday}
                 >
-                  +{ml}ml
+                  +{oz} oz
                 </Button>
               ))}
             </div>
+            {isViewingToday && (
+              <div className="flex gap-1.5 items-center">
+                <Input
+                  type="number"
+                  placeholder="Custom oz"
+                  value={customWaterOz}
+                  onChange={(e) => setCustomWaterOz(e.target.value)}
+                  className="h-7 text-xs flex-1"
+                  min="0"
+                  step="1"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={handleCustomWaterSubmit}
+                  disabled={logWater.isPending || !customWaterOz || parseFloat(customWaterOz) <= 0}
+                >
+                  Add
+                </Button>
+              </div>
+            )}
             {!isViewingToday && (
               <p className="text-xs text-muted-foreground text-center">
                 Switch to today to log water

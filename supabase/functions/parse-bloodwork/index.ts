@@ -58,6 +58,187 @@ async function callLovableAI(
   return data.choices?.[0]?.message?.content || '';
 }
 
+// Two-stage extraction: first get raw text, then parse it
+async function extractTextFromPDF(dataUrl: string): Promise<string> {
+  const textExtractionPrompt = `You are analyzing a bloodwork/lab results PDF. 
+
+Your task is simple: Extract ALL the text content you can see in this document.
+
+Include:
+- All test names and their values
+- Reference ranges shown
+- Dates
+- Lab name
+- Any headers or sections
+
+Just output the raw text content, formatted clearly. Do NOT try to structure it as JSON yet.`;
+
+  const rawText = await callLovableAI(
+    'google/gemini-2.5-flash',
+    [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'image_url',
+            image_url: { url: dataUrl }
+          },
+          {
+            type: 'text',
+            text: textExtractionPrompt
+          }
+        ]
+      }
+    ],
+    8192
+  );
+
+  return rawText;
+}
+
+// Parse raw text into structured biomarkers
+async function parseBiomarkersFromText(rawText: string): Promise<{ lab_name?: string; report_date?: string; biomarkers: Biomarker[] }> {
+  const parsePrompt = `You are parsing bloodwork results from text. Extract ALL biomarkers into JSON format.
+
+INPUT TEXT:
+${rawText}
+
+For each biomarker, provide:
+- name: Exact test name
+- value: The result value (number or text)
+- unit: Unit of measurement
+- reference_low: Lower bound of normal range (null if not shown)
+- reference_high: Upper bound of normal range (null if not shown)
+- status: "normal", "low", "high", or "unknown"
+- category: One of: "lipid_panel", "metabolic", "cbc", "thyroid", "vitamins", "liver", "kidney", "hormones", "inflammation", "other"
+
+Also extract lab_name and report_date (YYYY-MM-DD format) if present.
+
+RESPOND WITH ONLY THIS JSON (no markdown, no explanation):
+{"lab_name":null,"report_date":null,"biomarkers":[]}`;
+
+  const result = await callLovableAI(
+    'google/gemini-2.5-flash',
+    [{ role: 'user', content: parsePrompt }],
+    4096
+  );
+
+  // Try to parse the JSON
+  const jsonMatch = result.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    try {
+      return JSON.parse(jsonMatch[0]);
+    } catch (e) {
+      console.error('Failed to parse biomarkers JSON:', e);
+    }
+  }
+
+  // If parsing fails, try to repair truncated JSON
+  return repairAndParseJSON(result);
+}
+
+// Attempt to repair truncated JSON
+function repairAndParseJSON(text: string): { lab_name?: string; report_date?: string; biomarkers: Biomarker[] } {
+  // Find the start of JSON
+  const startIndex = text.indexOf('{');
+  if (startIndex === -1) {
+    return { biomarkers: [] };
+  }
+
+  let jsonStr = text.substring(startIndex);
+  
+  // Remove markdown code blocks if present
+  jsonStr = jsonStr.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+  
+  // Count brackets to see if we need to close them
+  let braceCount = 0;
+  let bracketCount = 0;
+  let inString = false;
+  let lastValidIndex = 0;
+  
+  for (let i = 0; i < jsonStr.length; i++) {
+    const char = jsonStr[i];
+    const prevChar = i > 0 ? jsonStr[i - 1] : '';
+    
+    if (char === '"' && prevChar !== '\\') {
+      inString = !inString;
+    }
+    
+    if (!inString) {
+      if (char === '{') braceCount++;
+      if (char === '}') braceCount--;
+      if (char === '[') bracketCount++;
+      if (char === ']') bracketCount--;
+      
+      // Track the last complete object
+      if (braceCount >= 0 && bracketCount >= 0) {
+        lastValidIndex = i;
+      }
+    }
+  }
+  
+  // Truncate to last valid position and close brackets
+  jsonStr = jsonStr.substring(0, lastValidIndex + 1);
+  
+  // Try to find the last complete biomarker object
+  const biomarkersMatch = jsonStr.match(/"biomarkers"\s*:\s*\[([\s\S]*)/);
+  if (biomarkersMatch) {
+    const biomarkersContent = biomarkersMatch[1];
+    
+    // Find all complete objects in the array
+    const completeObjects: string[] = [];
+    let depth = 0;
+    let currentObject = '';
+    let inStr = false;
+    
+    for (let i = 0; i < biomarkersContent.length; i++) {
+      const char = biomarkersContent[i];
+      const prev = i > 0 ? biomarkersContent[i - 1] : '';
+      
+      if (char === '"' && prev !== '\\') {
+        inStr = !inStr;
+      }
+      
+      if (!inStr) {
+        if (char === '{') {
+          if (depth === 0) currentObject = '';
+          depth++;
+        }
+        if (char === '}') {
+          depth--;
+          if (depth === 0) {
+            currentObject += char;
+            try {
+              JSON.parse(currentObject);
+              completeObjects.push(currentObject);
+            } catch {
+              // Invalid object, skip
+            }
+            currentObject = '';
+            continue;
+          }
+        }
+      }
+      
+      if (depth > 0) {
+        currentObject += char;
+      }
+    }
+    
+    // Rebuild valid JSON
+    if (completeObjects.length > 0) {
+      const repairedJson = `{"lab_name":null,"report_date":null,"biomarkers":[${completeObjects.join(',')}]}`;
+      try {
+        return JSON.parse(repairedJson);
+      } catch {
+        console.error('Failed to parse repaired JSON');
+      }
+    }
+  }
+  
+  return { biomarkers: [] };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -127,89 +308,39 @@ serve(async (req) => {
 
     console.log('PDF downloaded, size:', arrayBuffer.byteLength, 'bytes');
 
-    // Step 1: Extract text and parse biomarkers using multimodal model
-    // Using gemini-2.5-pro which has proven PDF/document analysis capability
-    const extractionPrompt = `You are analyzing a bloodwork/lab results PDF document. This is a base64-encoded PDF file.
+    // Step 1: Extract raw text from PDF (simpler task, less likely to truncate)
+    console.log('Step 1: Extracting raw text from PDF...');
+    const rawText = await extractTextFromPDF(dataUrl);
+    console.log('Raw text extracted, length:', rawText.length);
 
-IMPORTANT: Carefully examine the entire document and extract ALL biomarkers/lab values you can find.
-
-For each biomarker found, provide:
-1. name: The exact biomarker name (e.g., "Total Cholesterol", "Hemoglobin A1c", "Vitamin D, 25-Hydroxy", "Glucose", "BUN", "Creatinine")
-2. value: The numeric value (or text if not numeric)
-3. unit: The unit of measurement (e.g., "mg/dL", "%", "ng/mL")
-4. reference_low: The lower bound of normal range (null if not provided)
-5. reference_high: The upper bound of normal range (null if not provided)
-6. status: "normal", "low", "high", or "unknown" based on whether the value is within reference range
-7. category: One of: "lipid_panel", "metabolic", "cbc", "thyroid", "vitamins", "liver", "kidney", "hormones", "inflammation", "other"
-
-Also extract:
-- lab_name: The laboratory name (e.g., "Quest Diagnostics", "LabCorp")
-- report_date: The date of the lab work in YYYY-MM-DD format
-
-You MUST respond with valid JSON only. No markdown, no explanation. Just the JSON object:
-{
-  "lab_name": "string or null",
-  "report_date": "YYYY-MM-DD or null",
-  "biomarkers": [
-    {
-      "name": "string",
-      "value": "number or string",
-      "unit": "string",
-      "reference_low": "number or null",
-      "reference_high": "number or null",
-      "status": "normal | low | high | unknown",
-      "category": "string"
-    }
-  ]
-}`;
-
-    // Use Gemini 2.5 Pro for PDF extraction - better multimodal document support
-    const extractionResult = await callLovableAI(
-      'google/gemini-2.5-pro',
-      [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'image_url',
-              image_url: { url: dataUrl }
-            },
-            {
-              type: 'text',
-              text: extractionPrompt
-            }
-          ]
-        }
-      ],
-      16384
-    );
-
-    console.log('Extraction result length:', extractionResult.length);
-
-    // Parse the JSON response
-    let parsedData: { lab_name?: string; report_date?: string; biomarkers: Biomarker[] };
-    try {
-      // Extract JSON from the response (might be wrapped in markdown code blocks)
-      const jsonMatch = extractionResult.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        parsedData = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error('No JSON found in response');
-      }
-    } catch (parseError) {
-      console.error('JSON parse error:', parseError, 'Raw text:', extractionResult.substring(0, 500));
-      return new Response(JSON.stringify({ error: 'Failed to parse AI response' }), {
+    if (!rawText || rawText.length < 50) {
+      console.error('Failed to extract meaningful text from PDF');
+      return new Response(JSON.stringify({ error: 'Could not extract text from PDF. The document may be a scanned image that requires OCR.' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    // Step 2: Parse biomarkers from the extracted text (text-only, no vision needed)
+    console.log('Step 2: Parsing biomarkers from text...');
+    const parsedData = await parseBiomarkersFromText(rawText);
     console.log('Parsed biomarkers count:', parsedData.biomarkers?.length || 0);
 
-    // Step 2: Generate health insights using faster model
+    if (!parsedData.biomarkers || parsedData.biomarkers.length === 0) {
+      console.error('No biomarkers extracted from text');
+      return new Response(JSON.stringify({ 
+        error: 'Could not identify biomarkers in this document. Please ensure this is a lab results PDF.',
+        raw_text: rawText.substring(0, 500)
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Step 3: Generate health insights
+    console.log('Step 3: Generating health insights...');
     let aiInsights = '';
-    if (parsedData.biomarkers && parsedData.biomarkers.length > 0) {
-      const insightsPrompt = `Based on these bloodwork results, provide a brief health analysis:
+    const insightsPrompt = `Based on these bloodwork results, provide a brief health analysis:
 
 ${JSON.stringify(parsedData.biomarkers, null, 2)}
 
@@ -224,24 +355,23 @@ IMPORTANT: End with this disclaimer: "This analysis is for informational purpose
 
 Keep the response under 400 words and use markdown formatting for readability.`;
 
-      try {
-        aiInsights = await callLovableAI(
-          'google/gemini-2.5-flash',
-          [{ role: 'user', content: insightsPrompt }],
-          2048
-        );
-        console.log('Generated insights length:', aiInsights.length);
-      } catch (insightError) {
-        console.error('Failed to generate insights:', insightError);
-        // Continue without insights - biomarkers are still valuable
-      }
+    try {
+      aiInsights = await callLovableAI(
+        'google/gemini-2.5-flash',
+        [{ role: 'user', content: insightsPrompt }],
+        2048
+      );
+      console.log('Generated insights length:', aiInsights.length);
+    } catch (insightError) {
+      console.error('Failed to generate insights:', insightError);
+      // Continue without insights - biomarkers are still valuable
     }
 
     // Update the report in the database
     const updateData: Record<string, unknown> = {
       biomarkers: parsedData.biomarkers,
       ai_insights: aiInsights,
-      raw_text: extractionResult,
+      raw_text: rawText,
     };
 
     if (parsedData.lab_name) {
@@ -264,6 +394,8 @@ Keep the response under 400 words and use markdown formatting for readability.`;
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    console.log('Successfully parsed and saved bloodwork report');
 
     return new Response(
       JSON.stringify({

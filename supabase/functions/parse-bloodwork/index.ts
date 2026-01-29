@@ -157,9 +157,9 @@ Respond ONLY with valid JSON in this exact format:
   ]
 }`;
 
-    // Use Gemini Pro for PDF extraction (multimodal)
+    // Use Gemini 3 Pro for PDF extraction (multimodal - most advanced)
     const extractionResult = await callLovableAI(
-      'google/gemini-2.5-pro',
+      'google/gemini-3-pro-preview',
       [
         {
           role: 'user',
@@ -220,7 +220,7 @@ Keep the response under 400 words and use markdown formatting for readability.`;
 
       try {
         aiInsights = await callLovableAI(
-          'google/gemini-2.5-flash',
+          'google/gemini-3-pro-preview',
           [{ role: 'user', content: insightsPrompt }],
           2048
         );

@@ -22,10 +22,13 @@ interface OuraDailySleepData {
 
 interface OuraSleepSession {
   day: string;
+  bedtime_start: string | null;
+  bedtime_end: string | null;
   total_sleep_duration: number | null;
   deep_sleep_duration: number | null;
   rem_sleep_duration: number | null;
   light_sleep_duration: number | null;
+  time_in_bed: number | null;
   efficiency: number | null;
   type: string;
 }
@@ -132,42 +135,77 @@ serve(async (req) => {
 
     console.log(`Fetched: ${dailySleepData.data?.length || 0} daily_sleep, ${sleepSessionsData.data?.length || 0} sleep sessions, ${readinessData.data?.length || 0} readiness, ${resilienceData.data?.length || 0} resilience records`);
 
+    // Log a sample sleep session for debugging
+    if (sleepSessionsData.data?.length > 0) {
+      const sample = sleepSessionsData.data[0];
+      console.log(`Sample sleep session: day=${sample.day}, type=${sample.type}, total_sleep_duration=${sample.total_sleep_duration}, deep=${sample.deep_sleep_duration}, rem=${sample.rem_sleep_duration}, light=${sample.light_sleep_duration}, time_in_bed=${sample.time_in_bed}, bedtime_start=${sample.bedtime_start}, bedtime_end=${sample.bedtime_end}`);
+    }
+
     // Process and merge data by date
     const dailySleepByDate: Record<string, OuraDailySleepData> = {};
     const readinessByDate: Record<string, OuraReadinessData> = {};
     const resilienceByDate: Record<string, OuraResilienceData> = {};
     
-    // Aggregate sleep sessions by date (only use "long_sleep" type, sum if multiple)
-    const sleepDurationsByDate: Record<string, {
+    // Aggregate sleep sessions by date (only use "long_sleep" type, take the main one)
+    const sleepSessionsByDate: Record<string, {
       total: number;
       deep: number;
       rem: number;
       light: number;
       efficiency: number | null;
+      bedtimeStart: string | null;
+      bedtimeEnd: string | null;
     }> = {};
 
     (dailySleepData.data || []).forEach((d: OuraDailySleepData) => {
       dailySleepByDate[d.day] = d;
     });
 
-    // Process sleep sessions - aggregate durations by date
+    // Process sleep sessions - use the primary long_sleep session
     (sleepSessionsData.data || []).forEach((session: OuraSleepSession) => {
       // Only count "long_sleep" type sessions (ignore naps, rest periods)
       if (session.type !== "long_sleep") return;
       
       const date = session.day;
-      if (!sleepDurationsByDate[date]) {
-        sleepDurationsByDate[date] = { total: 0, deep: 0, rem: 0, light: 0, efficiency: null };
+      
+      // Calculate total sleep from stage durations if total_sleep_duration is null
+      const deep = session.deep_sleep_duration || 0;
+      const rem = session.rem_sleep_duration || 0;
+      const light = session.light_sleep_duration || 0;
+      
+      // Use total_sleep_duration if available, otherwise sum the stages
+      // Note: time_in_bed includes awake time, so we prefer summing stages
+      const totalSleep = session.total_sleep_duration || (deep + rem + light);
+      
+      // If we already have data for this date, aggregate it (in case of multiple long_sleep sessions)
+      if (!sleepSessionsByDate[date]) {
+        sleepSessionsByDate[date] = { 
+          total: 0, 
+          deep: 0, 
+          rem: 0, 
+          light: 0, 
+          efficiency: null,
+          bedtimeStart: null,
+          bedtimeEnd: null
+        };
       }
       
-      sleepDurationsByDate[date].total += session.total_sleep_duration || 0;
-      sleepDurationsByDate[date].deep += session.deep_sleep_duration || 0;
-      sleepDurationsByDate[date].rem += session.rem_sleep_duration || 0;
-      sleepDurationsByDate[date].light += session.light_sleep_duration || 0;
+      sleepSessionsByDate[date].total += totalSleep;
+      sleepSessionsByDate[date].deep += deep;
+      sleepSessionsByDate[date].rem += rem;
+      sleepSessionsByDate[date].light += light;
       
-      // Take the efficiency from the main sleep session
+      // Take efficiency and bedtime from the main sleep session
       if (session.efficiency !== null) {
-        sleepDurationsByDate[date].efficiency = session.efficiency;
+        sleepSessionsByDate[date].efficiency = session.efficiency;
+      }
+      
+      // Store bedtime_start and bedtime_end for the edit dialog
+      if (session.bedtime_start) {
+        sleepSessionsByDate[date].bedtimeStart = session.bedtime_start;
+      }
+      if (session.bedtime_end) {
+        sleepSessionsByDate[date].bedtimeEnd = session.bedtime_end;
       }
     });
 
@@ -181,7 +219,7 @@ serve(async (req) => {
     // Get all unique dates
     const allDates = [...new Set([
       ...Object.keys(dailySleepByDate),
-      ...Object.keys(sleepDurationsByDate),
+      ...Object.keys(sleepSessionsByDate),
       ...Object.keys(readinessByDate),
       ...Object.keys(resilienceByDate),
     ])].sort();
@@ -220,7 +258,7 @@ serve(async (req) => {
     // Prepare upsert data
     const metricsToUpsert = allDates.map((date) => {
       const dailySleep = dailySleepByDate[date];
-      const sleepDurations = sleepDurationsByDate[date];
+      const sleepSession = sleepSessionsByDate[date];
       const readiness = readinessByDate[date];
       const resilience = resilienceByDate[date];
 
@@ -234,6 +272,17 @@ serve(async (req) => {
         : false;
       const criticalDeficitAlert = rhrSpikeAlert && hrvStrainAlert;
 
+      // Parse bedtime timestamps into proper format for our DB
+      let manualBedtime = null;
+      let manualWakeTime = null;
+      
+      if (sleepSession?.bedtimeStart) {
+        manualBedtime = sleepSession.bedtimeStart;
+      }
+      if (sleepSession?.bedtimeEnd) {
+        manualWakeTime = sleepSession.bedtimeEnd;
+      }
+
       return {
         user_id: user.id,
         metric_date: date,
@@ -241,11 +290,14 @@ serve(async (req) => {
         // Sleep score from daily_sleep endpoint
         sleep_score: dailySleep?.score ?? null,
         // Sleep durations from sleep sessions endpoint (actual seconds)
-        total_sleep_seconds: sleepDurations?.total ?? null,
-        deep_sleep_seconds: sleepDurations?.deep ?? null,
-        rem_sleep_seconds: sleepDurations?.rem ?? null,
-        light_sleep_seconds: sleepDurations?.light ?? null,
-        sleep_efficiency: sleepDurations?.efficiency ?? null,
+        total_sleep_seconds: sleepSession?.total ?? null,
+        deep_sleep_seconds: sleepSession?.deep ?? null,
+        rem_sleep_seconds: sleepSession?.rem ?? null,
+        light_sleep_seconds: sleepSession?.light ?? null,
+        sleep_efficiency: sleepSession?.efficiency ?? null,
+        // Bedtime info for the edit dialog
+        manual_bedtime: manualBedtime,
+        manual_wake_time: manualWakeTime,
         // Readiness
         readiness_score: readiness?.score ?? null,
         resting_heart_rate: rhr,
@@ -290,7 +342,7 @@ serve(async (req) => {
     const todayMetrics = metricsToUpsert.find((m) => m.metric_date === todayStr) || 
                          metricsToUpsert[metricsToUpsert.length - 1];
 
-    console.log(`Synced ${metricsToUpsert.length} days of Oura data`);
+    console.log(`Synced ${metricsToUpsert.length} days of Oura data. Today's sleep: ${todayMetrics?.total_sleep_seconds} seconds`);
 
     return new Response(JSON.stringify({ 
       success: true, 

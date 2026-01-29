@@ -161,10 +161,11 @@ serve(async (req) => {
       dailySleepByDate[d.day] = d;
     });
 
-    // Process sleep sessions - use the primary long_sleep session
+    // Process sleep sessions - use the primary sleep session
     (sleepSessionsData.data || []).forEach((session: OuraSleepSession) => {
-      // Only count "long_sleep" type sessions (ignore naps, rest periods)
-      if (session.type !== "long_sleep") return;
+      // Only count "long_sleep" or "sleep" type sessions (ignore naps, rest periods)
+      // Oura API v2 uses "long_sleep", but sometimes returns just "sleep"
+      if (session.type !== "long_sleep" && session.type !== "sleep") return;
       
       const date = session.day;
       

@@ -499,6 +499,7 @@ export type Database = {
           sugar_g: number | null
           updated_at: string
           user_id: string
+          water_ml: number | null
         }
         Insert: {
           calories?: number | null
@@ -515,6 +516,7 @@ export type Database = {
           sugar_g?: number | null
           updated_at?: string
           user_id: string
+          water_ml?: number | null
         }
         Update: {
           calories?: number | null
@@ -531,6 +533,7 @@ export type Database = {
           sugar_g?: number | null
           updated_at?: string
           user_id?: string
+          water_ml?: number | null
         }
         Relationships: []
       }

@@ -15,6 +15,7 @@ export interface NutritionEntry {
   fats_g: number | null;
   sugar_g: number | null;
   fiber_g: number | null;
+  water_ml: number | null;
   source: string;
   created_at: string;
   updated_at: string;
@@ -36,6 +37,7 @@ export interface NutritionTotals {
   fats_g: number;
   sugar_g: number;
   fiber_g: number;
+  water_ml: number;
   mealCount: number;
 }
 
@@ -159,9 +161,10 @@ export function calculateTotals(entries: NutritionEntry[]): NutritionTotals {
       fats_g: acc.fats_g + (entry.fats_g || 0),
       sugar_g: acc.sugar_g + (entry.sugar_g || 0),
       fiber_g: acc.fiber_g + (entry.fiber_g || 0),
+      water_ml: acc.water_ml + (entry.water_ml || 0),
       mealCount: acc.mealCount + 1,
     }),
-    { calories: 0, protein_g: 0, carbs_g: 0, fats_g: 0, sugar_g: 0, fiber_g: 0, mealCount: 0 }
+    { calories: 0, protein_g: 0, carbs_g: 0, fats_g: 0, sugar_g: 0, fiber_g: 0, water_ml: 0, mealCount: 0 }
   );
 }
 
@@ -181,6 +184,7 @@ export function useNutritionMutations() {
       fats_g?: number;
       sugar_g?: number;
       fiber_g?: number;
+      water_ml?: number;
       source?: string;
       entry_date?: string;
     }) => {
@@ -199,7 +203,29 @@ export function useNutritionMutations() {
           fats_g: data.fats_g || null,
           sugar_g: data.sugar_g || null,
           fiber_g: data.fiber_g || null,
+          water_ml: data.water_ml || null,
           source: data.source || 'manual',
+        });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['nutrition'] });
+    },
+  });
+
+  const logWater = useMutation({
+    mutationFn: async (data: { water_ml: number; entry_date?: string }) => {
+      if (!user?.id) throw new Error('Not authenticated');
+
+      const { error } = await supabase
+        .from('daily_nutrition')
+        .insert({
+          user_id: user.id,
+          entry_date: data.entry_date || today,
+          meal_description: `Water: ${data.water_ml}ml`,
+          water_ml: data.water_ml,
+          source: 'manual',
         });
 
       if (error) throw error;
@@ -267,5 +293,5 @@ export function useNutritionMutations() {
     },
   });
 
-  return { logMeal, updateMeal, deleteMeal, parseNutrition };
+  return { logMeal, logWater, updateMeal, deleteMeal, parseNutrition };
 }

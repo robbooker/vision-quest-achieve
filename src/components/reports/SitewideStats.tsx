@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useSitewideStats } from '@/hooks/useSitewideStats';
 import { useSitewideTrends } from '@/hooks/useSitewideTrends';
 import { AnimatedCounter } from './AnimatedCounter';
@@ -43,7 +44,10 @@ import {
   BarChart3,
   Activity,
   Sparkles,
-  Calendar
+  Calendar,
+  Moon,
+  Utensils,
+  Info
 } from 'lucide-react';
 
 const chartConfig = {
@@ -224,7 +228,19 @@ export function SitewideStats() {
             <div className="h-12 w-12 rounded-full bg-chart-4/20 flex items-center justify-center mx-auto mb-3">
               <Users className="h-6 w-6 text-chart-4" />
             </div>
-            <p className="text-sm text-muted-foreground mb-1">Active Today</p>
+            <div className="flex items-center justify-center gap-1 mb-1">
+              <p className="text-sm text-muted-foreground">Active Today</p>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[250px]">
+                  <p className="text-xs">
+                    Users who updated a task, started a focus session, created a journal entry, or logged a habit today.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
             <p className="text-4xl font-bold text-chart-4">
               <AnimatedCounter value={stats.users_active_today} />
             </p>
@@ -633,6 +649,54 @@ export function SitewideStats() {
               </div>
               <span className="text-xl font-bold">
                 <AnimatedCounter value={stats.users_active_today} />
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Sleep & Nutrition */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Moon className="h-5 w-5 text-chart-5" />
+              Sleep & Nutrition
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
+              <div className="flex items-center gap-2">
+                <Moon className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm">Sleep Entries</span>
+              </div>
+              <span className="text-xl font-bold">
+                <AnimatedCounter value={stats.sleep_entries_total} />
+              </span>
+            </div>
+            <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
+              <div className="flex items-center gap-2">
+                <Moon className="h-4 w-4 text-chart-3" />
+                <span className="text-sm">Sleep Today (UTC)</span>
+              </div>
+              <span className="text-xl font-bold">
+                <AnimatedCounter value={stats.sleep_entries_today} />
+              </span>
+            </div>
+            <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
+              <div className="flex items-center gap-2">
+                <Utensils className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm">Meal Entries</span>
+              </div>
+              <span className="text-xl font-bold">
+                <AnimatedCounter value={stats.nutrition_entries_total} />
+              </span>
+            </div>
+            <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50">
+              <div className="flex items-center gap-2">
+                <Utensils className="h-4 w-4 text-chart-1" />
+                <span className="text-sm">Meals Today (UTC)</span>
+              </div>
+              <span className="text-xl font-bold">
+                <AnimatedCounter value={stats.nutrition_entries_today} />
               </span>
             </div>
           </CardContent>

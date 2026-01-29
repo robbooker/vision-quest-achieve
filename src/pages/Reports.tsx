@@ -26,21 +26,20 @@ import {
 } from 'recharts';
 import { useCycles } from '@/hooks/useCycles';
 import { useGoals } from '@/hooks/useGoals';
-import { useTaskInstances } from '@/hooks/useTaskInstances';
-import { useWeekReviews } from '@/hooks/useWeekReviews';
-import { useMilestones } from '@/hooks/useMilestones';
 import { useBigTen } from '@/hooks/useBigTen';
 import { useQuickTasks } from '@/hooks/useQuickTasks';
-import { TrendingUp, BarChart3, Target, AlertTriangle, Calendar, CheckSquare, FolderKanban, ListTodo, RotateCcw, Flame, Trophy, Zap, Clock, Timer, Globe, Sparkles, Hexagon } from 'lucide-react';
+import { TrendingUp, BarChart3, Target, Calendar, CheckSquare, FolderKanban, ListTodo, RotateCcw, Flame, Trophy, Zap, Clock, Timer, Globe, Sparkles, Hexagon, Moon, Utensils } from 'lucide-react';
 import { HabitChainCalendar } from '@/components/reports/HabitChainCalendar';
 import { CumulativeProgressCard } from '@/components/reports/CumulativeProgressCard';
 import { SitewideStats } from '@/components/reports/SitewideStats';
 import { PillarAnalyticsSection } from '@/components/reports/PillarAnalyticsSection';
+import { SleepSummaryCard } from '@/components/reports/SleepSummaryCard';
+import { NutritionSummaryCard } from '@/components/reports/NutritionSummaryCard';
 import { AuditStrip } from '@/components/reset/AuditStrip';
 import { useResetAudits } from '@/hooks/useResetAudits';
 import { useResetPreference } from '@/hooks/useResetPreference';
 import { useFocusSessions } from '@/hooks/useFocusSessions';
-import { format, subDays, startOfDay, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek } from 'date-fns';
+import { format, subDays, eachWeekOfInterval, endOfWeek } from 'date-fns';
 import { PieChart, Pie, Cell } from 'recharts';
 import { useAffirmations } from '@/hooks/useAffirmations';
 
@@ -50,77 +49,12 @@ export default function Reports() {
   const currentWeek = activeCycle ? getCurrentWeekNumber(activeCycle) : 0;
   
   const { goals } = useGoals(activeCycle?.id);
-  const { tasks, getWeekStats } = useTaskInstances(activeCycle?.id);
-  const { reviews } = useWeekReviews(activeCycle?.id);
   const { projects: bigTenProjects } = useBigTen();
   const { tasks: quickTasks } = useQuickTasks();
   const { audits, getScore, getStreak, getPerfectDays, getAverageScore, getBestScore } = useResetAudits();
-  const { isResetActive, resetStartedAt } = useResetPreference();
+  const { isResetActive } = useResetPreference();
   const { sessions: focusSessions, weeklyStats: focusWeeklyStats, timeOfDayStats, streak: focusStreak } = useFocusSessions();
   const { stats: affirmationStats } = useAffirmations();
-
-  // Generate execution score data for all weeks (6-week cycle)
-  const executionScoreData = useMemo(() => {
-    if (!activeCycle) return [];
-    
-    return Array.from({ length: 6 }, (_, i) => {
-      const weekNum = i + 1;
-      const review = reviews.find(r => r.week_number === weekNum);
-      const stats = getWeekStats(tasks, weekNum);
-      
-      return {
-        week: `W${weekNum}`,
-        weekNumber: weekNum,
-        score: review?.execution_score ?? (weekNum <= currentWeek ? stats.percentage : null),
-        target: 80, // 80% target line
-      };
-    });
-  }, [activeCycle, reviews, tasks, currentWeek, getWeekStats]);
-
-  // Generate hours breakdown data (6-week cycle)
-  const hoursBreakdownData = useMemo(() => {
-    if (!activeCycle) return [];
-    
-    return Array.from({ length: 6 }, (_, i) => {
-      const weekNum = i + 1;
-      const weekTasks = tasks.filter(t => t.due_week === weekNum);
-      
-      const planned = weekTasks.reduce((sum, t) => sum + t.duration_minutes, 0) / 60;
-      const scheduled = weekTasks.filter(t => t.scheduled_start).reduce((sum, t) => sum + t.duration_minutes, 0) / 60;
-      const completed = weekTasks.filter(t => t.status === 'completed').reduce((sum, t) => sum + t.duration_minutes, 0) / 60;
-      
-      return {
-        week: `W${weekNum}`,
-        weekNumber: weekNum,
-        planned,
-        scheduled,
-        completed,
-      };
-    });
-  }, [activeCycle, tasks]);
-
-  // Calculate reality gap data
-  const realityGapData = useMemo(() => {
-    return hoursBreakdownData.map(week => ({
-      ...week,
-      gap: week.planned - week.scheduled,
-    }));
-  }, [hoursBreakdownData]);
-
-  // Calculate summary stats
-  const summaryStats = useMemo(() => {
-    const completedWeeks = executionScoreData.filter(w => w.score !== null);
-    const avgScore = completedWeeks.length > 0
-      ? Math.round(completedWeeks.reduce((sum, w) => sum + (w.score || 0), 0) / completedWeeks.length)
-      : 0;
-    
-    const totalPlanned = hoursBreakdownData.reduce((sum, w) => sum + w.planned, 0);
-    const totalScheduled = hoursBreakdownData.reduce((sum, w) => sum + w.scheduled, 0);
-    const totalCompleted = hoursBreakdownData.reduce((sum, w) => sum + w.completed, 0);
-    const totalGap = totalPlanned - totalScheduled;
-    
-    return { avgScore, totalPlanned, totalScheduled, totalCompleted, totalGap };
-  }, [executionScoreData, hoursBreakdownData]);
 
   // Big Ten stats
   const bigTenStats = useMemo(() => {
@@ -510,160 +444,17 @@ export default function Reports() {
           </div>
         )}
 
-        {/* Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-primary" />
-                <span className="text-sm text-muted-foreground">Avg Score</span>
-              </div>
-              <p className="text-2xl font-bold mt-1">{summaryStats.avgScore}%</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-primary" />
-                <span className="text-sm text-muted-foreground">Hours Completed</span>
-              </div>
-              <p className="text-2xl font-bold mt-1">{summaryStats.totalCompleted.toFixed(1)}h</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2">
-                <Target className="h-4 w-4 text-primary" />
-                <span className="text-sm text-muted-foreground">Hours Planned</span>
-              </div>
-              <p className="text-2xl font-bold mt-1">{summaryStats.totalPlanned.toFixed(1)}h</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className={`h-4 w-4 ${summaryStats.totalGap > 0 ? 'text-destructive' : 'text-green-500'}`} />
-                <span className="text-sm text-muted-foreground">Reality Gap</span>
-              </div>
-              <p className={`text-2xl font-bold mt-1 ${summaryStats.totalGap > 0 ? 'text-destructive' : 'text-green-500'}`}>
-                {summaryStats.totalGap > 0 ? '+' : ''}{summaryStats.totalGap.toFixed(1)}h
-              </p>
-            </CardContent>
-          </Card>
+        {/* Sleep & Nutrition Summary Section */}
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <Moon className="h-5 w-5 text-primary" />
+            Health Tracking
+          </h2>
+          <div className="grid gap-4 md:grid-cols-2">
+            <SleepSummaryCard />
+            <NutritionSummaryCard />
+          </div>
         </div>
-
-        {/* Charts Row 1 */}
-        <div className="grid gap-4 md:grid-cols-2">
-          {/* Execution Score by Week */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <TrendingUp className="h-4 w-4" />
-                Execution Score by Week
-              </CardTitle>
-              <CardDescription>Weekly task completion percentage vs 80% target</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ChartContainer config={chartConfig} className="h-[250px]">
-                <LineChart data={executionScoreData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="week" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
-                  <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} tickLine={false} axisLine={false} unit="%" />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <ReferenceLine y={80} stroke="hsl(var(--muted-foreground))" strokeDasharray="5 5" />
-                  <Line
-                    type="monotone"
-                    dataKey="score"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={2}
-                    dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2 }}
-                    connectNulls={false}
-                  />
-                </LineChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
-
-          {/* Planned vs Scheduled vs Completed Hours */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <BarChart3 className="h-4 w-4" />
-                Hours Breakdown by Week
-              </CardTitle>
-              <CardDescription>Planned, scheduled, and completed hours</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ChartContainer config={chartConfig} className="h-[250px]">
-                <BarChart data={hoursBreakdownData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="week" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fontSize: 12 }} tickLine={false} axisLine={false} unit="h" />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <ChartLegend content={<ChartLegendContent />} />
-                  <Bar dataKey="planned" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="scheduled" fill="hsl(var(--secondary))" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="completed" fill="hsl(142 76% 36%)" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Charts Row 2 */}
-        <div className="grid gap-4 md:grid-cols-2">
-          {/* Milestone Attainment Trend */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Target className="h-4 w-4" />
-                Milestone Attainment
-              </CardTitle>
-              <CardDescription>Goal progress vs linear target</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {goals.length === 0 ? (
-                <div className="h-[250px] flex items-center justify-center text-muted-foreground">
-                  No goals to display
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {goals.map(goal => (
-                    <MilestoneChart key={goal.id} goal={goal} currentWeek={currentWeek} chartConfig={chartConfig} />
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Reality Gap */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4" />
-                Reality Gap
-              </CardTitle>
-              <CardDescription>Planned hours minus scheduled hours</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ChartContainer config={chartConfig} className="h-[250px]">
-                <BarChart data={realityGapData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="week" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fontSize: 12 }} tickLine={false} axisLine={false} unit="h" />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" />
-                  <Bar
-                    dataKey="gap"
-                    radius={[4, 4, 0, 0]}
-                    fill="hsl(var(--destructive))"
-                  />
-                </BarChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
-        </div>
-
 
         {/* 7-Day Reset Section - Only show if user has reset data */}
         {(audits.length > 0 || isResetActive) && (
@@ -770,72 +561,5 @@ export default function Reports() {
         </Tabs>
       </div>
     </DashboardLayout>
-  );
-}
-
-interface MilestoneChartProps {
-  goal: { id: string; title: string; target_value: number; metric_type: string };
-  currentWeek: number;
-  chartConfig: any;
-}
-
-function MilestoneChart({ goal, currentWeek, chartConfig }: MilestoneChartProps) {
-  const { milestones } = useMilestones(goal.id);
-  
-  const data = useMemo(() => {
-    let cumulativeProgress = 0;
-    
-    return Array.from({ length: 12 }, (_, i) => {
-      const weekNum = i + 1;
-      const milestone = milestones.find(m => m.week_number === weekNum);
-      const linearTarget = (goal.target_value / 12) * weekNum;
-      
-      if (milestone) {
-        cumulativeProgress += milestone.target_value;
-      }
-      
-      return {
-        week: `W${weekNum}`,
-        progress: weekNum <= currentWeek ? cumulativeProgress : null,
-        target: linearTarget,
-      };
-    });
-  }, [milestones, goal.target_value, currentWeek]);
-
-  const progressPercent = goal.target_value > 0
-    ? Math.round((data[currentWeek - 1]?.progress || 0) / goal.target_value * 100)
-    : 0;
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium truncate">{goal.title}</span>
-        <Badge variant={progressPercent >= 80 ? 'default' : 'secondary'}>
-          {progressPercent}%
-        </Badge>
-      </div>
-      <ChartContainer config={chartConfig} className="h-[80px]">
-        <ComposedChart data={data} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
-          <XAxis dataKey="week" tick={false} axisLine={false} />
-          <YAxis domain={[0, goal.target_value]} hide />
-          <Area
-            type="monotone"
-            dataKey="target"
-            fill="hsl(var(--muted))"
-            stroke="hsl(var(--muted-foreground))"
-            strokeDasharray="3 3"
-            fillOpacity={0.3}
-          />
-          <Line
-            type="monotone"
-            dataKey="progress"
-            stroke="hsl(var(--primary))"
-            strokeWidth={2}
-            dot={false}
-            connectNulls={false}
-          />
-        </ComposedChart>
-      </ChartContainer>
-    </div>
   );
 }

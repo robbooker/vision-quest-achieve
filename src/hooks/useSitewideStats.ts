@@ -22,6 +22,11 @@ export interface SitewideStats {
   cycles_total: number;
   total_users: number;
   users_active_today: number;
+  // New sleep & nutrition stats
+  sleep_entries_total: number;
+  sleep_entries_today: number;
+  nutrition_entries_total: number;
+  nutrition_entries_today: number;
 }
 
 export function useSitewideStats() {

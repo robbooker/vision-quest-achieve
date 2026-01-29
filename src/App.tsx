@@ -51,6 +51,7 @@ import Feedback from "./pages/Feedback";
 import AdminFeedback from "./pages/AdminFeedback";
 import Birdwatching from "./pages/Birdwatching";
 import PublicBirdProfile from "./pages/PublicBirdProfile";
+import PublicBirdGallery from "./pages/PublicBirdGallery";
 import PublicRecap from "./pages/PublicRecap";
 import TradingPnL from "./pages/TradingPnL";
 import Primed from "./pages/Primed";
@@ -127,6 +128,7 @@ const App = () => (
                     <Route path="/feedback" element={<ProtectedRoute><Feedback /></ProtectedRoute>} />
                     <Route path="/birdwatching" element={<ProtectedRoute><Birdwatching /></ProtectedRoute>} />
                     <Route path="/birds/:username" element={<PublicBirdProfile />} />
+                    <Route path="/birds/:username/gallery" element={<PublicBirdGallery />} />
                     <Route path="/recap/:slug" element={<PublicRecap />} />
                     <Route path="/list/view/:token" element={<PublicListView />} />
                     <Route path="/monthly-audit" element={<ProtectedRoute><JanuaryAudit /></ProtectedRoute>} />

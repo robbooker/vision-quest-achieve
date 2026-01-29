@@ -162,6 +162,10 @@ serve(async (req) => {
     });
 
     // Process sleep sessions - use the primary sleep session
+    // IMPORTANT: Oura's sleep sessions are dated by the day you WOKE UP
+    // So a session with day=2026-01-28 is the sleep from the night of 01-27 to 01-28
+    // The daily_sleep score for 2026-01-29 refers to the sleep from 01-28 to 01-29,
+    // which would have day=2026-01-29 in the sleep endpoint
     (sleepSessionsData.data || []).forEach((session: OuraSleepSession) => {
       // Only count "long_sleep" or "sleep" type sessions (ignore naps, rest periods)
       // Oura API v2 uses "long_sleep", but sometimes returns just "sleep"
@@ -177,6 +181,8 @@ serve(async (req) => {
       // Use total_sleep_duration if available, otherwise sum the stages
       // Note: time_in_bed includes awake time, so we prefer summing stages
       const totalSleep = session.total_sleep_duration || (deep + rem + light);
+      
+      console.log(`Processing session: date=${date}, type=${session.type}, totalSleep=${totalSleep}`);
       
       // If we already have data for this date, aggregate it (in case of multiple long_sleep sessions)
       if (!sleepSessionsByDate[date]) {
@@ -209,6 +215,10 @@ serve(async (req) => {
         sleepSessionsByDate[date].bedtimeEnd = session.bedtime_end;
       }
     });
+    
+    // Log what dates we have sleep session data for
+    console.log(`Sleep sessions by date: ${JSON.stringify(Object.keys(sleepSessionsByDate))}`);
+    console.log(`Daily sleep by date: ${JSON.stringify(Object.keys(dailySleepByDate))}`);
 
     (readinessData.data || []).forEach((d: OuraReadinessData) => {
       readinessByDate[d.day] = d;
@@ -259,9 +269,29 @@ serve(async (req) => {
     // Prepare upsert data
     const metricsToUpsert = allDates.map((date) => {
       const dailySleep = dailySleepByDate[date];
-      const sleepSession = sleepSessionsByDate[date];
+      let sleepSession = sleepSessionsByDate[date];
       const readiness = readinessByDate[date];
       const resilience = resilienceByDate[date];
+
+      // IMPORTANT FIX: If we have a daily_sleep score for today but no sleep session,
+      // that means the session data is attributed to "yesterday" (the wake-up day).
+      // We need to find the matching session. Typically:
+      // - daily_sleep for 01-29 corresponds to the night of 01-28 to 01-29
+      // - The sleep session for that night might be dated 01-28 or 01-29 depending on when you woke up
+      // 
+      // If no session for this date, check if there's one from yesterday that hasn't been used
+      if (!sleepSession && dailySleep) {
+        const yesterday = new Date(date);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toISOString().split('T')[0];
+        
+        // Only borrow yesterday's session if we don't already have a daily_sleep score for yesterday
+        // This prevents double-counting
+        if (sleepSessionsByDate[yesterdayStr] && !dailySleepByDate[yesterdayStr]) {
+          console.log(`Using yesterday's sleep session (${yesterdayStr}) for today's score (${date})`);
+          sleepSession = sleepSessionsByDate[yesterdayStr];
+        }
+      }
 
       const rhr = readiness?.contributors?.resting_heart_rate ?? null;
       const hrvBalance = readiness?.contributors?.hrv_balance ?? null;
@@ -283,6 +313,8 @@ serve(async (req) => {
       if (sleepSession?.bedtimeEnd) {
         manualWakeTime = sleepSession.bedtimeEnd;
       }
+
+      console.log(`Building metrics for ${date}: sleep_score=${dailySleep?.score}, total_sleep=${sleepSession?.total ?? 'null'}`);
 
       return {
         user_id: user.id,

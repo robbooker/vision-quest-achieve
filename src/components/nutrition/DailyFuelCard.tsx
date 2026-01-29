@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useTodayNutrition, useNutritionByDate, useNutritionSettings, useNutritionMutations, calculateTotals } from '@/hooks/useNutrition';
 import { MealEntryDialog } from './MealEntryDialog';
 import { NutritionSettingsDialog } from './NutritionSettingsDialog';
@@ -26,7 +27,8 @@ import {
   TrendingDown,
   Minus,
   CalendarIcon,
-  GlassWater
+  GlassWater,
+  ChevronDown
 } from 'lucide-react';
 
 interface DailyFuelCardProps {
@@ -59,6 +61,7 @@ export function DailyFuelCard({ activeCalories = 0 }: DailyFuelCardProps) {
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [editingMeal, setEditingMeal] = useState<string | null>(null);
   const [customWaterOz, setCustomWaterOz] = useState('');
+  const [mealsExpanded, setMealsExpanded] = useState(false);
 
   const totals = calculateTotals(entries);
   const goals = {
@@ -287,40 +290,59 @@ export function DailyFuelCard({ activeCalories = 0 }: DailyFuelCardProps) {
             </div>
           )}
 
-          {/* Meal List */}
+          {/* Meal List - Collapsible */}
           {entries.length > 0 ? (
-            <div className="space-y-2">
-              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                {isViewingToday ? "Today's Meals" : `Meals for ${format(selectedDate!, 'MMM d, yyyy')}`}
-              </div>
-              {entries.map((meal) => (
-                <div
-                  key={meal.id}
-                  className="flex items-center justify-between p-2 rounded-lg bg-card border border-border/50 hover:bg-muted/50 transition-colors group"
+            <Collapsible open={mealsExpanded} onOpenChange={setMealsExpanded}>
+              <CollapsibleTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-between h-8 text-xs font-medium text-muted-foreground uppercase tracking-wide hover:bg-muted/50"
                 >
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <Utensils className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                    <span className="text-sm truncate">{meal.meal_description}</span>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <Badge variant="secondary" className="text-xs">
-                      {meal.calories || 0} kcal
-                    </Badge>
-                    <Badge variant="outline" className="text-xs">
-                      {Math.round(meal.protein_g || 0)}g P
-                    </Badge>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={() => handleEditMeal(meal.id)}
+                  <span>{isViewingToday ? "Today's Meals" : `Meals for ${format(selectedDate!, 'MMM d, yyyy')}`} ({entries.length})</span>
+                  <ChevronDown className={cn("h-4 w-4 transition-transform", mealsExpanded && "rotate-180")} />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-2 pt-2">
+                {entries.map((meal) => {
+                  // Convert water entries from ml to oz for display
+                  const isWaterEntry = meal.meal_description?.toLowerCase().startsWith('water:');
+                  let displayDescription = meal.meal_description;
+                  if (isWaterEntry && meal.water_ml) {
+                    const waterOzAmount = Math.round(meal.water_ml / ML_PER_OZ);
+                    displayDescription = `Water: ${waterOzAmount} oz`;
+                  }
+                  
+                  return (
+                    <div
+                      key={meal.id}
+                      className="flex items-center justify-between p-2 rounded-lg bg-card border border-border/50 hover:bg-muted/50 transition-colors group"
                     >
-                      <Edit2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <Utensils className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                        <span className="text-sm truncate">{displayDescription}</span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Badge variant="secondary" className="text-xs">
+                          {meal.calories || 0} kcal
+                        </Badge>
+                        <Badge variant="outline" className="text-xs">
+                          {Math.round(meal.protein_g || 0)}g P
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => handleEditMeal(meal.id)}
+                        >
+                          <Edit2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </CollapsibleContent>
+            </Collapsible>
           ) : (
             <div className="text-center py-4 text-sm text-muted-foreground">
               <Utensils className="h-8 w-8 mx-auto mb-2 opacity-50" />

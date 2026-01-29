@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PILLARS, LEVEL_NAMES, PillarKey, PillarLevel, getBehaviorsForPillarAndLevel, LEVEL_DESCRIPTIONS } from '@/data/primedBehaviors';
-import { Plus, Target, Repeat, Clock, FileText, Check, ArrowLeft, ArrowUp, Circle } from 'lucide-react';
+import { Plus, Target, Repeat, Clock, FileText, Check, ArrowLeft, ArrowUp, Circle, RefreshCw } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -20,9 +20,10 @@ interface PillarDetailSheetProps {
   level: PillarLevel;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onReassess?: (pillar: PillarKey) => void;
 }
 
-export function PillarDetailSheet({ pillar, level, open, onOpenChange }: PillarDetailSheetProps) {
+export function PillarDetailSheet({ pillar, level, open, onOpenChange, onReassess }: PillarDetailSheetProps) {
   const { user } = useAuth();
   const { getActiveCycle } = useCycles();
   const activeCycle = getActiveCycle();
@@ -170,6 +171,17 @@ export function PillarDetailSheet({ pillar, level, open, onOpenChange }: PillarD
                   <span className="text-sm text-muted-foreground">{LEVEL_NAMES[level]}</span>
                 </div>
               </div>
+              {onReassess && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => onReassess(pillar)}
+                  className="gap-1.5"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Re-Assess
+                </Button>
+              )}
             </div>
           </SheetHeader>
 

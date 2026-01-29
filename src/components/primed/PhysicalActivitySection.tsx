@@ -66,7 +66,14 @@ export function PhysicalActivitySection() {
     };
   });
 
-  const today = todayMetrics;
+  // Use today's metrics if available, otherwise fall back to yesterday's
+  const todayHasActivity = todayMetrics?.activity_score !== null || todayMetrics?.steps !== null;
+  const yesterdayStr = format(subDays(new Date(), 1), 'yyyy-MM-dd');
+  const yesterdayMetrics = weeklyMetrics?.find(m => m.metric_date === yesterdayStr);
+  
+  const displayMetrics = todayHasActivity ? todayMetrics : yesterdayMetrics;
+  const isShowingYesterday = !todayHasActivity && !!yesterdayMetrics?.activity_score;
+
   const avgSteps = weeklyMetrics
     ?.filter(m => m.steps !== null)
     .reduce((sum, m, _, arr) => sum + (m.steps || 0) / arr.length, 0) || 0;
@@ -91,15 +98,22 @@ export function PhysicalActivitySection() {
 
   return (
     <div className="space-y-4">
-      {/* Today's Stats */}
+      {/* Date indicator if showing yesterday's data */}
+      {isShowingYesterday && (
+        <div className="text-xs text-muted-foreground bg-muted/50 rounded px-2 py-1 inline-block">
+          Showing yesterday's activity (today's not yet available)
+        </div>
+      )}
+
+      {/* Today's/Yesterday's Stats */}
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-muted/50 rounded-lg p-3">
           <div className="flex items-center gap-2 text-muted-foreground mb-1">
             <Activity className="h-4 w-4" />
             <span className="text-xs">Activity Score</span>
           </div>
-          <p className={cn("text-2xl font-bold", getScoreColor(today?.activity_score))}>
-            {today?.activity_score ?? '--'}
+          <p className={cn("text-2xl font-bold", getScoreColor(displayMetrics?.activity_score))}>
+            {displayMetrics?.activity_score ?? '--'}
           </p>
         </div>
         <div className="bg-muted/50 rounded-lg p-3">
@@ -108,7 +122,7 @@ export function PhysicalActivitySection() {
             <span className="text-xs">Steps</span>
           </div>
           <p className="text-2xl font-bold">
-            {today?.steps?.toLocaleString() ?? '--'}
+            {displayMetrics?.steps?.toLocaleString() ?? '--'}
           </p>
         </div>
         <div className="bg-muted/50 rounded-lg p-3">
@@ -116,8 +130,8 @@ export function PhysicalActivitySection() {
             <Flame className="h-4 w-4" />
             <span className="text-xs">Active Calories</span>
           </div>
-          <p className="text-2xl font-bold text-orange-500">
-            {today?.active_calories ?? '--'}
+          <p className="text-2xl font-bold text-primary">
+            {displayMetrics?.active_calories ?? '--'}
           </p>
         </div>
         <div className="bg-muted/50 rounded-lg p-3">
@@ -126,32 +140,32 @@ export function PhysicalActivitySection() {
             <span className="text-xs">Distance</span>
           </div>
           <p className="text-2xl font-bold">
-            {formatDistance(today?.equivalent_walking_distance_meters)}
+            {formatDistance(displayMetrics?.equivalent_walking_distance_meters)}
           </p>
         </div>
       </div>
 
       {/* Activity Minutes Breakdown */}
-      {(today?.high_activity_minutes || today?.medium_activity_minutes || today?.low_activity_minutes) && (
+      {(displayMetrics?.high_activity_minutes || displayMetrics?.medium_activity_minutes || displayMetrics?.low_activity_minutes) && (
         <div className="bg-muted/30 rounded-lg p-3">
           <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
             <Timer className="h-3 w-3" />
-            Activity Minutes Today
+            Activity Minutes {isShowingYesterday ? '(Yesterday)' : 'Today'}
           </p>
           <div className="flex gap-2">
             <div className="flex-1 text-center">
-              <div className="h-2 bg-red-500 rounded-full mb-1" />
-              <p className="text-sm font-semibold">{today?.high_activity_minutes ?? 0}m</p>
+              <div className="h-2 bg-destructive rounded-full mb-1" />
+              <p className="text-sm font-semibold">{displayMetrics?.high_activity_minutes ?? 0}m</p>
               <p className="text-[10px] text-muted-foreground">High</p>
             </div>
             <div className="flex-1 text-center">
-              <div className="h-2 bg-yellow-500 rounded-full mb-1" />
-              <p className="text-sm font-semibold">{today?.medium_activity_minutes ?? 0}m</p>
+              <div className="h-2 bg-accent rounded-full mb-1" />
+              <p className="text-sm font-semibold">{displayMetrics?.medium_activity_minutes ?? 0}m</p>
               <p className="text-[10px] text-muted-foreground">Medium</p>
             </div>
             <div className="flex-1 text-center">
-              <div className="h-2 bg-blue-500 rounded-full mb-1" />
-              <p className="text-sm font-semibold">{today?.low_activity_minutes ?? 0}m</p>
+              <div className="h-2 bg-primary rounded-full mb-1" />
+              <p className="text-sm font-semibold">{displayMetrics?.low_activity_minutes ?? 0}m</p>
               <p className="text-[10px] text-muted-foreground">Low</p>
             </div>
           </div>
@@ -159,10 +173,10 @@ export function PhysicalActivitySection() {
       )}
 
       {/* Inactivity Alerts */}
-      {today?.inactivity_alerts !== null && today?.inactivity_alerts > 0 && (
+      {displayMetrics?.inactivity_alerts !== null && displayMetrics?.inactivity_alerts > 0 && (
         <div className="flex items-center gap-2 p-2 bg-destructive/10 rounded-lg text-destructive">
           <AlertCircle className="h-4 w-4" />
-          <span className="text-xs">{today.inactivity_alerts} inactivity alert{today.inactivity_alerts > 1 ? 's' : ''} today</span>
+          <span className="text-xs">{displayMetrics.inactivity_alerts} inactivity alert{displayMetrics.inactivity_alerts > 1 ? 's' : ''}</span>
         </div>
       )}
 

@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useNutritionStats } from '@/hooks/useNutritionStats';
-import { Utensils, Flame, Beef, Calendar } from 'lucide-react';
+import { Utensils, Flame, Beef, Calendar, GlassWater, Droplets } from 'lucide-react';
 
 export function NutritionSummaryCard() {
   const { data: stats, isLoading } = useNutritionStats(7);
@@ -49,6 +49,8 @@ export function NutritionSummaryCard() {
     );
   }
 
+  const avgWaterOz = Math.round(stats.avgWaterMl / 29.5735);
+
   return (
     <Card>
       <CardHeader>
@@ -76,6 +78,30 @@ export function NutritionSummaryCard() {
             </div>
             <p className="text-2xl font-bold">
               {stats.avgProtein}g
+            </p>
+          </div>
+          <div className="p-3 rounded-lg bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/20">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+              <GlassWater className="h-3.5 w-3.5 text-blue-500" />
+              Avg Water
+            </div>
+            <p className="text-2xl font-bold">
+              {(stats.avgWaterMl / 1000).toFixed(1)}L
+            </p>
+            <p className="text-xs text-muted-foreground">
+              ~{avgWaterOz}oz
+            </p>
+          </div>
+          <div className="p-3 rounded-lg bg-muted/50">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+              <Droplets className="h-3.5 w-3.5 text-blue-500" />
+              Hydration Goal
+            </div>
+            <p className="text-2xl font-bold">
+              {stats.daysHydrationGoalMet} <span className="text-sm font-normal text-muted-foreground">/ 7 days</span>
+            </p>
+            <p className="text-xs text-muted-foreground">
+              3L+ per day
             </p>
           </div>
           <div className="p-3 rounded-lg bg-muted/50">

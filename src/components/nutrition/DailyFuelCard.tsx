@@ -7,10 +7,11 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { useTodayNutrition, useNutritionByDate, useNutritionSettings, calculateTotals } from '@/hooks/useNutrition';
+import { useTodayNutrition, useNutritionByDate, useNutritionSettings, useNutritionMutations, calculateTotals } from '@/hooks/useNutrition';
 import { MealEntryDialog } from './MealEntryDialog';
 import { NutritionSettingsDialog } from './NutritionSettingsDialog';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 import { 
   Flame, 
   Plus, 
@@ -23,14 +24,20 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
-  CalendarIcon
+  CalendarIcon,
+  GlassWater
 } from 'lucide-react';
 
 interface DailyFuelCardProps {
   activeCalories?: number; // From Oura
 }
 
+// Water goal: 3 liters = 3000ml ≈ 101 oz
+const WATER_GOAL_ML = 3000;
+const ML_PER_OZ = 29.5735;
+
 export function DailyFuelCard({ activeCalories = 0 }: DailyFuelCardProps) {
+  const { toast } = useToast();
   const today = format(new Date(), 'yyyy-MM-dd');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
@@ -45,6 +52,7 @@ export function DailyFuelCard({ activeCalories = 0 }: DailyFuelCardProps) {
   const isLoading = isViewingToday ? todayLoading : dateLoading;
   
   const { data: settings } = useNutritionSettings();
+  const { logWater } = useNutritionMutations();
   const [mealDialogOpen, setMealDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [editingMeal, setEditingMeal] = useState<string | null>(null);
@@ -80,6 +88,19 @@ export function DailyFuelCard({ activeCalories = 0 }: DailyFuelCardProps) {
     setMealDialogOpen(false);
     setEditingMeal(null);
   };
+
+  const handleLogWater = async (ml: number) => {
+    try {
+      await logWater.mutateAsync({ water_ml: ml, entry_date: selectedDateStr });
+      toast({ title: `+${ml}ml water logged` });
+    } catch (error) {
+      console.error('Log water error:', error);
+      toast({ title: 'Failed to log water', variant: 'destructive' });
+    }
+  };
+
+  const waterProgressPercent = Math.min((totals.water_ml / WATER_GOAL_ML) * 100, 100);
+  const waterOz = Math.round(totals.water_ml / ML_PER_OZ);
 
   if (isLoading) {
     return (
@@ -162,7 +183,7 @@ export function DailyFuelCard({ activeCalories = 0 }: DailyFuelCardProps) {
               </div>
             </div>
             <div className="text-center p-2 rounded-lg bg-muted/50">
-              <Droplet className="h-3.5 w-3.5 mx-auto mb-1 text-blue-500" />
+              <Droplet className="h-3.5 w-3.5 mx-auto mb-1 text-yellow-500" />
               <div className="text-xs text-muted-foreground">Fats</div>
               <div className="text-sm font-medium">
                 {Math.round(totals.fats_g)}g
@@ -171,6 +192,50 @@ export function DailyFuelCard({ activeCalories = 0 }: DailyFuelCardProps) {
                 / {goals.fats}g
               </div>
             </div>
+          </div>
+
+          {/* Water Tracking */}
+          <div className="space-y-2 p-3 rounded-lg bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/20">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <GlassWater className="h-4 w-4 text-blue-500" />
+                <span className="text-sm font-medium">Hydration</span>
+              </div>
+              <div className="text-right">
+                <span className="text-sm font-medium">
+                  {totals.water_ml}ml
+                </span>
+                <span className="text-xs text-muted-foreground ml-1">
+                  ({waterOz}oz)
+                </span>
+                <span className="text-xs text-muted-foreground ml-1">
+                  / 3L
+                </span>
+              </div>
+            </div>
+            <Progress 
+              value={waterProgressPercent} 
+              className="h-2"
+            />
+            <div className="flex gap-1.5 flex-wrap">
+              {[250, 500, 750].map((ml) => (
+                <Button
+                  key={ml}
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs flex-1"
+                  onClick={() => handleLogWater(ml)}
+                  disabled={logWater.isPending || !isViewingToday}
+                >
+                  +{ml}ml
+                </Button>
+              ))}
+            </div>
+            {!isViewingToday && (
+              <p className="text-xs text-muted-foreground text-center">
+                Switch to today to log water
+              </p>
+            )}
           </div>
 
           {/* Net Energy (if Oura data available) */}

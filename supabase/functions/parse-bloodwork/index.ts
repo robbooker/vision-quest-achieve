@@ -128,10 +128,13 @@ serve(async (req) => {
     console.log('PDF downloaded, size:', arrayBuffer.byteLength, 'bytes');
 
     // Step 1: Extract text and parse biomarkers using multimodal model
-    const extractionPrompt = `You are analyzing a bloodwork/lab results PDF. Extract ALL biomarkers from this document.
+    // Using gemini-2.5-pro which has proven PDF/document analysis capability
+    const extractionPrompt = `You are analyzing a bloodwork/lab results PDF document. This is a base64-encoded PDF file.
+
+IMPORTANT: Carefully examine the entire document and extract ALL biomarkers/lab values you can find.
 
 For each biomarker found, provide:
-1. name: The exact biomarker name (e.g., "Total Cholesterol", "Hemoglobin A1c", "Vitamin D, 25-Hydroxy")
+1. name: The exact biomarker name (e.g., "Total Cholesterol", "Hemoglobin A1c", "Vitamin D, 25-Hydroxy", "Glucose", "BUN", "Creatinine")
 2. value: The numeric value (or text if not numeric)
 3. unit: The unit of measurement (e.g., "mg/dL", "%", "ng/mL")
 4. reference_low: The lower bound of normal range (null if not provided)
@@ -143,7 +146,7 @@ Also extract:
 - lab_name: The laboratory name (e.g., "Quest Diagnostics", "LabCorp")
 - report_date: The date of the lab work in YYYY-MM-DD format
 
-Respond ONLY with valid JSON in this exact format:
+You MUST respond with valid JSON only. No markdown, no explanation. Just the JSON object:
 {
   "lab_name": "string or null",
   "report_date": "YYYY-MM-DD or null",
@@ -160,9 +163,9 @@ Respond ONLY with valid JSON in this exact format:
   ]
 }`;
 
-    // Use Gemini 3 Pro for PDF extraction (multimodal - most advanced)
+    // Use Gemini 2.5 Pro for PDF extraction - better multimodal document support
     const extractionResult = await callLovableAI(
-      'google/gemini-3-pro-preview',
+      'google/gemini-2.5-pro',
       [
         {
           role: 'user',
@@ -178,7 +181,7 @@ Respond ONLY with valid JSON in this exact format:
           ]
         }
       ],
-      8192
+      16384
     );
 
     console.log('Extraction result length:', extractionResult.length);
@@ -223,7 +226,7 @@ Keep the response under 400 words and use markdown formatting for readability.`;
 
       try {
         aiInsights = await callLovableAI(
-          'google/gemini-3-pro-preview',
+          'google/gemini-2.5-flash',
           [{ role: 'user', content: insightsPrompt }],
           2048
         );

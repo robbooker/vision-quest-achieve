@@ -47,6 +47,20 @@ interface OuraResilienceData {
   level: string | null;
 }
 
+interface OuraDailyActivityData {
+  day: string;
+  score: number | null;
+  active_calories: number | null;
+  total_calories: number | null;
+  steps: number | null;
+  equivalent_walking_distance: number | null;
+  high_activity_time: number | null;
+  medium_activity_time: number | null;
+  low_activity_time: number | null;
+  sedentary_time: number | null;
+  inactivity_alerts: number | null;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -102,7 +116,7 @@ serve(async (req) => {
     console.log(`Fetching Oura data from ${startDateStr} to ${endDateStr}`);
 
     // Fetch all endpoints in parallel (including sleep sessions for actual durations)
-    const [dailySleepRes, sleepSessionsRes, readinessRes, resilienceRes] = await Promise.all([
+    const [dailySleepRes, sleepSessionsRes, readinessRes, resilienceRes, dailyActivityRes] = await Promise.all([
       fetch(`${OURA_API_BASE}/daily_sleep?start_date=${startDateStr}&end_date=${endDateStr}`, {
         headers: { Authorization: `Bearer ${ouraToken}` },
       }),
@@ -115,11 +129,14 @@ serve(async (req) => {
       fetch(`${OURA_API_BASE}/daily_resilience?start_date=${startDateStr}&end_date=${endDateStr}`, {
         headers: { Authorization: `Bearer ${ouraToken}` },
       }),
+      fetch(`${OURA_API_BASE}/daily_activity?start_date=${startDateStr}&end_date=${endDateStr}`, {
+        headers: { Authorization: `Bearer ${ouraToken}` },
+      }),
     ]);
 
     // Check for auth errors
     if (dailySleepRes.status === 401 || sleepSessionsRes.status === 401 || 
-        readinessRes.status === 401 || resilienceRes.status === 401) {
+        readinessRes.status === 401 || resilienceRes.status === 401 || dailyActivityRes.status === 401) {
       return new Response(JSON.stringify({ 
         error: "Oura token expired or invalid. Please reconnect your Oura Ring." 
       }), {
@@ -132,8 +149,9 @@ serve(async (req) => {
     const sleepSessionsData = await sleepSessionsRes.json();
     const readinessData = await readinessRes.json();
     const resilienceData = await resilienceRes.json();
+    const dailyActivityData = await dailyActivityRes.json();
 
-    console.log(`Fetched: ${dailySleepData.data?.length || 0} daily_sleep, ${sleepSessionsData.data?.length || 0} sleep sessions, ${readinessData.data?.length || 0} readiness, ${resilienceData.data?.length || 0} resilience records`);
+    console.log(`Fetched: ${dailySleepData.data?.length || 0} daily_sleep, ${sleepSessionsData.data?.length || 0} sleep sessions, ${readinessData.data?.length || 0} readiness, ${resilienceData.data?.length || 0} resilience, ${dailyActivityData.data?.length || 0} activity records`);
 
     // Log a sample sleep session for debugging
     if (sleepSessionsData.data?.length > 0) {
@@ -227,12 +245,19 @@ serve(async (req) => {
       resilienceByDate[d.day] = d;
     });
 
+    // Process daily activity data
+    const activityByDate: Record<string, OuraDailyActivityData> = {};
+    (dailyActivityData.data || []).forEach((d: OuraDailyActivityData) => {
+      activityByDate[d.day] = d;
+    });
+
     // Get all unique dates
     const allDates = [...new Set([
       ...Object.keys(dailySleepByDate),
       ...Object.keys(sleepSessionsByDate),
       ...Object.keys(readinessByDate),
       ...Object.keys(resilienceByDate),
+      ...Object.keys(activityByDate),
     ])].sort();
 
     if (allDates.length === 0) {
@@ -272,6 +297,7 @@ serve(async (req) => {
       let sleepSession = sleepSessionsByDate[date];
       const readiness = readinessByDate[date];
       const resilience = resilienceByDate[date];
+      const activity = activityByDate[date];
 
       // IMPORTANT FIX: If we have a daily_sleep score for today but no sleep session,
       // that means the session data is attributed to "yesterday" (the wake-up day).
@@ -337,7 +363,7 @@ serve(async (req) => {
         lightSleepSeconds = null;
       }
 
-      console.log(`Building metrics for ${date}: sleep_score=${dailySleep?.score}, total_sleep=${totalSleepSeconds ?? 'null'} (raw session: ${sleepSession?.total ?? 'none'})`);
+      console.log(`Building metrics for ${date}: sleep_score=${dailySleep?.score}, total_sleep=${totalSleepSeconds ?? 'null'} (raw session: ${sleepSession?.total ?? 'none'}), activity_score=${activity?.score ?? 'null'}, steps=${activity?.steps ?? 'null'}`);
 
       return {
         user_id: user.id,
@@ -360,6 +386,17 @@ serve(async (req) => {
         hrv_balance: hrvBalance,
         // Resilience (normalize to lowercase)
         resilience_level: resilience?.level?.toLowerCase() ?? null,
+        // Activity data
+        activity_score: activity?.score ?? null,
+        active_calories: activity?.active_calories ?? null,
+        total_calories: activity?.total_calories ?? null,
+        steps: activity?.steps ?? null,
+        equivalent_walking_distance_meters: activity?.equivalent_walking_distance ?? null,
+        high_activity_minutes: activity?.high_activity_time ? Math.round(activity.high_activity_time / 60) : null,
+        medium_activity_minutes: activity?.medium_activity_time ? Math.round(activity.medium_activity_time / 60) : null,
+        low_activity_minutes: activity?.low_activity_time ? Math.round(activity.low_activity_time / 60) : null,
+        sedentary_minutes: activity?.sedentary_time ? Math.round(activity.sedentary_time / 60) : null,
+        inactivity_alerts: activity?.inactivity_alerts ?? null,
         // Baselines & alerts
         rhr_baseline_14d: rhrBaseline,
         hrv_baseline_14d: hrvBaseline,

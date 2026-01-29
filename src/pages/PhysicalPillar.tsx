@@ -5,13 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, RefreshCw, Heart, Moon, Utensils, Activity, FlaskConical } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Heart, Moon, Utensils, Activity, FlaskConical, Footprints } from 'lucide-react';
 import { usePrimedAssessments } from '@/hooks/usePrimedAssessment';
 import { PILLARS, LEVEL_NAMES, getBehaviorsForPillarAndLevel, LEVEL_DESCRIPTIONS, PillarLevel } from '@/data/primedBehaviors';
 import { PhysicalSleepSection } from '@/components/primed/PhysicalSleepSection';
 import { PhysicalNutritionSection } from '@/components/primed/PhysicalNutritionSection';
 import { PhysicalMovementSection } from '@/components/primed/PhysicalMovementSection';
 import { PhysicalBloodworkSection } from '@/components/primed/PhysicalBloodworkSection';
+import { PhysicalActivitySection } from '@/components/primed/PhysicalActivitySection';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function PhysicalPillar() {
@@ -153,12 +154,25 @@ export default function PhysicalPillar() {
             </CardContent>
           </Card>
 
-          {/* Movement Section */}
+          {/* Activity Section (from Oura) */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Footprints className="h-5 w-5" />
+                Activity & Steps
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PhysicalActivitySection />
+            </CardContent>
+          </Card>
+
+          {/* Movement Section (Reset audit rules) */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Activity className="h-5 w-5" />
-                Movement & Daily Rules
+                Daily Rules
               </CardTitle>
             </CardHeader>
             <CardContent>

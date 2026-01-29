@@ -305,12 +305,20 @@ export default function PublicBirdProfile() {
               </p>
             </div>
           </div>
-          <Button variant="outline" asChild>
-            <Link to="/">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" asChild>
+              <Link to={`/birds/${username}/gallery`}>
+                <Camera className="h-4 w-4 mr-2" />
+                Gallery
+              </Link>
+            </Button>
+            <Button variant="ghost" asChild>
+              <Link to="/">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+              </Link>
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}

@@ -16,6 +16,48 @@ interface Biomarker {
   category: string;
 }
 
+// Chunked base64 encoding to avoid stack overflow on large files
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const chunkSize = 8192;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode.apply(null, [...chunk]);
+  }
+  return btoa(binary);
+}
+
+// Call Lovable AI gateway
+async function callLovableAI(
+  model: string,
+  messages: Array<{ role: string; content: string | Array<{ type: string; text?: string; image_url?: { url: string } }> }>,
+  maxTokens: number = 8192
+): Promise<string> {
+  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      max_tokens: maxTokens,
+      temperature: 0.1,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`Lovable AI error (${model}):`, errorText);
+    throw new Error(`AI API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || '';
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -75,31 +117,15 @@ serve(async (req) => {
       });
     }
 
-    // Convert PDF to base64
+    // Convert PDF to base64 using chunked encoding (prevents stack overflow)
     const arrayBuffer = await pdfData.arrayBuffer();
-    const base64Pdf = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+    const base64Pdf = arrayBufferToBase64(arrayBuffer);
+    const dataUrl = `data:application/pdf;base64,${base64Pdf}`;
 
-    // Call Gemini to parse the bloodwork PDF
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': Deno.env.get('GEMINI_API_KEY')!,
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  inline_data: {
-                    mime_type: 'application/pdf',
-                    data: base64Pdf,
-                  },
-                },
-                {
-                  text: `You are analyzing a bloodwork/lab results PDF. Extract ALL biomarkers from this document.
+    console.log('PDF downloaded, size:', arrayBuffer.byteLength, 'bytes');
+
+    // Step 1: Extract text and parse biomarkers using multimodal model
+    const extractionPrompt = `You are analyzing a bloodwork/lab results PDF. Extract ALL biomarkers from this document.
 
 For each biomarker found, provide:
 1. name: The exact biomarker name (e.g., "Total Cholesterol", "Hemoglobin A1c", "Vitamin D, 25-Hydroxy")
@@ -121,72 +147,63 @@ Respond ONLY with valid JSON in this exact format:
   "biomarkers": [
     {
       "name": "string",
-      "value": number or "string",
+      "value": "number or string",
       "unit": "string",
-      "reference_low": number or null,
-      "reference_high": number or null,
-      "status": "normal" | "low" | "high" | "unknown",
+      "reference_low": "number or null",
+      "reference_high": "number or null",
+      "status": "normal | low | high | unknown",
       "category": "string"
     }
   ]
-}`,
-                },
-              ],
+}`;
+
+    // Use Gemini Pro for PDF extraction (multimodal)
+    const extractionResult = await callLovableAI(
+      'google/gemini-2.5-pro',
+      [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image_url',
+              image_url: { url: dataUrl }
             },
-          ],
-          generationConfig: {
-            temperature: 0.1,
-            maxOutputTokens: 8192,
-          },
-        }),
-      }
+            {
+              type: 'text',
+              text: extractionPrompt
+            }
+          ]
+        }
+      ],
+      8192
     );
 
-    if (!geminiResponse.ok) {
-      const errorText = await geminiResponse.text();
-      console.error('Gemini API error:', errorText);
-      return new Response(JSON.stringify({ error: 'Failed to parse PDF with AI' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const geminiData = await geminiResponse.json();
-    const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    console.log('Extraction result length:', extractionResult.length);
 
     // Parse the JSON response
     let parsedData: { lab_name?: string; report_date?: string; biomarkers: Biomarker[] };
     try {
       // Extract JSON from the response (might be wrapped in markdown code blocks)
-      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      const jsonMatch = extractionResult.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         parsedData = JSON.parse(jsonMatch[0]);
       } else {
         throw new Error('No JSON found in response');
       }
     } catch (parseError) {
-      console.error('JSON parse error:', parseError, 'Raw text:', rawText);
+      console.error('JSON parse error:', parseError, 'Raw text:', extractionResult.substring(0, 500));
       return new Response(JSON.stringify({ error: 'Failed to parse AI response' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Generate health insights
-    const insightsResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': Deno.env.get('GEMINI_API_KEY')!,
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: `Based on these bloodwork results, provide a brief health analysis:
+    console.log('Parsed biomarkers count:', parsedData.biomarkers?.length || 0);
+
+    // Step 2: Generate health insights using faster model
+    let aiInsights = '';
+    if (parsedData.biomarkers && parsedData.biomarkers.length > 0) {
+      const insightsPrompt = `Based on these bloodwork results, provide a brief health analysis:
 
 ${JSON.stringify(parsedData.biomarkers, null, 2)}
 
@@ -199,30 +216,26 @@ Guidelines:
 
 IMPORTANT: End with this disclaimer: "This analysis is for informational purposes only and should not replace professional medical advice. Please consult with your healthcare provider about these results."
 
-Keep the response under 400 words and use markdown formatting for readability.`,
-                },
-              ],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 2048,
-          },
-        }),
-      }
-    );
+Keep the response under 400 words and use markdown formatting for readability.`;
 
-    let aiInsights = '';
-    if (insightsResponse.ok) {
-      const insightsData = await insightsResponse.json();
-      aiInsights = insightsData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      try {
+        aiInsights = await callLovableAI(
+          'google/gemini-2.5-flash',
+          [{ role: 'user', content: insightsPrompt }],
+          2048
+        );
+        console.log('Generated insights length:', aiInsights.length);
+      } catch (insightError) {
+        console.error('Failed to generate insights:', insightError);
+        // Continue without insights - biomarkers are still valuable
+      }
     }
 
     // Update the report in the database
     const updateData: Record<string, unknown> = {
       biomarkers: parsedData.biomarkers,
       ai_insights: aiInsights,
-      raw_text: rawText,
+      raw_text: extractionResult,
     };
 
     if (parsedData.lab_name) {
@@ -258,7 +271,7 @@ Keep the response under 400 words and use markdown formatting for readability.`,
     );
   } catch (error) {
     console.error('Error:', error);
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+    return new Response(JSON.stringify({ error: 'Internal server error', details: String(error) }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

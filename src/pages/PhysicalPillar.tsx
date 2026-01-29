@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, RefreshCw, Heart, Moon, Utensils, Activity, FlaskConical, Footprints } from 'lucide-react';
 import { usePrimedAssessments } from '@/hooks/usePrimedAssessment';
+import { useOuraMetrics } from '@/hooks/useOuraMetrics';
 import { PILLARS, LEVEL_NAMES, getBehaviorsForPillarAndLevel, LEVEL_DESCRIPTIONS, PillarLevel } from '@/data/primedBehaviors';
 import { PhysicalSleepSection } from '@/components/primed/PhysicalSleepSection';
 import { PhysicalNutritionSection } from '@/components/primed/PhysicalNutritionSection';
@@ -18,6 +19,7 @@ import { formatDistanceToNow } from 'date-fns';
 export default function PhysicalPillar() {
   const navigate = useNavigate();
   const { currentAssessment, isLoadingCurrent } = usePrimedAssessments();
+  const { isOuraConnected, syncMetrics } = useOuraMetrics();
   
   const pillarInfo = PILLARS.physical;
   const level = (currentAssessment?.physical_level || 0) as PillarLevel;
@@ -81,10 +83,22 @@ export default function PhysicalPillar() {
               )}
             </div>
           </div>
-          <Button variant="outline" onClick={handleReassess}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Re-Assess Physical
-          </Button>
+          <div className="flex items-center gap-2">
+            {isOuraConnected && (
+              <Button 
+                variant="outline" 
+                onClick={() => syncMetrics.mutate()}
+                disabled={syncMetrics.isPending}
+              >
+                <Activity className={`h-4 w-4 mr-2 ${syncMetrics.isPending ? 'animate-spin' : ''}`} />
+                {syncMetrics.isPending ? 'Syncing...' : 'Sync Oura'}
+              </Button>
+            )}
+            <Button variant="outline" onClick={handleReassess}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Re-Assess Physical
+            </Button>
+          </div>
         </div>
 
         {/* Level Progress Card */}

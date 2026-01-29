@@ -26,13 +26,13 @@ export default function BigTen() {
   const challenges = activeProjects.filter((p) => p.category === 'challenge');
   const uncategorized = activeProjects.filter((p) => !p.category);
 
-  // Find next available position for new project
+  // Find next available position for new project (check ALL projects, not just active)
   const getNextPosition = () => {
-    const usedPositions = activeProjects.map((p) => p.position);
-    for (let i = 1; i <= 10; i++) {
+    const usedPositions = projects.map((p) => p.position);
+    for (let i = 1; i <= 20; i++) {
       if (!usedPositions.includes(i)) return i;
     }
-    return activeProjects.length + 1;
+    return projects.length + 1;
   };
 
   const handleCreateProject = (category: BigTenCategory) => {

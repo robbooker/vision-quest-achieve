@@ -1638,17 +1638,24 @@ export type Database = {
       }
       oura_daily_metrics: {
         Row: {
+          active_calories: number | null
+          activity_score: number | null
           created_at: string
           critical_deficit_alert: boolean | null
           deep_sleep_seconds: number | null
+          equivalent_walking_distance_meters: number | null
+          high_activity_minutes: number | null
           hrv_balance: number | null
           hrv_baseline_14d: number | null
           hrv_strain_alert: boolean | null
           id: string
+          inactivity_alerts: number | null
           light_sleep_seconds: number | null
+          low_activity_minutes: number | null
           manual_bedtime: string | null
           manual_sleep_quality: number | null
           manual_wake_time: string | null
+          medium_activity_minutes: number | null
           metric_date: string
           nap_duration_minutes: number | null
           readiness_score: number | null
@@ -1657,26 +1664,36 @@ export type Database = {
           resting_heart_rate: number | null
           rhr_baseline_14d: number | null
           rhr_spike_alert: boolean | null
+          sedentary_minutes: number | null
           sleep_efficiency: number | null
           sleep_score: number | null
           source: string
+          steps: number | null
           synced_at: string | null
+          total_calories: number | null
           total_sleep_seconds: number | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          active_calories?: number | null
+          activity_score?: number | null
           created_at?: string
           critical_deficit_alert?: boolean | null
           deep_sleep_seconds?: number | null
+          equivalent_walking_distance_meters?: number | null
+          high_activity_minutes?: number | null
           hrv_balance?: number | null
           hrv_baseline_14d?: number | null
           hrv_strain_alert?: boolean | null
           id?: string
+          inactivity_alerts?: number | null
           light_sleep_seconds?: number | null
+          low_activity_minutes?: number | null
           manual_bedtime?: string | null
           manual_sleep_quality?: number | null
           manual_wake_time?: string | null
+          medium_activity_minutes?: number | null
           metric_date: string
           nap_duration_minutes?: number | null
           readiness_score?: number | null
@@ -1685,26 +1702,36 @@ export type Database = {
           resting_heart_rate?: number | null
           rhr_baseline_14d?: number | null
           rhr_spike_alert?: boolean | null
+          sedentary_minutes?: number | null
           sleep_efficiency?: number | null
           sleep_score?: number | null
           source?: string
+          steps?: number | null
           synced_at?: string | null
+          total_calories?: number | null
           total_sleep_seconds?: number | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          active_calories?: number | null
+          activity_score?: number | null
           created_at?: string
           critical_deficit_alert?: boolean | null
           deep_sleep_seconds?: number | null
+          equivalent_walking_distance_meters?: number | null
+          high_activity_minutes?: number | null
           hrv_balance?: number | null
           hrv_baseline_14d?: number | null
           hrv_strain_alert?: boolean | null
           id?: string
+          inactivity_alerts?: number | null
           light_sleep_seconds?: number | null
+          low_activity_minutes?: number | null
           manual_bedtime?: string | null
           manual_sleep_quality?: number | null
           manual_wake_time?: string | null
+          medium_activity_minutes?: number | null
           metric_date?: string
           nap_duration_minutes?: number | null
           readiness_score?: number | null
@@ -1713,10 +1740,13 @@ export type Database = {
           resting_heart_rate?: number | null
           rhr_baseline_14d?: number | null
           rhr_spike_alert?: boolean | null
+          sedentary_minutes?: number | null
           sleep_efficiency?: number | null
           sleep_score?: number | null
           source?: string
+          steps?: number | null
           synced_at?: string | null
+          total_calories?: number | null
           total_sleep_seconds?: number | null
           updated_at?: string
           user_id?: string

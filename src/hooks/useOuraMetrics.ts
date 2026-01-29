@@ -21,6 +21,17 @@ export interface OuraMetrics {
   hrv_balance: number | null;
   // Resilience
   resilience_level: 'exceptional' | 'strong' | 'solid' | 'adequate' | 'limited' | null;
+  // Activity
+  activity_score: number | null;
+  active_calories: number | null;
+  total_calories: number | null;
+  steps: number | null;
+  equivalent_walking_distance_meters: number | null;
+  high_activity_minutes: number | null;
+  medium_activity_minutes: number | null;
+  low_activity_minutes: number | null;
+  sedentary_minutes: number | null;
+  inactivity_alerts: number | null;
   // Stress alerts
   rhr_baseline_14d: number | null;
   hrv_baseline_14d: number | null;

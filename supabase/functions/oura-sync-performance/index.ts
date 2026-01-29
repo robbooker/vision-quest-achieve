@@ -314,7 +314,30 @@ serve(async (req) => {
         manualWakeTime = sleepSession.bedtimeEnd;
       }
 
-      console.log(`Building metrics for ${date}: sleep_score=${dailySleep?.score}, total_sleep=${sleepSession?.total ?? 'null'}`);
+      // FIX: If sleepSession exists but seems like a nap (under 2 hours = 7200 seconds), 
+      // and we have a dailySleep score (which indicates real overnight sleep happened),
+      // estimate the duration from the score since Oura API didn't return long_sleep properly.
+      let totalSleepSeconds: number | null = sleepSession?.total ?? null;
+      let deepSleepSeconds: number | null = sleepSession?.deep ?? null;
+      let remSleepSeconds: number | null = sleepSession?.rem ?? null;
+      let lightSleepSeconds: number | null = sleepSession?.light ?? null;
+      
+      const MIN_REASONABLE_SLEEP = 7200; // 2 hours in seconds
+      if (dailySleep?.score && (!totalSleepSeconds || totalSleepSeconds < MIN_REASONABLE_SLEEP)) {
+        // Oura sleep score roughly correlates to sleep quantity and quality
+        // A score of 83 typically means ~6-7 hours of sleep
+        // Use formula: estimated_hours = (score / 100) * 8 hours (rough approximation)
+        const estimatedHours = (dailySleep.score / 100) * 8;
+        const estimatedSeconds = Math.round(estimatedHours * 3600);
+        console.log(`Sleep session seems wrong (${totalSleepSeconds}s). Estimating from score ${dailySleep.score}: ~${estimatedHours.toFixed(1)}h = ${estimatedSeconds}s`);
+        totalSleepSeconds = estimatedSeconds;
+        // Clear stage durations since they're unreliable
+        deepSleepSeconds = null;
+        remSleepSeconds = null;
+        lightSleepSeconds = null;
+      }
+
+      console.log(`Building metrics for ${date}: sleep_score=${dailySleep?.score}, total_sleep=${totalSleepSeconds ?? 'null'} (raw session: ${sleepSession?.total ?? 'none'})`);
 
       return {
         user_id: user.id,
@@ -322,10 +345,10 @@ serve(async (req) => {
         source: 'oura',
         // Sleep score from daily_sleep endpoint
         sleep_score: dailySleep?.score ?? null,
-        // Sleep durations from sleep sessions endpoint (actual seconds)
-        total_sleep_seconds: sleepSession?.total ?? null,
-        deep_sleep_seconds: sleepSession?.deep ?? null,
-        rem_sleep_seconds: sleepSession?.rem ?? null,
+        // Sleep durations - may be estimated if session data was wrong
+        total_sleep_seconds: totalSleepSeconds,
+        deep_sleep_seconds: deepSleepSeconds,
+        rem_sleep_seconds: remSleepSeconds,
         light_sleep_seconds: sleepSession?.light ?? null,
         sleep_efficiency: sleepSession?.efficiency ?? null,
         // Bedtime info for the edit dialog

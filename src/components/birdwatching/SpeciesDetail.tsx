@@ -126,6 +126,18 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
             {speciesSightings.length} sighting{speciesSightings.length !== 1 ? 's' : ''}
           </p>
         </div>
+        <Button 
+          onClick={() => {
+            onBack();
+            // Use setTimeout to allow navigation back, then trigger the form
+            setTimeout(() => {
+              window.dispatchEvent(new CustomEvent('prefill-bird-sighting', { detail: { species } }));
+            }, 100);
+          }}
+        >
+          <Eye className="h-4 w-4 mr-2" />
+          Log Another Sighting
+        </Button>
       </div>
 
       {/* Hero Photo - Most Recent */}

@@ -86,7 +86,9 @@ export type Database = {
           completed: boolean
           completed_at: string | null
           created_at: string
+          goal_id: string | null
           id: string
+          pillar: string | null
           position: number
           target_date: string | null
           title: string
@@ -98,7 +100,9 @@ export type Database = {
           completed?: boolean
           completed_at?: string | null
           created_at?: string
+          goal_id?: string | null
           id?: string
+          pillar?: string | null
           position: number
           target_date?: string | null
           title: string
@@ -110,14 +114,24 @@ export type Database = {
           completed?: boolean
           completed_at?: string | null
           created_at?: string
+          goal_id?: string | null
           id?: string
+          pillar?: string | null
           position?: number
           target_date?: string | null
           title?: string
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "big_ten_projects_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       big_ten_tasks: {
         Row: {

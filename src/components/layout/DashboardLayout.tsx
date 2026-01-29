@@ -28,11 +28,10 @@ interface DashboardLayoutProps {
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, tourId: 'dashboard' },
-  { href: '/primed', label: 'P.R.I.M.E.D.', icon: Hexagon, tourId: 'primed' },
   { href: '/today', label: 'Today', icon: CheckSquare, tourId: 'today' },
   { href: '/focus', label: 'Focus', icon: Target, tourId: 'focus' },
+  { href: '/primed', label: 'P.R.I.M.E.D.', icon: Hexagon, tourId: 'primed' },
   { href: '/journal', label: 'Journal', icon: BookOpen, tourId: 'journal' },
-  { href: '/feedback', label: 'Feedback', icon: MessageSquarePlus, tourId: 'feedback' },
 ];
 
 const dropdownNavItems = [
@@ -44,6 +43,7 @@ const dropdownNavItems = [
   { href: '/monthly-audit', label: 'Month in Review', icon: CalendarDays },
   { href: '/reset', label: 'Reset', icon: RotateCcw },
   { href: '/reports', label: 'Reports', icon: BarChart3 },
+  { href: '/feedback', label: 'Feedback', icon: MessageSquarePlus },
 ];
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {

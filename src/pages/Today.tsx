@@ -13,13 +13,13 @@ import { useResetPreference } from '@/hooks/useResetPreference';
 import { HabitItem } from '@/components/dashboard/HabitItem';
 import { DailyScoreLogger } from '@/components/dashboard/DailyScoreLogger';
 import { QuickTaskList } from '@/components/dashboard/QuickTaskList';
-import { DailyPnLLogger } from '@/components/dashboard/DailyPnLLogger';
 import { CompactResetCard } from '@/components/reset/CompactResetCard';
-import { PrimedWeeklySummaryWidget } from '@/components/primed/PrimedWeeklySummaryWidget';
-import { PerformanceAuditCard } from '@/components/dashboard/PerformanceAuditCard';
 import { DailyFuelCard } from '@/components/nutrition/DailyFuelCard';
+import { CalendarStrip, CalendarEventData } from '@/components/dashboard/CalendarStrip';
+import { TodayFocusWidget } from '@/components/dashboard/TodayFocusWidget';
+import { LastNightWidget } from '@/components/dashboard/LastNightWidget';
+import { TodayPnLWidget } from '@/components/dashboard/TodayPnLWidget';
 
-import { TodaySchedule, CalendarEventData } from '@/components/dashboard/TodaySchedule';
 import { AddCalendarEventDialog } from '@/components/dashboard/AddCalendarEventDialog';
 import { EditCalendarEventDialog } from '@/components/dashboard/EditCalendarEventDialog';
 import { useCalendarConnection, useCalendarEvents } from '@/hooks/useCalendar';
@@ -27,14 +27,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Calendar,
   Repeat,
   Clock,
   CheckCircle2,
   Circle,
   Thermometer,
   MoreHorizontal,
-  Bird
+  Bird,
+  Target
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -232,14 +232,11 @@ export default function Today() {
     return (
       <DashboardLayout>
         <div className="space-y-6">
-          {/* Header */}
+          {/* Date Header */}
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Today</h1>
-              <p className="text-muted-foreground">
-                {format(new Date(), 'EEEE, MMMM d, yyyy')}
-              </p>
-            </div>
+            <p className="text-muted-foreground">
+              {format(new Date(), 'EEEE, MMMM d, yyyy')}
+            </p>
           </div>
 
           {/* Quick Task List - available without a cycle */}
@@ -248,7 +245,7 @@ export default function Today() {
           {/* Prompt to create cycle for goal tracking */}
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-8 text-center">
-              <Calendar className="h-10 w-10 text-muted-foreground mb-3" />
+              <Target className="h-10 w-10 text-muted-foreground mb-3" />
               <h3 className="font-semibold mb-1">No Active Cycle</h3>
               <p className="text-sm text-muted-foreground">
                 Create a cycle from the dashboard to track habits and goals.
@@ -262,38 +259,33 @@ export default function Today() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header */}
+      <div className="space-y-4">
+        {/* Date Header with Actions */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Today</h1>
-            <p className="text-muted-foreground">
-              {format(new Date(), 'EEEE, MMMM d, yyyy')} • Week {currentWeek}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem 
-                  onClick={() => toggleSickDay.mutate({ date: new Date() })}
-                  disabled={sickDaysLoading || toggleSickDay.isPending}
-                  className="text-amber-600 dark:text-amber-400"
-                >
-                  <Thermometer className="h-4 w-4 mr-2" />
-                  {todayIsSick ? 'Remove Sick Day' : 'Mark as Sick Day'}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate('/birdwatching')}>
-                  <Bird className="h-4 w-4 mr-2" />
-                  Birdwatching
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          <p className="text-muted-foreground">
+            {format(new Date(), 'EEEE, MMMM d, yyyy')} • Week {currentWeek}
+          </p>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem 
+                onClick={() => toggleSickDay.mutate({ date: new Date() })}
+                disabled={sickDaysLoading || toggleSickDay.isPending}
+                className="text-amber-600 dark:text-amber-400"
+              >
+                <Thermometer className="h-4 w-4 mr-2" />
+                {todayIsSick ? 'Remove Sick Day' : 'Mark as Sick Day'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/birdwatching')}>
+                <Bird className="h-4 w-4 mr-2" />
+                Birdwatching
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Compact Reset Card - when reset is active */}
@@ -306,7 +298,7 @@ export default function Today() {
               <Thermometer className="h-5 w-5 text-amber-500" />
               <div>
                 <p className="font-medium text-amber-700 dark:text-amber-400">Sick Day Active</p>
-                <p className="text-sm text-muted-foreground">All habits are optional today and won't affect your streaks</p>
+                <p className="text-sm text-muted-foreground">All habits are optional today</p>
               </div>
             </div>
             <Button
@@ -320,119 +312,121 @@ export default function Today() {
           </div>
         )}
 
-        {/* Daily Steps + Calendar Schedule Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Daily Steps Section */}
-          {(allTactics.length > 0 || todaySchedules.length > 0) ? (
-            <Card className={`border-primary/20 ${todayIsSick ? 'opacity-60' : ''}`}>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Repeat className="h-4 w-4 text-primary" />
-                  Daily Steps
-                  {todayIsSick && (
-                    <Badge variant="outline" className="text-xs border-amber-500/50 text-amber-600 dark:text-amber-400">
-                      Optional
-                    </Badge>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {/* Time-Mastery Practice Blocks */}
-                {!schedulesLoading && todaySchedules.length > 0 && (
-                  <div className="space-y-2">
-                    {todaySchedules.map((schedule: any) => {
-                      const isComplete = practiceCompleted[schedule.id];
-                      return (
-                        <div 
-                          key={schedule.id}
-                          className={`flex items-center gap-3 p-3 rounded-lg border ${
-                            isComplete ? 'bg-green-500/10 border-green-500/30' : 'bg-card hover:bg-muted/50'
-                          } transition-colors`}
-                        >
-                          <button
-                            onClick={() => handlePracticeToggle(schedule.id)}
-                            className="flex-shrink-0"
+        {/* Calendar Strip - Full Width */}
+        <CalendarStrip
+          events={calendarEvents}
+          isLoading={eventsLoading || calendarConnecting}
+          isConnected={isConnected}
+          onConnect={connect}
+          onAddEvent={isConnected ? () => setAddCalendarEventOpen(true) : undefined}
+          showTomorrow={showTomorrow}
+          onToggleDay={() => setShowTomorrow(!showTomorrow)}
+          onEventClick={handleEditEvent}
+        />
+
+        {/* 3-Column Grid Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Column 1: Daily Steps */}
+          <div className="lg:row-span-2">
+            {(allTactics.length > 0 || todaySchedules.length > 0) ? (
+              <Card className={`h-full border-primary/20 ${todayIsSick ? 'opacity-60' : ''}`}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Repeat className="h-4 w-4 text-primary" />
+                    Daily Steps
+                    {todayIsSick && (
+                      <Badge variant="outline" className="text-xs border-amber-500/50 text-amber-600 dark:text-amber-400">
+                        Optional
+                      </Badge>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {/* Time-Mastery Practice Blocks */}
+                  {!schedulesLoading && todaySchedules.length > 0 && (
+                    <div className="space-y-2">
+                      {todaySchedules.map((schedule: any) => {
+                        const isComplete = practiceCompleted[schedule.id];
+                        return (
+                          <div 
+                            key={schedule.id}
+                            className={`flex items-center gap-3 p-3 rounded-lg border ${
+                              isComplete ? 'bg-green-500/10 border-green-500/30' : 'bg-card hover:bg-muted/50'
+                            } transition-colors`}
                           >
-                            {isComplete ? (
-                              <CheckCircle2 className="h-5 w-5 text-green-500" />
-                            ) : (
-                              <Circle className="h-5 w-5 text-muted-foreground hover:text-primary" />
-                            )}
-                          </button>
-                          <div className="flex-1 min-w-0">
-                            <p className={`font-medium text-sm ${isComplete ? 'text-green-700 dark:text-green-400' : ''}`}>
-                              {schedule.duration_minutes} min practice
-                            </p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Badge variant="outline" className="text-xs border-primary/50 text-primary">
-                                <Clock className="h-3 w-3 mr-1" />
-                                Time-Mastery
-                              </Badge>
-                              <Badge variant="secondary" className="text-xs">
-                                {schedule.goals?.title || 'Goal'}
-                              </Badge>
+                            <button
+                              onClick={() => handlePracticeToggle(schedule.id)}
+                              className="flex-shrink-0"
+                            >
+                              {isComplete ? (
+                                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                              ) : (
+                                <Circle className="h-5 w-5 text-muted-foreground hover:text-primary" />
+                              )}
+                            </button>
+                            <div className="flex-1 min-w-0">
+                              <p className={`font-medium text-sm ${isComplete ? 'text-green-700 dark:text-green-400' : ''}`}>
+                                {schedule.duration_minutes} min practice
+                              </p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge variant="outline" className="text-xs border-primary/50 text-primary">
+                                  <Clock className="h-3 w-3 mr-1" />
+                                  Time-Mastery
+                                </Badge>
+                                <Badge variant="secondary" className="text-xs">
+                                  {schedule.goals?.title || 'Goal'}
+                                </Badge>
+                              </div>
                             </div>
+                            {schedule.start_time && (
+                              <span className="text-xs text-muted-foreground">
+                                {schedule.start_time.slice(0, 5)}
+                              </span>
+                            )}
                           </div>
-                          {schedule.start_time && (
-                            <span className="text-xs text-muted-foreground">
-                              {schedule.start_time.slice(0, 5)}
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                        );
+                      })}
+                    </div>
+                  )}
 
-                {/* Regular Daily Tactics */}
-                {allTactics.map(tactic => {
-                  const goal = goals.find(g => g.id === tactic.goal_id);
-                  return (
-                    <HabitItem
-                      key={tactic.id}
-                      tactic={tactic}
-                      log={getLogForTactic(tactic.id)}
-                      streak={getStreak(tactic.id, tactic.target_count)}
-                      goalTitle={goal?.title || 'Unknown Goal'}
-                      onToggle={handleHabitToggle}
-                    />
-                  );
-                })}
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="border-dashed">
-              <CardContent className="flex flex-col items-center justify-center py-8 text-center">
-                <Repeat className="h-8 w-8 text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">No daily steps set up yet</p>
-              </CardContent>
-            </Card>
-          )}
+                  {/* Regular Daily Tactics */}
+                  {allTactics.map(tactic => {
+                    const goal = goals.find(g => g.id === tactic.goal_id);
+                    return (
+                      <HabitItem
+                        key={tactic.id}
+                        tactic={tactic}
+                        log={getLogForTactic(tactic.id)}
+                        streak={getStreak(tactic.id, tactic.target_count)}
+                        goalTitle={goal?.title || 'Unknown Goal'}
+                        onToggle={handleHabitToggle}
+                      />
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="h-full border-dashed">
+                <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                  <Repeat className="h-8 w-8 text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground">No daily steps set up yet</p>
+                  <p className="text-xs text-muted-foreground mt-1">Add tactics to your goals to see them here</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
 
-          {/* Today's/Tomorrow's Schedule */}
-          <TodaySchedule
-            events={calendarEvents}
-            isLoading={eventsLoading || calendarConnecting}
-            isConnected={isConnected}
-            onConnect={connect}
-            onAddEvent={isConnected ? () => setAddCalendarEventOpen(true) : undefined}
-            showTomorrow={showTomorrow}
-            onToggleDay={() => setShowTomorrow(!showTomorrow)}
-            onEditEvent={isConnected ? handleEditEvent : undefined}
-            onDeleteEvent={isConnected ? handleDeleteCalendarEvent : undefined}
-          />
-        </div>
-
-        {/* Task List + P&L Logger + PRIMED Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div data-tour="quick-tasks" className="md:col-span-2">
+          {/* Column 2: Quick Tasks */}
+          <div className="lg:row-span-2" data-tour="quick-tasks">
             <QuickTaskList />
           </div>
-          <div className="space-y-6">
-            <PerformanceAuditCard />
+
+          {/* Column 3: Stacked Widgets */}
+          <div className="space-y-4">
+            <TodayFocusWidget />
             <DailyFuelCard />
-            <PrimedWeeklySummaryWidget />
-            <DailyPnLLogger />
+            <LastNightWidget />
+            <TodayPnLWidget />
           </div>
         </div>
 

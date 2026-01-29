@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useOuraMetrics } from '@/hooks/useOuraMetrics';
 import { ManualSleepEntryDialog } from './ManualSleepEntryDialog';
+import { NapEntryDialog } from './NapEntryDialog';
 import { 
   Zap, 
   RefreshCw, 
@@ -17,13 +18,15 @@ import {
   Info,
   Settings,
   Pencil,
-  Plus
+  Plus,
+  Bed
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export function PerformanceAuditCard() {
   const navigate = useNavigate();
   const [manualSleepOpen, setManualSleepOpen] = useState(false);
+  const [napDialogOpen, setNapDialogOpen] = useState(false);
   const [editEntry, setEditEntry] = useState<typeof todayMetrics>(null);
   
   const {
@@ -343,21 +346,53 @@ export function PerformanceAuditCard() {
             </div>
           )}
 
-          {/* Always show manual entry button for adding new entries */}
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="w-full"
-            onClick={handleNewEntryClick}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Log Sleep Manually
-          </Button>
+          {/* Nap display if logged */}
+          {metrics?.nap_duration_minutes && (
+            <div className="flex items-center gap-2 p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20">
+              <Bed className="h-4 w-4 text-indigo-400" />
+              <span className="text-sm">Nap: <strong>{metrics.nap_duration_minutes}m</strong></span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 ml-auto"
+                onClick={() => setNapDialogOpen(true)}
+              >
+                <Pencil className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex-1"
+              onClick={handleNewEntryClick}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Log Sleep
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex-1"
+              onClick={() => setNapDialogOpen(true)}
+            >
+              <Bed className="h-4 w-4 mr-2" />
+              Log Nap
+            </Button>
+          </div>
           
           <ManualSleepEntryDialog 
             open={manualSleepOpen} 
             onOpenChange={handleDialogClose}
             existingEntry={editEntry}
+          />
+          <NapEntryDialog 
+            open={napDialogOpen} 
+            onOpenChange={setNapDialogOpen}
+            currentNapMinutes={metrics?.nap_duration_minutes}
           />
         </CardContent>
       </Card>

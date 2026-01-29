@@ -32,6 +32,8 @@ export interface OuraMetrics {
   manual_bedtime: string | null;
   manual_wake_time: string | null;
   manual_sleep_quality: number | null;
+  // Nap tracking
+  nap_duration_minutes: number | null;
   // Metadata
   synced_at: string | null;
   created_at: string;
@@ -261,6 +263,39 @@ export function useOuraMetrics() {
     },
   });
 
+  // Log nap for today
+  const logNap = useMutation({
+    mutationFn: async ({ napMinutes }: { napMinutes: number }) => {
+      if (!user?.id) throw new Error('Not authenticated');
+      
+      // Upsert - add to existing entry or create new one
+      const { error } = await supabase
+        .from('oura_daily_metrics')
+        .upsert({
+          user_id: user.id,
+          metric_date: today,
+          nap_duration_minutes: napMinutes,
+          source: 'manual',
+        }, { 
+          onConflict: 'user_id,metric_date',
+          ignoreDuplicates: false 
+        });
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['oura-metrics'] });
+      toast({ title: 'Nap logged successfully' });
+    },
+    onError: (error: Error) => {
+      toast({ 
+        title: 'Failed to log nap', 
+        description: error.message,
+        variant: 'destructive' 
+      });
+    },
+  });
+
   // Get entry for a specific date (for editing)
   const getEntryForDate = async (date: string): Promise<OuraMetrics | null> => {
     if (!user?.id) return null;
@@ -317,6 +352,7 @@ export function useOuraMetrics() {
     disconnectOura,
     toggleManualMode,
     logManualSleep,
+    logNap,
     getEntryForDate,
     formatSleepDuration,
     getReadinessTier,

@@ -17,7 +17,7 @@ import { CompactResetCard } from '@/components/reset/CompactResetCard';
 import { DailyFuelCard } from '@/components/nutrition/DailyFuelCard';
 import { CalendarStrip, CalendarEventData } from '@/components/dashboard/CalendarStrip';
 import { TodayFocusWidget } from '@/components/dashboard/TodayFocusWidget';
-import { LastNightWidget } from '@/components/dashboard/LastNightWidget';
+import { PerformanceAuditCard } from '@/components/dashboard/PerformanceAuditCard';
 import { TodayPnLWidget } from '@/components/dashboard/TodayPnLWidget';
 
 import { AddCalendarEventDialog } from '@/components/dashboard/AddCalendarEventDialog';
@@ -312,22 +312,10 @@ export default function Today() {
           </div>
         )}
 
-        {/* Calendar Strip - Full Width */}
-        <CalendarStrip
-          events={calendarEvents}
-          isLoading={eventsLoading || calendarConnecting}
-          isConnected={isConnected}
-          onConnect={connect}
-          onAddEvent={isConnected ? () => setAddCalendarEventOpen(true) : undefined}
-          showTomorrow={showTomorrow}
-          onToggleDay={() => setShowTomorrow(!showTomorrow)}
-          onEventClick={handleEditEvent}
-        />
-
-        {/* 3-Column Grid Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Column 1: Daily Steps */}
-          <div className="lg:row-span-2">
+        {/* Row 1: Daily Steps + Calendar - Side by Side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Daily Steps */}
+          <div data-tour="daily-steps">
             {(allTactics.length > 0 || todaySchedules.length > 0) ? (
               <Card className={`h-full border-primary/20 ${todayIsSick ? 'opacity-60' : ''}`}>
                 <CardHeader className="pb-3">
@@ -416,21 +404,41 @@ export default function Today() {
             )}
           </div>
 
-          {/* Column 2: Quick Tasks */}
-          <div className="lg:row-span-2" data-tour="quick-tasks">
+          {/* Calendar Strip - now in right column of row 1 */}
+          <Card className="h-full">
+            <CardContent className="p-0">
+              <CalendarStrip
+                events={calendarEvents}
+                isLoading={eventsLoading || calendarConnecting}
+                isConnected={isConnected}
+                onConnect={connect}
+                onAddEvent={isConnected ? () => setAddCalendarEventOpen(true) : undefined}
+                showTomorrow={showTomorrow}
+                onToggleDay={() => setShowTomorrow(!showTomorrow)}
+                onEventClick={handleEditEvent}
+              />
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Row 2: Quick Tasks (2/3) + Daily Fuel (1/3) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2" data-tour="quick-tasks">
             <QuickTaskList />
           </div>
-
-          {/* Column 3: Stacked Widgets */}
-          <div className="space-y-4">
-            <TodayFocusWidget />
+          <div>
             <DailyFuelCard />
-            <LastNightWidget />
-            <TodayPnLWidget />
           </div>
         </div>
 
-        {/* Daily Score Logger */}
+        {/* Row 3: Focus, Sleep (Performance Audit), P&L - Three Columns */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <TodayFocusWidget />
+          <PerformanceAuditCard />
+          <TodayPnLWidget />
+        </div>
+
+        {/* Row 4: Daily Score Logger */}
         <DailyScoreLogger goals={goals} />
       </div>
 
@@ -445,7 +453,10 @@ export default function Today() {
       {/* Edit Calendar Event Dialog */}
       <EditCalendarEventDialog
         open={editCalendarEventOpen}
-        onOpenChange={setEditCalendarEventOpen}
+        onOpenChange={(open) => {
+          setEditCalendarEventOpen(open);
+          if (!open) setEditingEvent(null);
+        }}
         event={editingEvent}
         onUpdate={handleUpdateCalendarEvent}
         onDelete={handleDeleteCalendarEvent}

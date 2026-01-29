@@ -1,8 +1,8 @@
 import { format } from "date-fns";
-import { Calendar, Clock, Plus, ChevronRight } from "lucide-react";
+import { Calendar, Plus, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export interface CalendarEventData {
   id: string;
@@ -36,13 +36,11 @@ export function CalendarStrip({
 }: CalendarStripProps) {
   if (!isConnected) {
     return (
-      <div className="flex items-center justify-between px-4 py-3 rounded-lg border bg-card">
-        <div className="flex items-center gap-3">
-          <Calendar className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Connect calendar to see events</span>
-        </div>
+      <div className="flex flex-col items-center justify-center p-6 text-center h-full min-h-[200px]">
+        <Calendar className="h-8 w-8 text-muted-foreground mb-3" />
+        <p className="text-sm text-muted-foreground mb-3">Connect calendar to see events</p>
         <Button variant="outline" size="sm" onClick={onConnect}>
-          Connect
+          Connect Calendar
         </Button>
       </div>
     );
@@ -50,11 +48,18 @@ export function CalendarStrip({
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-4 px-4 py-3 rounded-lg border bg-card">
-        <Calendar className="h-4 w-4 text-muted-foreground" />
-        <Skeleton className="h-4 w-20" />
-        <Skeleton className="h-4 w-32" />
-        <Skeleton className="h-4 w-24" />
+      <div className="p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">Schedule</span>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
       </div>
     );
   }
@@ -68,61 +73,61 @@ export function CalendarStrip({
   const timedEvents = sortedEvents.filter(e => !e.allDay);
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3 rounded-lg border bg-card">
-      <div className="flex items-center gap-2 flex-shrink-0">
-        <Calendar className="h-4 w-4 text-primary" />
-        <span className="text-sm font-medium">Schedule</span>
-      </div>
-      
-      <div className="flex-1 min-w-0">
-        {events.length === 0 ? (
-          <span className="text-sm text-muted-foreground">No events today</span>
-        ) : (
-          <ScrollArea className="w-full">
-            <div className="flex items-center gap-4">
-              {timedEvents.slice(0, 5).map((event) => {
-                const startTime = format(new Date(event.start), "h:mm a");
-                return (
-                  <button
-                    key={event.id}
-                    onClick={() => onEventClick?.(event)}
-                    className="flex items-center gap-2 flex-shrink-0 hover:bg-muted/50 rounded px-2 py-1 -my-1 transition-colors"
-                  >
-                    <div className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" />
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">{startTime}</span>
-                    <span className="text-sm truncate max-w-[200px]">{event.title}</span>
-                  </button>
-                );
-              })}
-              {timedEvents.length > 5 && (
-                <span className="text-xs text-muted-foreground flex-shrink-0">
-                  +{timedEvents.length - 5} more
-                </span>
-              )}
-            </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
-        )}
+    <div className="p-4 h-full flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Calendar className="h-4 w-4 text-primary" />
+          <span className="text-sm font-medium">Schedule</span>
+        </div>
+        <div className="flex items-center gap-1">
+          {onAddEvent && (
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onAddEvent}>
+              <Plus className="h-4 w-4" />
+            </Button>
+          )}
+          {onToggleDay && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-7 text-xs gap-1" 
+              onClick={onToggleDay}
+            >
+              {showTomorrow ? "TODAY" : "TOMORROW"}
+              <ChevronRight className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
       </div>
 
-      <div className="flex items-center gap-1 flex-shrink-0">
-        {onAddEvent && (
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onAddEvent}>
-            <Plus className="h-4 w-4" />
-          </Button>
+      {/* Events List */}
+      <ScrollArea className="flex-1">
+        {events.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <p className="text-sm text-muted-foreground">No events {showTomorrow ? 'tomorrow' : 'today'}</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {timedEvents.map((event) => {
+              const startTime = format(new Date(event.start), "h:mm a");
+              const endTime = format(new Date(event.end), "h:mm a");
+              return (
+                <button
+                  key={event.id}
+                  onClick={() => onEventClick?.(event)}
+                  className="w-full flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors text-left"
+                >
+                  <div className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{event.title}</p>
+                    <p className="text-xs text-muted-foreground">{startTime} – {endTime}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         )}
-        {onToggleDay && (
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="h-7 text-xs gap-1" 
-            onClick={onToggleDay}
-          >
-            {showTomorrow ? "TODAY" : "TOMORROW"}
-            <ChevronRight className="h-3 w-3" />
-          </Button>
-        )}
-      </div>
+      </ScrollArea>
     </div>
   );
 }

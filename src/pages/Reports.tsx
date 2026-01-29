@@ -28,13 +28,13 @@ import { useCycles } from '@/hooks/useCycles';
 import { useGoals } from '@/hooks/useGoals';
 import { useBigTen } from '@/hooks/useBigTen';
 import { useQuickTasks } from '@/hooks/useQuickTasks';
-import { TrendingUp, BarChart3, Target, Calendar, CheckSquare, FolderKanban, ListTodo, RotateCcw, Flame, Trophy, Zap, Clock, Timer, Globe, Sparkles, Hexagon, Moon, Utensils } from 'lucide-react';
+import { TrendingUp, BarChart3, Target, Calendar, CheckSquare, FolderKanban, ListTodo, RotateCcw, Flame, Trophy, Zap, Clock, Timer, Globe, Sparkles, Hexagon, Moon } from 'lucide-react';
 import { HabitChainCalendar } from '@/components/reports/HabitChainCalendar';
 import { CumulativeProgressCard } from '@/components/reports/CumulativeProgressCard';
 import { SitewideStats } from '@/components/reports/SitewideStats';
 import { PillarAnalyticsSection } from '@/components/reports/PillarAnalyticsSection';
 import { SleepSummaryCard } from '@/components/reports/SleepSummaryCard';
-import { NutritionSummaryCard } from '@/components/reports/NutritionSummaryCard';
+import { NutritionAnalyticsSection } from '@/components/reports/NutritionAnalyticsSection';
 import { AuditStrip } from '@/components/reset/AuditStrip';
 import { useResetAudits } from '@/hooks/useResetAudits';
 import { useResetPreference } from '@/hooks/useResetPreference';
@@ -444,17 +444,17 @@ export default function Reports() {
           </div>
         )}
 
-        {/* Sleep & Nutrition Summary Section */}
+        {/* Sleep Summary */}
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
             <Moon className="h-5 w-5 text-primary" />
-            Health Tracking
+            Sleep Tracking
           </h2>
-          <div className="grid gap-4 md:grid-cols-2">
-            <SleepSummaryCard />
-            <NutritionSummaryCard />
-          </div>
+          <SleepSummaryCard />
         </div>
+
+        {/* Nutrition Analytics - Full Section */}
+        <NutritionAnalyticsSection />
 
         {/* 7-Day Reset Section - Only show if user has reset data */}
         {(audits.length > 0 || isResetActive) && (

@@ -125,7 +125,7 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
   };
 
   return (
-    <Card className="overflow-hidden">
+    <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-lg font-medium">{formattedDate}</CardTitle>
         <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">

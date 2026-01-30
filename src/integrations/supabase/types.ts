@@ -1047,6 +1047,45 @@ export type Database = {
         }
         Relationships: []
       }
+      health_measurements: {
+        Row: {
+          created_at: string
+          id: string
+          measured_at: string
+          measurement_type: string
+          notes: string | null
+          primary_value: number
+          secondary_value: number | null
+          unit: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          measured_at?: string
+          measurement_type: string
+          notes?: string | null
+          primary_value: number
+          secondary_value?: number | null
+          unit?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          measured_at?: string
+          measurement_type?: string
+          notes?: string | null
+          primary_value?: number
+          secondary_value?: number | null
+          unit?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       indicator_logs: {
         Row: {
           created_at: string

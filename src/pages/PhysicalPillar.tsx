@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, RefreshCw, Heart, Moon, Utensils, Activity, FlaskConical, Footprints } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Heart, Moon, Utensils, Activity, FlaskConical, Footprints, Scale } from 'lucide-react';
 import { usePrimedAssessments } from '@/hooks/usePrimedAssessment';
 import { useOuraMetrics } from '@/hooks/useOuraMetrics';
 import { PILLARS, LEVEL_NAMES, getBehaviorsForPillarAndLevel, LEVEL_DESCRIPTIONS, PillarLevel } from '@/data/primedBehaviors';
@@ -15,6 +15,7 @@ import { PhysicalMovementSection } from '@/components/primed/PhysicalMovementSec
 import { PhysicalBloodworkSection } from '@/components/primed/PhysicalBloodworkSection';
 import { PhysicalActivitySection } from '@/components/primed/PhysicalActivitySection';
 import { PhysicalHeartRateSection } from '@/components/primed/PhysicalHeartRateSection';
+import { PhysicalBiometricsSection } from '@/components/primed/PhysicalBiometricsSection';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function PhysicalPillar() {
@@ -207,15 +208,17 @@ export default function PhysicalPillar() {
               <PhysicalMovementSection />
             </CardContent>
           </Card>
+
+          {/* Weight & Blood Pressure Section */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
-                <Activity className="h-5 w-5" />
-                Daily Rules
+                <Scale className="h-5 w-5" />
+                Weight & Blood Pressure
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <PhysicalMovementSection />
+              <PhysicalBiometricsSection />
             </CardContent>
           </Card>
 

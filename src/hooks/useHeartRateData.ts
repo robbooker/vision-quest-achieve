@@ -17,24 +17,42 @@ export function useHeartRateData(date?: string) {
   const targetDate = date || format(new Date(), 'yyyy-MM-dd');
 
   // Fetch intraday heart rate samples for a specific date
+  // Using raw REST API call to bypass TypeScript type generation issues with new tables
   const { data: intradayData, isLoading: intradayLoading } = useQuery({
     queryKey: ['heartrate-intraday', user?.id, targetDate],
-    queryFn: async () => {
+    queryFn: async (): Promise<HeartRateSample[]> => {
       if (!user?.id) return [];
-      const { data, error } = await supabase
-        .from('oura_heartrate_samples')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('sample_date', targetDate)
-        .order('sample_time', { ascending: true });
       
-      if (error) throw error;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      
+      if (!accessToken) return [];
+      
+      // Construct Supabase REST API URL directly
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const url = `${supabaseUrl}/rest/v1/oura_heartrate_samples?user_id=eq.${user.id}&sample_date=eq.${targetDate}&order=sample_time.asc&select=id,user_id,sample_date,sample_time,bpm,source`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        console.error('Heartrate fetch error:', response.status, await response.text());
+        return [];
+      }
+      
+      const data = await response.json();
+      console.log(`Fetched ${data?.length || 0} HR samples for ${targetDate}`);
       return data as HeartRateSample[];
     },
     enabled: !!user?.id,
   });
 
-  // Fetch 14-day RHR and HRV trend data
+  // Fetch 14-day RHR and HRV trend data (uses existing typed table)
   const { data: biometricTrend, isLoading: trendLoading } = useQuery({
     queryKey: ['biometric-trend', user?.id],
     queryFn: async () => {
@@ -54,7 +72,7 @@ export function useHeartRateData(date?: string) {
   });
 
   // Process intraday data for charting - aggregate to 30-minute intervals for smoother display
-  const chartData = intradayData?.reduce((acc: { time: string; hour: number; bpm: number; count: number }[], sample) => {
+  const chartData = (intradayData || []).reduce((acc: { time: string; hour: number; bpm: number; count: number }[], sample) => {
     const sampleDate = new Date(sample.sample_time);
     const hour = sampleDate.getHours();
     const halfHour = Math.floor(sampleDate.getMinutes() / 30);
@@ -68,18 +86,19 @@ export function useHeartRateData(date?: string) {
       acc.push({ time: timeKey, hour, bpm: sample.bpm, count: 1 });
     }
     return acc;
-  }, []) || [];
+  }, []);
 
   // Calculate intraday stats
-  const intradayStats = intradayData?.length ? {
-    min: Math.min(...intradayData.map(s => s.bpm)),
-    max: Math.max(...intradayData.map(s => s.bpm)),
-    avg: Math.round(intradayData.reduce((sum, s) => sum + s.bpm, 0) / intradayData.length),
-    samples: intradayData.length,
+  const samples = intradayData || [];
+  const intradayStats = samples.length ? {
+    min: Math.min(...samples.map(s => s.bpm)),
+    max: Math.max(...samples.map(s => s.bpm)),
+    avg: Math.round(samples.reduce((sum, s) => sum + s.bpm, 0) / samples.length),
+    samples: samples.length,
   } : null;
 
   return {
-    intradayData,
+    intradayData: samples,
     chartData: chartData.sort((a, b) => a.hour - b.hour || a.time.localeCompare(b.time)),
     intradayStats,
     biometricTrend,

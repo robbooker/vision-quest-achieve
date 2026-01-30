@@ -1753,6 +1753,36 @@ export type Database = {
         }
         Relationships: []
       }
+      oura_heartrate_samples: {
+        Row: {
+          bpm: number
+          created_at: string
+          id: string
+          sample_date: string
+          sample_time: string
+          source: string
+          user_id: string
+        }
+        Insert: {
+          bpm: number
+          created_at?: string
+          id?: string
+          sample_date: string
+          sample_time: string
+          source?: string
+          user_id: string
+        }
+        Update: {
+          bpm?: number
+          created_at?: string
+          id?: string
+          sample_date?: string
+          sample_time?: string
+          source?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       primed_assessment_behaviors: {
         Row: {
           assessment_id: string

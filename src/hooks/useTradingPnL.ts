@@ -212,6 +212,45 @@ export function useDeletePnL() {
   });
 }
 
+export function useSyncTradingJournal() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error('Not authenticated');
+
+      const { data: session } = await supabase.auth.getSession();
+      if (!session.session) throw new Error('Not authenticated');
+
+      const { data, error } = await supabase.functions.invoke('sync-trading-journal', {
+        headers: {
+          Authorization: `Bearer ${session.session.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['trading-pnl'] });
+      if (data?.synced > 0) {
+        toast.success(`Synced ${data.synced} day(s) from Short Scout`);
+      } else {
+        toast.info('No new trades to sync');
+      }
+    },
+    onError: (error: Error) => {
+      console.error('Failed to sync trading journal:', error);
+      if (error.message?.includes('Short Scout')) {
+        toast.error('Link your Short Scout account in Settings first');
+      } else {
+        toast.error('Failed to sync trading data');
+      }
+    },
+  });
+}
+
 export function useWeekPnLTotal() {
   const { user } = useAuth();
   const today = new Date();

@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { DollarSign, TrendingUp, TrendingDown, Check } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, Check, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useTodayPnL, useUpsertPnL } from '@/hooks/useTradingPnL';
+import { useTodayPnL, useUpsertPnL, useSyncTradingJournal } from '@/hooks/useTradingPnL';
 import { cn } from '@/lib/utils';
 
 export function TodayPnLWidget() {
   const { data: todayPnL, isLoading } = useTodayPnL();
   const upsertPnL = useUpsertPnL();
+  const syncMutation = useSyncTradingJournal();
   
   const [amount, setAmount] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
@@ -74,19 +75,34 @@ export function TodayPnLWidget() {
     return (
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <DollarSign className="h-4 w-4" />
-            Today's P&L
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              Today's P&L
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={() => syncMutation.mutate()}
+              disabled={syncMutation.isPending}
+              title="Sync from Short Scout"
+            >
+              <RefreshCw className={cn("h-3 w-3", syncMutation.isPending && "animate-spin")} />
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-2">
-          <p className={cn(
-            "text-3xl font-bold",
-            isProfit && "text-emerald-600 dark:text-emerald-400",
-            isLoss && "text-destructive"
-          )}>
-            {formatCurrency(pnlValue)}
-          </p>
+          <div>
+            <p className={cn(
+              "text-3xl font-bold",
+              isProfit && "text-emerald-600 dark:text-emerald-400",
+              isLoss && "text-destructive"
+            )}>
+              {formatCurrency(pnlValue)}
+            </p>
+            <p className="text-xs text-muted-foreground">so far today</p>
+          </div>
           <Link 
             to="/trading" 
             className="block text-xs text-primary hover:underline"
@@ -102,10 +118,22 @@ export function TodayPnLWidget() {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium flex items-center gap-2">
-          <DollarSign className="h-4 w-4" />
-          Today's P&L
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <DollarSign className="h-4 w-4" />
+            Today's P&L
+          </CardTitle>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={() => syncMutation.mutate()}
+            disabled={syncMutation.isPending}
+            title="Sync from Short Scout"
+          >
+            <RefreshCw className={cn("h-3 w-3", syncMutation.isPending && "animate-spin")} />
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-2">
         <div className="flex items-center gap-2">

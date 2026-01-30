@@ -46,6 +46,7 @@ import {
 import { useSickDays } from '@/hooks/useSickDays';
 import { useToast } from '@/hooks/use-toast';
 import { UniversalVoiceRecorder } from '@/components/dashboard/UniversalVoiceRecorder';
+import { HealthMetricsWidget } from '@/components/dashboard/HealthMetricsWidget';
 
 export default function Today() {
   const navigate = useNavigate();
@@ -263,11 +264,12 @@ export default function Today() {
     <DashboardLayout>
       <div className="space-y-4">
         {/* Date Header with Actions */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <p className="text-base font-semibold text-foreground">
             {format(new Date(), 'EEEE, MMMM d, yyyy')} • Week {currentWeek}
           </p>
           <div className="flex items-center gap-1">
+            <HealthMetricsWidget />
             <Button 
               variant="ghost" 
               size="icon"

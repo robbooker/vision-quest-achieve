@@ -101,7 +101,7 @@ export function PhysicalActivitySection() {
       {/* Date indicator if showing yesterday's data */}
       {isShowingYesterday && (
         <div className="text-xs text-muted-foreground bg-muted/50 rounded px-2 py-1 inline-block">
-          Showing yesterday's activity (today's not yet available)
+          Showing yesterday's activity — Oura calculates today's activity score overnight
         </div>
       )}
 

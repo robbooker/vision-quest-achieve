@@ -115,8 +115,8 @@ serve(async (req) => {
 
     console.log(`Fetching Oura data from ${startDateStr} to ${endDateStr}`);
 
-    // Fetch all endpoints in parallel (including sleep sessions for actual durations)
-    const [dailySleepRes, sleepSessionsRes, readinessRes, resilienceRes, dailyActivityRes] = await Promise.all([
+    // Fetch all endpoints in parallel (including sleep sessions for actual durations + heartrate)
+    const [dailySleepRes, sleepSessionsRes, readinessRes, resilienceRes, dailyActivityRes, heartrateRes] = await Promise.all([
       fetch(`${OURA_API_BASE}/daily_sleep?start_date=${startDateStr}&end_date=${endDateStr}`, {
         headers: { Authorization: `Bearer ${ouraToken}` },
       }),
@@ -130,6 +130,10 @@ serve(async (req) => {
         headers: { Authorization: `Bearer ${ouraToken}` },
       }),
       fetch(`${OURA_API_BASE}/daily_activity?start_date=${startDateStr}&end_date=${endDateStr}`, {
+        headers: { Authorization: `Bearer ${ouraToken}` },
+      }),
+      // Fetch intraday heart rate data (last 3 days only for storage efficiency)
+      fetch(`${OURA_API_BASE}/heartrate?start_datetime=${new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()}&end_datetime=${new Date().toISOString()}`, {
         headers: { Authorization: `Bearer ${ouraToken}` },
       }),
     ]);
@@ -150,8 +154,9 @@ serve(async (req) => {
     const readinessData = await readinessRes.json();
     const resilienceData = await resilienceRes.json();
     const dailyActivityData = await dailyActivityRes.json();
+    const heartrateData = heartrateRes.ok ? await heartrateRes.json() : { data: [] };
 
-    console.log(`Fetched: ${dailySleepData.data?.length || 0} daily_sleep, ${sleepSessionsData.data?.length || 0} sleep sessions, ${readinessData.data?.length || 0} readiness, ${resilienceData.data?.length || 0} resilience, ${dailyActivityData.data?.length || 0} activity records`);
+    console.log(`Fetched: ${dailySleepData.data?.length || 0} daily_sleep, ${sleepSessionsData.data?.length || 0} sleep sessions, ${readinessData.data?.length || 0} readiness, ${resilienceData.data?.length || 0} resilience, ${dailyActivityData.data?.length || 0} activity records, ${heartrateData.data?.length || 0} heartrate samples`);
 
     // Log a sample sleep session for debugging
     if (sleepSessionsData.data?.length > 0) {
@@ -461,9 +466,53 @@ serve(async (req) => {
 
     console.log(`Synced ${metricsToUpsert.length} days of Oura data. Today's sleep: ${todayMetrics?.total_sleep_seconds} seconds`);
 
+    // Process and save intraday heart rate data
+    let heartrateSamplesSaved = 0;
+    if (heartrateData.data && heartrateData.data.length > 0) {
+      // Delete old samples first (keep only last 3 days to prevent table bloat)
+      const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+      await supabaseService
+        .from('oura_heartrate_samples')
+        .delete()
+        .eq('user_id', user.id)
+        .lt('sample_time', threeDaysAgo);
+
+      // Prepare heart rate samples for upsert
+      interface OuraHeartrateSample {
+        timestamp: string;
+        bpm: number;
+        source: string;
+      }
+      
+      const heartrateSamples = heartrateData.data.map((sample: OuraHeartrateSample) => ({
+        user_id: user.id,
+        sample_date: sample.timestamp.split('T')[0],
+        sample_time: sample.timestamp,
+        bpm: sample.bpm,
+        source: sample.source || 'awake',
+      }));
+
+      // Batch insert (upsert to handle duplicates)
+      const BATCH_SIZE = 500;
+      for (let i = 0; i < heartrateSamples.length; i += BATCH_SIZE) {
+        const batch = heartrateSamples.slice(i, i + BATCH_SIZE);
+        const { error: hrError } = await supabaseService
+          .from('oura_heartrate_samples')
+          .upsert(batch, { onConflict: 'user_id,sample_time', ignoreDuplicates: true });
+        
+        if (hrError) {
+          console.error('Error saving heartrate samples:', hrError);
+        } else {
+          heartrateSamplesSaved += batch.length;
+        }
+      }
+      console.log(`Saved ${heartrateSamplesSaved} heart rate samples`);
+    }
+
     return new Response(JSON.stringify({ 
       success: true, 
       synced: metricsToUpsert.length,
+      heartrateSamples: heartrateSamplesSaved,
       metrics: todayMetrics,
       baselines: {
         rhr: rhrBaseline,

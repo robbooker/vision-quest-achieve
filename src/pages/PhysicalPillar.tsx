@@ -14,6 +14,7 @@ import { PhysicalNutritionSection } from '@/components/primed/PhysicalNutritionS
 import { PhysicalMovementSection } from '@/components/primed/PhysicalMovementSection';
 import { PhysicalBloodworkSection } from '@/components/primed/PhysicalBloodworkSection';
 import { PhysicalActivitySection } from '@/components/primed/PhysicalActivitySection';
+import { PhysicalHeartRateSection } from '@/components/primed/PhysicalHeartRateSection';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function PhysicalPillar() {
@@ -155,6 +156,19 @@ export default function PhysicalPillar() {
             </CardContent>
           </Card>
 
+          {/* Heart Rate & Biometrics Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Heart className="h-5 w-5" />
+                Heart Rate & Biometrics
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PhysicalHeartRateSection />
+            </CardContent>
+          </Card>
+
           {/* Nutrition Section */}
           <Card>
             <CardHeader>
@@ -182,6 +196,17 @@ export default function PhysicalPillar() {
           </Card>
 
           {/* Movement Section (Reset audit rules) */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Activity className="h-5 w-5" />
+                Daily Rules
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PhysicalMovementSection />
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">

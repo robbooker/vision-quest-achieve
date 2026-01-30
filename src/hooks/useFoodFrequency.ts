@@ -8,14 +8,29 @@ export interface FoodFrequencyItem {
   count: number;
 }
 
-// Common words to filter out
+// Common words to filter out - including measurement units and non-food words
 const STOP_WORDS = new Set([
+  // Articles and prepositions
   'with', 'and', 'the', 'for', 'from', 'in', 'on', 'at', 'to', 'a', 'an',
-  'of', 'or', 'some', 'one', 'two', 'three', 'large', 'small', 'medium',
-  'oz', 'cup', 'cups', 'tbsp', 'tsp', 'piece', 'pieces', 'serving', 'servings',
-  'g', 'gram', 'grams', 'ml', 'slice', 'slices', 'bowl', 'plate',
-  'about', 'around', 'roughly', 'approximately', 'half', 'quarter',
-  'breakfast', 'lunch', 'dinner', 'snack', 'meal', 'food', 'ate', 'had', 'eating',
+  'of', 'or', 'some', 'one', 'two', 'three', 'four', 'five', 'six',
+  // Sizes and quantities
+  'large', 'small', 'medium', 'big', 'little', 'extra', 'sized', 'size',
+  // Measurement units
+  'oz', 'ounce', 'ounces', 'cup', 'cups', 'tbsp', 'tsp', 'piece', 'pieces', 
+  'serving', 'servings', 'g', 'gram', 'grams', 'ml', 'liter', 'liters',
+  'slice', 'slices', 'bowl', 'plate', 'glass', 'glasses', 'bottle', 'bottles',
+  'bag', 'bags', 'box', 'can', 'cans', 'pack', 'packs', 'bite', 'bites',
+  'handful', 'handfuls', 'scoop', 'scoops', 'bar', 'bars',
+  // Approximations
+  'about', 'around', 'roughly', 'approximately', 'half', 'quarter', 'whole',
+  // Meal context words
+  'breakfast', 'lunch', 'dinner', 'snack', 'snacks', 'meal', 'meals', 
+  'food', 'foods', 'ate', 'had', 'eating', 'drank', 'drink', 'drinks',
+  // Common non-food descriptors
+  'hot', 'cold', 'warm', 'fresh', 'frozen', 'cooked', 'raw', 'fried', 
+  'baked', 'grilled', 'roasted', 'steamed', 'boiled',
+  // Water-related (tracked separately)
+  'water', 'waters',
 ]);
 
 // Function to extract food keywords from meal descriptions

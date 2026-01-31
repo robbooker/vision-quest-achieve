@@ -275,3 +275,28 @@ export function useWeekPnLTotal() {
     enabled: !!user,
   });
 }
+
+export function useRecentPnL(days: number = 5) {
+  const { user } = useAuth();
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const startDate = format(subDays(new Date(), days - 1), 'yyyy-MM-dd');
+
+  return useQuery({
+    queryKey: ['trading-pnl', 'recent', days, today],
+    queryFn: async () => {
+      if (!user) return [];
+
+      const { data, error } = await supabase
+        .from('trading_pnl')
+        .select('trade_date, pnl_amount')
+        .eq('user_id', user.id)
+        .gte('trade_date', startDate)
+        .lte('trade_date', today)
+        .order('trade_date', { ascending: true });
+
+      if (error) throw error;
+      return data as Pick<TradingPnL, 'trade_date' | 'pnl_amount'>[];
+    },
+    enabled: !!user,
+  });
+}

@@ -23,6 +23,7 @@ import { TodayPnLWidget } from '@/components/dashboard/TodayPnLWidget';
 import { AddCalendarEventDialog } from '@/components/dashboard/AddCalendarEventDialog';
 import { EditCalendarEventDialog } from '@/components/dashboard/EditCalendarEventDialog';
 import { useCalendarConnection, useCalendarEvents } from '@/hooks/useCalendar';
+import { useCalendarEventPillars } from '@/hooks/useCalendarEventPillars';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -76,6 +77,8 @@ export default function Today() {
     startOfDay(selectedDate).toISOString(),
     endOfDay(selectedDate).toISOString()
   );
+  
+  const { getPillarForEvent, setPillar } = useCalendarEventPillars();
 
   // Get all daily tactics for goals in this cycle
   const goalIds = useMemo(() => goals.map(g => g.id), [goals]);
@@ -474,6 +477,12 @@ export default function Today() {
         onUpdate={handleUpdateCalendarEvent}
         onDelete={handleDeleteCalendarEvent}
         isLoading={isUpdatingEvent}
+        currentPillar={editingEvent ? getPillarForEvent(editingEvent.id, editingEvent.title) : null}
+        onPillarChange={(pillar) => {
+          if (editingEvent) {
+            setPillar.mutate({ calendarEventId: editingEvent.id, pillar });
+          }
+        }}
       />
 
       {/* Universal Voice Recorder */}

@@ -17,6 +17,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -28,6 +35,16 @@ import {
 } from "@/components/ui/alert-dialog";
 import { CalendarIcon, Loader2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const PILLARS = [
+  { value: 'physical', label: 'Physical', letter: 'P', color: 'text-red-500' },
+  { value: 'relations', label: 'Relations', letter: 'R', color: 'text-orange-500' },
+  { value: 'income', label: 'Income', letter: 'I', color: 'text-yellow-600' },
+  { value: 'mental', label: 'Mental', letter: 'M', color: 'text-green-500' },
+  { value: 'excellence', label: 'Excellence', letter: 'E', color: 'text-blue-500' },
+  { value: 'direction', label: 'Direction', letter: 'D', color: 'text-purple-500' },
+  { value: 'spiritual', label: 'Spiritual', letter: 'S', color: 'text-pink-500' },
+];
 
 interface CalendarEvent {
   id: string;
@@ -44,6 +61,8 @@ interface EditCalendarEventDialogProps {
   onUpdate: (eventId: string, data: { title: string; date: Date; startTime: string; endTime: string }) => Promise<void>;
   onDelete: (eventId: string) => Promise<void>;
   isLoading: boolean;
+  currentPillar?: string | null;
+  onPillarChange?: (pillar: string | null) => void;
 }
 
 export function EditCalendarEventDialog({
@@ -53,12 +72,38 @@ export function EditCalendarEventDialog({
   onUpdate,
   onDelete,
   isLoading,
+  currentPillar,
+  onPillarChange,
 }: EditCalendarEventDialogProps) {
   const [title, setTitle] = useState("");
   const [date, setDate] = useState<Date>(new Date());
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("10:00");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [selectedPillar, setSelectedPillar] = useState<string | null>(null);
+
+  // Populate form when event changes
+  useEffect(() => {
+    if (event) {
+      setTitle(event.title);
+      const startDate = new Date(event.start);
+      const endDate = new Date(event.end);
+      setDate(startDate);
+      setStartTime(format(startDate, "HH:mm"));
+      setEndTime(format(endDate, "HH:mm"));
+    }
+  }, [event]);
+
+  // Sync pillar when prop changes
+  useEffect(() => {
+    setSelectedPillar(currentPillar ?? null);
+  }, [currentPillar, open]);
+
+  const handlePillarChange = (value: string) => {
+    const newPillar = value === 'none' ? null : value;
+    setSelectedPillar(newPillar);
+    onPillarChange?.(newPillar);
+  };
 
   // Populate form when event changes
   useEffect(() => {
@@ -154,6 +199,28 @@ export function EditCalendarEventDialog({
             {startTime >= endTime && (
               <p className="text-sm text-destructive">End time must be after start time</p>
             )}
+
+            {/* Pillar Selector */}
+            <div className="space-y-2">
+              <Label>PRIMED Pillar</Label>
+              <Select value={selectedPillar || 'none'} onValueChange={handlePillarChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select pillar (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {PILLARS.map((p) => (
+                    <SelectItem key={p.value} value={p.value}>
+                      <span className="flex items-center gap-2">
+                        <span className={`font-bold ${p.color}`}>{p.letter}</span>
+                        <span>{p.label}</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <DialogFooter className="flex justify-between sm:justify-between">
               <Button
                 type="button"

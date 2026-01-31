@@ -224,9 +224,12 @@ export function useOuraMetrics() {
       if (!user?.id) throw new Error('Not authenticated');
       
       const targetDate = data.date || today;
+      // Parse ISO strings back to Date objects for duration calculation
       const bedtimeDate = new Date(data.bedtime);
       const wakeDate = new Date(data.wakeTime);
-      const totalSleepSeconds = Math.floor((wakeDate.getTime() - bedtimeDate.getTime()) / 1000);
+      // Ensure we get a positive duration
+      let totalSleepSeconds = Math.floor((wakeDate.getTime() - bedtimeDate.getTime()) / 1000);
+      if (totalSleepSeconds < 0) totalSleepSeconds = 0;
       const sleepScore = data.quality * 20; // 1-5 → 20-100
       
       if (data.entryId) {

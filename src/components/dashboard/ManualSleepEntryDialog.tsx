@@ -115,11 +115,18 @@ export function ManualSleepEntryDialog({
     return subDays(selectedDate, 1);
   };
 
+  // Create a local date from date + time string (avoids UTC timezone issues)
+  const createLocalDateTime = (date: Date, timeStr: string): Date => {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    const result = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hours, minutes, 0);
+    return result;
+  };
+
   // Calculate duration
   const calculateDuration = () => {
     const bedtimeDateValue = getBedtimeDate();
-    const bedDate = new Date(`${format(bedtimeDateValue, 'yyyy-MM-dd')}T${bedtime}:00`);
-    const wakeDate = new Date(`${format(selectedDate, 'yyyy-MM-dd')}T${wakeTime}:00`);
+    const bedDate = createLocalDateTime(bedtimeDateValue, bedtime);
+    const wakeDate = createLocalDateTime(selectedDate, wakeTime);
     
     let diffMs = wakeDate.getTime() - bedDate.getTime();
     if (diffMs < 0) {
@@ -131,12 +138,12 @@ export function ManualSleepEntryDialog({
 
   const handleSubmit = () => {
     const bedtimeDateValue = getBedtimeDate();
-    const bedtimeISO = new Date(`${format(bedtimeDateValue, 'yyyy-MM-dd')}T${bedtime}:00`).toISOString();
-    const wakeTimeISO = new Date(`${format(selectedDate, 'yyyy-MM-dd')}T${wakeTime}:00`).toISOString();
+    const bedDate = createLocalDateTime(bedtimeDateValue, bedtime);
+    const wakeDate = createLocalDateTime(selectedDate, wakeTime);
     
     logManualSleep.mutate({
-      bedtime: bedtimeISO,
-      wakeTime: wakeTimeISO,
+      bedtime: bedDate.toISOString(),
+      wakeTime: wakeDate.toISOString(),
       quality,
       date: format(selectedDate, 'yyyy-MM-dd'),
       entryId: existingEntry?.id,

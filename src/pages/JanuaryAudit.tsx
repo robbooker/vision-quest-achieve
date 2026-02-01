@@ -16,8 +16,12 @@ import {
   ArrowUp,
   ArrowDown,
   User,
+  Sparkles,
+  Loader2,
+  RefreshCw,
 } from 'lucide-react';
 import { useJanuaryAuditData } from '@/hooks/useMonthlyAuditData';
+import { useAudit, useGenerateAudit } from '@/hooks/useMonthlyAudit';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from 'recharts';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -25,6 +29,7 @@ import { useRecap } from '@/hooks/useMonthlyRecap';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 // Stock Ticker Marquee Component
 function StockTicker({ data }: { data: { label: string; value: string; change?: number }[] }) {
   return (
@@ -137,9 +142,11 @@ function generateEditorial(data: ReturnType<typeof useJanuaryAuditData>['data'])
 }
 
 export default function JanuaryAudit() {
-  const { data, isLoading, month } = useJanuaryAuditData('2025-01');
+  const { data, isLoading, month, canGenerate } = useJanuaryAuditData('2025-01');
+  const { data: existingAudit, isLoading: auditLoading } = useAudit('2025-01');
   const { data: existingRecap } = useRecap('2025-01');
   const { user } = useAuth();
+  const generateAudit = useGenerateAudit();
   
   // Fetch profile for display name
   const { data: profile } = useQuery({
@@ -158,7 +165,20 @@ export default function JanuaryAudit() {
   
   const displayName = profile?.display_name || profile?.email?.split('@')[0] || user?.email?.split('@')[0] || 'Anonymous';
   
-  const editorial = generateEditorial(data);
+  // Use AI-generated editorial if available, otherwise fall back to template
+  const hasAIEditorial = existingAudit?.editorial_content;
+  const editorial = hasAIEditorial 
+    ? existingAudit.editorial_content 
+    : generateEditorial(data);
+  
+  const handleGenerate = async () => {
+    try {
+      await generateAudit.mutateAsync('2025-01');
+      toast.success('AI Editorial generated successfully!');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to generate audit');
+    }
+  };
   
   const tickerData = [
     { label: 'P&L', value: `$${data.tradingStats.totalPnL.toLocaleString()}`, change: data.tradingStats.totalPnL > 0 ? 12 : -8 },
@@ -169,7 +189,7 @@ export default function JanuaryAudit() {
     { label: 'TASKS', value: `${data.tasksCompleted}` },
   ];
 
-  if (isLoading) {
+  if (isLoading || auditLoading) {
     return (
       <DashboardLayout>
         <div className="max-w-7xl mx-auto p-4 space-y-6">
@@ -190,10 +210,38 @@ export default function JanuaryAudit() {
               <div className="text-xs uppercase tracking-widest text-muted-foreground font-mono">
                 Groovy Planning AI • Monthly Audit Report
               </div>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Share2 className="h-4 w-4" />
-                Share
-              </Button>
+              <div className="flex items-center gap-2">
+                {/* Generate AI Editorial Button */}
+                {canGenerate && (
+                  <Button 
+                    onClick={handleGenerate}
+                    disabled={generateAudit.isPending}
+                    size="sm" 
+                    className="gap-2"
+                  >
+                    {generateAudit.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Generating...
+                      </>
+                    ) : hasAIEditorial ? (
+                      <>
+                        <RefreshCw className="h-4 w-4" />
+                        Regenerate
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4" />
+                        Generate AI Editorial
+                      </>
+                    )}
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Share2 className="h-4 w-4" />
+                  Share
+                </Button>
+              </div>
             </div>
             
             <h1 className="text-5xl md:text-7xl font-bold font-heading tracking-tighter mb-2">

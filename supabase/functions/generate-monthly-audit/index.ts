@@ -28,6 +28,7 @@ interface EditorialContent {
   focusSection: string;
   tradingSection: string;
   pillarSection: string;
+  intentionSection?: string;
   closing: string;
 }
 
@@ -109,6 +110,8 @@ serve(async (req) => {
       pillarFocusData,
       pillarTasksData,
       calendarPillarsData,
+      intentionData,
+      intentionLogsData,
     ] = await Promise.all([
       // Trading P&L
       supabase
@@ -144,10 +147,10 @@ serve(async (req) => {
         .gte('completed_at', `${startDate}T00:00:00Z`)
         .lte('completed_at', `${endDate}T23:59:59Z`),
       
-      // Journal entries
+      // Journal entries with intention scores
       supabase
         .from('journal_entries')
-        .select('user_notes, ai_daily_insight')
+        .select('user_notes, ai_daily_insight, intention_score, intention_reflection, entry_date')
         .eq('user_id', user.id)
         .gte('entry_date', startDate)
         .lte('entry_date', endDate),
@@ -185,6 +188,23 @@ serve(async (req) => {
         .from('calendar_event_pillars')
         .select('pillar')
         .eq('user_id', user.id),
+      
+      // Monthly intention
+      supabase
+        .from('monthly_intentions')
+        .select('word, description')
+        .eq('user_id', user.id)
+        .eq('month', `${month}-01`)
+        .maybeSingle(),
+      
+      // Journal entries with intention scores for this month
+      supabase
+        .from('journal_entries')
+        .select('entry_date, intention_score, intention_reflection')
+        .eq('user_id', user.id)
+        .gte('entry_date', startDate)
+        .lte('entry_date', endDate)
+        .not('intention_score', 'is', null),
     ]);
 
     // Calculate stats
@@ -265,6 +285,47 @@ serve(async (req) => {
     const mostActivePillar = pillarBreakdown[0]?.pillar || 'none';
     const leastActivePillar = pillarBreakdown.filter(p => p.percentageOfTotal > 0).pop()?.pillar || 'none';
 
+    // Calculate intention analytics
+    const intention = intentionData.data;
+    const intentionLogs = intentionLogsData.data || [];
+    let intentionStats = null;
+    let intentionContext = '';
+
+    if (intention && intentionLogs.length > 0) {
+      const scores = intentionLogs.map(l => l.intention_score).filter(Boolean) as number[];
+      const avgScore = scores.length > 0 
+        ? Math.round((scores.reduce((sum, s) => sum + s, 0) / scores.length) * 10) / 10 
+        : 0;
+      const peakDays = scores.filter(s => s === 5).length;
+      const struggleDays = scores.filter(s => s <= 2).length;
+      const daysLogged = scores.length;
+
+      intentionStats = {
+        word: intention.word,
+        description: intention.description,
+        avgScore,
+        peakDays,
+        struggleDays,
+        daysLogged,
+      };
+
+      intentionContext = `
+- Monthly Intention: "${intention.word.toUpperCase()}"
+- Intention Score: ${avgScore}/5 avg across ${daysLogged} days logged
+- Peak Days (5/5): ${peakDays}, Struggle Days (1-2/5): ${struggleDays}`;
+    } else if (intention) {
+      intentionStats = {
+        word: intention.word,
+        description: intention.description,
+        avgScore: 0,
+        peakDays: 0,
+        struggleDays: 0,
+        daysLogged: 0,
+      };
+      intentionContext = `
+- Monthly Intention: "${intention.word.toUpperCase()}" (no daily scores logged)`;
+    }
+
     // Generate AI editorial content
     const monthLabel = new Date(year, monthNum - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
     
@@ -278,7 +339,7 @@ Data for ${monthLabel}:
 - Birds spotted: ${uniqueSpecies.length} species, ${birds.length} total sightings
 - Tasks completed: ${tasks.length}
 - Journal entries: ${journal.length}
-- PRIMED balance: Most active pillar: ${mostActivePillar}, Least active: ${leastActivePillar}
+- PRIMED balance: Most active pillar: ${mostActivePillar}, Least active: ${leastActivePillar}${intentionContext}
 
 Generate a JSON object with exactly these fields (all strings, no nested objects):
 {
@@ -289,7 +350,8 @@ Generate a JSON object with exactly these fields (all strings, no nested objects
   "habitSection": "Analysis of habit performance with dry wit. Reference the data. (40-60 words)",
   "focusSection": "Analysis of deep work and focus time. Be specific with numbers. (40-60 words)",
   "tradingSection": "Commentary on trading performance. Even if negative, find something instructive. (40-60 words)",
-  "pillarSection": "Analysis of PRIMED pillar balance. Note which areas got attention and which were neglected. (40-60 words)",
+  "pillarSection": "Analysis of PRIMED pillar balance. Note which areas got attention and which were neglected. (40-60 words)",${intentionStats ? `
+  "intentionSection": "Analysis of how well they lived their monthly intention word '${intention?.word}'. Reference the avg score, peak days, and struggle days. Be insightful about what this reveals. (40-60 words)",` : ''}
   "closing": "A forward-looking closing. The market doesn't care about goals, but showing up anyway matters. (30-50 words)"
 }
 
@@ -374,6 +436,7 @@ Return ONLY valid JSON, no markdown, no explanation.`;
         sightings: birds.length,
         speciesList: uniqueSpecies,
       },
+      intention: intentionStats,
     };
 
     const pillarAnalytics = {

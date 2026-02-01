@@ -524,6 +524,48 @@ export const useDeleteJournalPhoto = () => {
   });
 };
 
+export const useUpdateIntentionScore = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ 
+      entryId, 
+      intentionScore,
+      intentionReflection 
+    }: { 
+      entryId: string; 
+      intentionScore?: number;
+      intentionReflection?: string;
+    }) => {
+      if (!user?.id) throw new Error('Not authenticated');
+
+      const updates: Record<string, any> = {};
+      if (intentionScore !== undefined) {
+        updates.intention_score = intentionScore;
+      }
+      if (intentionReflection !== undefined) {
+        updates.intention_reflection = intentionReflection;
+      }
+
+      const { error } = await supabase
+        .from('journal_entries')
+        .update(updates)
+        .eq('id', entryId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['journal-entries'] });
+    },
+    onError: (error) => {
+      console.error('Failed to update intention score:', error);
+      toast.error('Failed to save intention score');
+    },
+  });
+};
+
 export const useCheckYesterdayEntry = () => {
   const { user } = useAuth();
   const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');

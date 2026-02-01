@@ -103,6 +103,15 @@ serve(async (req) => {
       .gte("completed_at", startOfDay)
       .lte("completed_at", endOfDay);
 
+    // Fetch monthly intention for the entry's month
+    const entryMonth = entry.entry_date.substring(0, 7); // "2026-01"
+    const { data: monthIntention } = await supabase
+      .from("monthly_intentions")
+      .select("word, description")
+      .eq("user_id", user.id)
+      .eq("month", `${entryMonth}-01`)
+      .maybeSingle();
+
     // Fetch Oura biometric data for the journal date
     const { data: ouraMetrics } = await supabase
       .from("oura_daily_metrics")
@@ -313,6 +322,19 @@ ${ouraMetrics.rhr_spike_alert && !ouraMetrics.critical_deficit_alert ? '- ⚠️
 - Pending Tasks: ${pendingTaskCount}
 - Completed Activities: ${totalActivities}`;
 
+    // Build intention context
+    let intentionContext = "";
+    if (monthIntention) {
+      const intentionScore = (entry as any).intention_score;
+      const intentionReflection = (entry as any).intention_reflection;
+      intentionContext = `
+**MONTHLY INTENTION:**
+- Word of the Month: "${monthIntention.word.toUpperCase()}"
+- Why: ${monthIntention.description || 'No description provided'}
+${intentionScore ? `- Today's Alignment Score: ${intentionScore}/5 stars` : '- No alignment score logged yet'}
+${intentionReflection ? `- Reflection: "${intentionReflection}"` : ''}`;
+    }
+
     // Build prompt - Matt Levine style: witty, dry humor, observational commentary
     const prompt = `You are writing a daily commentary in the style of Matt Levine (Bloomberg's Money Stuff newsletter). Analyze everything about the user's day on ${entry.entry_date} with dry wit, observational humor, and tangential-but-insightful asides.
 
@@ -321,6 +343,7 @@ ${pillarStatus.map((p) => `- ${p.name}: Level ${p.level}${p.isFoundation ? " (fo
 ${biometricContext}
 ${nutritionContext}
 ${workloadContext}
+${intentionContext}
 
 TODAY'S ACTIVITIES:
 ${activitiesWithPillars.join("\n") || "No activities logged"}
@@ -329,7 +352,7 @@ ${activeGoals ? `ACTIVE GOALS:\n${activeGoals}` : ""}
 
 ${strategicWarnings.length > 0 ? `THINGS THAT CAUGHT MY ATTENTION:\n${strategicWarnings.join("\n")}` : ""}
 
-Write a general commentary on their day. Look at EVERYTHING—biometrics, nutrition, what they actually did, what they didn't do, the patterns, the ironies, the small victories, the curious contradictions. This isn't just about goals; it's about the whole messy business of being a person trying to optimize themselves.
+Write a general commentary on their day. Look at EVERYTHING—biometrics, nutrition, what they actually did, what they didn't do, the patterns, the ironies, the small victories, the curious contradictions. ${monthIntention ? `Pay special attention to how their activities aligned (or didn't) with their monthly intention: "${monthIntention.word}".` : ''} This isn't just about goals; it's about the whole messy business of being a person trying to optimize themselves.
 
 STYLE GUIDE (channel Matt Levine):
 - Lead with an unexpected observation or ironic angle
@@ -341,6 +364,7 @@ STYLE GUIDE (channel Matt Levine):
 - Use "I guess" and "apparently" and "look" as transitions
 - Occasional meta-commentary on the act of tracking/optimizing itself is welcome
 - Reference concepts from finance, game theory, or systems thinking when apt
+${monthIntention ? `- If they logged an intention score, acknowledge whether they're being honest with themselves` : ''}
 
 DO NOT:
 - Say "Great job!" or any variant

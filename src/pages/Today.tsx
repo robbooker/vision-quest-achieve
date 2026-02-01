@@ -48,6 +48,7 @@ import { useSickDays } from '@/hooks/useSickDays';
 import { useToast } from '@/hooks/use-toast';
 import { UniversalVoiceRecorder } from '@/components/dashboard/UniversalVoiceRecorder';
 import { HealthMetricsWidget } from '@/components/dashboard/HealthMetricsWidget';
+import { MonthlyIntentionWidget } from '@/components/dashboard/MonthlyIntentionWidget';
 
 export default function Today() {
   const navigate = useNavigate();
@@ -306,6 +307,9 @@ export default function Today() {
 
         {/* Compact Reset Card - when reset is active */}
         {isResetActive && <CompactResetCard />}
+
+        {/* Monthly Intention Widget */}
+        <MonthlyIntentionWidget />
 
         {/* Sick Day Banner */}
         {todayIsSick && (

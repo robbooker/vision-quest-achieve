@@ -41,9 +41,12 @@ import {
   useDeleteJournalImage,
   useUploadJournalPhoto,
   useDeleteJournalPhoto,
-  useGenerateDailyInsight
+  useGenerateDailyInsight,
+  useUpdateIntentionScore
 } from '@/hooks/useJournal';
+import { useIntentionForMonth } from '@/hooks/useMonthlyIntention';
 import { VoiceJournalAccordion } from './VoiceJournalAccordion';
+import { IntentionDailyTracker } from './IntentionDailyTracker';
 
 interface JournalEntryCardProps {
   entry: JournalEntry;
@@ -56,12 +59,17 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // Get the month from the entry date for intention lookup
+  const entryMonth = entry.entry_date.substring(0, 7); // "2026-01"
+  const { data: monthIntention } = useIntentionForMonth(entryMonth);
+  
   const updateNotes = useUpdateJournalNotes();
   const generateImage = useGenerateJournalImage();
   const deleteImage = useDeleteJournalImage();
   const uploadPhoto = useUploadJournalPhoto();
   const deletePhoto = useDeleteJournalPhoto();
   const generateInsight = useGenerateDailyInsight();
+  const updateIntention = useUpdateIntentionScore();
 
   const isGenerating = generateImage.isPending;
   const isDeleting = deleteImage.isPending;
@@ -447,6 +455,24 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
             </div>
           )}
         </div>
+
+        {/* Intention Daily Tracker - only show if month has an intention */}
+        {monthIntention && (
+          <IntentionDailyTracker
+            intentionWord={monthIntention.word}
+            currentScore={(entry as any).intention_score || null}
+            currentReflection={(entry as any).intention_reflection || null}
+            onScoreChange={(score) => updateIntention.mutate({ 
+              entryId: entry.id, 
+              intentionScore: score 
+            })}
+            onReflectionChange={(reflection) => updateIntention.mutate({ 
+              entryId: entry.id, 
+              intentionReflection: reflection 
+            })}
+            isUpdating={updateIntention.isPending}
+          />
+        )}
 
         {/* Notes Section */}
         <div className="border-t pt-4">

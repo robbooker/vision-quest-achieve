@@ -1185,6 +1185,8 @@ export type Database = {
           id: string
           image_prompt: string | null
           image_url: string | null
+          intention_reflection: string | null
+          intention_score: number | null
           updated_at: string
           user_id: string
           user_notes: string | null
@@ -1206,6 +1208,8 @@ export type Database = {
           id?: string
           image_prompt?: string | null
           image_url?: string | null
+          intention_reflection?: string | null
+          intention_score?: number | null
           updated_at?: string
           user_id: string
           user_notes?: string | null
@@ -1227,6 +1231,8 @@ export type Database = {
           id?: string
           image_prompt?: string | null
           image_url?: string | null
+          intention_reflection?: string | null
+          intention_score?: number | null
           updated_at?: string
           user_id?: string
           user_notes?: string | null
@@ -1540,6 +1546,36 @@ export type Database = {
           updated_at?: string
           user_id?: string
           view_count?: number
+        }
+        Relationships: []
+      }
+      monthly_intentions: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          month: string
+          updated_at: string | null
+          user_id: string
+          word: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          month: string
+          updated_at?: string | null
+          user_id: string
+          word: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          month?: string
+          updated_at?: string | null
+          user_id?: string
+          word?: string
         }
         Relationships: []
       }

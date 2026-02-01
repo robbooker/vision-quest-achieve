@@ -142,9 +142,14 @@ function generateEditorial(data: ReturnType<typeof useJanuaryAuditData>['data'])
 }
 
 export default function JanuaryAudit() {
-  const { data, isLoading, month, canGenerate } = useJanuaryAuditData('2025-01');
-  const { data: existingAudit, isLoading: auditLoading } = useAudit('2025-01');
-  const { data: existingRecap } = useRecap('2025-01');
+  // Get the most recent completed month (previous month)
+  const now = new Date();
+  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const defaultMonth = format(lastMonth, 'yyyy-MM'); // e.g., '2026-01' if current date is Feb 2026
+  
+  const { data, isLoading, month, canGenerate } = useJanuaryAuditData(defaultMonth);
+  const { data: existingAudit, isLoading: auditLoading } = useAudit(defaultMonth);
+  const { data: existingRecap } = useRecap(defaultMonth);
   const { user } = useAuth();
   const generateAudit = useGenerateAudit();
   
@@ -173,12 +178,15 @@ export default function JanuaryAudit() {
   
   const handleGenerate = async () => {
     try {
-      await generateAudit.mutateAsync('2025-01');
+      await generateAudit.mutateAsync(defaultMonth);
       toast.success('AI Editorial generated successfully!');
     } catch (error: any) {
       toast.error(error.message || 'Failed to generate audit');
     }
   };
+  
+  // Parse the month for display
+  const [yearNum, monthNum] = defaultMonth.split('-').map(Number);
   
   const tickerData = [
     { label: 'P&L', value: `$${data.tradingStats.totalPnL.toLocaleString()}`, change: data.tradingStats.totalPnL > 0 ? 12 : -8 },
@@ -245,7 +253,7 @@ export default function JanuaryAudit() {
             </div>
             
             <h1 className="text-5xl md:text-7xl font-bold font-heading tracking-tighter mb-2">
-              The {format(new Date(2025, 0), 'MMMM')} Audit
+              The {format(new Date(yearNum, monthNum - 1), 'MMMM')} Audit
             </h1>
             
             <div className="flex items-center gap-4 text-sm">

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 import { 
   Share2, 
   Bird, 
@@ -19,9 +20,12 @@ import {
   Sparkles,
   Loader2,
   RefreshCw,
+  Lock,
+  Save,
+  ChevronDown,
 } from 'lucide-react';
 import { useJanuaryAuditData } from '@/hooks/useMonthlyAuditData';
-import { useAudit, useGenerateAudit } from '@/hooks/useMonthlyAudit';
+import { useAudit, useGenerateAudit, useUpdateAudit, useAudits, getAvailableAuditMonths } from '@/hooks/useMonthlyAudit';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from 'recharts';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -30,6 +34,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 // Stock Ticker Marquee Component
 function StockTicker({ data }: { data: { label: string; value: string; change?: number }[] }) {
   return (
@@ -142,16 +152,21 @@ function generateEditorial(data: ReturnType<typeof useJanuaryAuditData>['data'])
 }
 
 export default function JanuaryAudit() {
-  // Get the most recent completed month (previous month)
+  // Get available months and default to most recent completed month
   const now = new Date();
   const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const defaultMonth = format(lastMonth, 'yyyy-MM'); // e.g., '2026-01' if current date is Feb 2026
+  const defaultMonth = format(lastMonth, 'yyyy-MM');
   
-  const { data, isLoading, month, canGenerate } = useJanuaryAuditData(defaultMonth);
-  const { data: existingAudit, isLoading: auditLoading } = useAudit(defaultMonth);
-  const { data: existingRecap } = useRecap(defaultMonth);
+  const [selectedMonth, setSelectedMonth] = useState(defaultMonth);
+  const availableMonths = getAvailableAuditMonths(12);
+  
+  const { data, isLoading, month, canGenerate } = useJanuaryAuditData(selectedMonth);
+  const { data: existingAudit, isLoading: auditLoading } = useAudit(selectedMonth);
+  const { data: existingRecap } = useRecap(selectedMonth);
+  const { data: allAudits } = useAudits();
   const { user } = useAuth();
   const generateAudit = useGenerateAudit();
+  const updateAudit = useUpdateAudit();
   
   // Fetch profile for display name
   const { data: profile } = useQuery({
@@ -176,17 +191,35 @@ export default function JanuaryAudit() {
     ? existingAudit.editorial_content 
     : generateEditorial(data);
   
+  const isPublished = existingAudit?.status === 'published';
+  
   const handleGenerate = async () => {
     try {
-      await generateAudit.mutateAsync(defaultMonth);
+      await generateAudit.mutateAsync(selectedMonth);
       toast.success('AI Editorial generated successfully!');
     } catch (error: any) {
       toast.error(error.message || 'Failed to generate audit');
     }
   };
   
+  const handlePublish = async () => {
+    if (!existingAudit?.id) return;
+    try {
+      await updateAudit.mutateAsync({
+        id: existingAudit.id,
+        updates: { status: 'published' as const },
+      });
+      toast.success('Audit published and locked! It will now appear in your history.');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to publish audit');
+    }
+  };
+  
   // Parse the month for display
-  const [yearNum, monthNum] = defaultMonth.split('-').map(Number);
+  const [yearNum, monthNum] = selectedMonth.split('-').map(Number);
+  
+  // Get past published audits for dropdown
+  const publishedAudits = allAudits?.filter(a => a.status === 'published') || [];
   
   const tickerData = [
     { label: 'P&L', value: `$${data.tradingStats.totalPnL.toLocaleString()}`, change: data.tradingStats.totalPnL > 0 ? 12 : -8 },
@@ -215,12 +248,66 @@ export default function JanuaryAudit() {
         <header className="border-b-4 border-foreground">
           <div className="max-w-7xl mx-auto px-4 py-6">
             <div className="flex items-center justify-between mb-4">
-              <div className="text-xs uppercase tracking-widest text-muted-foreground font-mono">
-                Groovy Planning AI • Monthly Audit Report
+              <div className="flex items-center gap-3">
+                <div className="text-xs uppercase tracking-widest text-muted-foreground font-mono">
+                  Groovy Planning AI • Monthly Audit Report
+                </div>
+                {/* Status Badge */}
+                {existingAudit && (
+                  <Badge 
+                    variant={isPublished ? "default" : "secondary"}
+                    className="gap-1"
+                  >
+                    {isPublished ? (
+                      <>
+                        <Lock className="h-3 w-3" />
+                        Published
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-3 w-3" />
+                        Draft
+                      </>
+                    )}
+                  </Badge>
+                )}
               </div>
               <div className="flex items-center gap-2">
+                {/* Month Selector */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2">
+                      {format(new Date(yearNum, monthNum - 1), 'MMM yyyy')}
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="max-h-64 overflow-y-auto">
+                    {availableMonths.map((m) => {
+                      const hasAudit = allAudits?.some(a => a.month.startsWith(m.value));
+                      const auditStatus = allAudits?.find(a => a.month.startsWith(m.value))?.status;
+                      return (
+                        <DropdownMenuItem
+                          key={m.value}
+                          onClick={() => setSelectedMonth(m.value)}
+                          className="gap-2"
+                        >
+                          <span className={cn(!m.canGenerate && "text-muted-foreground")}>
+                            {m.label}
+                          </span>
+                          {hasAudit && (
+                            <Badge variant={auditStatus === 'published' ? 'default' : 'secondary'} className="text-xs ml-auto">
+                              {auditStatus === 'published' ? <Lock className="h-2.5 w-2.5 mr-1" /> : null}
+                              {auditStatus === 'published' ? 'Published' : 'Draft'}
+                            </Badge>
+                          )}
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
                 {/* Generate AI Editorial Button */}
-                {canGenerate && (
+                {canGenerate && !isPublished && (
                   <Button 
                     onClick={handleGenerate}
                     disabled={generateAudit.isPending}
@@ -245,6 +332,25 @@ export default function JanuaryAudit() {
                     )}
                   </Button>
                 )}
+
+                {/* Publish Button - Only show if draft with AI content */}
+                {hasAIEditorial && !isPublished && (
+                  <Button 
+                    onClick={handlePublish}
+                    disabled={updateAudit.isPending}
+                    size="sm" 
+                    variant="default"
+                    className="gap-2"
+                  >
+                    {updateAudit.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Lock className="h-4 w-4" />
+                    )}
+                    Publish
+                  </Button>
+                )}
+
                 <Button variant="outline" size="sm" className="gap-2">
                   <Share2 className="h-4 w-4" />
                   Share
@@ -261,7 +367,12 @@ export default function JanuaryAudit() {
                 <User className="h-4 w-4" />
                 {displayName}
               </span>
-              <span className="text-muted-foreground">{format(new Date(), 'EEEE, MMMM d, yyyy')}</span>
+              <span className="text-muted-foreground">
+                {existingAudit 
+                  ? `Generated ${format(new Date(existingAudit.created_at), 'MMMM d, yyyy')}`
+                  : format(new Date(), 'EEEE, MMMM d, yyyy')
+                }
+              </span>
               <span className="text-foreground/70 font-mono font-semibold">Vol. 1, No. 1</span>
             </div>
           </div>

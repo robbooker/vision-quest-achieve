@@ -139,25 +139,33 @@ export function useResetAudits() {
     return Math.max(...audits.map(audit => getScore(audit)));
   };
 
-  // Toggle a rule for today
+  // Get audit for a specific date
+  const getAuditForDate = (date: string): ResetAudit | undefined => {
+    return audits.find(a => a.audit_date === date);
+  };
+
+  // Toggle a rule for a specific date
   const toggleRule = useMutation({
-    mutationFn: async ({ ruleKey, value }: { ruleKey: RuleKey; value: boolean }) => {
+    mutationFn: async ({ ruleKey, value, auditDate }: { ruleKey: RuleKey; value: boolean; auditDate?: string }) => {
       if (!user?.id) throw new Error('Not authenticated');
 
-      if (todayAudit) {
+      const targetDate = auditDate || today;
+      const targetAudit = audits.find(a => a.audit_date === targetDate);
+
+      if (targetAudit) {
         // Update existing audit
         const { error } = await supabase
           .from('reset_audits')
           .update({ [ruleKey]: value })
-          .eq('id', todayAudit.id);
+          .eq('id', targetAudit.id);
         if (error) throw error;
       } else {
-        // Create new audit for today
+        // Create new audit for the target date
         const { error } = await supabase
           .from('reset_audits')
           .insert({
             user_id: user.id,
-            audit_date: today,
+            audit_date: targetDate,
             [ruleKey]: value,
           });
         if (error) throw error;
@@ -168,16 +176,19 @@ export function useResetAudits() {
     },
   });
 
-  // Update post-op note
+  // Update post-op note for a specific date
   const updateNote = useMutation({
-    mutationFn: async (note: string) => {
+    mutationFn: async ({ note, auditDate }: { note: string; auditDate?: string }) => {
       if (!user?.id) throw new Error('Not authenticated');
 
-      if (todayAudit) {
+      const targetDate = auditDate || today;
+      const targetAudit = audits.find(a => a.audit_date === targetDate);
+
+      if (targetAudit) {
         const { data, error } = await supabase
           .from('reset_audits')
           .update({ post_op_note: note })
-          .eq('id', todayAudit.id)
+          .eq('id', targetAudit.id)
           .select()
           .single();
         if (error) throw error;
@@ -187,7 +198,7 @@ export function useResetAudits() {
           .from('reset_audits')
           .insert({
             user_id: user.id,
-            audit_date: today,
+            audit_date: targetDate,
             post_op_note: note,
           })
           .select()
@@ -209,6 +220,7 @@ export function useResetAudits() {
   return {
     audits,
     todayAudit,
+    getAuditForDate,
     isLoading,
     error,
     getScore,

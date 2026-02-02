@@ -135,7 +135,7 @@ export function CompactResetCard() {
                 <div className="mt-4 overflow-y-auto">
                   <DailyAuditChecklist
                     todayAudit={todayAudit}
-                    onToggle={(ruleKey, value) => toggleRule.mutate({ ruleKey, value })}
+                    onToggle={(ruleKey, value) => toggleRule.mutate({ ruleKey, value, auditDate: format(new Date(), 'yyyy-MM-dd') })}
                     isLoading={toggleRule.isPending}
                   />
                   <div className="mt-4 text-center">

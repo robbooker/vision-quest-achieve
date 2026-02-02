@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
+import { format, subDays } from 'date-fns';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -23,13 +24,14 @@ import { AuditStrip } from '@/components/reset/AuditStrip';
 import { DailyAuditChecklist } from '@/components/reset/DailyAuditChecklist';
 import { PhaseIndicator } from '@/components/reset/PhaseIndicator';
 import { cn } from '@/lib/utils';
-import { RotateCcw, BookOpen, X } from 'lucide-react';
+import { RotateCcw, BookOpen, X, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function Reset() {
   const { isTerminal } = useTerminalMode();
   const { 
     audits, 
     todayAudit, 
+    getAuditForDate,
     getScore, 
     getCurrentPhase, 
     toggleRule, 
@@ -37,18 +39,25 @@ export default function Reset() {
   } = useResetAudits();
   const { isResetActive, startReset, endReset, isLoading: prefLoading } = useResetPreference();
 
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const [selectedDate, setSelectedDate] = useState(today);
   const [note, setNote] = useState('');
   const [noteSaved, setNoteSaved] = useState(false);
 
-  // Initialize note from today's audit
+  // Get the audit for selected date
+  const selectedAudit = getAuditForDate(selectedDate);
+
+  // Initialize note from selected day's audit
   useEffect(() => {
-    if (todayAudit?.post_op_note) {
-      setNote(todayAudit.post_op_note);
+    if (selectedAudit?.post_op_note) {
+      setNote(selectedAudit.post_op_note);
+    } else {
+      setNote('');
     }
-  }, [todayAudit]);
+  }, [selectedAudit, selectedDate]);
 
   const handleSaveNote = () => {
-    updateNote.mutate(note, {
+    updateNote.mutate({ note, auditDate: selectedDate }, {
       onSuccess: () => {
         setNoteSaved(true);
         setTimeout(() => setNoteSaved(false), 2000);
@@ -57,7 +66,8 @@ export default function Reset() {
   };
 
   const phase = getCurrentPhase();
-  const todayScore = getScore(todayAudit);
+  const selectedScore = getScore(selectedAudit);
+  const isToday = selectedDate === today;
 
   // Opt-in screen when reset is not active
   if (!prefLoading && !isResetActive) {
@@ -213,17 +223,49 @@ export default function Reset() {
         {/* Daily Audit Checklist */}
         <Card className={cn(isTerminal && "border-[hsl(0,0%,20%)] rounded-none")}>
           <CardHeader className="pb-3">
-            <CardTitle className={cn(
-              "text-sm font-medium text-muted-foreground uppercase tracking-wider",
-              isTerminal && "font-mono"
-            )}>
-              {isTerminal ? 'DAILY AUDIT' : 'Today\'s Checklist'}
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSelectedDate(format(subDays(new Date(selectedDate), 1), 'yyyy-MM-dd'))}
+                disabled={selectedDate <= format(subDays(new Date(), 6), 'yyyy-MM-dd')}
+                className="h-8 w-8"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="text-center">
+                <CardTitle className={cn(
+                  "text-sm font-medium text-muted-foreground uppercase tracking-wider",
+                  isTerminal && "font-mono"
+                )}>
+                  {isToday 
+                    ? (isTerminal ? 'DAILY AUDIT' : "Today's Checklist")
+                    : format(new Date(selectedDate), 'EEE, MMM d')}
+                </CardTitle>
+                {!isToday && (
+                  <button 
+                    onClick={() => setSelectedDate(today)}
+                    className="text-xs text-primary hover:underline mt-1"
+                  >
+                    Back to Today
+                  </button>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSelectedDate(format(new Date(new Date(selectedDate).getTime() + 86400000), 'yyyy-MM-dd'))}
+                disabled={selectedDate >= today}
+                className="h-8 w-8"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             <DailyAuditChecklist
-              todayAudit={todayAudit}
-              onToggle={(ruleKey, value) => toggleRule.mutate({ ruleKey, value })}
+              todayAudit={selectedAudit}
+              onToggle={(ruleKey, value) => toggleRule.mutate({ ruleKey, value, auditDate: selectedDate })}
               isLoading={toggleRule.isPending}
             />
           </CardContent>
@@ -241,7 +283,7 @@ export default function Reset() {
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              What actually mattered today?
+              {isToday ? 'What actually mattered today?' : `What mattered on ${format(new Date(selectedDate), 'MMM d')}?`}
             </p>
             <div className="flex gap-2">
               <Input
@@ -271,7 +313,7 @@ export default function Reset() {
         </Card>
 
         {/* Score Summary */}
-        {todayScore === 8 && (
+        {selectedScore === 8 && (
           <div className="text-center py-4">
             <span className={cn(
               "text-lg font-bold text-[hsl(160,88%,63%)]",

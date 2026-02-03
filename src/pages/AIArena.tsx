@@ -20,6 +20,7 @@ export default function AIArena() {
     typingAI,
     streamingContent,
     topic,
+    currentConversationId,
     conversations,
     conversationsLoading,
     startDebate,
@@ -28,6 +29,7 @@ export default function AIArena() {
     resumeDebate,
     sendHostMessage,
     loadConversation,
+    continueConversation,
   } = useAIArena();
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -150,11 +152,14 @@ export default function AIArena() {
             <ArenaControls
               isRunning={isRunning}
               isPaused={isPaused}
+              hasLoadedConversation={!isRunning && !!currentConversationId && messages.length > 0}
+              loadedTopic={topic}
               onStart={startDebate}
               onStop={stopDebate}
               onPause={pauseDebate}
               onResume={resumeDebate}
               onSendMessage={sendHostMessage}
+              onContinue={continueConversation}
             />
           </div>
         </div>

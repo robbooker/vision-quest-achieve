@@ -357,6 +357,7 @@ export function useAIArena() {
   ) => {
     let turn = startTurn;
     let allMessages = [...startMessages];
+    let conversationId: string | null = null; // Local variable to track across iterations
 
     while (runningRef.current) {
       if (pausedRef.current) {
@@ -384,16 +385,17 @@ export function useAIArena() {
         setStreamingContent('');
         setTypingAI(null);
 
-        // Save to database
+        // Save to database - use local variable, not state
         const savedConv = await saveConversation.mutateAsync({
-          id: currentConversationId || undefined,
+          id: conversationId || undefined,
           topic: debateTopic,
           transcript: allMessages,
           status: 'active',
         });
         
-        if (!currentConversationId) {
-          setCurrentConversationId(savedConv.id);
+        if (!conversationId) {
+          conversationId = savedConv.id; // Update local variable
+          setCurrentConversationId(savedConv.id); // Also update state for UI
         }
 
         // Switch turns
@@ -412,7 +414,7 @@ export function useAIArena() {
 
     setTypingAI(null);
     setIsRunning(false);
-  }, [streamFromAI, saveConversation, currentConversationId, toast]);
+  }, [streamFromAI, saveConversation, toast]);
 
   const stopDebate = useCallback(async () => {
     runningRef.current = false;

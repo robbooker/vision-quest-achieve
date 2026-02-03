@@ -49,6 +49,7 @@ import { useToast } from '@/hooks/use-toast';
 import { UniversalVoiceRecorder } from '@/components/dashboard/UniversalVoiceRecorder';
 import { HealthMetricsWidget } from '@/components/dashboard/HealthMetricsWidget';
 import { MonthlyIntentionWidget } from '@/components/dashboard/MonthlyIntentionWidget';
+import { WeatherWidget } from '@/components/dashboard/WeatherWidget';
 
 export default function Today() {
   const navigate = useNavigate();
@@ -273,6 +274,7 @@ export default function Today() {
             {format(new Date(), 'EEEE, MMMM d, yyyy')} • Week {currentWeek}
           </p>
           <div className="flex items-center gap-1">
+            <WeatherWidget />
             <HealthMetricsWidget />
             <Button 
               variant="ghost" 

@@ -252,7 +252,7 @@ export function useAIArena() {
     },
   });
 
-  const streamFromAI = useCallback(async (turn: 'claude' | 'gemini', allMessages: ArenaMessage[]) => {
+  const streamFromAI = useCallback(async (turn: 'claude' | 'gemini', allMessages: ArenaMessage[], debateTopic: string, context: string) => {
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
@@ -265,9 +265,9 @@ export function useAIArena() {
       body: JSON.stringify({
         messages: allMessages.map(m => ({ role: m.role, content: m.content })),
         turn,
-        topic,
+        topic: debateTopic,
         userId: user?.id,
-        fullContext,
+        fullContext: context,
       }),
       signal: controller.signal,
     });
@@ -324,7 +324,7 @@ export function useAIArena() {
     }
 
     return content;
-  }, [topic, user?.id, fullContext]);
+  }, [user?.id]);
 
   const startDebate = useCallback(async (debateTopic: string) => {
     if (!user) {
@@ -368,7 +368,7 @@ export function useAIArena() {
       setStreamingContent('');
 
       try {
-        const content = await streamFromAI(turn, allMessages);
+        const content = await streamFromAI(turn, allMessages, debateTopic, context);
         
         if (!content || !runningRef.current) break;
 

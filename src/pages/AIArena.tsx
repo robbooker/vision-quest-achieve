@@ -20,7 +20,7 @@ export default function AIArena() {
     typingAI,
     streamingContent,
     topic,
-    currentConversationId,
+    hasLoadedPastConversation,
     conversations,
     conversationsLoading,
     startDebate,
@@ -152,7 +152,7 @@ export default function AIArena() {
             <ArenaControls
               isRunning={isRunning}
               isPaused={isPaused}
-              hasLoadedConversation={!isRunning && !!currentConversationId && messages.length > 0}
+              hasLoadedConversation={hasLoadedPastConversation && !isRunning}
               loadedTopic={topic}
               onStart={startDebate}
               onStop={stopDebate}

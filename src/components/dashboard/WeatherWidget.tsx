@@ -45,11 +45,17 @@ export function WeatherWidget() {
           }
         }
 
-        // Get user's location
+        // Check if geolocation is available
+        if (!navigator.geolocation) {
+          throw new Error('Geolocation not supported');
+        }
+
+        // Get user's location with better error handling
         const position = await new Promise<GeolocationPosition>((resolve, reject) => {
           navigator.geolocation.getCurrentPosition(resolve, reject, {
-            timeout: 10000,
+            timeout: 15000,
             enableHighAccuracy: false,
+            maximumAge: 300000, // Accept cached position up to 5 min old
           });
         });
 
@@ -64,12 +70,21 @@ export function WeatherWidget() {
 
         const data = await response.json();
         
-        // Get city name from reverse geocoding
-        const geoResponse = await fetch(
-          `https://geocoding-api.open-meteo.com/v1/reverse?latitude=${latitude}&longitude=${longitude}&count=1`
-        );
-        const geoData = await geoResponse.json();
-        const cityName = geoData.results?.[0]?.name || 'Your Location';
+        if (!data.current) {
+          throw new Error('Invalid weather data');
+        }
+        
+        // Get city name from reverse geocoding (don't fail if this doesn't work)
+        let cityName = 'Your Location';
+        try {
+          const geoResponse = await fetch(
+            `https://geocoding-api.open-meteo.com/v1/reverse?latitude=${latitude}&longitude=${longitude}&count=1`
+          );
+          const geoData = await geoResponse.json();
+          cityName = geoData.results?.[0]?.name || 'Your Location';
+        } catch {
+          // Ignore geocoding errors, use default city name
+        }
 
         // Map weather code to description and icon
         const weatherCode = data.current.weather_code;
@@ -92,9 +107,21 @@ export function WeatherWidget() {
         }));
 
         setWeather(weatherData);
+        setError(null);
       } catch (err) {
         console.error('Weather fetch error:', err);
-        setError('Unable to get weather');
+        // Check for specific geolocation errors
+        if (err instanceof GeolocationPositionError) {
+          if (err.code === 1) {
+            setError('Location access denied');
+          } else if (err.code === 2) {
+            setError('Location unavailable');
+          } else {
+            setError('Location timeout');
+          }
+        } else {
+          setError('Weather unavailable');
+        }
       } finally {
         setLoading(false);
       }
@@ -112,8 +139,17 @@ export function WeatherWidget() {
     );
   }
 
-  if (error || !weather) {
-    return null; // Don't show anything if we can't get weather
+  if (error) {
+    return (
+      <Button variant="ghost" size="sm" className="gap-1.5 px-2 text-muted-foreground" disabled>
+        <Cloud className="h-4 w-4" />
+        <span className="text-xs">{error}</span>
+      </Button>
+    );
+  }
+
+  if (!weather) {
+    return null;
   }
 
   return (

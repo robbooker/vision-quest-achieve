@@ -11,10 +11,10 @@ import { format } from 'date-fns';
 export function HealthMetricsWidget() {
   const { 
     todayWeight, 
-    latestWeight, 
+    todayBP,
+    todaySystolic,
+    todayDiastolic,
     weightChange, 
-    avgSystolic, 
-    avgDiastolic,
     logWeight, 
     logBloodPressure,
     isLoading 
@@ -60,7 +60,7 @@ export function HealthMetricsWidget() {
     return { label: 'High Stage 2', color: 'text-destructive' };
   };
 
-  const bpStatus = getBPStatus(avgSystolic, avgDiastolic);
+  const bpStatus = getBPStatus(todaySystolic, todayDiastolic);
 
   return (
     <div className="flex items-center gap-2">
@@ -76,9 +76,9 @@ export function HealthMetricsWidget() {
             )}
           >
             <Scale className="h-3.5 w-3.5" />
-            {latestWeight ? (
+            {todayWeight ? (
               <span className="flex items-center gap-1">
-                {latestWeight}
+                {todayWeight.primary_value}
                 {weightChange !== null && (
                   weightChange > 0 ? (
                     <TrendingUp className="h-3 w-3 text-destructive" />
@@ -88,7 +88,7 @@ export function HealthMetricsWidget() {
                     <Minus className="h-3 w-3" />
                   )
                 )}
-                {todayWeight && <Check className="h-3 w-3 text-primary" />}
+                <Check className="h-3 w-3 text-primary" />
               </span>
             ) : (
               <span>Weight</span>
@@ -129,12 +129,16 @@ export function HealthMetricsWidget() {
           <Button 
             variant="ghost" 
             size="sm" 
-            className="h-8 gap-1.5 text-xs text-muted-foreground"
+            className={cn(
+              "h-8 gap-1.5 text-xs",
+              todayBP ? "text-primary" : "text-muted-foreground"
+            )}
           >
             <Heart className="h-3.5 w-3.5" />
-            {avgSystolic && avgDiastolic ? (
+            {todaySystolic && todayDiastolic ? (
               <span className={cn("flex items-center gap-1", bpStatus?.color)}>
-                {avgSystolic}/{avgDiastolic}
+                {todaySystolic}/{todayDiastolic}
+                <Check className="h-3 w-3 text-primary" />
               </span>
             ) : (
               <span>BP</span>

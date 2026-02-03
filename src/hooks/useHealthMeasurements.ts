@@ -54,30 +54,44 @@ export function useHealthMeasurements(daysBack: number = 30) {
     enabled: !!user?.id,
   });
 
-  // Get today's weight
+  // Get today's date string
   const todayStr = format(new Date(), 'yyyy-MM-dd');
+  
+  // Get today's weight (only show today's measurement)
   const todayWeight = measurements?.find(
     m => m.measurement_type === 'weight' && 
     format(new Date(m.measured_at), 'yyyy-MM-dd') === todayStr
   );
 
-  // Get weight trend (last 14 days)
+  // Get today's blood pressure (only show today's measurement)
+  const todayBP = measurements?.find(
+    m => m.measurement_type === 'blood_pressure' && 
+    format(new Date(m.measured_at), 'yyyy-MM-dd') === todayStr
+  );
+
+  // Get weight trend (last 14 days) for trend indicator
   const weightHistory = measurements
     ?.filter(m => m.measurement_type === 'weight')
     .slice(0, 14)
     .reverse() || [];
 
-  // Get blood pressure readings
+  // Get blood pressure readings for history/trends
   const bpHistory = measurements
     ?.filter(m => m.measurement_type === 'blood_pressure')
     .slice(0, 20) || [];
 
-  // Calculate weight stats
-  const latestWeight = weightHistory[weightHistory.length - 1]?.primary_value;
-  const previousWeight = weightHistory.length > 1 ? weightHistory[weightHistory.length - 2]?.primary_value : null;
+  // Calculate weight stats - compare today's weight to previous measurement
+  const latestWeight = todayWeight?.primary_value || null;
+  const previousWeight = weightHistory.length > 0 
+    ? weightHistory.find(w => format(new Date(w.measured_at), 'yyyy-MM-dd') !== todayStr)?.primary_value 
+    : null;
   const weightChange = latestWeight && previousWeight ? latestWeight - previousWeight : null;
 
-  // Calculate BP averages
+  // Today's BP values (not averages)
+  const todaySystolic = todayBP?.primary_value || null;
+  const todayDiastolic = todayBP?.secondary_value || null;
+
+  // Calculate BP averages for historical comparison (last 7 readings)
   const recentBP = bpHistory.slice(0, 7);
   const avgSystolic = recentBP.length > 0 
     ? Math.round(recentBP.reduce((sum, bp) => sum + bp.primary_value, 0) / recentBP.length)
@@ -163,6 +177,9 @@ export function useHealthMeasurements(daysBack: number = 30) {
     measurements,
     isLoading,
     todayWeight,
+    todayBP,
+    todaySystolic,
+    todayDiastolic,
     weightHistory,
     bpHistory,
     latestWeight,

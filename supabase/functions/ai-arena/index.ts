@@ -30,6 +30,8 @@ async function fetchUserContext(supabase: any, userId: string): Promise<string> 
     hardQuestionsResult,
     resetAuditsResult,
     nutritionResult,
+    calendarPillarsResult,
+    healthMeasurementsResult,
   ] = await Promise.all([
     supabase.from('goals').select('*, milestones(*)').eq('user_id', userId),
     supabase.from('cycles').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(5),
@@ -38,7 +40,7 @@ async function fetchUserContext(supabase: any, userId: string): Promise<string> 
     supabase.from('journal_entries').select('*').eq('user_id', userId).gte('entry_date', thirtyDaysAgo.toISOString().split('T')[0]).order('entry_date', { ascending: false }).limit(30),
     supabase.from('user_vision').select('*').eq('user_id', userId).maybeSingle(),
     supabase.from('trading_pnl').select('*').eq('user_id', userId).gte('trade_date', thirtyDaysAgo.toISOString().split('T')[0]).order('trade_date', { ascending: false }).limit(30),
-    supabase.from('tactic_logs').select('*, goal_tactics(title)').eq('user_id', userId).gte('logged_date', thirtyDaysAgo.toISOString().split('T')[0]).order('logged_date', { ascending: false }).limit(100),
+    supabase.from('tactic_logs').select('*, goal_tactics(title, goal_id), goals:goal_tactics(goals(pillar))').eq('user_id', userId).gte('logged_date', thirtyDaysAgo.toISOString().split('T')[0]).order('logged_date', { ascending: false }).limit(100),
     supabase.from('oura_daily_metrics').select('*').eq('user_id', userId).gte('metric_date', thirtyDaysAgo.toISOString().split('T')[0]).order('metric_date', { ascending: false }).limit(30),
     supabase.from('primed_assessments').select('*, primed_assessment_behaviors(*)').eq('user_id', userId).order('assessed_at', { ascending: false }).limit(1),
     supabase.from('profiles').select('display_name, email').eq('user_id', userId).maybeSingle(),
@@ -46,6 +48,8 @@ async function fetchUserContext(supabase: any, userId: string): Promise<string> 
     supabase.from('hard_question_answers').select('*').eq('user_id', userId),
     supabase.from('reset_audits').select('*').eq('user_id', userId).gte('audit_date', thirtyDaysAgo.toISOString().split('T')[0]).order('audit_date', { ascending: false }).limit(14),
     supabase.from('daily_nutrition').select('*').eq('user_id', userId).gte('entry_date', thirtyDaysAgo.toISOString().split('T')[0]).order('entry_date', { ascending: false }).limit(30),
+    supabase.from('calendar_event_pillars').select('*').eq('user_id', userId).gte('created_at', thirtyDaysAgoStr).limit(100),
+    supabase.from('health_measurements').select('*').eq('user_id', userId).gte('measured_at', thirtyDaysAgoStr).order('measured_at', { ascending: false }).limit(50),
   ]);
 
   // Log what we got
@@ -65,6 +69,8 @@ async function fetchUserContext(supabase: any, userId: string): Promise<string> 
     hardQuestions: hardQuestionsResult.data?.length || 0,
     resetAudits: resetAuditsResult.data?.length || 0,
     nutrition: nutritionResult.data?.length || 0,
+    calendarPillars: calendarPillarsResult.data?.length || 0,
+    healthMeasurements: healthMeasurementsResult.data?.length || 0,
   });
 
   let context = '';
@@ -133,15 +139,51 @@ async function fetchUserContext(supabase: any, userId: string): Promise<string> 
     });
   }
 
-  // Tasks
+  // Tasks - Include full details for pillar inference
   if (tasksResult.data && tasksResult.data.length > 0) {
     const completed = tasksResult.data.filter((t: any) => t.completed);
     const pending = tasksResult.data.filter((t: any) => !t.completed);
     context += `\n✅ TASKS (30 days): ${completed.length} completed, ${pending.length} pending\n`;
-    context += `Recent completed: ${completed.slice(0, 10).map((t: any) => t.title).join(', ') || 'None'}\n`;
+    
+    // Group by inferred pillar based on task content
+    context += `Recent completed tasks:\n`;
+    completed.slice(0, 20).forEach((t: any) => {
+      const dateStr = t.completed_at ? new Date(t.completed_at).toLocaleDateString() : '';
+      context += `- ${dateStr}: "${t.title}"${t.notes ? ` (${t.notes.substring(0, 50)})` : ''}\n`;
+    });
+    
     if (pending.length > 0) {
-      context += `Pending: ${pending.slice(0, 10).map((t: any) => t.title).join(', ')}\n`;
+      context += `Pending tasks:\n`;
+      pending.slice(0, 10).forEach((t: any) => {
+        context += `- "${t.title}"${t.priority ? ` [${t.priority}]` : ''}\n`;
+      });
     }
+  }
+
+  // Calendar Event Pillars - Shows what activities mapped to which pillars
+  if (calendarPillarsResult.data && calendarPillarsResult.data.length > 0) {
+    context += `\n📅 CALENDAR ACTIVITIES BY PILLAR (30 days):\n`;
+    const byPillar: Record<string, number> = {};
+    calendarPillarsResult.data.forEach((cp: any) => {
+      byPillar[cp.pillar] = (byPillar[cp.pillar] || 0) + 1;
+    });
+    Object.entries(byPillar).forEach(([pillar, count]) => {
+      context += `- ${pillar}: ${count} activities\n`;
+    });
+  }
+
+  // Health Measurements (Physical pillar evidence)
+  if (healthMeasurementsResult.data && healthMeasurementsResult.data.length > 0) {
+    context += `\n💪 HEALTH MEASUREMENTS (Physical Pillar):\n`;
+    const byType: Record<string, any[]> = {};
+    healthMeasurementsResult.data.forEach((h: any) => {
+      if (!byType[h.measurement_type]) byType[h.measurement_type] = [];
+      byType[h.measurement_type].push(h);
+    });
+    Object.entries(byType).forEach(([type, measurements]) => {
+      const latest = measurements[0];
+      context += `- ${type}: Latest ${latest.primary_value}${latest.secondary_value ? `/${latest.secondary_value}` : ''} ${latest.unit} (${measurements.length} readings)\n`;
+    });
   }
 
   // Focus sessions

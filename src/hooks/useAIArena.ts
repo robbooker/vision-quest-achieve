@@ -402,8 +402,8 @@ export function useAIArena() {
         turn = turn === 'claude' ? 'gemini' : 'claude';
         setCurrentTurn(turn);
 
-        // 3-second pause between turns
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        // 5-second pause between turns for easier interjection
+        await new Promise(resolve => setTimeout(resolve, 5000));
       } catch (error) {
         if ((error as Error).name === 'AbortError') break;
         console.error('Stream error:', error);
@@ -477,6 +477,42 @@ export function useAIArena() {
     setIsPaused(false);
   }, []);
 
+  // Continue a loaded/stopped conversation with a host message
+  const continueConversation = useCallback(async (hostMessage: string) => {
+    if (!user || !currentConversationId || !topic) {
+      toast({ title: 'Error', description: 'No conversation to continue', variant: 'destructive' });
+      return;
+    }
+
+    // Add host message
+    const newHostMessage: ArenaMessage = {
+      id: crypto.randomUUID(),
+      role: 'host',
+      content: hostMessage.trim(),
+      timestamp: new Date(),
+    };
+
+    const updatedMessages = [...messages, newHostMessage];
+    setMessages(updatedMessages);
+    
+    // Fetch fresh context and resume
+    const context = await fetchFullContext(user.id);
+    setFullContext(context);
+    
+    setIsRunning(true);
+    setIsPaused(false);
+    pausedRef.current = false;
+    runningRef.current = true;
+    
+    // Determine next turn based on last AI message
+    const lastAIMessage = [...updatedMessages].reverse().find(m => m.role === 'claude' || m.role === 'gemini');
+    const nextTurn: 'claude' | 'gemini' = lastAIMessage?.role === 'claude' ? 'gemini' : 'claude';
+    setCurrentTurn(nextTurn);
+    
+    // Resume the loop
+    runConversationLoop(nextTurn, updatedMessages, topic, context);
+  }, [user, currentConversationId, topic, messages, toast, runConversationLoop]);
+
   return {
     messages,
     isRunning,
@@ -485,6 +521,7 @@ export function useAIArena() {
     typingAI,
     streamingContent,
     topic,
+    currentConversationId,
     conversations,
     conversationsLoading,
     startDebate,
@@ -493,5 +530,6 @@ export function useAIArena() {
     resumeDebate,
     sendHostMessage,
     loadConversation,
+    continueConversation,
   };
 }

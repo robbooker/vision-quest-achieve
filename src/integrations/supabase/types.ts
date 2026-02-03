@@ -80,6 +80,42 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_arena_conversations: {
+        Row: {
+          created_at: string | null
+          id: string
+          rating: number | null
+          status: string | null
+          topic: string
+          transcript: Json
+          turn_count: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          rating?: number | null
+          status?: string | null
+          topic: string
+          transcript?: Json
+          turn_count?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          rating?: number | null
+          status?: string | null
+          topic?: string
+          transcript?: Json
+          turn_count?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       big_ten_projects: {
         Row: {
           category: string | null

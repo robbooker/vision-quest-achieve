@@ -175,6 +175,7 @@ export function useAIArena() {
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [topic, setTopic] = useState('');
   const [fullContext, setFullContext] = useState('');
+  const [hasLoadedPastConversation, setHasLoadedPastConversation] = useState(false);
   
   const abortControllerRef = useRef<AbortController | null>(null);
   const pausedRef = useRef(false);
@@ -340,6 +341,7 @@ export function useAIArena() {
     runningRef.current = true;
     setCurrentTurn('claude');
     setCurrentConversationId(null);
+    setHasLoadedPastConversation(false);
 
     // Fetch full context
     const context = await fetchFullContext(user.id);
@@ -475,6 +477,7 @@ export function useAIArena() {
     })));
     setIsRunning(false);
     setIsPaused(false);
+    setHasLoadedPastConversation(true);
   }, []);
 
   // Continue a loaded/stopped conversation with a host message
@@ -522,6 +525,7 @@ export function useAIArena() {
     streamingContent,
     topic,
     currentConversationId,
+    hasLoadedPastConversation,
     conversations,
     conversationsLoading,
     startDebate,

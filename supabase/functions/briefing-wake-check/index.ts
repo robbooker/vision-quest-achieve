@@ -120,13 +120,16 @@ serve(async (req) => {
       });
     }
 
+    // Always include podcast_url if available (for iOS Shortcuts that want to play regardless of time)
     return new Response(JSON.stringify({
       should_wake: false,
       status: briefing.status,
       next_wake_time: wakeTimeStr,
       topics: briefing.topics || [],
       current_time: currentTimeStr,
-      minutes_until_wake: wakeMinutes - currentMinutes
+      minutes_until_wake: wakeMinutes - currentMinutes,
+      podcast_url: briefing.podcast_url || null,
+      briefing_id: briefing.id
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });

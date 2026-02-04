@@ -18,6 +18,255 @@ function formatSimpleTime(dateTimeStr: string, timezone: string): string {
   return timeStr.replace(':00', '').toLowerCase();
 }
 
+// Sports detection patterns
+const sportsPatterns: Record<string, { pattern: RegExp; league: string; sport: string }> = {
+  nba: { 
+    pattern: /\b(nba|heat|lakers|celtics|knicks|warriors|nets|bucks|76ers|sixers|suns|mavs|mavericks|spurs|thunder|nuggets|clippers|kings|timberwolves|pelicans|grizzlies|rockets|raptors|pacers|bulls|cavaliers|cavs|hawks|hornets|magic|pistons|wizards|jazz|blazers|trail blazers)\b/i,
+    league: 'nba',
+    sport: 'basketball'
+  },
+  mlb: {
+    pattern: /\b(mlb|yankees|mets|dodgers|red sox|cubs|astros|braves|phillies|padres|angels|mariners|rangers|twins|guardians|tigers|royals|white sox|brewers|cardinals|reds|pirates|nationals|marlins|rays|blue jays|orioles|athletics|rockies|diamondbacks|giants)\b/i,
+    league: 'mlb',
+    sport: 'baseball'
+  },
+  nfl: {
+    pattern: /\b(nfl|giants|jets|cowboys|eagles|patriots|chiefs|bills|dolphins|ravens|49ers|niners|seahawks|rams|chargers|broncos|raiders|steelers|bengals|browns|texans|colts|titans|jaguars|commanders|panthers|falcons|saints|buccaneers|bucs|lions|bears|packers|vikings|cardinals)\b/i,
+    league: 'nfl',
+    sport: 'football'
+  },
+  nhl: {
+    pattern: /\b(nhl|rangers|devils|islanders|bruins|penguins|blackhawks|maple leafs|canadiens|flyers|capitals|lightning|panthers|hurricanes|blue jackets|red wings|sabres|senators|oilers|flames|canucks|kraken|sharks|ducks|kings|golden knights|avalanche|stars|blues|wild|jets|predators|coyotes)\b/i,
+    league: 'nhl',
+    sport: 'hockey'
+  }
+};
+
+// ESPN team name mappings for matching
+const teamNameMappings: Record<string, string[]> = {
+  // NBA
+  'heat': ['heat', 'miami heat'],
+  'lakers': ['lakers', 'los angeles lakers'],
+  'celtics': ['celtics', 'boston celtics'],
+  'knicks': ['knicks', 'new york knicks'],
+  'warriors': ['warriors', 'golden state warriors'],
+  'nets': ['nets', 'brooklyn nets'],
+  'bucks': ['bucks', 'milwaukee bucks'],
+  '76ers': ['76ers', 'sixers', 'philadelphia 76ers'],
+  'suns': ['suns', 'phoenix suns'],
+  'mavs': ['mavs', 'mavericks', 'dallas mavericks'],
+  // MLB
+  'yankees': ['yankees', 'new york yankees'],
+  'mets': ['mets', 'new york mets'],
+  'dodgers': ['dodgers', 'los angeles dodgers'],
+  'red sox': ['red sox', 'boston red sox'],
+  // Add more as needed
+};
+
+// Detect sports from topic instructions
+function detectSportsInterests(topicInstructions: string): Set<string> {
+  const detected = new Set<string>();
+  for (const [key, config] of Object.entries(sportsPatterns)) {
+    if (config.pattern.test(topicInstructions)) {
+      detected.add(key);
+    }
+  }
+  return detected;
+}
+
+// Extract team names user cares about
+function extractTeamNames(topicInstructions: string): string[] {
+  const teams: string[] = [];
+  const lowerInstructions = topicInstructions.toLowerCase();
+  
+  for (const [key, aliases] of Object.entries(teamNameMappings)) {
+    for (const alias of aliases) {
+      if (lowerInstructions.includes(alias)) {
+        teams.push(key);
+        break;
+      }
+    }
+  }
+  return teams;
+}
+
+interface ESPNGame {
+  name: string;
+  shortName: string;
+  date: string;
+  status: {
+    type: {
+      name: string;
+      completed: boolean;
+    };
+  };
+  competitions: Array<{
+    competitors: Array<{
+      team: {
+        displayName: string;
+        shortDisplayName: string;
+        abbreviation: string;
+      };
+      score: string;
+      winner?: boolean;
+      homeAway: string;
+    }>;
+    notes?: Array<{ headline?: string }>;
+  }>;
+}
+
+// Fetch sports scores from ESPN
+async function fetchESPNScores(leagues: Set<string>, topicInstructions: string, dateStr: string): Promise<string> {
+  const results: string[] = [];
+  const teamsUserCaresAbout = extractTeamNames(topicInstructions);
+  const lowerInstructions = topicInstructions.toLowerCase();
+  
+  for (const leagueKey of leagues) {
+    const config = sportsPatterns[leagueKey];
+    if (!config) continue;
+    
+    try {
+      const url = `https://site.api.espn.com/apis/site/v2/sports/${config.sport}/${config.league}/scoreboard?dates=${dateStr}`;
+      console.log(`Fetching ESPN: ${url}`);
+      
+      const response = await fetch(url);
+      if (!response.ok) {
+        console.error(`ESPN API error for ${leagueKey}: ${response.status}`);
+        continue;
+      }
+      
+      const data = await response.json();
+      const events = data.events || [];
+      
+      if (events.length === 0) {
+        results.push(`${config.league.toUpperCase()}: No games yesterday.`);
+        continue;
+      }
+      
+      // Filter to games involving teams the user cares about
+      const relevantGames = events.filter((game: ESPNGame) => {
+        const competitors = game.competitions?.[0]?.competitors || [];
+        return competitors.some((comp: { team: { displayName: string; shortDisplayName: string; abbreviation: string } }) => {
+          const teamName = comp.team.displayName.toLowerCase();
+          const shortName = comp.team.shortDisplayName.toLowerCase();
+          const abbrev = comp.team.abbreviation.toLowerCase();
+          
+          // Check if user mentioned this team
+          return teamsUserCaresAbout.some(t => 
+            teamName.includes(t) || shortName.includes(t) || t.includes(abbrev)
+          ) || lowerInstructions.includes(teamName) || lowerInstructions.includes(shortName);
+        });
+      });
+      
+      if (relevantGames.length === 0) {
+        // If no relevant games but user mentioned the league, show top games
+        if (lowerInstructions.includes(config.league)) {
+          const topGames = events.slice(0, 2);
+          for (const game of topGames) {
+            const formatted = formatGameResult(game);
+            if (formatted) results.push(formatted);
+          }
+        }
+        continue;
+      }
+      
+      for (const game of relevantGames) {
+        const formatted = formatGameResult(game);
+        if (formatted) results.push(formatted);
+      }
+    } catch (e) {
+      console.error(`Error fetching ${leagueKey} scores:`, e);
+    }
+  }
+  
+  return results.length > 0 ? results.join('\n') : 'No relevant sports scores found for yesterday.';
+}
+
+function formatGameResult(game: ESPNGame): string | null {
+  const competition = game.competitions?.[0];
+  if (!competition) return null;
+  
+  const competitors = competition.competitors;
+  if (!competitors || competitors.length < 2) return null;
+  
+  const home = competitors.find(c => c.homeAway === 'home');
+  const away = competitors.find(c => c.homeAway === 'away');
+  
+  if (!home || !away) return null;
+  
+  const status = game.status?.type?.name || 'Unknown';
+  const isComplete = game.status?.type?.completed;
+  
+  if (!isComplete) {
+    return `${away.team.shortDisplayName} @ ${home.team.shortDisplayName}: ${status}`;
+  }
+  
+  const winner = competitors.find(c => c.winner);
+  const loser = competitors.find(c => !c.winner);
+  
+  // Check for special notes (like anniversary celebrations)
+  const notes = competition.notes?.map(n => n.headline).filter(Boolean).join('. ') || '';
+  const notesSuffix = notes ? ` (${notes})` : '';
+  
+  if (winner && loser) {
+    return `${winner.team.shortDisplayName} ${winner.score}, ${loser.team.shortDisplayName} ${loser.score} (Final)${notesSuffix}`;
+  }
+  
+  return `${away.team.shortDisplayName} ${away.score}, ${home.team.shortDisplayName} ${home.score} (Final)${notesSuffix}`;
+}
+
+// Fetch news from Tavily (for non-sports topics)
+async function fetchTavilyNews(query: string, apiKey: string): Promise<{ answer: string; sources: Array<{ title: string; url: string }> }> {
+  try {
+    const response = await fetch('https://api.tavily.com/search', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        api_key: apiKey,
+        query: query,
+        topic: 'news',
+        time_range: 'day',
+        max_results: 5,
+        include_answer: true,
+        search_depth: 'basic',
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Tavily API error:', errorText);
+      return { answer: 'Unable to fetch news updates.', sources: [] };
+    }
+    
+    const data = await response.json();
+    return {
+      answer: data.answer || 'No recent news found.',
+      sources: (data.results || []).map((r: { title: string; url: string }) => ({ title: r.title, url: r.url }))
+    };
+  } catch (e) {
+    console.error('Tavily fetch error:', e);
+    return { answer: 'Unable to fetch news updates.', sources: [] };
+  }
+}
+
+// Filter out sports terms from topic instructions for Tavily
+function getNonSportsTopics(topicInstructions: string): string {
+  let filtered = topicInstructions;
+  
+  // Remove sports team/league mentions
+  for (const config of Object.values(sportsPatterns)) {
+    filtered = filtered.replace(config.pattern, '');
+  }
+  
+  // Clean up extra whitespace and punctuation
+  filtered = filtered.replace(/,\s*,/g, ',').replace(/\s+/g, ' ').trim();
+  filtered = filtered.replace(/^,+|,+$/g, '').trim();
+  
+  return filtered;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -28,7 +277,7 @@ serve(async (req) => {
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
     const ELEVENLABS_API_KEY = Deno.env.get('ELEVENLABS_API_KEY')!;
-    const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
+    const TAVILY_API_KEY = Deno.env.get('TAVILY_API_KEY');
     
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     
@@ -97,6 +346,16 @@ serve(async (req) => {
       month: 'long', 
       day: 'numeric', 
       year: 'numeric',
+      timeZone: timezone 
+    });
+    
+    // Get yesterday's date for sports scores (morning briefing = yesterday's games)
+    const yesterday = new Date(userDate);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayDateStr = yesterday.toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD format
+    const yesterdayFormatted = yesterday.toLocaleDateString('en-US', { 
+      month: 'long', 
+      day: 'numeric',
       timeZone: timezone 
     });
 
@@ -200,102 +459,44 @@ serve(async (req) => {
       }
     }
 
-    // 3. News for topics - USE DEFAULT TOPIC INSTRUCTIONS
-    let newsResults = 'No news topics requested';
+    // 3. News/Sports - DUAL SOURCE: Tavily for news, ESPN for sports
     const topicInstructions = prefs?.default_topic_instructions || '';
-    const topics = briefing.topics || [];
+    let sportsResults = '';
+    let newsResults = '';
     
-    if ((topicInstructions || topics.length > 0) && PERPLEXITY_API_KEY) {
-      try {
-        // If we have paragraph instructions, use them as a single query
-        if (topicInstructions) {
-          const response = await fetch('https://api.perplexity.ai/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: 'sonar',
-              messages: [
-                { 
-                  role: 'system', 
-                  content: `You are a news wire service. Return ONLY factual headlines and key numbers.
-
-For each topic, provide:
-- Headline (one sentence, factual)
-- Key number or fact (earnings, price, percentage change, date, etc.)
-- Source context (one phrase)
-
-DO NOT editorialize or comment on how interesting topics are.
-DO NOT say things like "this is an exciting development" or "you seem interested in..."
-ONLY provide news headlines and facts. If there's no recent news, say "No breaking news on [topic]"`
-                },
-                { 
-                  role: 'user', 
-                  content: `Based on these topic interests: "${topicInstructions}"
-
-Return the top 3-4 relevant news headlines with key facts from today.`
-                }
-              ],
-              search_recency_filter: 'day'
-            }),
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            newsResults = data.choices?.[0]?.message?.content || 'No recent news found';
-            sources.push({ type: 'news', data: { instructions: topicInstructions, summary: newsResults, citations: data.citations || [] } });
-          }
-        } else if (topics.length > 0) {
-          // Fall back to individual topic queries
-          const newsPromises = topics.map(async (topic: string) => {
-            const response = await fetch('https://api.perplexity.ai/chat/completions', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                model: 'sonar',
-                messages: [
-                  { 
-                    role: 'system', 
-                    content: `You are a news wire service. Return ONLY factual headlines and key numbers.
-
-Provide:
-- Headline (one sentence, factual)
-- Key number or fact (earnings, price, percentage change, date, etc.)
-
-DO NOT editorialize. ONLY provide the headline and key fact.`
-                  },
-                  { 
-                    role: 'user', 
-                    content: `What's the latest headline on: ${topic}?`
-                  }
-                ],
-                search_recency_filter: 'day'
-              }),
-            });
-
-            if (response.ok) {
-              const data = await response.json();
-              return {
-                topic,
-                summary: data.choices?.[0]?.message?.content || 'No recent news found',
-                citations: data.citations || []
-              };
-            }
-            return { topic, summary: 'Unable to fetch news', citations: [] };
-          });
-
-          const newsData = await Promise.all(newsPromises);
-          newsResults = newsData.map(n => `**${n.topic}:** ${n.summary}`).join('\n\n');
-          sources.push({ type: 'news', data: newsData });
-        }
-      } catch (e) {
-        console.error('News fetch error:', e);
+    if (topicInstructions) {
+      // Detect sports interests
+      const detectedSports = detectSportsInterests(topicInstructions);
+      
+      // Fetch sports scores from ESPN if sports detected
+      if (detectedSports.size > 0) {
+        console.log(`Detected sports: ${Array.from(detectedSports).join(', ')}`);
+        sportsResults = await fetchESPNScores(detectedSports, topicInstructions, yesterdayDateStr);
+        sources.push({ type: 'sports', data: { leagues: Array.from(detectedSports), scores: sportsResults } });
       }
+      
+      // Fetch non-sports news from Tavily
+      const nonSportsTopics = getNonSportsTopics(topicInstructions);
+      if (nonSportsTopics && TAVILY_API_KEY) {
+        console.log(`Fetching Tavily news for: ${nonSportsTopics}`);
+        const tavilyResult = await fetchTavilyNews(nonSportsTopics, TAVILY_API_KEY);
+        newsResults = tavilyResult.answer;
+        sources.push({ type: 'news', data: { query: nonSportsTopics, answer: tavilyResult.answer, sources: tavilyResult.sources } });
+      } else if (!TAVILY_API_KEY && nonSportsTopics) {
+        newsResults = 'News updates unavailable (API not configured).';
+      }
+    }
+    
+    // Combine results for the prompt
+    let combinedNewsSection = '';
+    if (sportsResults) {
+      combinedNewsSection += `**VERIFIED SPORTS SCORES (from ${yesterdayFormatted}):**\n${sportsResults}\n\n`;
+    }
+    if (newsResults) {
+      combinedNewsSection += `**NEWS HEADLINES:**\n${newsResults}`;
+    }
+    if (!sportsResults && !newsResults) {
+      combinedNewsSection = 'No news topics requested or available.';
     }
 
     // Build the intention section for the prompt
@@ -323,6 +524,17 @@ Your tone is warm, conversational, and energizing - like a smart friend catching
 
 ---
 
+**FACTUAL ACCURACY RULES (VERY IMPORTANT):**
+- Today is ${dayOfWeek}, ${fullDate}. DO NOT reference outdated information.
+- For sports: Use ONLY the ESPN scores provided below. These are VERIFIED results from ${yesterdayFormatted}.
+- NEVER guess or assume current team rosters, player affiliations, or trade statuses.
+- For news: Use ONLY the Tavily headlines provided below. Include key numbers when available.
+- If no data is provided for a topic, say "I don't have updates on [topic] this morning."
+- NEVER say "things seem quiet" or make up information when data is simply unavailable.
+- When reporting scores, say them naturally: "Your Heat beat the Hornets 112 to 98" not "Heat 112, Hornets 98"
+
+---
+
 HERE'S WHAT YOU HAVE TO WORK WITH:
 
 **WEATHER:**
@@ -331,11 +543,10 @@ ${weatherData}
 **CALENDAR TODAY:**
 ${calendarEvents}
 
-**USER'S TOPIC INSTRUCTIONS:**
+**USER'S TOPIC INTERESTS:**
 ${topicInstructions || 'None specified'}
 
-**NEWS SEARCH RESULTS:**
-${newsResults}
+${combinedNewsSection}
 
 ${briefing.custom_instructions ? `**CUSTOM INSTRUCTIONS:**\n${briefing.custom_instructions}` : ''}
 ${intentionSection}
@@ -352,19 +563,24 @@ STRUCTURE (flow naturally between these, don't use headers or bullet points):
    - No need for end times or durations
    - If calendar is empty, skip or just say "Your calendar's open today"
 
-3. **News/Topics** (main section if topics provided)
-   - Cover the key stories relevant to their interests
-   - Lead with the most important/actionable info
-   - Keep it concise - hit the highlights
+3. **Sports** (if scores are provided)
+   - Report the verified scores naturally
+   - Mention any special context (celebrations, milestones) if noted in the data
+   - ONLY report what's in the ESPN data - do not add commentary about players or rosters
 
-${intentionWord ? `4. **Word of the Month: ${intentionWord}** (30-60 seconds)
+4. **News/Topics** (main section if topics provided)
+   - Cover the key stories from the Tavily results
+   - Lead with the most important/actionable info
+   - Keep it concise - hit the highlights with key numbers
+
+${intentionWord ? `5. **Word of the Month: ${intentionWord}** (30-60 seconds)
    - Transition naturally: "Now, let's take a moment for your word this month..."
    - Share a meaningful definition or insight about the word
    - Include one relevant quote
    - Give one specific, practical way to live this word today
 
-5. **Close** (1 sentence)
-   - Brief energizing send-off that ties back to the word` : `4. **Close** (1 sentence)
+6. **Close** (1 sentence)
+   - Brief energizing send-off that ties back to the word` : `5. **Close** (1 sentence)
    - Brief energizing send-off, no cheesy catchphrases`}
 
 ---

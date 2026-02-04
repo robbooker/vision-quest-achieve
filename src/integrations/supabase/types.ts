@@ -456,6 +456,7 @@ export type Database = {
           location_lng: number | null
           location_name: string | null
           preferred_channel: string | null
+          sms_delivery_enabled: boolean | null
           timezone: string | null
           updated_at: string | null
           user_id: string
@@ -477,6 +478,7 @@ export type Database = {
           location_lng?: number | null
           location_name?: string | null
           preferred_channel?: string | null
+          sms_delivery_enabled?: boolean | null
           timezone?: string | null
           updated_at?: string | null
           user_id: string
@@ -498,6 +500,7 @@ export type Database = {
           location_lng?: number | null
           location_name?: string | null
           preferred_channel?: string | null
+          sms_delivery_enabled?: boolean | null
           timezone?: string | null
           updated_at?: string | null
           user_id?: string

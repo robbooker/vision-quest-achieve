@@ -1,10 +1,9 @@
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Clock, Calendar, Sparkles, Bird, Brain, Droplets, MessageSquare, Mic, Scale, Heart, Activity, DollarSign, FileText, TrendingUp, Utensils } from 'lucide-react';
+import { ArrowLeft, Clock, Calendar, Sparkles, Bird, Brain, Droplets, MessageSquare, Mic, Scale, Heart, Activity, DollarSign, FileText, TrendingUp, Utensils, Radio, Newspaper } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-
 const WhatsNew = () => {
   return (
     <>
@@ -42,17 +41,17 @@ const WhatsNew = () => {
             </Badge>
             <span className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
-              January 31, 2026
+              February 4, 2026
             </span>
             <span className="flex items-center gap-1">
               <Clock className="h-4 w-4" />
-              5 min read
+              6 min read
             </span>
           </div>
 
           {/* Title */}
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-foreground mb-4">
-            What's New: The January Wrap-Up
+            What's New: February Updates
           </h1>
 
           {/* Subtitle */}
@@ -70,6 +69,54 @@ const WhatsNew = () => {
             </p>
 
             <Separator className="my-10" />
+
+            {/* February 4, 2026 */}
+            <div className="mb-8">
+              <h2 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-primary" />
+                February 4, 2026
+              </h2>
+
+              <div className="space-y-6 ml-7">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0 p-2 rounded-lg bg-primary/10">
+                    <Radio className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-foreground">AI Morning Briefing</h3>
+                    <p className="text-foreground/90 text-sm mt-1">
+                      Wake up to a personalized 3-minute audio podcast. Your briefing includes weather, today's calendar, sports scores, and news topics you care about—synthesized by AI and delivered as audio via ElevenLabs. Schedule via evening SMS or the Settings page. <Link to="/blog/morning-briefing" className="text-primary hover:underline">Read the setup guide →</Link>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0 p-2 rounded-lg bg-primary/10">
+                    <Newspaper className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-foreground">Dual-Source News: Tavily + ESPN</h3>
+                    <p className="text-foreground/90 text-sm mt-1">
+                      Morning Briefing now uses specialized sources for accuracy. Tavily powers general/financial news with real-time search, while ESPN provides verified sports scores from last night's games. No more stale data or AI hallucinations about player rosters.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0 p-2 rounded-lg bg-primary/10">
+                    <Calendar className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-foreground">Briefing Calendar Token Refresh</h3>
+                    <p className="text-foreground/90 text-sm mt-1">
+                      Fixed an issue where expired Google Calendar tokens weren't being refreshed during briefing generation. Your calendar events will now always appear in your morning audio.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <Separator className="my-8" />
 
             {/* January 31, 2026 */}
             <div className="mb-8">

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { FileText, ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Mic } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -9,26 +9,26 @@ export function AnnouncementBar() {
       <div className="container flex h-10 items-center justify-between gap-3 px-4">
         <div className="flex items-center gap-2 text-sm font-medium text-foreground">
           <span className="inline-flex items-center gap-2">
-            <FileText className="h-4 w-4 text-primary" />
+            <Mic className="h-4 w-4 text-primary" />
             <span className="hidden sm:inline">
-              <span className="font-semibold">New:</span> Month in Review — Generate your January audit now!
+              <span className="font-semibold">New:</span> AI Morning Briefing — Wake up to a personalized audio podcast!
             </span>
             <span className="sm:hidden">
-              <span className="font-semibold">New:</span> January Audit ready!
+              <span className="font-semibold">New:</span> Morning Briefing!
             </span>
           </span>
         </div>
 
         <div className="flex items-center gap-2">
           <Button size="sm" variant="ghost" asChild className="shrink-0 gap-1.5 hidden sm:flex">
-            <Link to="/blog/month-in-review">
+            <Link to="/blog/morning-briefing">
               Learn how
             </Link>
           </Button>
           <Button size="sm" asChild className="shrink-0 gap-1.5">
-            <Link to="/monthly-audit">
-              <Sparkles className="h-3.5 w-3.5" />
-              Generate
+            <Link to="/settings">
+              <Mic className="h-3.5 w-3.5" />
+              Set Up
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </Button>

@@ -29,7 +29,7 @@ serve(async (req) => {
     // Look up user by API key
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('user_id, timezone')
+      .select('user_id')
       .eq('api_key', apiKey)
       .single();
 

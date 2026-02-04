@@ -1,14 +1,14 @@
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Sunrise, Calendar, Cloud, Newspaper, Smartphone, Settings, Play, Key } from 'lucide-react';
+import { ArrowLeft, Sunrise, Calendar, Cloud, Newspaper, Settings, Play, Home } from 'lucide-react';
 
 export default function MorningBriefingBlog() {
   return (
     <>
       <Helmet>
         <title>Morning Briefing: Your Personal AI Podcast | GrowthPath</title>
-        <meta name="description" content="Learn how to set up your personalized AI morning briefing - a custom audio podcast covering your calendar, weather, and news topics delivered right when you wake up." />
+        <meta name="description" content="Learn how to set up your personalized AI morning briefing - a custom audio podcast covering your calendar, weather, and news topics delivered to your Today page." />
         <meta property="og:title" content="Morning Briefing: Your Personal AI Podcast" />
         <meta property="og:description" content="Wake up to a personalized AI podcast covering your calendar, weather, and custom news topics." />
         <meta property="og:type" content="article" />
@@ -46,7 +46,7 @@ export default function MorningBriefingBlog() {
           <article className="prose prose-lg dark:prose-invert max-w-none">
             <h2>What is Morning Briefing?</h2>
             <p>
-              Morning Briefing is an AI-generated personalized audio podcast that plays automatically when you wake up. Think of it as your own personal news anchor who knows exactly what you care about.
+              Morning Briefing is an AI-generated personalized audio podcast created for you each morning. Think of it as your own personal news anchor who knows exactly what you care about.
             </p>
             
             <p>
@@ -94,11 +94,11 @@ export default function MorningBriefingBlog() {
               
               <div className="p-4 border rounded-lg bg-card">
                 <div className="flex items-center gap-3 mb-2">
-                  <Smartphone className="h-5 w-5 text-primary" />
-                  <span className="font-semibold">4. Listen</span>
+                  <Home className="h-5 w-5 text-primary" />
+                  <span className="font-semibold">4. Listen on Today</span>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  An iOS Shortcut plays your briefing automatically when you turn off your alarm.
+                  Your briefing appears on the Today page. Just tap play to listen!
                 </p>
               </div>
             </div>
@@ -124,48 +124,23 @@ export default function MorningBriefingBlog() {
               "Cover any SMCI and NVDA earnings news, FDA approvals in biotech, and tariff developments with China. If there's big market news, lead with that. Keep it focused on actionable information."
             </blockquote>
 
-            <h3>Step 4: Generate a Test Episode</h3>
+            <h3>Step 4: Enable SMS Delivery (Optional)</h3>
             <p>
-              Click <strong>"Generate Test Briefing"</strong> to create a sample episode. You can play it directly in Settings to make sure everything sounds right before setting up the automation.
+              Turn on <strong>"Send me an SMS when my briefing is ready"</strong> to get a text notification when your briefing is generated. You'll also be able to play it directly from the Today page.
             </p>
 
-            <h2>iOS Shortcut Setup</h2>
+            <h3>Step 5: Generate a Test Episode</h3>
             <p>
-              To have your briefing play automatically when you wake up, you'll need to create an iOS Shortcut. Here's how:
+              Click <strong>"Generate Test Briefing"</strong> to create a sample episode. You can play it directly in Settings to make sure everything sounds right.
             </p>
 
-            <h3>Get Your API Key</h3>
+            <h2>Listening to Your Briefing</h2>
             <p>
-              In Settings → Morning Briefing, scroll to the bottom and click the refresh icon to generate an API key. Copy it to your clipboard.
+              Once your briefing is ready, it will appear at the top of your <strong>Today page</strong> as a player widget. Just tap Play to listen while you start your day.
             </p>
 
-            <h3>Create the Shortcut</h3>
-            <ol>
-              <li>Open the <strong>Shortcuts</strong> app on your iPhone</li>
-              <li>Create a new shortcut called "Morning Briefing"</li>
-              <li>Add a <strong>"Get Contents of URL"</strong> action with:
-                <ul>
-                  <li>URL: <code>https://gogzkyjylruuziseprfw.supabase.co/functions/v1/briefing-wake-check</code></li>
-                  <li>Method: GET</li>
-                  <li>Header: <code>Authorization: Bearer YOUR_API_KEY</code></li>
-                </ul>
-              </li>
-              <li>Add a <strong>"Get Dictionary Value"</strong> action to extract <code>podcast_url</code></li>
-              <li>Add a <strong>"Play Sound"</strong> action with the URL</li>
-            </ol>
-
-            <h3>Set Up Automation</h3>
-            <ol>
-              <li>Go to <strong>Automation</strong> tab in Shortcuts</li>
-              <li>Create a new <strong>Personal Automation</strong></li>
-              <li>Choose <strong>"Alarm" → "Is Stopped"</strong></li>
-              <li>Select your wake-up alarm(s)</li>
-              <li>Add action: <strong>Run Shortcut → Morning Briefing</strong></li>
-              <li>Turn off "Ask Before Running"</li>
-            </ol>
-
             <p>
-              Now when you dismiss your morning alarm, your personalized briefing will start playing automatically!
+              You can also view the full transcript by expanding the "View Transcript" section below the player.
             </p>
 
             <h2>Tips for Best Results</h2>
@@ -187,16 +162,6 @@ export default function MorningBriefingBlog() {
                   <p className="font-semibold mb-1">Update your location when traveling</p>
                   <p className="text-sm text-muted-foreground">
                     Click "Use Current Location" again if you're in a new city to get local weather.
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex gap-4 p-4 border rounded-lg bg-card">
-                <Key className="h-6 w-6 text-primary shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-semibold mb-1">Regenerate your API key if needed</p>
-                  <p className="text-sm text-muted-foreground">
-                    If your shortcut stops working, try generating a new API key and updating the shortcut.
                   </p>
                 </div>
               </div>

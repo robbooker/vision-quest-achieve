@@ -77,6 +77,18 @@ serve(async (req) => {
     const timezone = prefs?.timezone || 'America/Chicago';
     const voiceId = prefs?.voice_id || 'JBFqnCBsd6RMkjVDRZzb';
 
+    // Fetch current month's intention word
+    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
+    const { data: monthlyIntention } = await supabase
+      .from('monthly_intentions')
+      .select('word, description')
+      .eq('user_id', userId)
+      .eq('month', currentMonth)
+      .maybeSingle();
+    
+    const intentionWord = monthlyIntention?.word || null;
+    const intentionDescription = monthlyIntention?.description || null;
+
     // Get today's date in user's timezone
     const now = new Date();
     const userDate = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
@@ -286,12 +298,28 @@ DO NOT editorialize. ONLY provide the headline and key fact.`
       }
     }
 
+    // Build the intention section for the prompt
+    const intentionSection = intentionWord ? `
+**WORD OF THE MONTH:**
+Word: "${intentionWord}"
+${intentionDescription ? `Why they chose it: "${intentionDescription}"` : ''}
+
+At the end of the briefing, include a 30-60 second section about this word. Include:
+- A brief, inspiring definition or perspective on the word
+- One relevant quote from a philosopher, leader, or thinker
+- One practical way to embody this word today
+Keep it grounded and actionable, not preachy.
+` : '';
+
+    // Adjust word count based on whether we have an intention
+    const wordTarget = intentionWord ? '500-600 words (approximately 3-4 minutes when spoken)' : '400-500 words (approximately 2.5-3 minutes when spoken)';
+
     // Build the prompt - PERSONALIZED GREETING + SHORTER (~3 MIN)
     const prompt = `You are creating a personalized morning audio briefing for ${userName}. Today is ${dayOfWeek}, ${fullDate}.
 
 Your tone is warm, conversational, and energizing - like a smart friend catching them up over coffee. Not cheesy morning radio DJ energy, but genuinely helpful and personable.
 
-**CRITICAL: Keep the entire briefing between 400-500 words (approximately 2.5-3 minutes when spoken).**
+**CRITICAL: Keep the entire briefing between ${wordTarget}.**
 
 ---
 
@@ -310,7 +338,7 @@ ${topicInstructions || 'None specified'}
 ${newsResults}
 
 ${briefing.custom_instructions ? `**CUSTOM INSTRUCTIONS:**\n${briefing.custom_instructions}` : ''}
-
+${intentionSection}
 ---
 
 STRUCTURE (flow naturally between these, don't use headers or bullet points):
@@ -329,8 +357,15 @@ STRUCTURE (flow naturally between these, don't use headers or bullet points):
    - Lead with the most important/actionable info
    - Keep it concise - hit the highlights
 
-4. **Close** (1 sentence)
-   - Brief energizing send-off, no cheesy catchphrases
+${intentionWord ? `4. **Word of the Month: ${intentionWord}** (30-60 seconds)
+   - Transition naturally: "Now, let's take a moment for your word this month..."
+   - Share a meaningful definition or insight about the word
+   - Include one relevant quote
+   - Give one specific, practical way to live this word today
+
+5. **Close** (1 sentence)
+   - Brief energizing send-off that ties back to the word` : `4. **Close** (1 sentence)
+   - Brief energizing send-off, no cheesy catchphrases`}
 
 ---
 
@@ -338,7 +373,7 @@ IMPORTANT GUIDELINES:
 - Write for the EAR, not the eye. Use short sentences. Conversational rhythm.
 - No bullet points, no headers, no formatting - this will be spoken aloud
 - Numbers should be spoken naturally ("about six and a half percent" not "6.5%")
-- Stay within 400-500 words - this should be a quick 3-minute briefing
+- Stay within ${wordTarget}
 - End on an energizing note without being corny
 
 ---

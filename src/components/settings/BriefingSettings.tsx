@@ -317,7 +317,13 @@ export function BriefingSettings() {
               Morning Briefing
             </CardTitle>
             <CardDescription>
-              Wake up to a personalized AI podcast covering your calendar, weather, and custom news topics.
+              Wake up to a personalized AI podcast covering your calendar, weather, and custom news topics.{' '}
+              <a 
+                href="/blog/morning-briefing" 
+                className="text-primary hover:underline"
+              >
+                Setup guide →
+              </a>
             </CardDescription>
           </div>
           <Switch

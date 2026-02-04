@@ -58,12 +58,12 @@ const smsTools = [
     type: "function" as const,
     function: {
       name: "log_habit",
-      description: "Log a habit/tactic completion. Use when they say 'log meditation', 'did my workout', 'did 50 pushups', etc.",
+      description: "Log habit completion. IMPORTANT: Call this tool ONCE per habit, even if user mentions a number. The 'count' means sets/sessions completed (usually 1), NOT the number of reps. Example: 'did 10 pushups' = call ONCE with count=1. 'Did 3 sets' = call ONCE with count=3.",
       parameters: {
         type: "object",
         properties: {
-          habit_name: { type: "string", description: "The name of the habit to log (will match closest)" },
-          count: { type: "number", description: "Number of times completed. Default 1." }
+          habit_name: { type: "string", description: "The name of the habit (e.g., 'pushups', 'meditation')" },
+          count: { type: "number", description: "Number of SETS or SESSIONS completed (usually 1). NOT the number of reps. Default 1." }
         },
         required: ["habit_name"],
         additionalProperties: false
@@ -1330,6 +1330,13 @@ You have comprehensive tools:
 - PRODUCTIVITY: get_habit_streaks, get_focus_insights
 - HISTORY SEARCH: search_history (for "when did I..." or "have I ever..." questions)
 
+CRITICAL TOOL RULES:
+- log_habit: Call ONCE per habit. The 'count' = sets completed (usually 1).
+  - "Did 10 pushups" → log_habit(habit_name: "pushups", count: 1)
+  - "Did 3 sets of pushups" → log_habit(habit_name: "pushups", count: 3)
+  - "Wrote 100 pages" → log_habit(habit_name: "writing", count: 1)
+  - NEVER call the same tool multiple times for a single user request
+
 For cumulative questions like "how many pushups this month", use get_cumulative_habit_progress.
 For historical questions like "when did I journal about stress", use search_history.
 
@@ -1376,10 +1383,21 @@ Respond naturally to their message. Use tools when appropriate.`;
     // Handle tool calls
     if (message.tool_calls?.length) {
       const toolResults: string[] = [];
+      const habitCallsProcessed = new Set<string>(); // Track processed habits to prevent duplicates
       
       for (const toolCall of message.tool_calls) {
         const toolName = toolCall.function.name;
         const toolArgs = JSON.parse(toolCall.function.arguments || '{}');
+        
+        // Dedupe habit logs - only process first call per habit
+        if (toolName === 'log_habit') {
+          const habitKey = `${toolName}:${(toolArgs.habit_name || '').toLowerCase()}`;
+          if (habitCallsProcessed.has(habitKey)) {
+            console.log(`Skipping duplicate habit call: ${habitKey}`);
+            continue;
+          }
+          habitCallsProcessed.add(habitKey);
+        }
         
         console.log(`Executing tool: ${toolName}`, toolArgs);
         const result = await executeTool(toolName, toolArgs, supabase, userId, LOVABLE_API_KEY);

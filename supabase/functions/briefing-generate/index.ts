@@ -362,6 +362,39 @@ serve(async (req) => {
     // Gather sources
     const sources: { type: string; data: unknown }[] = [];
 
+    // Helper function to refresh Google OAuth token
+    async function refreshAccessToken(refreshToken: string): Promise<{ accessToken: string; expiresAt: Date } | null> {
+      const clientId = Deno.env.get("GOOGLE_CALENDAR_CLIENT_ID");
+      const clientSecret = Deno.env.get("GOOGLE_CALENDAR_CLIENT_SECRET");
+      
+      if (!clientId || !clientSecret) {
+        console.error('Missing Google Calendar credentials');
+        return null;
+      }
+
+      const response = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: clientId,
+          client_secret: clientSecret,
+          refresh_token: refreshToken,
+          grant_type: "refresh_token",
+        }),
+      });
+
+      if (!response.ok) {
+        console.error("Failed to refresh token:", await response.text());
+        return null;
+      }
+
+      const data = await response.json();
+      return {
+        accessToken: data.access_token,
+        expiresAt: new Date(Date.now() + data.expires_in * 1000),
+      };
+    }
+
     // 1. Calendar events (from Google Calendar if connected) - SIMPLIFIED FORMAT
     let calendarEvents = 'No scheduled events';
     if (prefs?.include_calendar) {
@@ -373,6 +406,31 @@ serve(async (req) => {
 
       if (calendarTokens?.access_token) {
         try {
+          let accessToken = calendarTokens.access_token;
+          
+          // Check if token needs refresh
+          const tokenExpiresAt = new Date(calendarTokens.token_expires_at);
+          if (tokenExpiresAt <= new Date()) {
+            console.log('Calendar token expired, refreshing for briefing...');
+            const newTokens = await refreshAccessToken(calendarTokens.refresh_token);
+            
+            if (newTokens) {
+              // Update the stored token
+              await supabase
+                .from('user_calendar_tokens')
+                .update({
+                  access_token: newTokens.accessToken,
+                  token_expires_at: newTokens.expiresAt.toISOString(),
+                })
+                .eq('user_id', userId);
+              
+              accessToken = newTokens.accessToken;
+              console.log('Calendar token refreshed successfully');
+            } else {
+              console.error('Failed to refresh calendar token');
+            }
+          }
+          
           const todayStart = new Date(userDate);
           todayStart.setHours(0, 0, 0, 0);
           const todayEnd = new Date(userDate);
@@ -385,7 +443,7 @@ serve(async (req) => {
             `singleEvents=true&orderBy=startTime`,
             {
               headers: {
-                'Authorization': `Bearer ${calendarTokens.access_token}`
+                'Authorization': `Bearer ${accessToken}`
               }
             }
           );
@@ -393,6 +451,7 @@ serve(async (req) => {
           if (calendarResponse.ok) {
             const calendarData = await calendarResponse.json();
             const events = calendarData.items || [];
+            console.log(`Found ${events.length} calendar events for today`);
             if (events.length > 0) {
               // Simplified format: "Event name at 9am"
               calendarEvents = events.map((e: { start?: { dateTime?: string; date?: string }; summary?: string }) => {
@@ -404,6 +463,9 @@ serve(async (req) => {
               }).join(', ');
               sources.push({ type: 'calendar', data: events });
             }
+          } else {
+            const errorText = await calendarResponse.text();
+            console.error('Calendar API error:', calendarResponse.status, errorText);
           }
         } catch (e) {
           console.error('Calendar fetch error:', e);

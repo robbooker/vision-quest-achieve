@@ -61,10 +61,7 @@ serve(async (req) => {
 
     // Send SMS reminder
     if (preferredChannel === 'sms' || preferredChannel === 'both') {
-      const defaultTopics = (prefs.default_topics || []).join(', ');
-      const topicsHint = defaultTopics ? ` (default: ${defaultTopics})` : '';
-      
-      const message = `Hey! What time tomorrow? Reply with time + any topics you want covered${topicsHint}\n\nExamples:\n"6:30 SMCI earnings"\n"7am" (uses defaults)\n"skip" (no briefing)`;
+      const message = `What time would you like your morning briefing tomorrow?\n\nReply with a time like "6:30" or "7am"\nReply "skip" to skip tomorrow\n\n💡 Set your default topics in Settings → Morning Briefing`;
 
       const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
       

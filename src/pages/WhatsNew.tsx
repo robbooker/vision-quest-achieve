@@ -85,7 +85,7 @@ const WhatsNew = () => {
                   <div>
                     <h3 className="font-bold text-foreground">AI Morning Briefing</h3>
                     <p className="text-foreground/90 text-sm mt-1">
-                      Wake up to a personalized 3-minute audio podcast. Your briefing includes weather, today's calendar, sports scores, and news topics you care about—synthesized by AI and delivered as audio via ElevenLabs. Schedule via evening SMS or the Settings page. <Link to="/blog/morning-briefing" className="text-primary hover:underline">Read the setup guide →</Link>
+                      Wake up to a personalized 3-minute audio podcast. Your briefing includes weather, today's calendar, sports scores, and news topics you care about—synthesized by AI and delivered as audio. Once ready, your briefing appears on the Today page for easy playback. <Link to="/blog/morning-briefing" className="text-primary hover:underline">Read the setup guide →</Link>
                     </p>
                   </div>
                 </div>

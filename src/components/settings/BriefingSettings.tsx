@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserRole } from '@/hooks/useUserRole';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -61,13 +62,13 @@ const TIMEZONE_OPTIONS = [
 
 export function BriefingSettings() {
   const { user } = useAuth();
+  const { isAdmin } = useUserRole();
   const queryClient = useQueryClient();
   const [copied, setCopied] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [topicInstructions, setTopicInstructions] = useState('');
   const [testBriefing, setTestBriefing] = useState<TestBriefing | null>(null);
-
   const { data: preferences, isLoading } = useQuery({
     queryKey: ['briefing-preferences', user?.id],
     queryFn: async () => {
@@ -317,7 +318,7 @@ export function BriefingSettings() {
               Morning Briefing
             </CardTitle>
             <CardDescription>
-              Wake up to a personalized AI podcast covering your calendar, weather, and custom news topics.{' '}
+              Wake up to a personalized AI podcast covering your calendar, weather, and custom news topics. Your briefing will appear on the Today page when ready.{' '}
               <a 
                 href="/blog/morning-briefing" 
                 className="text-primary hover:underline"
@@ -597,34 +598,36 @@ export function BriefingSettings() {
             )}
           </div>
 
-          {/* iOS Shortcut API Key */}
-          <div className="space-y-2 border-t pt-4">
-            <Label>iOS Shortcut API Key</Label>
-            <p className="text-sm text-muted-foreground mb-2">
-              Use this key in your iOS Shortcut to authenticate wake-check requests.
-            </p>
-            <div className="flex gap-2">
-              <Input
-                type="password"
-                value={profile?.api_key || ''}
-                readOnly
-                placeholder="No API key generated"
-              />
-              {profile?.api_key ? (
-                <Button variant="outline" size="icon" onClick={copyApiKey}>
-                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+          {/* iOS Shortcut API Key - Admin Only */}
+          {isAdmin && (
+            <div className="space-y-2 border-t pt-4">
+              <Label>iOS Shortcut API Key (Admin Only)</Label>
+              <p className="text-sm text-muted-foreground mb-2">
+                Use this key in your iOS Shortcut to authenticate wake-check requests.
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  type="password"
+                  value={profile?.api_key || ''}
+                  readOnly
+                  placeholder="No API key generated"
+                />
+                {profile?.api_key ? (
+                  <Button variant="outline" size="icon" onClick={copyApiKey}>
+                    {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                ) : null}
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={() => generateApiKeyMutation.mutate()}
+                  disabled={generateApiKeyMutation.isPending}
+                >
+                  <RefreshCw className={`h-4 w-4 ${generateApiKeyMutation.isPending ? 'animate-spin' : ''}`} />
                 </Button>
-              ) : null}
-              <Button 
-                variant="outline" 
-                size="icon"
-                onClick={() => generateApiKeyMutation.mutate()}
-                disabled={generateApiKeyMutation.isPending}
-              >
-                <RefreshCw className={`h-4 w-4 ${generateApiKeyMutation.isPending ? 'animate-spin' : ''}`} />
-              </Button>
+              </div>
             </div>
-          </div>
+          )}
         </CardContent>
       )}
     </Card>

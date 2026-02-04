@@ -1,200 +1,120 @@
 
 
-# Morning Briefing: Dual-Source News (Tavily + ESPN)
+# Fix: AI Tool Call Semantics for Habit Logging
 
-This plan replaces Perplexity with two specialized sources: **Tavily** for general/financial news and **ESPN** for verified sports scores, addressing the accuracy issues with stale data and missed games.
+## Problem Summary
 
----
+When texting Toasty "add 10 pushups to my daily steps", the AI generates **10 separate tool calls** instead of **1 call with count=10**. Even requesting "update to 1 set of 10" resulted in 10 database updates.
 
-## Summary of Changes
+This is a semantic interpretation issue where:
+- The AI sees "10 pushups" and interprets it as "execute 10 times"
+- The habit title (e.g., "10 pushups") already contains the rep count
+- "count" in the tool definition means "sets completed" but the AI interprets it as "reps"
 
-| Source | Purpose | Data Type |
-|--------|---------|-----------|
-| **Tavily API** | General news, financial news, tech topics | Headlines, facts, AI-generated summaries |
-| **ESPN API** | Sports scores and highlights | Yesterday's verified game results |
+## Solution
 
----
+### 1. Improve Tool Definition Clarity
 
-## Why This Dual Approach Works
-
-| Problem | Current Behavior | New Behavior |
-|---------|-----------------|--------------|
-| Heat game missed | Perplexity says "no updates" | ESPN API fetches actual 112-98 score |
-| Juan Soto roster error | AI hallucinates outdated data | ESPN provides verified team/player data |
-| Fluffy commentary | "It sounds like you're diving deep..." | Tavily returns factual headlines only |
-
----
-
-## Technical Implementation
-
-### 1. Add Tavily API Key Secret
-
-The user provided the key: `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`
-
-This will be added as a secret named `TAVILY_API_KEY`.
-
-### 2. Sports Detection Logic
-
-Scan the user's topic instructions for sports keywords:
+Update the `log_habit` tool description to explicitly differentiate between **sets** and **reps**:
 
 ```typescript
-const sportsPatterns = {
-  nba: /\b(nba|heat|lakers|celtics|knicks|warriors|nets|bucks|76ers|suns|mavs|spurs)\b/i,
-  mlb: /\b(mlb|yankees|mets|dodgers|red sox|cubs|astros|braves|phillies|padres|angels)\b/i,
-  nfl: /\b(nfl|giants|jets|cowboys|eagles|patriots|chiefs|bills|dolphins|ravens|49ers)\b/i,
-  nhl: /\b(nhl|rangers|devils|islanders|bruins|penguins|blackhawks|maple leafs|canadiens)\b/i,
-};
-
-const detectedSports: string[] = [];
-if (sportsPatterns.nba.test(topicInstructions)) detectedSports.push('nba');
-if (sportsPatterns.mlb.test(topicInstructions)) detectedSports.push('mlb');
-// etc.
+{
+  name: "log_habit",
+  description: "Log habit completion. IMPORTANT: Call this tool ONCE per habit, even if user mentions a number. The 'count' means sets/sessions completed (usually 1), NOT the number of reps. Example: 'did 10 pushups' = call ONCE with count=1.",
+  parameters: {
+    type: "object",
+    properties: {
+      habit_name: { 
+        type: "string", 
+        description: "The name of the habit (e.g., 'pushups', 'meditation')" 
+      },
+      count: { 
+        type: "number", 
+        description: "Number of SETS or SESSIONS completed (usually 1). NOT the number of reps. Default 1." 
+      }
+    },
+    required: ["habit_name"],
+    additionalProperties: false
+  }
+}
 ```
 
-### 3. ESPN API Integration
+### 2. Add System Prompt Guidance
 
-ESPN provides free, unauthenticated scoreboard APIs:
+Enhance the system prompt with explicit anti-duplication rules:
 
 ```text
-NBA: https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=YYYYMMDD
-MLB: https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=YYYYMMDD
-NFL: https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=YYYYMMDD
+CRITICAL TOOL RULES:
+- log_habit: Call ONCE per habit. The 'count' = sets completed (usually 1).
+  - "Did 10 pushups" → log_habit(habit_name: "pushups", count: 1)
+  - "Did 3 sets of pushups" → log_habit(habit_name: "pushups", count: 3)
+  - "Wrote 100 pages" → log_habit(habit_name: "writing", count: 1)
+  - NEVER call the same tool multiple times for a single user request
 ```
 
-**Yesterday's Games Logic:**
+### 3. Add Server-Side Deduplication Guard
+
+Add a safeguard to prevent multiple tool calls for the same habit in a single request:
+
 ```typescript
-const yesterday = new Date();
-yesterday.setDate(yesterday.getDate() - 1);
-const dateStr = yesterday.toISOString().slice(0, 10).replace(/-/g, ''); // "20260203"
-```
-
-**Team Matching:**
-```typescript
-// Find games involving teams the user cares about
-const relevantGames = allGames.filter(game => 
-  game.competitions[0].competitors.some(team => 
-    topicInstructions.toLowerCase().includes(team.team.displayName.toLowerCase())
-  )
-);
-```
-
-**Formatted Output:**
-```text
-Heat 112, Hornets 98 (Final) - 20th anniversary celebration at halftime
-Yankees Spring Training: Pitchers and catchers report in 7 days
-```
-
-### 4. Tavily API Integration
-
-Tavily replaces Perplexity for non-sports news. Key features:
-- `topic: "news"` for real-time news results
-- `time_range: "day"` for recent stories
-- `include_answer: true` for AI-synthesized summary
-- Returns verified sources with URLs
-
-**API Call (REST, not SDK in Deno):**
-```typescript
-const TAVILY_API_KEY = Deno.env.get('TAVILY_API_KEY');
-
-// Filter out sports topics (handled by ESPN)
-const nonSportsInstructions = topicInstructions
-  .replace(/\b(yankees|heat|nba|mlb|nfl|etc)\b/gi, '')
-  .trim();
-
-const tavilyResponse = await fetch('https://api.tavily.com/search', {
-  method: 'POST',
-  headers: {
-    'Authorization': `Bearer ${TAVILY_API_KEY}`,
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-    query: nonSportsInstructions,
-    topic: 'news',           // Optimized for news queries
-    time_range: 'day',       // Last 24 hours
-    max_results: 5,
-    include_answer: true,    // Get AI summary
-    search_depth: 'basic',   // 1 credit per search
-  }),
-});
-
-const tavilyData = await tavilyResponse.json();
-// tavilyData.answer = AI-generated summary
-// tavilyData.results = [{title, url, content, score}]
+if (message.tool_calls?.length) {
+  const toolResults: string[] = [];
+  const habitCallsProcessed = new Set<string>(); // Track processed habits
+  
+  for (const toolCall of message.tool_calls) {
+    const toolName = toolCall.function.name;
+    const toolArgs = JSON.parse(toolCall.function.arguments || '{}');
+    
+    // Dedupe habit logs - only process first call per habit
+    if (toolName === 'log_habit') {
+      const habitKey = `${toolName}:${toolArgs.habit_name?.toLowerCase()}`;
+      if (habitCallsProcessed.has(habitKey)) {
+        console.log(`Skipping duplicate habit call: ${habitKey}`);
+        continue;
+      }
+      habitCallsProcessed.add(habitKey);
+    }
+    
+    console.log(`Executing tool: ${toolName}`, toolArgs);
+    const result = await executeTool(toolName, toolArgs, supabase, userId, LOVABLE_API_KEY);
+    toolResults.push(result);
+  }
+  // ... rest of response handling
+}
 ```
 
 ---
 
-## Data Flow Diagram
+## Technical Details
 
-```text
-User Topic Instructions
-"New York Yankees, Miami Heat scores, SMCI earnings, FDA biotech approvals"
-                            │
-            ┌───────────────┴───────────────┐
-            ▼                               ▼
-    Sports Detection              Non-Sports Topics
-    (Yankees, Heat)             (SMCI, FDA biotech)
-            │                               │
-            ▼                               ▼
-       ESPN APIs                     Tavily Search
-    (yesterday's games)           (topic: "news")
-            │                               │
-            ▼                               ▼
-  "Heat 112-98 (W)"            "SMCI up 8% on earnings..."
-  "Yankees: 7 days to ST"      "FDA approves new drug..."
-            │                               │
-            └───────────────┬───────────────┘
-                            ▼
-                    Claude Script Gen
-             (with anti-hallucination rules)
-                            ▼
-             Final briefing with verified data
-```
-
----
-
-## Anti-Hallucination Rules for Claude
-
-Add explicit instructions to prevent fabricating data:
-
-```text
-**FACTUAL ACCURACY RULES:**
-- Today is [CURRENT DATE]. DO NOT reference outdated information.
-- ONLY report information from the data provided below.
-- For sports: Use ONLY the ESPN scores provided. Never guess current rosters.
-- For news: Use ONLY the Tavily headlines provided. Include key numbers when available.
-- If no data is provided for a topic, say "I don't have updates on [topic] this morning."
-- NEVER say "things seem quiet" when data is simply unavailable.
-```
-
----
-
-## Files to Modify
+### Files to Modify
 
 | File | Changes |
 |------|---------|
-| `supabase/functions/briefing-generate/index.ts` | (1) Add Tavily API call, (2) Add ESPN API calls for detected sports, (3) Split topic routing, (4) Add date context + accuracy rules |
+| `supabase/functions/twilio-sms-webhook/index.ts` | 1. Update `log_habit` tool description<br>2. Add tool rules to system prompt<br>3. Add deduplication logic |
+
+### Code Changes
+
+**Tool Definition (lines 59-72):**
+- Clarify that `count` means sets/sessions, not reps
+- Add explicit example in description
+
+**System Prompt (lines 1321-1342):**
+- Add "CRITICAL TOOL RULES" section
+- Provide concrete examples for common scenarios
+
+**Tool Execution Loop (lines 1377-1393):**
+- Track which habit names have been processed
+- Skip duplicate calls to `log_habit` for the same habit
 
 ---
 
-## Example Output Comparison
+## Expected Behavior After Fix
 
-**Before (Perplexity only):**
-> "I don't have any specific updates on the Miami Heat for you today."
-> "Juan Soto and Aaron Judge are right up there at the top..."
-
-**After (Tavily + ESPN):**
-> "Your Heat took care of business last night, beating the Hornets 112 to 98. The game featured a special halftime celebration for the 20th anniversary of Miami's first championship."
-> "In Yankees news, pitchers and catchers report in just one week for spring training. The team is looking to add depth around Aaron Judge with targets including Paul Goldschmidt and Ty France."
-> "On the financial front, SMCI shares jumped 8% after beating earnings expectations, reporting revenue of 5.2 billion dollars for the quarter."
-
----
-
-## API Credits & Costs
-
-| Service | Cost | Usage |
-|---------|------|-------|
-| Tavily | 1 credit/search (1000 free/month) | ~1 search per briefing |
-| ESPN | Free, no auth required | ~2-4 calls per briefing |
-| Perplexity | Replaced | No longer used for briefings |
+| User Message | Before (Bug) | After (Fixed) |
+|--------------|--------------|---------------|
+| "Add 10 pushups" | 10 tool calls, 10 DB inserts | 1 tool call, count=1 |
+| "Did 3 sets of pushups" | 3 tool calls | 1 tool call, count=3 |
+| "Wrote 100 pages today" | 100 tool calls | 1 tool call, count=1 |
+| "Update to 1 set of 10" | 10 tool calls | 1 tool call, count=1 |
 

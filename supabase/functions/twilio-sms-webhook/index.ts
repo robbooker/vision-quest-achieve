@@ -603,15 +603,39 @@ async function executeTool(
       const { description, meal_type } = args as { description: string; meal_type?: string };
       
       try {
+        // Call parse-nutrition with correct parameter name
         const parseResponse = await supabase.functions.invoke('parse-nutrition', {
-          body: { description, userId }
+          body: { mealDescription: description }
         });
         
         if (parseResponse.error) throw new Error(parseResponse.error.message);
         
         const parsed = parseResponse.data;
-        return `🍽️ ${meal_type || 'Meal'}: ${description}\n~${parsed.calories || '?'} cal, ${parsed.protein_g || '?'}g protein`;
+        
+        // Check if parsing returned an error
+        if (parsed.error) throw new Error(parsed.error);
+        
+        // Insert with parsed macros
+        await supabase
+          .from('daily_nutrition')
+          .insert({
+            user_id: userId,
+            entry_date: todayStr,
+            meal_description: description,
+            meal_type: meal_type || 'snack',
+            calories: parsed.calories || null,
+            protein_g: parsed.protein_g || null,
+            carbs_g: parsed.carbs_g || null,
+            fats_g: parsed.fats_g || null,
+            sugar_g: parsed.sugar_g || null,
+            fiber_g: parsed.fiber_g || null,
+            source: 'sms'
+          });
+        
+        return `🍽️ Logged: ${description}\n~${parsed.calories || '?'} cal, ${parsed.protein_g || '?'}g protein`;
       } catch (e) {
+        console.error('Meal parsing error:', e);
+        // Fallback: insert without macros
         await supabase
           .from('daily_nutrition')
           .insert({

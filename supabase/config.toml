@@ -119,3 +119,18 @@ verify_jwt = false
 
 [functions.ai-arena]
 verify_jwt = false
+
+[functions.briefing-wake-check]
+verify_jwt = false
+
+[functions.briefing-mark-played]
+verify_jwt = false
+
+[functions.briefing-generate]
+verify_jwt = false
+
+[functions.briefing-history]
+verify_jwt = false
+
+[functions.briefing-evening-reminder]
+verify_jwt = false

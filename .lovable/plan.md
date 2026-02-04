@@ -1,8 +1,8 @@
 
 
-# Morning Briefing Enhancements
+# Morning Briefing Improvements: Headlines + SMS Delivery
 
-This plan implements five key improvements to make the AI Morning Briefing system more personal, reliable, and easier to use.
+This plan addresses the feedback to deliver real news headlines (not AI commentary) and add SMS delivery of the audio link.
 
 ---
 
@@ -10,199 +10,124 @@ This plan implements five key improvements to make the AI Morning Briefing syste
 
 | # | Enhancement | Description |
 |---|-------------|-------------|
-| 1 | Personalized greeting | Podcast starts with "Good morning, [name]" and is capped at ~3 minutes (~450 words) |
-| 2 | Location-based weather | Add `location_lat`/`location_lng` columns to briefing_preferences, using cached browser geolocation or manual entry |
-| 3 | Default topics paragraph | Replace tag-based topics with a freeform `default_topic_instructions` text field (paragraph format) |
-| 4 | Test episode generation | Add playable audio preview in the settings UI with status feedback |
-| 5 | Blog post tutorial | Create `/blog/morning-briefing` page with iOS Shortcut setup instructions |
+| 1 | Headlines-focused news | Update Perplexity prompts to request specific headlines, facts, and numbers — not commentary about how interesting topics are |
+| 2 | SMS audio link delivery | After briefing generation, send an SMS to the user with a link to their podcast |
+| 3 | Optional SMS toggle | Add a setting to enable/disable SMS delivery |
 
 ---
 
-## 1. Personalized Greeting + Shorter Episodes + Simple Calendar
+## 1. Headlines-Focused News Prompts
 
-### Changes to `briefing-generate/index.ts`
+### Problem
+Current prompt asks Perplexity:
+```
+"Provide a concise summary of the most relevant news based on the user's topic interests"
+```
 
-Update the AI prompt to:
-- Start with "Good morning, [name]!" as the opening phrase
-- Limit script to **400-500 words** (~2.5-3 minutes spoken)
-- **Calendar events: just name and start time** (e.g., "Team standup at 9am")
-- Prioritize weather and calendar, keep news concise
+This produces fluffy responses like "It sounds like you're really diving deep into making your coding experience more intuitive..."
 
-New prompt structure:
+### Solution
+Update the Perplexity prompt to be explicit about headline format:
 
 ```text
-Keep the entire briefing between 400-500 words (approximately 2.5-3 minutes when spoken).
+You are a news wire service. Return ONLY factual headlines and key numbers.
 
-STRUCTURE (flow naturally):
-1. **Opening** (1-2 sentences)
-   - Start with "Good morning, [name]!"
-   - Weather for today
-   
-2. **Calendar** (brief)
-   - List events by name and start time only (e.g., "Team standup at 9am, lunch with Sarah at noon")
-   - No end times or durations needed
-   
-3. **Topics** (if any requested)
-   - Quick coverage of requested topics
-   
-4. **Close** (1 sentence)
-   - Energizing send-off
+For each topic, provide:
+- Headline (one sentence, factual)
+- Key number or fact (earnings, price, percentage change, date, etc.)
+- Source context (one phrase)
+
+DO NOT editorialize or comment on how interesting topics are.
+DO NOT say things like "this is an exciting development" or "you seem interested in..."
+ONLY provide news headlines and facts. If there's no recent news, say "No breaking news on [topic]"
 ```
 
-### Calendar Data Formatting
-
-When fetching calendar events, simplify the format passed to the AI:
-
-```typescript
-// Current format might include:
-// "Team Standup (9:00 AM - 9:30 AM)"
-
-// New simplified format:
-// "Team Standup at 9am"
-const formattedEvents = events.map(e => 
-  `${e.summary} at ${formatTime(e.start)}`
-).join(', ');
-```
+### Files to Modify
+- `supabase/functions/briefing-generate/index.ts` — Update both Perplexity prompt calls (lines 206-221 and lines 237-248)
 
 ---
 
-## 2. Location-Based Weather
+## 2. SMS Audio Link Delivery
+
+### How It Works
+After a briefing is successfully generated:
+1. Check if user has SMS delivery enabled
+2. Send SMS via Twilio with the podcast URL
+
+### SMS Format
+```text
+☀️ Your morning briefing is ready!
+
+Listen now: [podcast_url]
+
+Topics: SMCI earnings, FDA news, Yankees
+```
 
 ### Database Migration
-
-Add location columns to `briefing_preferences`:
+Add a column to control SMS delivery:
 
 ```sql
 ALTER TABLE briefing_preferences
-ADD COLUMN location_lat DOUBLE PRECISION,
-ADD COLUMN location_lng DOUBLE PRECISION,
-ADD COLUMN location_name TEXT;
-```
-
-### Settings UI Changes (`BriefingSettings.tsx`)
-
-Add a "Weather Location" section:
-1. **"Use my current location"** button - requests browser geolocation and saves lat/lng
-2. Display saved location: "Austin, TX" or "No location set"
-
-### Edge Function Changes (`briefing-generate/index.ts`)
-
-Use dynamic coordinates from user preferences:
-
-```typescript
-const lat = prefs?.location_lat || 41.88;  // fallback to Chicago
-const lng = prefs?.location_lng || -87.63;
-const weatherResponse = await fetch(
-  `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}...`
-);
-```
-
----
-
-## 3. Default Topics as Paragraph
-
-### Database Migration
-
-Add a text column for freeform topic instructions:
-
-```sql
-ALTER TABLE briefing_preferences
-ADD COLUMN default_topic_instructions TEXT;
-```
-
-### Settings UI Changes (`BriefingSettings.tsx`)
-
-Replace tag-based topics with a textarea:
-
-```text
-Default Topics & Instructions
-
-[Textarea - multiline input]
-"Cover any SMCI earnings news, FDA approvals in biotech, 
-and tariff developments with China. If there's big market 
-news, lead with that."
-
-(Describe what topics you care about and how you want them covered)
+ADD COLUMN sms_delivery_enabled BOOLEAN DEFAULT false;
 ```
 
 ### Edge Function Changes (`briefing-generate/index.ts`)
-
-Use the paragraph in Perplexity queries:
+After the briefing is marked as "ready", check if SMS is enabled and send:
 
 ```typescript
-const newsResponse = await fetch('https://api.perplexity.ai/chat/completions', {
-  body: JSON.stringify({
-    messages: [{
-      role: 'user',
-      content: `Based on these topic interests: "${topicInstructions}", 
-                what are the top 3 relevant news stories from today?`
-    }]
-  })
-});
+// After updating briefing to 'ready'
+if (prefs?.sms_delivery_enabled && profile?.phone_us) {
+  try {
+    const TWILIO_ACCOUNT_SID = Deno.env.get('TWILIO_ACCOUNT_SID');
+    const TWILIO_AUTH_TOKEN = Deno.env.get('TWILIO_AUTH_TOKEN');
+    const TWILIO_PHONE_NUMBER = Deno.env.get('TWILIO_PHONE_NUMBER');
+    
+    const topicsList = (briefing.topics?.length > 0 
+      ? briefing.topics.slice(0, 3).join(', ') 
+      : 'your interests');
+    
+    const smsBody = `☀️ Your morning briefing is ready!\n\nListen now: ${publicUrl}\n\nTopics: ${topicsList}`;
+    
+    const formData = new URLSearchParams();
+    formData.append('To', profile.phone_us);
+    formData.append('From', TWILIO_PHONE_NUMBER);
+    formData.append('Body', smsBody);
+
+    await fetch(
+      `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Basic ' + btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`),
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData.toString(),
+      }
+    );
+    console.log(`SMS sent to ${profile.phone_us}`);
+  } catch (e) {
+    console.error('SMS send error:', e);
+    // Don't fail the briefing if SMS fails
+  }
+}
 ```
 
 ---
 
-## 4. Test Episode with Playback
+## 3. Settings UI Update
 
-### Settings UI Enhancements (`BriefingSettings.tsx`)
-
-Add a complete test section:
-1. "Generate Test Briefing" button with loading state
-2. Audio player when episode is ready
-3. Script preview in an accordion
+### Add SMS Toggle (`BriefingSettings.tsx`)
+Add a new toggle in the settings section:
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│ Test Your Briefing                                          │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│ [▶ Generate Test Briefing]                                  │
-│                                                             │
-│ ┌─────────────────────────────────────────────────────────┐ │
-│ │ 🔊 ▶ ━━━━━━━━━━━━━━━━━━━━━━━ 2:45                       │ │
-│ └─────────────────────────────────────────────────────────┘ │
-│                                                             │
-│ ▸ View Script                                               │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+Delivery Options
+
+☑ Send me an SMS when my briefing is ready
+   Delivers a link to your podcast via text message
 ```
 
----
-
-## 5. Blog Post Tutorial
-
-### New Page: `src/pages/MorningBriefingBlog.tsx`
-
-Create a public tutorial at `/blog/morning-briefing` covering:
-
-1. **What is Morning Briefing?**
-   - AI-generated personalized audio podcast
-   - Covers your calendar, weather, and custom news topics
-   
-2. **Setup Steps**
-   - Enable in Settings
-   - Set your location for weather
-   - Write your topic instructions paragraph
-   - Generate a test episode to verify it works
-   
-3. **iOS Shortcut Setup** (detailed walkthrough)
-   - Copy your API key from Settings
-   - Create automation in Shortcuts app
-   - Wake-check API call configuration
-   - Play audio and mark-played actions
-   
-4. **Tips**
-   - Be specific about what topics matter to you
-   - Weekend settings (disabled by default)
-   - Voice selection
-
-### Route Addition
-
-Add to `App.tsx`:
-```tsx
-<Route path="/blog/morning-briefing" element={<MorningBriefingBlog />} />
-```
+### Location in UI
+Place this under the "Include in Briefing" section with Calendar/Weather checkboxes.
 
 ---
 
@@ -210,9 +135,23 @@ Add to `App.tsx`:
 
 | File | Changes |
 |------|---------|
-| New migration | Add `location_lat`, `location_lng`, `location_name`, `default_topic_instructions` columns |
-| `supabase/functions/briefing-generate/index.ts` | Shorter prompt, use location, use topic instructions, simplify calendar format |
-| `src/components/settings/BriefingSettings.tsx` | Add location picker, textarea for topics, audio player for test |
-| `src/pages/MorningBriefingBlog.tsx` | New file - tutorial page |
-| `src/App.tsx` | Add route for blog post |
+| New migration | Add `sms_delivery_enabled` column to `briefing_preferences` |
+| `supabase/functions/briefing-generate/index.ts` | (1) Update Perplexity prompts for headline format, (2) Add SMS sending after generation |
+| `src/components/settings/BriefingSettings.tsx` | Add toggle for SMS delivery |
+
+---
+
+## Technical Notes
+
+### Twilio Credentials
+Already configured in the project (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER).
+
+### Phone Number Source
+Use `profiles.phone_us` which is already available from the profile query in the function.
+
+### SMS Character Limit
+Twilio SMS supports 1600 characters. Our message will be ~150 chars, well within limits.
+
+### Future Enhancement (not in this plan)
+Could explore MMS to send the actual audio file as an attachment, but starting with a link is simpler and more reliable.
 

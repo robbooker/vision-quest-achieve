@@ -440,6 +440,92 @@ export type Database = {
         }
         Relationships: []
       }
+      briefing_preferences: {
+        Row: {
+          created_at: string | null
+          default_topics: string[] | null
+          default_wake_time: string | null
+          enabled: boolean | null
+          evening_reminder_time: string | null
+          id: string
+          include_calendar: boolean | null
+          include_email_summary: boolean | null
+          include_weather: boolean | null
+          preferred_channel: string | null
+          timezone: string | null
+          updated_at: string | null
+          user_id: string
+          voice_id: string | null
+          weekend_enabled: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          default_topics?: string[] | null
+          default_wake_time?: string | null
+          enabled?: boolean | null
+          evening_reminder_time?: string | null
+          id?: string
+          include_calendar?: boolean | null
+          include_email_summary?: boolean | null
+          include_weather?: boolean | null
+          preferred_channel?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+          user_id: string
+          voice_id?: string | null
+          weekend_enabled?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          default_topics?: string[] | null
+          default_wake_time?: string | null
+          enabled?: boolean | null
+          evening_reminder_time?: string | null
+          id?: string
+          include_calendar?: boolean | null
+          include_email_summary?: boolean | null
+          include_weather?: boolean | null
+          preferred_channel?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+          user_id?: string
+          voice_id?: string | null
+          weekend_enabled?: boolean | null
+        }
+        Relationships: []
+      }
+      briefing_sources: {
+        Row: {
+          briefing_id: string | null
+          created_at: string | null
+          id: string
+          raw_data: Json | null
+          source_type: string | null
+        }
+        Insert: {
+          briefing_id?: string | null
+          created_at?: string | null
+          id?: string
+          raw_data?: Json | null
+          source_type?: string | null
+        }
+        Update: {
+          briefing_id?: string | null
+          created_at?: string | null
+          id?: string
+          raw_data?: Json | null
+          source_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "briefing_sources_briefing_id_fkey"
+            columns: ["briefing_id"]
+            isOneToOne: false
+            referencedRelation: "morning_briefings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_event_pillars: {
         Row: {
           calendar_event_id: string
@@ -1678,6 +1764,57 @@ export type Database = {
         }
         Relationships: []
       }
+      morning_briefings: {
+        Row: {
+          created_at: string | null
+          custom_instructions: string | null
+          duration_seconds: number | null
+          error_message: string | null
+          generated_at: string | null
+          id: string
+          played_at: string | null
+          podcast_url: string | null
+          script: string | null
+          status: string | null
+          topics: string[] | null
+          user_id: string
+          wake_date: string
+          wake_time: string
+        }
+        Insert: {
+          created_at?: string | null
+          custom_instructions?: string | null
+          duration_seconds?: number | null
+          error_message?: string | null
+          generated_at?: string | null
+          id?: string
+          played_at?: string | null
+          podcast_url?: string | null
+          script?: string | null
+          status?: string | null
+          topics?: string[] | null
+          user_id: string
+          wake_date: string
+          wake_time: string
+        }
+        Update: {
+          created_at?: string | null
+          custom_instructions?: string | null
+          duration_seconds?: number | null
+          error_message?: string | null
+          generated_at?: string | null
+          id?: string
+          played_at?: string | null
+          podcast_url?: string | null
+          script?: string | null
+          status?: string | null
+          topics?: string[] | null
+          user_id?: string
+          wake_date?: string
+          wake_time?: string
+        }
+        Relationships: []
+      }
       notification_preferences: {
         Row: {
           behind_plan: boolean | null
@@ -2017,6 +2154,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          api_key: string | null
           avatar_url: string | null
           consent_email: boolean | null
           consent_sms: boolean | null
@@ -2038,6 +2176,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          api_key?: string | null
           avatar_url?: string | null
           consent_email?: boolean | null
           consent_sms?: boolean | null
@@ -2059,6 +2198,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          api_key?: string | null
           avatar_url?: string | null
           consent_email?: boolean | null
           consent_sms?: boolean | null

@@ -69,7 +69,7 @@ serve(async (req) => {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('display_name, email')
+      .select('display_name, email, phone_us')
       .eq('user_id', userId)
       .single();
 
@@ -208,13 +208,22 @@ serve(async (req) => {
               messages: [
                 { 
                   role: 'system', 
-                  content: 'Provide a concise summary of the most relevant news based on the user\'s topic interests. Focus on actionable information and key developments. Be specific with numbers and facts. Keep to 3-4 key stories maximum.'
+                  content: `You are a news wire service. Return ONLY factual headlines and key numbers.
+
+For each topic, provide:
+- Headline (one sentence, factual)
+- Key number or fact (earnings, price, percentage change, date, etc.)
+- Source context (one phrase)
+
+DO NOT editorialize or comment on how interesting topics are.
+DO NOT say things like "this is an exciting development" or "you seem interested in..."
+ONLY provide news headlines and facts. If there's no recent news, say "No breaking news on [topic]"`
                 },
                 { 
                   role: 'user', 
-                  content: `Based on these topic interests and instructions: "${topicInstructions}"
+                  content: `Based on these topic interests: "${topicInstructions}"
 
-What are the most relevant news stories from today? Summarize each briefly.`
+Return the top 3-4 relevant news headlines with key facts from today.`
                 }
               ],
               search_recency_filter: 'day'
@@ -240,11 +249,17 @@ What are the most relevant news stories from today? Summarize each briefly.`
                 messages: [
                   { 
                     role: 'system', 
-                    content: 'Provide a concise 2-3 sentence summary of the latest news on this topic. Focus on actionable information and key developments. Be specific with numbers and facts.'
+                    content: `You are a news wire service. Return ONLY factual headlines and key numbers.
+
+Provide:
+- Headline (one sentence, factual)
+- Key number or fact (earnings, price, percentage change, date, etc.)
+
+DO NOT editorialize. ONLY provide the headline and key fact.`
                   },
                   { 
                     role: 'user', 
-                    content: `What's the latest news on: ${topic}?`
+                    content: `What's the latest headline on: ${topic}?`
                   }
                 ],
                 search_recency_filter: 'day'
@@ -436,6 +451,48 @@ Now write the briefing script:`;
         generated_at: new Date().toISOString()
       })
       .eq('id', briefing_id);
+
+    // Send SMS notification if enabled
+    if (prefs?.sms_delivery_enabled && profile?.phone_us) {
+      try {
+        const TWILIO_ACCOUNT_SID = Deno.env.get('TWILIO_ACCOUNT_SID');
+        const TWILIO_AUTH_TOKEN = Deno.env.get('TWILIO_AUTH_TOKEN');
+        const TWILIO_PHONE_NUMBER = Deno.env.get('TWILIO_PHONE_NUMBER');
+        
+        if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_PHONE_NUMBER) {
+          const topicsList = briefing.topics?.length > 0 
+            ? briefing.topics.slice(0, 3).join(', ') 
+            : 'your interests';
+          
+          const smsBody = `☀️ Your morning briefing is ready!\n\nListen now: ${publicUrl}\n\nTopics: ${topicsList}`;
+          
+          const formData = new URLSearchParams();
+          formData.append('To', profile.phone_us);
+          formData.append('From', TWILIO_PHONE_NUMBER);
+          formData.append('Body', smsBody);
+
+          const encoder = new TextEncoder();
+          const credentials = encoder.encode(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
+          const base64Credentials = btoa(String.fromCharCode(...credentials));
+
+          await fetch(
+            `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Basic ${base64Credentials}`,
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+              body: formData.toString(),
+            }
+          );
+          console.log(`SMS sent to ${profile.phone_us}`);
+        }
+      } catch (e) {
+        console.error('SMS send error:', e);
+        // Don't fail the briefing if SMS fails
+      }
+    }
 
     return new Response(JSON.stringify({
       success: true,

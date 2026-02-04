@@ -10,7 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Sunrise, Clock, Phone, MessageSquare, Copy, Check, RefreshCw, Loader2, MapPin, FileText } from 'lucide-react';
+import { Sunrise, Clock, Phone, MessageSquare, Copy, Check, RefreshCw, Loader2, MapPin, FileText, Send } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface BriefingPreferences {
@@ -31,6 +31,7 @@ interface BriefingPreferences {
   location_lat: number | null;
   location_lng: number | null;
   location_name: string | null;
+  sms_delivery_enabled: boolean;
 }
 
 interface TestBriefing {
@@ -456,6 +457,7 @@ export function BriefingSettings() {
           </div>
 
           {/* Include Options */}
+          {/* Include in Briefing */}
           <div className="space-y-3">
             <Label>Include in Briefing</Label>
             <div className="space-y-2">
@@ -473,6 +475,26 @@ export function BriefingSettings() {
                   onCheckedChange={(checked) => handleToggle('include_weather', checked)}
                 />
               </div>
+            </div>
+          </div>
+
+          {/* SMS Delivery Option */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Send className="h-4 w-4" />
+              SMS Delivery
+            </Label>
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-sm">Send me an SMS when my briefing is ready</span>
+                <p className="text-xs text-muted-foreground">
+                  Delivers a link to your podcast via text message
+                </p>
+              </div>
+              <Switch
+                checked={preferences?.sms_delivery_enabled ?? false}
+                onCheckedChange={(checked) => handleToggle('sms_delivery_enabled', checked)}
+              />
             </div>
           </div>
 

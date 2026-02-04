@@ -1,67 +1,61 @@
 
 
-# Fix: iOS Shortcut Briefing URL Retrieval
+# Update: Evening Briefing SMS Message
 
-## Problem Identified
+## Summary
 
-The `briefing-wake-check` edge function contains a database query bug that causes **all requests to fail with "Invalid API key"**, even when the API key is correct.
+Update the evening SMS reminder to be clearer about what it's asking for and guide users to settings for topic configuration.
 
-**Root Cause:** Line 32 of the function selects a column (`timezone`) that doesn't exist in the `profiles` table:
+## Current State
+
+The evening SMS message is:
+```
+Hey! What time tomorrow? Reply with time + any topics you want covered (default: SMCI, ...)
+
+Examples:
+"6:30 SMCI earnings"
+"7am" (uses defaults)
+"skip" (no briefing)
+```
+
+## Proposed New Message
+
+```
+What time would you like your morning briefing tomorrow?
+
+Reply with a time like "6:30" or "7am"
+Reply "skip" to skip tomorrow
+
+Tip: Set your default news topics in Settings > Morning Briefing to customize what's covered each day.
+```
+
+This message:
+- Asks the question clearly
+- Keeps reply examples simple
+- Reminds users where to configure topics
+- Removes the complex "time + topics" syntax for now (keeps it simple)
+
+## Technical Changes
+
+**File: `supabase/functions/briefing-evening-reminder/index.ts`**
+
+Update lines 64-67 to use the new message format:
 
 ```typescript
-// Current broken code
-const { data: profile, error: profileError } = await supabase
-  .from('profiles')
-  .select('user_id, timezone')  // 'timezone' DOES NOT EXIST
-  .eq('api_key', apiKey)
-  .single();
+// Remove the topics hint complexity for now
+const message = `What time would you like your morning briefing tomorrow?\n\nReply with a time like "6:30" or "7am"\nReply "skip" to skip tomorrow\n\n💡 Set your default topics in Settings → Morning Briefing`;
 ```
 
-When Supabase tries to select a non-existent column, the query fails entirely. The function then interprets this as "profile not found" and returns the misleading "Invalid API key" error.
+## Future Enhancement (Not in this change)
 
-## Verification
+The existing Twilio SMS webhook already supports parsing topics in replies via the `set_wake_time` tool:
+- `topics` parameter (line 337): Optional news topics
+- `custom_instructions` parameter (line 338): Special instructions
 
-Your setup is correct:
-- API Key: `f8dc996d-3aba-4c72-8ba0-f38f176306d4` (exists in database)
-- Today's briefing: Ready with valid podcast URL
-- Shortcut configuration: Correct with both headers
+A future iteration could:
+1. Add a new tool like `add_briefing_topic` to the SMS webhook
+2. Allow replies like "add NVDA to my topics" to append to `default_topics`
+3. The AI assistant (Toasty) would recognize this pattern and update `briefing_preferences.default_topics`
 
-## Solution
-
-Update the edge function to only select columns that exist. The `timezone` is correctly fetched from `briefing_preferences` later in the code (lines 46-50), so it's not needed from profiles.
-
-### Technical Changes
-
-**File: `supabase/functions/briefing-wake-check/index.ts`**
-
-Change line 32 from:
-```typescript
-.select('user_id, timezone')
-```
-
-To:
-```typescript
-.select('user_id')
-```
-
-This is a one-line fix that will allow the query to succeed and return your briefing data properly.
-
-## Expected Result
-
-After the fix, your iOS Shortcut will receive a JSON response like:
-
-```json
-{
-  "should_wake": false,
-  "status": "ready",
-  "podcast_url": "https://gogzkyjylruuziseprfw.supabase.co/storage/v1/object/public/briefings/.../2026-02-04-briefing.mp3",
-  "briefing_id": "5a20c68e-9cf5-4210-bd09-760a1d005018",
-  "next_wake_time": "07:00",
-  "topics": [...],
-  "current_time": "...",
-  "minutes_until_wake": ...
-}
-```
-
-The "Get Dictionary Value" action will then successfully extract the `podcast_url`.
+For now, we'll keep the simple approach and guide users to Settings.
 

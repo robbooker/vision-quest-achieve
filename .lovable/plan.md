@@ -1,289 +1,218 @@
 
 
-# Smarter Toasty: Enhanced Voice & SMS Assistant with Historical Intelligence
+# Morning Briefing Enhancements
 
-This plan implements a significantly upgraded Toasty assistant that has deep knowledge of your historical data, can answer questions like "how many pushups did I do this month?" and provides intelligent insights from aggregated biometric, nutrition, and productivity data.
-
----
-
-## Overview
-
-The current Toasty only fetches 7 days of context data. We'll enhance it to:
-
-1. **Change the greeting** to "Hi, [name], I'm Toasty, how can I help today?"
-2. **Add semantic search** capability to query the vector embeddings for historical questions
-3. **Add comprehensive aggregation tools** for cumulative counts, averages, and trends
-4. **Add high-value logging tools** (weight, BP, nutrition, sleep, Reset Audit)
-5. **Add read-only insight tools** (sleep trends, activity, heart rate, habit streaks, focus analytics, nutrition)
+This plan implements five key improvements to make the AI Morning Briefing system more personal, reliable, and easier to use.
 
 ---
 
-## Architecture
+## Summary of Changes
+
+| # | Enhancement | Description |
+|---|-------------|-------------|
+| 1 | Personalized greeting | Podcast starts with "Good morning, [name]" and is capped at ~3 minutes (~450 words) |
+| 2 | Location-based weather | Add `location_lat`/`location_lng` columns to briefing_preferences, using cached browser geolocation or manual entry |
+| 3 | Default topics paragraph | Replace tag-based topics with a freeform `default_topic_instructions` text field (paragraph format) |
+| 4 | Test episode generation | Add playable audio preview in the settings UI with status feedback |
+| 5 | Blog post tutorial | Create `/blog/morning-briefing` page with iOS Shortcut setup instructions |
+
+---
+
+## 1. Personalized Greeting + Shorter Episodes + Simple Calendar
+
+### Changes to `briefing-generate/index.ts`
+
+Update the AI prompt to:
+- Start with "Good morning, [name]!" as the opening phrase
+- Limit script to **400-500 words** (~2.5-3 minutes spoken)
+- **Calendar events: just name and start time** (e.g., "Team standup at 9am")
+- Prioritize weather and calendar, keep news concise
+
+New prompt structure:
 
 ```text
-User Question: "How many pushups did I do this month?"
-                    │
-                    ▼
+Keep the entire briefing between 400-500 words (approximately 2.5-3 minutes when spoken).
+
+STRUCTURE (flow naturally):
+1. **Opening** (1-2 sentences)
+   - Start with "Good morning, [name]!"
+   - Weather for today
+   
+2. **Calendar** (brief)
+   - List events by name and start time only (e.g., "Team standup at 9am, lunch with Sarah at noon")
+   - No end times or durations needed
+   
+3. **Topics** (if any requested)
+   - Quick coverage of requested topics
+   
+4. **Close** (1 sentence)
+   - Energizing send-off
+```
+
+### Calendar Data Formatting
+
+When fetching calendar events, simplify the format passed to the AI:
+
+```typescript
+// Current format might include:
+// "Team Standup (9:00 AM - 9:30 AM)"
+
+// New simplified format:
+// "Team Standup at 9am"
+const formattedEvents = events.map(e => 
+  `${e.summary} at ${formatTime(e.start)}`
+).join(', ');
+```
+
+---
+
+## 2. Location-Based Weather
+
+### Database Migration
+
+Add location columns to `briefing_preferences`:
+
+```sql
+ALTER TABLE briefing_preferences
+ADD COLUMN location_lat DOUBLE PRECISION,
+ADD COLUMN location_lng DOUBLE PRECISION,
+ADD COLUMN location_name TEXT;
+```
+
+### Settings UI Changes (`BriefingSettings.tsx`)
+
+Add a "Weather Location" section:
+1. **"Use my current location"** button - requests browser geolocation and saves lat/lng
+2. Display saved location: "Austin, TX" or "No location set"
+
+### Edge Function Changes (`briefing-generate/index.ts`)
+
+Use dynamic coordinates from user preferences:
+
+```typescript
+const lat = prefs?.location_lat || 41.88;  // fallback to Chicago
+const lng = prefs?.location_lng || -87.63;
+const weatherResponse = await fetch(
+  `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}...`
+);
+```
+
+---
+
+## 3. Default Topics as Paragraph
+
+### Database Migration
+
+Add a text column for freeform topic instructions:
+
+```sql
+ALTER TABLE briefing_preferences
+ADD COLUMN default_topic_instructions TEXT;
+```
+
+### Settings UI Changes (`BriefingSettings.tsx`)
+
+Replace tag-based topics with a textarea:
+
+```text
+Default Topics & Instructions
+
+[Textarea - multiline input]
+"Cover any SMCI earnings news, FDA approvals in biotech, 
+and tariff developments with China. If there's big market 
+news, lead with that."
+
+(Describe what topics you care about and how you want them covered)
+```
+
+### Edge Function Changes (`briefing-generate/index.ts`)
+
+Use the paragraph in Perplexity queries:
+
+```typescript
+const newsResponse = await fetch('https://api.perplexity.ai/chat/completions', {
+  body: JSON.stringify({
+    messages: [{
+      role: 'user',
+      content: `Based on these topic interests: "${topicInstructions}", 
+                what are the top 3 relevant news stories from today?`
+    }]
+  })
+});
+```
+
+---
+
+## 4. Test Episode with Playback
+
+### Settings UI Enhancements (`BriefingSettings.tsx`)
+
+Add a complete test section:
+1. "Generate Test Briefing" button with loading state
+2. Audio player when episode is ready
+3. Script preview in an accordion
+
+```text
 ┌─────────────────────────────────────────────────────────────┐
-│                    Toasty (Voice/SMS)                       │
+│ Test Your Briefing                                          │
+├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│   1. Detect intent → "cumulative_metric" question          │
-│   2. Call tool: get_cumulative_habit_progress              │
-│   3. Query: tactic_logs + goal_tactics WHERE month         │
-│   4. Calculate: Sum (completed_count × unit_value)         │
-│   5. Return: "You've done 1,240 pushups this month!"       │
+│ [▶ Generate Test Briefing]                                  │
+│                                                             │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ 🔊 ▶ ━━━━━━━━━━━━━━━━━━━━━━━ 2:45                       │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│                                                             │
+│ ▸ View Script                                               │
+│                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Implementation Details
+## 5. Blog Post Tutorial
 
-### Phase 1: Update Greeting (Voice Webhook)
+### New Page: `src/pages/MorningBriefingBlog.tsx`
 
-**File:** `supabase/functions/twilio-voice-webhook/index.ts`
+Create a public tutorial at `/blog/morning-briefing` covering:
 
-**Change:** Lines 851-927 (initial greeting block)
+1. **What is Morning Briefing?**
+   - AI-generated personalized audio podcast
+   - Covers your calendar, weather, and custom news topics
+   
+2. **Setup Steps**
+   - Enable in Settings
+   - Set your location for weather
+   - Write your topic instructions paragraph
+   - Generate a test episode to verify it works
+   
+3. **iOS Shortcut Setup** (detailed walkthrough)
+   - Copy your API key from Settings
+   - Create automation in Shortcuts app
+   - Wake-check API call configuration
+   - Play audio and mark-played actions
+   
+4. **Tips**
+   - Be specific about what topics matter to you
+   - Weekend settings (disabled by default)
+   - Voice selection
 
-Replace the elaborate daily briefing with:
-```
-"Hi, [userName], I'm Toasty, how can I help today?"
-```
+### Route Addition
 
-Move the briefing logic into a tool called `get_daily_briefing` that users can request.
-
----
-
-### Phase 2: Add Semantic Search Tool
-
-Add a new tool that allows Toasty to search the vector embeddings for historical context:
-
-```typescript
-{
-  name: "search_history",
-  description: "Search the user's history for relevant context. Use when they ask 'when did I...', 'have I ever...', 'what did I say about...', 'remember when...'. Searches journal entries, tasks, habits, focus sessions, and more.",
-  parameters: {
-    query: { type: "string", description: "What to search for in the user's history" },
-    limit: { type: "number", description: "Number of results, default 5" }
-  }
-}
-```
-
-**Implementation:** Call the `semantic-search` Edge Function internally using service role credentials, passing the user's question as the query.
-
----
-
-### Phase 3: Add Cumulative Progress Tools
-
-These tools enable answering questions like "how many pushups today/this week/this month/all time?"
-
-```typescript
-{
-  name: "get_cumulative_habit_progress",
-  description: "Get cumulative progress on habits/tactics. Use for questions like 'how many pushups', 'meditation total', 'exercise count', etc.",
-  parameters: {
-    habit_name: { type: "string", description: "Name of the habit (e.g., 'pushups', 'meditation')" },
-    period: { type: "string", enum: ["today", "week", "month", "year", "all"], description: "Time period for aggregation" }
-  }
-}
+Add to `App.tsx`:
+```tsx
+<Route path="/blog/morning-briefing" element={<MorningBriefingBlog />} />
 ```
 
-**Implementation Logic:**
-1. Find matching tactic by name (fuzzy match)
-2. Query `tactic_logs` with date filters based on period
-3. Parse tactic title for unit value (e.g., "Do 10 pushups" → 10)
-4. Sum: `completed_count × unit_value` for all matching logs
-5. Return formatted result
-
 ---
 
-### Phase 4: Add High-Value Logging Tools
-
-| Tool | Parameters | Table | Notes |
-|------|------------|-------|-------|
-| `log_weight` | weight (lbs/kg) | `health_measurements` | measurement_type='weight' |
-| `log_blood_pressure` | systolic, diastolic | `health_measurements` | measurement_type='blood_pressure' |
-| `log_sleep` | hours, quality (1-5) | `oura_daily_metrics` | UPSERT with source='manual' |
-| `log_nap` | minutes | `oura_daily_metrics` | UPSERT nap_duration_minutes |
-| `log_meal` | description, meal_type | Calls `parse-nutrition` → `daily_nutrition` | AI parsing |
-| `log_water` | amount, unit | `daily_nutrition` | Convert to ml |
-| `toggle_reset_rule` | rule, completed | `reset_audits` | UPSERT specific rule column |
-| `get_reset_status` | none | `reset_audits` | Return today's score & completed rules |
-
----
-
-### Phase 5: Add Read-Only Insight Tools (with extended date ranges)
-
-| Tool | Description | Query Details |
-|------|-------------|---------------|
-| `get_sleep_insights` | Sleep score, hours, readiness trends | `oura_daily_metrics` - 30 days: avg/min/max scores, avg hours, best/worst days |
-| `get_activity_insights` | Steps, active calories, movement | `oura_daily_metrics` - 30 days: avg steps, total active calories, activity score trends |
-| `get_heart_rate_insights` | RHR, HRV, trends | `oura_daily_metrics` - 14 days: avg RHR, HRV balance, compare to baseline |
-| `get_bloodwork_summary` | Latest bloodwork results | `bloodwork_reports` - Most recent: key biomarkers, AI insights |
-| `get_habit_streaks` | All habit streaks and totals | `tactic_logs` + `goal_tactics` - Calculate current streaks and all-time totals |
-| `get_focus_insights` | Focus time stats | `focus_sessions` - 30 days: total minutes, session count, avg session length, by pillar |
-| `get_nutrition_summary` | Calories, protein, hydration | `daily_nutrition` - Today + 7-day averages |
-| `get_daily_briefing` | Full briefing (moved from greeting) | Current logic from lines 851-908 |
-
----
-
-### Phase 6: Smart Query Detection
-
-Add intelligence to detect what kind of question is being asked:
-
-**Cumulative Questions** (trigger aggregation):
-- "How many pushups did I do this month?"
-- "What's my total meditation time?"
-- "How much have I exercised?"
-
-**Historical Questions** (trigger semantic search):
-- "Have I journaled about stress recently?"
-- "When did I last talk about my dad?"
-- "What goals did I set last cycle?"
-
-**Status Questions** (trigger insight tools):
-- "How's my sleep been?"
-- "What's my step count?"
-- "Am I hitting my protein goals?"
-
----
-
-## Technical Details
-
-### File Changes
+## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `supabase/functions/twilio-voice-webhook/index.ts` | Add ~16 new tools, update greeting, add tool execution handlers |
-| `supabase/functions/twilio-sms-webhook/index.ts` | Add same ~16 new tools, add tool execution handlers |
-
-### Tool Implementation Pattern
-
-Each tool follows this pattern in the `executeTool` function:
-
-```typescript
-case 'get_cumulative_habit_progress': {
-  const { habit_name, period = 'week' } = args;
-  
-  // 1. Find matching tactic
-  const { data: tactic } = await supabase
-    .from('goal_tactics')
-    .select('id, title')
-    .eq('user_id', userId)
-    .ilike('title', `%${habit_name}%`)
-    .limit(1)
-    .single();
-  
-  if (!tactic) return `No habit found matching "${habit_name}"`;
-  
-  // 2. Calculate date range
-  const dateRanges = {
-    today: [today, today],
-    week: [subDays(today, 7), today],
-    month: [startOfMonth(today), today],
-    year: [startOfYear(today), today],
-    all: [null, null]
-  };
-  const [startDate, endDate] = dateRanges[period];
-  
-  // 3. Query logs
-  let query = supabase
-    .from('tactic_logs')
-    .select('completed_count')
-    .eq('tactic_id', tactic.id);
-  
-  if (startDate) query = query.gte('logged_date', startDate);
-  if (endDate) query = query.lte('logged_date', endDate);
-  
-  const { data: logs } = await query;
-  
-  // 4. Calculate total
-  const unitValue = parseInt(tactic.title.match(/\d+/)?.[0] || '1', 10);
-  const total = logs.reduce((sum, l) => sum + l.completed_count * unitValue, 0);
-  
-  // 5. Format response
-  const periodLabels = {
-    today: 'today',
-    week: 'this week',
-    month: 'this month',
-    year: 'this year',
-    all: 'all time'
-  };
-  
-  return `You've done ${total.toLocaleString()} ${habit_name} ${periodLabels[period]}!`;
-}
-```
-
-### Semantic Search Integration
-
-For the voice webhook, call semantic search internally:
-
-```typescript
-case 'search_history': {
-  const { query, limit = 5 } = args;
-  
-  // Generate embedding for query
-  const embeddingResponse = await fetch('https://ai.gateway.lovable.dev/v1/embeddings', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'text-embedding-3-small',
-      input: query,
-      dimensions: 768,
-    }),
-  });
-  
-  const embeddingData = await embeddingResponse.json();
-  const queryEmbedding = embeddingData.data?.[0]?.embedding;
-  
-  // Search embeddings
-  const { data: results } = await supabase.rpc('match_activity_embeddings', {
-    query_embedding: `[${queryEmbedding.join(',')}]`,
-    match_threshold: 0.3,
-    match_count: limit,
-    filter_user_id: userId,
-  });
-  
-  // Format results for voice
-  if (!results?.length) return "I couldn't find anything matching that in your history.";
-  
-  const formatted = results.map(r => 
-    `${r.activity_date}: ${r.content_text.slice(0, 100)}`
-  ).join('. ');
-  
-  return `I found ${results.length} relevant entries: ${formatted}`;
-}
-```
-
----
-
-## Example Conversations After Implementation
-
-**User:** "How many pushups have I done this month?"
-**Toasty:** "You've done 1,240 pushups this month! That's an average of 45 per day. Great consistency!"
-
-**User:** "What's my average sleep score?"
-**Toasty:** "Over the last 30 days, your average sleep score is 78. Your best night was January 15th with a 92, and your readiness has averaged 74."
-
-**User:** "Log my weight at 182"
-**Toasty:** "Got it! Logged your weight at 182 lbs. That's down 1.5 pounds from your last measurement."
-
-**User:** "Have I journaled about work stress?"
-**Toasty:** "I found 3 entries mentioning work stress. On January 28th you wrote about deadline pressure, and on January 15th you reflected on meeting overload."
-
-**User:** "How am I doing on my reset today?"
-**Toasty:** "You're at 5 out of 8 rules completed today. You still need to check off: sleep, fuel, and reset."
-
----
-
-## Deployment
-
-After implementation:
-1. Deploy `twilio-voice-webhook`
-2. Deploy `twilio-sms-webhook`
-
-Both functions will automatically be available at their existing endpoints.
+| New migration | Add `location_lat`, `location_lng`, `location_name`, `default_topic_instructions` columns |
+| `supabase/functions/briefing-generate/index.ts` | Shorter prompt, use location, use topic instructions, simplify calendar format |
+| `src/components/settings/BriefingSettings.tsx` | Add location picker, textarea for topics, audio player for test |
+| `src/pages/MorningBriefingBlog.tsx` | New file - tutorial page |
+| `src/App.tsx` | Add route for blog post |
 

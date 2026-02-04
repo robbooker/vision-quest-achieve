@@ -1,133 +1,171 @@
 
 
-# Morning Briefing Improvements: Headlines + SMS Delivery
+# Morning Briefing: Dual-Source News (Tavily + ESPN)
 
-This plan addresses the feedback to deliver real news headlines (not AI commentary) and add SMS delivery of the audio link.
+This plan replaces Perplexity with two specialized sources: **Tavily** for general/financial news and **ESPN** for verified sports scores, addressing the accuracy issues with stale data and missed games.
 
 ---
 
 ## Summary of Changes
 
-| # | Enhancement | Description |
-|---|-------------|-------------|
-| 1 | Headlines-focused news | Update Perplexity prompts to request specific headlines, facts, and numbers — not commentary about how interesting topics are |
-| 2 | SMS audio link delivery | After briefing generation, send an SMS to the user with a link to their podcast |
-| 3 | Optional SMS toggle | Add a setting to enable/disable SMS delivery |
+| Source | Purpose | Data Type |
+|--------|---------|-----------|
+| **Tavily API** | General news, financial news, tech topics | Headlines, facts, AI-generated summaries |
+| **ESPN API** | Sports scores and highlights | Yesterday's verified game results |
 
 ---
 
-## 1. Headlines-Focused News Prompts
+## Why This Dual Approach Works
 
-### Problem
-Current prompt asks Perplexity:
-```
-"Provide a concise summary of the most relevant news based on the user's topic interests"
-```
-
-This produces fluffy responses like "It sounds like you're really diving deep into making your coding experience more intuitive..."
-
-### Solution
-Update the Perplexity prompt to be explicit about headline format:
-
-```text
-You are a news wire service. Return ONLY factual headlines and key numbers.
-
-For each topic, provide:
-- Headline (one sentence, factual)
-- Key number or fact (earnings, price, percentage change, date, etc.)
-- Source context (one phrase)
-
-DO NOT editorialize or comment on how interesting topics are.
-DO NOT say things like "this is an exciting development" or "you seem interested in..."
-ONLY provide news headlines and facts. If there's no recent news, say "No breaking news on [topic]"
-```
-
-### Files to Modify
-- `supabase/functions/briefing-generate/index.ts` — Update both Perplexity prompt calls (lines 206-221 and lines 237-248)
+| Problem | Current Behavior | New Behavior |
+|---------|-----------------|--------------|
+| Heat game missed | Perplexity says "no updates" | ESPN API fetches actual 112-98 score |
+| Juan Soto roster error | AI hallucinates outdated data | ESPN provides verified team/player data |
+| Fluffy commentary | "It sounds like you're diving deep..." | Tavily returns factual headlines only |
 
 ---
 
-## 2. SMS Audio Link Delivery
+## Technical Implementation
 
-### How It Works
-After a briefing is successfully generated:
-1. Check if user has SMS delivery enabled
-2. Send SMS via Twilio with the podcast URL
+### 1. Add Tavily API Key Secret
 
-### SMS Format
-```text
-☀️ Your morning briefing is ready!
+The user provided the key: `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`
 
-Listen now: [podcast_url]
+This will be added as a secret named `TAVILY_API_KEY`.
 
-Topics: SMCI earnings, FDA news, Yankees
-```
+### 2. Sports Detection Logic
 
-### Database Migration
-Add a column to control SMS delivery:
-
-```sql
-ALTER TABLE briefing_preferences
-ADD COLUMN sms_delivery_enabled BOOLEAN DEFAULT false;
-```
-
-### Edge Function Changes (`briefing-generate/index.ts`)
-After the briefing is marked as "ready", check if SMS is enabled and send:
+Scan the user's topic instructions for sports keywords:
 
 ```typescript
-// After updating briefing to 'ready'
-if (prefs?.sms_delivery_enabled && profile?.phone_us) {
-  try {
-    const TWILIO_ACCOUNT_SID = Deno.env.get('TWILIO_ACCOUNT_SID');
-    const TWILIO_AUTH_TOKEN = Deno.env.get('TWILIO_AUTH_TOKEN');
-    const TWILIO_PHONE_NUMBER = Deno.env.get('TWILIO_PHONE_NUMBER');
-    
-    const topicsList = (briefing.topics?.length > 0 
-      ? briefing.topics.slice(0, 3).join(', ') 
-      : 'your interests');
-    
-    const smsBody = `☀️ Your morning briefing is ready!\n\nListen now: ${publicUrl}\n\nTopics: ${topicsList}`;
-    
-    const formData = new URLSearchParams();
-    formData.append('To', profile.phone_us);
-    formData.append('From', TWILIO_PHONE_NUMBER);
-    formData.append('Body', smsBody);
+const sportsPatterns = {
+  nba: /\b(nba|heat|lakers|celtics|knicks|warriors|nets|bucks|76ers|suns|mavs|spurs)\b/i,
+  mlb: /\b(mlb|yankees|mets|dodgers|red sox|cubs|astros|braves|phillies|padres|angels)\b/i,
+  nfl: /\b(nfl|giants|jets|cowboys|eagles|patriots|chiefs|bills|dolphins|ravens|49ers)\b/i,
+  nhl: /\b(nhl|rangers|devils|islanders|bruins|penguins|blackhawks|maple leafs|canadiens)\b/i,
+};
 
-    await fetch(
-      `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Basic ' + btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`),
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: formData.toString(),
-      }
-    );
-    console.log(`SMS sent to ${profile.phone_us}`);
-  } catch (e) {
-    console.error('SMS send error:', e);
-    // Don't fail the briefing if SMS fails
-  }
-}
+const detectedSports: string[] = [];
+if (sportsPatterns.nba.test(topicInstructions)) detectedSports.push('nba');
+if (sportsPatterns.mlb.test(topicInstructions)) detectedSports.push('mlb');
+// etc.
+```
+
+### 3. ESPN API Integration
+
+ESPN provides free, unauthenticated scoreboard APIs:
+
+```text
+NBA: https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=YYYYMMDD
+MLB: https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=YYYYMMDD
+NFL: https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=YYYYMMDD
+```
+
+**Yesterday's Games Logic:**
+```typescript
+const yesterday = new Date();
+yesterday.setDate(yesterday.getDate() - 1);
+const dateStr = yesterday.toISOString().slice(0, 10).replace(/-/g, ''); // "20260203"
+```
+
+**Team Matching:**
+```typescript
+// Find games involving teams the user cares about
+const relevantGames = allGames.filter(game => 
+  game.competitions[0].competitors.some(team => 
+    topicInstructions.toLowerCase().includes(team.team.displayName.toLowerCase())
+  )
+);
+```
+
+**Formatted Output:**
+```text
+Heat 112, Hornets 98 (Final) - 20th anniversary celebration at halftime
+Yankees Spring Training: Pitchers and catchers report in 7 days
+```
+
+### 4. Tavily API Integration
+
+Tavily replaces Perplexity for non-sports news. Key features:
+- `topic: "news"` for real-time news results
+- `time_range: "day"` for recent stories
+- `include_answer: true` for AI-synthesized summary
+- Returns verified sources with URLs
+
+**API Call (REST, not SDK in Deno):**
+```typescript
+const TAVILY_API_KEY = Deno.env.get('TAVILY_API_KEY');
+
+// Filter out sports topics (handled by ESPN)
+const nonSportsInstructions = topicInstructions
+  .replace(/\b(yankees|heat|nba|mlb|nfl|etc)\b/gi, '')
+  .trim();
+
+const tavilyResponse = await fetch('https://api.tavily.com/search', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${TAVILY_API_KEY}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    query: nonSportsInstructions,
+    topic: 'news',           // Optimized for news queries
+    time_range: 'day',       // Last 24 hours
+    max_results: 5,
+    include_answer: true,    // Get AI summary
+    search_depth: 'basic',   // 1 credit per search
+  }),
+});
+
+const tavilyData = await tavilyResponse.json();
+// tavilyData.answer = AI-generated summary
+// tavilyData.results = [{title, url, content, score}]
 ```
 
 ---
 
-## 3. Settings UI Update
-
-### Add SMS Toggle (`BriefingSettings.tsx`)
-Add a new toggle in the settings section:
+## Data Flow Diagram
 
 ```text
-Delivery Options
-
-☑ Send me an SMS when my briefing is ready
-   Delivers a link to your podcast via text message
+User Topic Instructions
+"New York Yankees, Miami Heat scores, SMCI earnings, FDA biotech approvals"
+                            │
+            ┌───────────────┴───────────────┐
+            ▼                               ▼
+    Sports Detection              Non-Sports Topics
+    (Yankees, Heat)             (SMCI, FDA biotech)
+            │                               │
+            ▼                               ▼
+       ESPN APIs                     Tavily Search
+    (yesterday's games)           (topic: "news")
+            │                               │
+            ▼                               ▼
+  "Heat 112-98 (W)"            "SMCI up 8% on earnings..."
+  "Yankees: 7 days to ST"      "FDA approves new drug..."
+            │                               │
+            └───────────────┬───────────────┘
+                            ▼
+                    Claude Script Gen
+             (with anti-hallucination rules)
+                            ▼
+             Final briefing with verified data
 ```
 
-### Location in UI
-Place this under the "Include in Briefing" section with Calendar/Weather checkboxes.
+---
+
+## Anti-Hallucination Rules for Claude
+
+Add explicit instructions to prevent fabricating data:
+
+```text
+**FACTUAL ACCURACY RULES:**
+- Today is [CURRENT DATE]. DO NOT reference outdated information.
+- ONLY report information from the data provided below.
+- For sports: Use ONLY the ESPN scores provided. Never guess current rosters.
+- For news: Use ONLY the Tavily headlines provided. Include key numbers when available.
+- If no data is provided for a topic, say "I don't have updates on [topic] this morning."
+- NEVER say "things seem quiet" when data is simply unavailable.
+```
 
 ---
 
@@ -135,23 +173,28 @@ Place this under the "Include in Briefing" section with Calendar/Weather checkbo
 
 | File | Changes |
 |------|---------|
-| New migration | Add `sms_delivery_enabled` column to `briefing_preferences` |
-| `supabase/functions/briefing-generate/index.ts` | (1) Update Perplexity prompts for headline format, (2) Add SMS sending after generation |
-| `src/components/settings/BriefingSettings.tsx` | Add toggle for SMS delivery |
+| `supabase/functions/briefing-generate/index.ts` | (1) Add Tavily API call, (2) Add ESPN API calls for detected sports, (3) Split topic routing, (4) Add date context + accuracy rules |
 
 ---
 
-## Technical Notes
+## Example Output Comparison
 
-### Twilio Credentials
-Already configured in the project (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER).
+**Before (Perplexity only):**
+> "I don't have any specific updates on the Miami Heat for you today."
+> "Juan Soto and Aaron Judge are right up there at the top..."
 
-### Phone Number Source
-Use `profiles.phone_us` which is already available from the profile query in the function.
+**After (Tavily + ESPN):**
+> "Your Heat took care of business last night, beating the Hornets 112 to 98. The game featured a special halftime celebration for the 20th anniversary of Miami's first championship."
+> "In Yankees news, pitchers and catchers report in just one week for spring training. The team is looking to add depth around Aaron Judge with targets including Paul Goldschmidt and Ty France."
+> "On the financial front, SMCI shares jumped 8% after beating earnings expectations, reporting revenue of 5.2 billion dollars for the quarter."
 
-### SMS Character Limit
-Twilio SMS supports 1600 characters. Our message will be ~150 chars, well within limits.
+---
 
-### Future Enhancement (not in this plan)
-Could explore MMS to send the actual audio file as an attachment, but starting with a link is simpler and more reliable.
+## API Credits & Costs
+
+| Service | Cost | Usage |
+|---------|------|-------|
+| Tavily | 1 credit/search (1000 free/month) | ~1 search per briefing |
+| ESPN | Free, no auth required | ~2-4 calls per briefing |
+| Perplexity | Replaced | No longer used for briefings |
 

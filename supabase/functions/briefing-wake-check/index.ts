@@ -75,22 +75,26 @@ serve(async (req) => {
       });
     }
 
-    // Check if already played
+    // Check if already played - still include podcast_url for replay
     if (briefing.played_at) {
       return new Response(JSON.stringify({
         should_wake: false,
         status: 'already_played',
-        played_at: briefing.played_at
+        played_at: briefing.played_at,
+        podcast_url: briefing.podcast_url || null,
+        briefing_id: briefing.id
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    // Check if skipped
+    // Check if skipped - still include podcast_url if available
     if (briefing.status === 'skipped') {
       return new Response(JSON.stringify({
         should_wake: false,
-        status: 'skipped'
+        status: 'skipped',
+        podcast_url: briefing.podcast_url || null,
+        briefing_id: briefing.id
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });

@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Sunrise, Clock, Phone, MessageSquare, Copy, Check, RefreshCw, Loader2, X } from 'lucide-react';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Sunrise, Clock, Phone, MessageSquare, Copy, Check, RefreshCw, Loader2, MapPin, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface BriefingPreferences {
@@ -18,6 +19,7 @@ interface BriefingPreferences {
   enabled: boolean;
   default_wake_time: string;
   default_topics: string[];
+  default_topic_instructions: string | null;
   timezone: string;
   evening_reminder_time: string;
   preferred_channel: 'call' | 'sms' | 'both';
@@ -26,6 +28,17 @@ interface BriefingPreferences {
   include_email_summary: boolean;
   include_weather: boolean;
   weekend_enabled: boolean;
+  location_lat: number | null;
+  location_lng: number | null;
+  location_name: string | null;
+}
+
+interface TestBriefing {
+  id: string;
+  status: string;
+  podcast_url: string | null;
+  script: string | null;
+  duration_seconds: number | null;
 }
 
 const VOICE_OPTIONS = [
@@ -48,9 +61,11 @@ const TIMEZONE_OPTIONS = [
 export function BriefingSettings() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [newTopic, setNewTopic] = useState('');
   const [copied, setCopied] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
+  const [topicInstructions, setTopicInstructions] = useState('');
+  const [testBriefing, setTestBriefing] = useState<TestBriefing | null>(null);
 
   const { data: preferences, isLoading } = useQuery({
     queryKey: ['briefing-preferences', user?.id],
@@ -67,6 +82,13 @@ export function BriefingSettings() {
     enabled: !!user?.id,
   });
 
+  // Sync local state with fetched preferences
+  useEffect(() => {
+    if (preferences?.default_topic_instructions !== undefined) {
+      setTopicInstructions(preferences.default_topic_instructions || '');
+    }
+  }, [preferences?.default_topic_instructions]);
+
   const { data: profile } = useQuery({
     queryKey: ['profile-api-key', user?.id],
     queryFn: async () => {
@@ -81,6 +103,30 @@ export function BriefingSettings() {
     },
     enabled: !!user?.id,
   });
+
+  // Fetch today's briefing for test playback
+  const { data: todayBriefing, refetch: refetchTodayBriefing } = useQuery({
+    queryKey: ['today-briefing', user?.id],
+    queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0];
+      const { data, error } = await supabase
+        .from('morning_briefings')
+        .select('id, status, podcast_url, script, duration_seconds')
+        .eq('user_id', user?.id)
+        .eq('wake_date', today)
+        .maybeSingle();
+      
+      if (error && error.code !== 'PGRST116') throw error;
+      return data as TestBriefing | null;
+    },
+    enabled: !!user?.id,
+  });
+
+  useEffect(() => {
+    if (todayBriefing) {
+      setTestBriefing(todayBriefing);
+    }
+  }, [todayBriefing]);
 
   const updateMutation = useMutation({
     mutationFn: async (updates: Partial<BriefingPreferences>) => {
@@ -125,6 +171,7 @@ export function BriefingSettings() {
   const generateTestBriefingMutation = useMutation({
     mutationFn: async () => {
       setIsGenerating(true);
+      setTestBriefing(null);
       
       // First, create a briefing record for today
       const today = new Date().toISOString().split('T')[0];
@@ -149,10 +196,14 @@ export function BriefingSettings() {
       });
       
       if (genError) throw genError;
+      
+      return briefing.id;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['briefing-preferences'] });
-      toast.success('Test briefing generated! Check your history.');
+    onSuccess: async () => {
+      // Wait a moment then refetch
+      await new Promise(r => setTimeout(r, 1000));
+      await refetchTodayBriefing();
+      toast.success('Test briefing generated!');
       setIsGenerating(false);
     },
     onError: (error) => {
@@ -169,20 +220,57 @@ export function BriefingSettings() {
     updateMutation.mutate({ [field]: value });
   };
 
-  const addTopic = () => {
-    if (!newTopic.trim()) return;
-    const currentTopics = preferences?.default_topics || [];
-    if (currentTopics.includes(newTopic.trim())) {
-      toast.error('Topic already exists');
-      return;
+  const handleTopicInstructionsBlur = () => {
+    if (topicInstructions !== (preferences?.default_topic_instructions || '')) {
+      updateMutation.mutate({ default_topic_instructions: topicInstructions || null });
     }
-    updateMutation.mutate({ default_topics: [...currentTopics, newTopic.trim()] });
-    setNewTopic('');
   };
 
-  const removeTopic = (topic: string) => {
-    const currentTopics = preferences?.default_topics || [];
-    updateMutation.mutate({ default_topics: currentTopics.filter(t => t !== topic) });
+  const handleGetLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error('Geolocation is not supported by your browser');
+      return;
+    }
+
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        
+        // Try to get location name via reverse geocoding
+        let locationName = 'Your location';
+        try {
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+          );
+          if (response.ok) {
+            const data = await response.json();
+            const city = data.address?.city || data.address?.town || data.address?.village || data.address?.municipality;
+            const state = data.address?.state;
+            if (city && state) {
+              locationName = `${city}, ${state}`;
+            } else if (city) {
+              locationName = city;
+            }
+          }
+        } catch (e) {
+          console.error('Geocoding error:', e);
+        }
+
+        updateMutation.mutate({
+          location_lat: latitude,
+          location_lng: longitude,
+          location_name: locationName
+        });
+        setIsLocating(false);
+      },
+      (error) => {
+        console.error('Geolocation error:', error);
+        toast.error('Could not get your location. Please check your browser permissions.');
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: false, timeout: 10000 }
+    );
   };
 
   const copyApiKey = () => {
@@ -192,6 +280,12 @@ export function BriefingSettings() {
       setTimeout(() => setCopied(false), 2000);
       toast.success('API key copied');
     }
+  };
+
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   if (isLoading) {
@@ -222,7 +316,7 @@ export function BriefingSettings() {
               Morning Briefing
             </CardTitle>
             <CardDescription>
-              Wake up to a personalized AI podcast covering your calendar, priorities, and requested news topics.
+              Wake up to a personalized AI podcast covering your calendar, weather, and custom news topics.
             </CardDescription>
           </div>
           <Switch
@@ -276,6 +370,39 @@ export function BriefingSettings() {
             </Select>
           </div>
 
+          {/* Weather Location */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              Weather Location
+            </Label>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleGetLocation}
+                disabled={isLocating}
+              >
+                {isLocating ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <MapPin className="h-4 w-4 mr-2" />
+                )}
+                Use Current Location
+              </Button>
+              {preferences?.location_name && (
+                <span className="text-sm text-muted-foreground">
+                  📍 {preferences.location_name}
+                </span>
+              )}
+              {!preferences?.location_name && (
+                <span className="text-sm text-muted-foreground">
+                  No location set (defaults to Chicago)
+                </span>
+              )}
+            </div>
+          </div>
+
           {/* Reminder Method */}
           <div className="space-y-2">
             <Label>Reminder Method</Label>
@@ -309,28 +436,23 @@ export function BriefingSettings() {
             />
           </div>
 
-          {/* Default Topics */}
+          {/* Default Topic Instructions (Paragraph) */}
           <div className="space-y-2">
-            <Label>Default Topics</Label>
-            <div className="flex flex-wrap gap-2 mb-2">
-              {(preferences?.default_topics || []).map(topic => (
-                <Badge key={topic} variant="secondary" className="flex items-center gap-1">
-                  {topic}
-                  <button onClick={() => removeTopic(topic)} className="hover:text-destructive">
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Add a topic (e.g., 'SMCI earnings')"
-                value={newTopic}
-                onChange={(e) => setNewTopic(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && addTopic()}
-              />
-              <Button variant="outline" onClick={addTopic}>Add</Button>
-            </div>
+            <Label className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Default Topics & Instructions
+            </Label>
+            <Textarea
+              placeholder="Describe what topics you care about and how you want them covered. For example: 'Cover any SMCI earnings news, FDA approvals in biotech, and tariff developments with China. If there's big market news, lead with that.'"
+              value={topicInstructions}
+              onChange={(e) => setTopicInstructions(e.target.value)}
+              onBlur={handleTopicInstructionsBlur}
+              rows={4}
+              className="resize-none"
+            />
+            <p className="text-xs text-muted-foreground">
+              Write a paragraph describing what news topics matter to you and any preferences for how they're covered.
+            </p>
           </div>
 
           {/* Include Options */}
@@ -372,6 +494,81 @@ export function BriefingSettings() {
             </Select>
           </div>
 
+          {/* Test Generation with Audio Player */}
+          <div className="border-t pt-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Test Your Briefing</Label>
+                <p className="text-sm text-muted-foreground">Generate a test episode to preview</p>
+              </div>
+            </div>
+            
+            <Button
+              variant="outline"
+              onClick={() => generateTestBriefingMutation.mutate()}
+              disabled={isGenerating}
+              className="w-full"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Generating Test Briefing...
+                </>
+              ) : (
+                <>
+                  <Sunrise className="h-4 w-4 mr-2" />
+                  Generate Test Briefing
+                </>
+              )}
+            </Button>
+
+            {/* Audio Player and Script */}
+            {testBriefing?.status === 'ready' && testBriefing.podcast_url && (
+              <div className="space-y-3 p-4 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Check className="h-4 w-4 text-green-500" />
+                  <span>Briefing ready</span>
+                  {testBriefing.duration_seconds && (
+                    <span>• {formatDuration(testBriefing.duration_seconds)}</span>
+                  )}
+                </div>
+                <audio 
+                  src={testBriefing.podcast_url} 
+                  controls 
+                  className="w-full"
+                />
+                
+                {testBriefing.script && (
+                  <Accordion type="single" collapsible>
+                    <AccordionItem value="script" className="border-none">
+                      <AccordionTrigger className="text-sm py-2">
+                        View Script
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="text-sm text-muted-foreground whitespace-pre-wrap bg-background p-3 rounded-md max-h-60 overflow-y-auto">
+                          {testBriefing.script}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                )}
+              </div>
+            )}
+
+            {testBriefing?.status === 'failed' && (
+              <div className="p-4 bg-destructive/10 text-destructive rounded-lg text-sm">
+                Generation failed. Please try again.
+              </div>
+            )}
+
+            {testBriefing?.status === 'generating' && (
+              <div className="p-4 bg-muted/50 rounded-lg flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Generating...
+              </div>
+            )}
+          </div>
+
           {/* iOS Shortcut API Key */}
           <div className="space-y-2 border-t pt-4">
             <Label>iOS Shortcut API Key</Label>
@@ -399,28 +596,6 @@ export function BriefingSettings() {
                 <RefreshCw className={`h-4 w-4 ${generateApiKeyMutation.isPending ? 'animate-spin' : ''}`} />
               </Button>
             </div>
-          </div>
-
-          {/* Test Generation */}
-          <div className="border-t pt-4">
-            <Button
-              variant="outline"
-              onClick={() => generateTestBriefingMutation.mutate()}
-              disabled={isGenerating}
-              className="w-full"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Generating Test Briefing...
-                </>
-              ) : (
-                <>
-                  <Sunrise className="h-4 w-4 mr-2" />
-                  Generate Test Briefing
-                </>
-              )}
-            </Button>
           </div>
         </CardContent>
       )}

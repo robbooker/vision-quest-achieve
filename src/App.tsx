@@ -62,6 +62,7 @@ import PublicListView from "./pages/PublicListView";
 import JanuaryAudit from "./pages/JanuaryAudit";
 import WhatsNew from "./pages/WhatsNew";
 import MonthInReviewBlog from "./pages/MonthInReviewBlog";
+import MorningBriefingBlog from "./pages/MorningBriefingBlog";
 import AIArena from "./pages/AIArena";
 const queryClient = new QueryClient();
 
@@ -111,6 +112,7 @@ const App = () => (
                     <Route path="/blog/reset" element={<ResetBlog />} />
                     <Route path="/blog/affirmations" element={<AffirmationsBlog />} />
                     <Route path="/blog/month-in-review" element={<MonthInReviewBlog />} />
+                    <Route path="/blog/morning-briefing" element={<MorningBriefingBlog />} />
                     <Route path="/whats-new" element={<WhatsNew />} />
                     <Route path="/primed" element={<ProtectedRoute><Primed /></ProtectedRoute>} />
                     <Route path="/primed/physical" element={<ProtectedRoute><PhysicalPillar /></ProtectedRoute>} />

@@ -1,11 +1,22 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Format time simply: "9am", "2:30pm"
+function formatSimpleTime(dateTimeStr: string, timezone: string): string {
+  const date = new Date(dateTimeStr);
+  const timeStr = date.toLocaleTimeString('en-US', { 
+    hour: 'numeric', 
+    minute: '2-digit',
+    timeZone: timezone 
+  });
+  // Remove ":00" for on-the-hour times
+  return timeStr.replace(':00', '').toLowerCase();
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -49,7 +60,7 @@ serve(async (req) => {
 
     const userId = briefing.user_id;
 
-    // Get user preferences
+    // Get user preferences (including new location and topic instructions fields)
     const { data: prefs } = await supabase
       .from('briefing_preferences')
       .select('*')
@@ -80,7 +91,7 @@ serve(async (req) => {
     // Gather sources
     const sources: { type: string; data: unknown }[] = [];
 
-    // 1. Calendar events (from Google Calendar if connected)
+    // 1. Calendar events (from Google Calendar if connected) - SIMPLIFIED FORMAT
     let calendarEvents = 'No scheduled events';
     if (prefs?.include_calendar) {
       const { data: calendarTokens } = await supabase
@@ -112,16 +123,14 @@ serve(async (req) => {
             const calendarData = await calendarResponse.json();
             const events = calendarData.items || [];
             if (events.length > 0) {
+              // Simplified format: "Event name at 9am"
               calendarEvents = events.map((e: { start?: { dateTime?: string; date?: string }; summary?: string }) => {
-                const startTime = e.start?.dateTime 
-                  ? new Date(e.start.dateTime).toLocaleTimeString('en-US', { 
-                      hour: 'numeric', 
-                      minute: '2-digit',
-                      timeZone: timezone 
-                    })
-                  : 'All day';
-                return `${startTime}: ${e.summary || 'Untitled'}`;
-              }).join('\n');
+                if (e.start?.dateTime) {
+                  const simpleTime = formatSimpleTime(e.start.dateTime, timezone);
+                  return `${e.summary || 'Untitled'} at ${simpleTime}`;
+                }
+                return `${e.summary || 'Untitled'} (all day)`;
+              }).join(', ');
               sources.push({ type: 'calendar', data: events });
             }
           }
@@ -131,20 +140,25 @@ serve(async (req) => {
       }
     }
 
-    // 2. Weather
+    // 2. Weather - USE LOCATION FROM PREFERENCES
     let weatherData = 'Weather data unavailable';
     if (prefs?.include_weather) {
       try {
-        // Use a default location or could be stored in preferences
-        // For now, using Chicago as default
+        // Use user's location or fall back to Chicago
+        const lat = prefs?.location_lat || 41.88;
+        const lng = prefs?.location_lng || -87.63;
+        const locationName = prefs?.location_name || 'your area';
+        
         const weatherResponse = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=41.88&longitude=-87.63&current=temperature_2m,relative_humidity_2m,weather_code&timezone=${encodeURIComponent(timezone)}&temperature_unit=fahrenheit`
+          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,weather_code&daily=temperature_2m_max,temperature_2m_min&timezone=${encodeURIComponent(timezone)}&temperature_unit=fahrenheit&forecast_days=1`
         );
         if (weatherResponse.ok) {
           const weather = await weatherResponse.json();
           const temp = Math.round(weather.current?.temperature_2m || 0);
           const humidity = weather.current?.relative_humidity_2m || 0;
           const weatherCode = weather.current?.weather_code || 0;
+          const highTemp = Math.round(weather.daily?.temperature_2m_max?.[0] || temp);
+          const lowTemp = Math.round(weather.daily?.temperature_2m_min?.[0] || temp);
           
           const weatherDescriptions: Record<number, string> = {
             0: 'clear skies',
@@ -166,20 +180,23 @@ serve(async (req) => {
           };
           
           const description = weatherDescriptions[weatherCode] || 'mixed conditions';
-          weatherData = `${temp}°F with ${description}, ${humidity}% humidity`;
-          sources.push({ type: 'weather', data: { temp, humidity, description } });
+          weatherData = `Currently ${temp}°F with ${description} in ${locationName}. Today's high ${highTemp}°, low ${lowTemp}°.`;
+          sources.push({ type: 'weather', data: { temp, highTemp, lowTemp, humidity, description, location: locationName } });
         }
       } catch (e) {
         console.error('Weather fetch error:', e);
       }
     }
 
-    // 3. News for topics
+    // 3. News for topics - USE DEFAULT TOPIC INSTRUCTIONS
     let newsResults = 'No news topics requested';
+    const topicInstructions = prefs?.default_topic_instructions || '';
     const topics = briefing.topics || [];
-    if (topics.length > 0 && PERPLEXITY_API_KEY) {
+    
+    if ((topicInstructions || topics.length > 0) && PERPLEXITY_API_KEY) {
       try {
-        const newsPromises = topics.map(async (topic: string) => {
+        // If we have paragraph instructions, use them as a single query
+        if (topicInstructions) {
           const response = await fetch('https://api.perplexity.ai/chat/completions', {
             method: 'POST',
             headers: {
@@ -191,11 +208,13 @@ serve(async (req) => {
               messages: [
                 { 
                   role: 'system', 
-                  content: 'Provide a concise 2-3 sentence summary of the latest news on this topic. Focus on actionable information and key developments. Be specific with numbers and facts.'
+                  content: 'Provide a concise summary of the most relevant news based on the user\'s topic interests. Focus on actionable information and key developments. Be specific with numbers and facts. Keep to 3-4 key stories maximum.'
                 },
                 { 
                   role: 'user', 
-                  content: `What's the latest news on: ${topic}?`
+                  content: `Based on these topic interests and instructions: "${topicInstructions}"
+
+What are the most relevant news stories from today? Summarize each briefly.`
                 }
               ],
               search_recency_filter: 'day'
@@ -204,54 +223,60 @@ serve(async (req) => {
 
           if (response.ok) {
             const data = await response.json();
-            return {
-              topic,
-              summary: data.choices?.[0]?.message?.content || 'No recent news found',
-              citations: data.citations || []
-            };
+            newsResults = data.choices?.[0]?.message?.content || 'No recent news found';
+            sources.push({ type: 'news', data: { instructions: topicInstructions, summary: newsResults, citations: data.citations || [] } });
           }
-          return { topic, summary: 'Unable to fetch news', citations: [] };
-        });
+        } else if (topics.length > 0) {
+          // Fall back to individual topic queries
+          const newsPromises = topics.map(async (topic: string) => {
+            const response = await fetch('https://api.perplexity.ai/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                model: 'sonar',
+                messages: [
+                  { 
+                    role: 'system', 
+                    content: 'Provide a concise 2-3 sentence summary of the latest news on this topic. Focus on actionable information and key developments. Be specific with numbers and facts.'
+                  },
+                  { 
+                    role: 'user', 
+                    content: `What's the latest news on: ${topic}?`
+                  }
+                ],
+                search_recency_filter: 'day'
+              }),
+            });
 
-        const newsData = await Promise.all(newsPromises);
-        newsResults = newsData.map(n => `**${n.topic}:** ${n.summary}`).join('\n\n');
-        sources.push({ type: 'news', data: newsData });
+            if (response.ok) {
+              const data = await response.json();
+              return {
+                topic,
+                summary: data.choices?.[0]?.message?.content || 'No recent news found',
+                citations: data.citations || []
+              };
+            }
+            return { topic, summary: 'Unable to fetch news', citations: [] };
+          });
+
+          const newsData = await Promise.all(newsPromises);
+          newsResults = newsData.map(n => `**${n.topic}:** ${n.summary}`).join('\n\n');
+          sources.push({ type: 'news', data: newsData });
+        }
       } catch (e) {
         console.error('News fetch error:', e);
       }
     }
 
-    // 4. Quick tasks and priorities
-    const { data: tasks } = await supabase
-      .from('quick_tasks')
-      .select('title, category')
-      .eq('user_id', userId)
-      .eq('completed', false)
-      .order('created_at', { ascending: false })
-      .limit(5);
-
-    const taskList = tasks?.length 
-      ? tasks.map(t => `- ${t.title}`).join('\n')
-      : 'No pending tasks';
-
-    // 5. Get habits due today
-    const { data: habits } = await supabase
-      .from('goal_tactics')
-      .select('title, target_count')
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .limit(5);
-
-    const habitList = habits?.length
-      ? habits.map(h => `- ${h.title}`).join('\n')
-      : 'No habits configured';
-
-    // Build the prompt
+    // Build the prompt - PERSONALIZED GREETING + SHORTER (~3 MIN)
     const prompt = `You are creating a personalized morning audio briefing for ${userName}. Today is ${dayOfWeek}, ${fullDate}.
 
-Your tone is warm, conversational, and energizing - like a smart friend catching them up over coffee. Not cheesy morning radio DJ energy, but genuinely helpful and personable. You can be witty but don't force it.
+Your tone is warm, conversational, and energizing - like a smart friend catching them up over coffee. Not cheesy morning radio DJ energy, but genuinely helpful and personable.
 
-Keep the entire briefing between 600-800 words (approximately 4-5 minutes when spoken).
+**CRITICAL: Keep the entire briefing between 400-500 words (approximately 2.5-3 minutes when spoken).**
 
 ---
 
@@ -263,16 +288,10 @@ ${weatherData}
 **CALENDAR TODAY:**
 ${calendarEvents}
 
-**PENDING TASKS:**
-${taskList}
+**USER'S TOPIC INSTRUCTIONS:**
+${topicInstructions || 'None specified'}
 
-**DAILY HABITS:**
-${habitList}
-
-**USER'S REQUESTED TOPICS:**
-${topics.length > 0 ? topics.join(', ') : 'None specified'}
-
-**NEWS SEARCH RESULTS FOR THOSE TOPICS:**
+**NEWS SEARCH RESULTS:**
 ${newsResults}
 
 ${briefing.custom_instructions ? `**CUSTOM INSTRUCTIONS:**\n${briefing.custom_instructions}` : ''}
@@ -281,26 +300,22 @@ ${briefing.custom_instructions ? `**CUSTOM INSTRUCTIONS:**\n${briefing.custom_in
 
 STRUCTURE (flow naturally between these, don't use headers or bullet points):
 
-1. **Opening** (2-3 sentences)
-   - Warm greeting with their name
-   - Weather and what kind of day it's shaping up to be
-   - Set the energy/vibe
+1. **Opening** (1-2 sentences)
+   - **START WITH "Good morning, ${userName}!"**
+   - Weather conditions and what kind of day it's shaping up to be
 
-2. **Calendar & Tasks Rundown** (if events exist)
-   - What's on deck today
-   - Key tasks to tackle
-   - Keep it practical
+2. **Calendar** (brief, only if events exist)
+   - Just mention each event by name and start time (e.g., "You've got team standup at 9am, then lunch with Sarah at noon")
+   - No need for end times or durations
+   - If calendar is empty, skip or just say "Your calendar's open today"
 
-3. **News Deep-Dive** (bulk of the briefing if topics provided)
-   - Cover each requested topic
+3. **News/Topics** (main section if topics provided)
+   - Cover the key stories relevant to their interests
    - Lead with the most important/actionable info
-   - Connect dots between stories if relevant
-   - For financial/trading topics, focus on what actually matters for decision-making
+   - Keep it concise - hit the highlights
 
-4. **Close** (2-3 sentences)
-   - Quick synthesis or "bottom line"
-   - Energizing send-off
-   - No cheesy catchphrases
+4. **Close** (1 sentence)
+   - Brief energizing send-off, no cheesy catchphrases
 
 ---
 
@@ -308,16 +323,14 @@ IMPORTANT GUIDELINES:
 - Write for the EAR, not the eye. Use short sentences. Conversational rhythm.
 - No bullet points, no headers, no formatting - this will be spoken aloud
 - Numbers should be spoken naturally ("about six and a half percent" not "6.5%")
-- Avoid jargon unless it's relevant to the user's expertise
-- Don't editorialize too much on news - present it, add brief context, move on
-- If calendar is empty, keep that section very brief ("Your calendar's clear today, so you've got flexibility")
+- Stay within 400-500 words - this should be a quick 3-minute briefing
 - End on an energizing note without being corny
 
 ---
 
 Now write the briefing script:`;
 
-    // Generate script with Claude
+    // Generate script with Gemini
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -329,7 +342,7 @@ Now write the briefing script:`;
         messages: [
           { role: 'user', content: prompt }
         ],
-        max_tokens: 2000,
+        max_tokens: 1500,
       }),
     });
 
@@ -346,7 +359,7 @@ Now write the briefing script:`;
       throw new Error('No script generated');
     }
 
-    console.log(`Generated script: ${script.length} characters`);
+    console.log(`Generated script: ${script.length} characters, ~${Math.round(script.split(/\s+/).length)} words`);
 
     // Generate audio with ElevenLabs
     const ttsResponse = await fetch(
@@ -380,7 +393,8 @@ Now write the briefing script:`;
     console.log(`Generated audio: ${audioBuffer.byteLength} bytes`);
 
     // Estimate duration (rough: ~150 words per minute, ~5 chars per word)
-    const estimatedDuration = Math.round((script.length / 5 / 150) * 60);
+    const wordCount = script.split(/\s+/).length;
+    const estimatedDuration = Math.round((wordCount / 150) * 60);
 
     // Upload to Supabase Storage
     const fileName = `${userId}/${briefing.wake_date}-briefing.mp3`;

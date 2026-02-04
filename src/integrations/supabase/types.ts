@@ -443,6 +443,7 @@ export type Database = {
       briefing_preferences: {
         Row: {
           created_at: string | null
+          default_topic_instructions: string | null
           default_topics: string[] | null
           default_wake_time: string | null
           enabled: boolean | null
@@ -451,6 +452,9 @@ export type Database = {
           include_calendar: boolean | null
           include_email_summary: boolean | null
           include_weather: boolean | null
+          location_lat: number | null
+          location_lng: number | null
+          location_name: string | null
           preferred_channel: string | null
           timezone: string | null
           updated_at: string | null
@@ -460,6 +464,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          default_topic_instructions?: string | null
           default_topics?: string[] | null
           default_wake_time?: string | null
           enabled?: boolean | null
@@ -468,6 +473,9 @@ export type Database = {
           include_calendar?: boolean | null
           include_email_summary?: boolean | null
           include_weather?: boolean | null
+          location_lat?: number | null
+          location_lng?: number | null
+          location_name?: string | null
           preferred_channel?: string | null
           timezone?: string | null
           updated_at?: string | null
@@ -477,6 +485,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          default_topic_instructions?: string | null
           default_topics?: string[] | null
           default_wake_time?: string | null
           enabled?: boolean | null
@@ -485,6 +494,9 @@ export type Database = {
           include_calendar?: boolean | null
           include_email_summary?: boolean | null
           include_weather?: boolean | null
+          location_lat?: number | null
+          location_lng?: number | null
+          location_name?: string | null
           preferred_channel?: string | null
           timezone?: string | null
           updated_at?: string | null

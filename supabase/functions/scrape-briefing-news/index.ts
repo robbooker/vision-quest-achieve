@@ -22,6 +22,8 @@ interface ScrapeRequest {
   sports_teams?: string;
   tech_topics?: string;
   business_topics?: string;
+  science_topics?: string;
+  health_topics?: string;
   custom_topics?: string;
 }
 
@@ -33,6 +35,8 @@ interface ScrapedData {
     general_tech: Array<{ title: string; source: string; url: string }>;
   };
   business: Array<{ title: string; source: string; url: string }>;
+  science: Array<{ title: string; source: string; url: string }>;
+  health: Array<{ title: string; source: string; url: string }>;
   markets: {
     headlines: Array<string>;
   };
@@ -66,6 +70,17 @@ const TEAM_MAPPINGS: Record<string, { slug: string; league: string; espnSlug: st
   '49ers': { slug: 'sf', league: 'nfl', espnSlug: 'sf/san-francisco-49ers', fullName: 'San Francisco 49ers' },
   'eagles': { slug: 'phi', league: 'nfl', espnSlug: 'phi/philadelphia-eagles', fullName: 'Philadelphia Eagles' },
   'chiefs': { slug: 'kc', league: 'nfl', espnSlug: 'kc/kansas-city-chiefs', fullName: 'Kansas City Chiefs' },
+  // Soccer / international teams - use Tavily for news (no ESPN scores)
+  'bayern': { slug: 'bayern', league: 'soccer', espnSlug: '', fullName: 'Bayern Munich' },
+  'bayern munich': { slug: 'bayern', league: 'soccer', espnSlug: '', fullName: 'Bayern Munich' },
+  'bayern munic': { slug: 'bayern', league: 'soccer', espnSlug: '', fullName: 'Bayern Munich' },
+  'manchester united': { slug: 'manu', league: 'soccer', espnSlug: '', fullName: 'Manchester United' },
+  'man united': { slug: 'manu', league: 'soccer', espnSlug: '', fullName: 'Manchester United' },
+  'liverpool': { slug: 'liv', league: 'soccer', espnSlug: '', fullName: 'Liverpool FC' },
+  'chelsea': { slug: 'che', league: 'soccer', espnSlug: '', fullName: 'Chelsea FC' },
+  'real madrid': { slug: 'rma', league: 'soccer', espnSlug: '', fullName: 'Real Madrid' },
+  'barcelona': { slug: 'bar', league: 'soccer', espnSlug: '', fullName: 'FC Barcelona' },
+  'inter miami': { slug: 'mia', league: 'mls', espnSlug: '', fullName: 'Inter Miami CF' },
 };
 
 // Scrape ESPN team page with Browserless
@@ -269,11 +284,17 @@ serve(async (req) => {
     const body: ScrapeRequest = await req.json();
     const { categories = {} } = body;
 
+    console.log('Scrape request - categories:', JSON.stringify(categories));
+    console.log('Scrape request - sports_teams:', body.sports_teams);
+    console.log('Scrape request - tech_topics:', body.tech_topics);
+
     const result: ScrapedData = {
       scraped_at: new Date().toISOString(),
       sports: {},
       tech: { ai_news: [], general_tech: [] },
       business: [],
+      science: [],
+      health: [],
       markets: { headlines: [] },
       custom: [],
       sources_succeeded: [],
@@ -285,6 +306,7 @@ serve(async (req) => {
     // Sports - now with ESPN scraping AND Tavily fallback
     if (categories.sports && body.sports_teams) {
       const teams = body.sports_teams.split(',').map(t => t.trim().toLowerCase());
+      console.log('Processing sports teams:', teams);
       
       for (const team of teams) {
         const mapping = TEAM_MAPPINGS[team];
@@ -297,35 +319,65 @@ serve(async (req) => {
                 last_game: null
               };
 
-              // Try to get game score from ESPN API
-              const gameScore = await getESPNGameScore(mapping.slug, mapping.league);
-              if (gameScore) {
-                teamData.last_game = gameScore;
-              }
-
-              // Scrape ESPN team page for headlines
-              const espnHeadlines = await scrapeESPNTeamNews(mapping.league, mapping.espnSlug);
-              if (espnHeadlines.length > 0) {
-                teamData.headlines = espnHeadlines.map(h => ({
-                  title: h.title,
-                  source: 'espn.com',
-                  url: h.url
-                }));
-                result.sources_succeeded.push(`sports:${team}:espn`);
-              }
-
-              // If no ESPN headlines, use Tavily as fallback
-              if (teamData.headlines.length === 0) {
+              // For soccer teams, skip ESPN and go straight to Tavily
+              if (mapping.league === 'soccer' || mapping.league === 'mls') {
                 const tavilyNews = await fetchSportsNewsWithTavily(mapping.fullName);
                 if (tavilyNews.length > 0) {
                   teamData.headlines = tavilyNews;
                   result.sources_succeeded.push(`sports:${team}:tavily`);
+                }
+              } else {
+                // Try to get game score from ESPN API
+                const gameScore = await getESPNGameScore(mapping.slug, mapping.league);
+                if (gameScore) {
+                  teamData.last_game = gameScore;
+                }
+
+                // Scrape ESPN team page for headlines
+                const espnHeadlines = await scrapeESPNTeamNews(mapping.league, mapping.espnSlug);
+                if (espnHeadlines.length > 0) {
+                  teamData.headlines = espnHeadlines.map(h => ({
+                    title: h.title,
+                    source: 'espn.com',
+                    url: h.url
+                  }));
+                  result.sources_succeeded.push(`sports:${team}:espn`);
+                }
+
+                // If no ESPN headlines, use Tavily as fallback
+                if (teamData.headlines.length === 0) {
+                  const tavilyNews = await fetchSportsNewsWithTavily(mapping.fullName);
+                  if (tavilyNews.length > 0) {
+                    teamData.headlines = tavilyNews;
+                    result.sources_succeeded.push(`sports:${team}:tavily`);
+                  }
                 }
               }
 
               // Only add team if we have ANY data
               if (teamData.last_game || teamData.headlines.length > 0) {
                 result.sports[team] = teamData;
+              } else {
+                result.sources_failed.push(`sports:${team}`);
+              }
+            })().catch(e => {
+              console.error(`Sports scrape error for ${team}:`, e);
+              result.sources_failed.push(`sports:${team}`);
+            })
+          );
+        } else {
+          console.log(`No mapping found for team: ${team}`);
+          // If no mapping, try Tavily with the raw team name
+          scrapePromises.push(
+            (async () => {
+              const tavilyNews = await fetchSportsNewsWithTavily(team);
+              if (tavilyNews.length > 0) {
+                result.sports[team] = {
+                  name: team.charAt(0).toUpperCase() + team.slice(1),
+                  headlines: tavilyNews,
+                  last_game: null
+                };
+                result.sources_succeeded.push(`sports:${team}:tavily`);
               } else {
                 result.sources_failed.push(`sports:${team}`);
               }
@@ -343,12 +395,14 @@ serve(async (req) => {
       const techQuery = body.tech_topics 
         ? `latest AI technology news ${body.tech_topics}`
         : 'latest AI LLM Claude GPT Gemini technology news';
+      console.log('Tech query:', techQuery);
 
       scrapePromises.push(
         fetchNewsWithTavily(techQuery, ['techcrunch.com', 'theverge.com', 'arstechnica.com', 'wired.com', 'engadget.com'])
           .then(data => {
             result.tech.ai_news = data;
             if (data.length > 0) result.sources_succeeded.push('tech');
+            else result.sources_failed.push('tech');
           })
           .catch(() => result.sources_failed.push('tech'))
       );
@@ -365,8 +419,43 @@ serve(async (req) => {
           .then(data => {
             result.business = data;
             if (data.length > 0) result.sources_succeeded.push('business');
+            else result.sources_failed.push('business');
           })
           .catch(() => result.sources_failed.push('business'))
+      );
+    }
+
+    // Science news
+    if (categories.science) {
+      const scienceQuery = body.science_topics 
+        ? `latest science news ${body.science_topics}`
+        : 'latest science discoveries research news';
+
+      scrapePromises.push(
+        fetchNewsWithTavily(scienceQuery, ['nature.com', 'sciencemag.org', 'newscientist.com', 'scientificamerican.com', 'phys.org'])
+          .then(data => {
+            result.science = data;
+            if (data.length > 0) result.sources_succeeded.push('science');
+            else result.sources_failed.push('science');
+          })
+          .catch(() => result.sources_failed.push('science'))
+      );
+    }
+
+    // Health news
+    if (categories.health) {
+      const healthQuery = body.health_topics 
+        ? `latest health fitness news ${body.health_topics}`
+        : 'latest health fitness wellness longevity news';
+
+      scrapePromises.push(
+        fetchNewsWithTavily(healthQuery, ['healthline.com', 'webmd.com', 'medicalnewstoday.com', 'health.harvard.edu'])
+          .then(data => {
+            result.health = data;
+            if (data.length > 0) result.sources_succeeded.push('health');
+            else result.sources_failed.push('health');
+          })
+          .catch(() => result.sources_failed.push('health'))
       );
     }
 
@@ -384,6 +473,7 @@ serve(async (req) => {
 
     await Promise.all(scrapePromises);
 
+    console.log('Scrape complete. Sports data:', JSON.stringify(result.sports));
     console.log('Scrape complete. Succeeded:', result.sources_succeeded, 'Failed:', result.sources_failed);
 
     return new Response(JSON.stringify(result), {

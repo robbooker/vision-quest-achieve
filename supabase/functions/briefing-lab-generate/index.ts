@@ -86,6 +86,8 @@ serve(async (req) => {
     const techDepth = labPrefs?.tech_depth || 'off';
     const businessDepth = labPrefs?.business_depth || 'off';
     const tradingDepth = labPrefs?.trading_depth || 'off';
+    const scienceDepth = labPrefs?.science_depth || 'off';
+    const healthDepth = labPrefs?.health_depth || 'off';
 
     // Build categories object for scraper based on depth settings
     const categories = {
@@ -93,7 +95,13 @@ serve(async (req) => {
       tech: techDepth !== 'off',
       business: businessDepth !== 'off',
       trading: tradingDepth !== 'off',
+      science: scienceDepth !== 'off',
+      health: healthDepth !== 'off',
     };
+
+    console.log('Categories for scraper:', JSON.stringify(categories));
+    console.log('Sports teams:', labPrefs?.sports_teams);
+    console.log('Tech topics:', labPrefs?.tech_topics);
 
     // Build depth map for script generation
     const depthMap = {
@@ -106,8 +114,8 @@ serve(async (req) => {
       film_tv: labPrefs?.film_tv_depth || 'off',
       music: labPrefs?.music_depth || 'off',
       gaming: labPrefs?.gaming_depth || 'off',
-      science: labPrefs?.science_depth || 'off',
-      health: labPrefs?.health_depth || 'off',
+      science: scienceDepth,
+      health: healthDepth,
     };
 
     // Create episode record
@@ -137,11 +145,17 @@ serve(async (req) => {
         categories,
         sports_teams: labPrefs?.sports_teams,
         tech_topics: labPrefs?.tech_topics,
+        business_topics: labPrefs?.business_topics,
+        science_topics: labPrefs?.science_topics,
+        health_topics: labPrefs?.health_topics,
+        custom_topics: labPrefs?.custom_topics,
       }
     });
 
     const scrapedData = scrapeResponse.data || { sources_succeeded: [], sources_failed: [] };
-    console.log('Scraped sources:', scrapedData.sources_succeeded);
+    console.log('Scraped sources succeeded:', scrapedData.sources_succeeded);
+    console.log('Scraped sources failed:', scrapedData.sources_failed);
+    console.log('Scraped sports data:', JSON.stringify(scrapedData.sports));
 
     // Store scraped data
     const { data: scrapedRecord } = await supabase
@@ -293,13 +307,15 @@ serve(async (req) => {
           sportsLines.push(teamSection.join('\n'));
         }
         sections.push(`**SPORTS (${depthMap.sports === 'brief' ? 'quick scores' : 'full coverage'}):**\n${sportsLines.join('\n\n')}`);
+      } else if (depthMap.sports !== 'off') {
+        console.log('Sports enabled but no data scraped');
       }
 
       // Tech/AI - depth-aware
       if (depthMap.tech !== 'off' && scrapedData.tech) {
         const techItems = [
-          ...scrapedData.tech.ai_news || [],
-          ...scrapedData.tech.general_tech || []
+          ...(scrapedData.tech.ai_news || []),
+          ...(scrapedData.tech.general_tech || [])
         ];
         const itemLimit = depthMap.tech === 'brief' ? 2 : 5;
         if (techItems.length > 0) {
@@ -311,6 +327,18 @@ serve(async (req) => {
       if (depthMap.business !== 'off' && scrapedData.business && scrapedData.business.length > 0) {
         const itemLimit = depthMap.business === 'brief' ? 2 : 4;
         sections.push(`**BUSINESS NEWS (${depthMap.business === 'brief' ? 'key movers' : 'analysis'}):**\n${scrapedData.business.slice(0, itemLimit).map((b: any) => `- ${b.title} (${b.source})`).join('\n')}`);
+      }
+
+      // Science - depth-aware
+      if (depthMap.science !== 'off' && scrapedData.science && scrapedData.science.length > 0) {
+        const itemLimit = depthMap.science === 'brief' ? 2 : 4;
+        sections.push(`**SCIENCE NEWS (${depthMap.science === 'brief' ? 'discoveries' : 'deep dive'}):**\n${scrapedData.science.slice(0, itemLimit).map((s: any) => `- ${s.title} (${s.source})`).join('\n')}`);
+      }
+
+      // Health - depth-aware
+      if (depthMap.health !== 'off' && scrapedData.health && scrapedData.health.length > 0) {
+        const itemLimit = depthMap.health === 'brief' ? 2 : 4;
+        sections.push(`**HEALTH & FITNESS (${depthMap.health === 'brief' ? 'tips' : 'research + advice'}):**\n${scrapedData.health.slice(0, itemLimit).map((h: any) => `- ${h.title} (${h.source})`).join('\n')}`);
       }
 
       // Custom topics
@@ -325,6 +353,9 @@ serve(async (req) => {
 
       return sections.join('\n\n');
     };
+
+    const sectionDataForPrompt = buildSectionData();
+    console.log('Section data for prompt:', sectionDataForPrompt);
 
     const intentionSection = intentionWord ? `
 **WORD OF THE MONTH: ${intentionWord}**
@@ -365,7 +396,7 @@ ${weatherData}
 **CALENDAR TODAY:**
 ${calendarEvents}
 
-${buildSectionData()}
+${sectionDataForPrompt}
 
 ${intentionSection}
 

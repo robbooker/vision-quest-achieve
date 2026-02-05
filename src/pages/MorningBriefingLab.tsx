@@ -105,16 +105,37 @@ export default function MorningBriefingLab() {
     }
   };
 
-  const handleUseCurrentLocation = () => {
+  const handleUseCurrentLocation = async () => {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setLocalPrefs(prev => ({
-            ...prev,
-            location_lat: pos.coords.latitude,
-            location_lng: pos.coords.longitude,
-            location_name: 'Current Location'
-          }));
+        async (pos) => {
+          const { latitude, longitude } = pos.coords;
+          
+          // Reverse geocode to get location name
+          try {
+            const response = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+            );
+            const data = await response.json();
+            const city = data.address?.city || data.address?.town || data.address?.village || 'Unknown';
+            const state = data.address?.state || '';
+            const locationName = state ? `${city}, ${state}` : city;
+            
+            setLocalPrefs(prev => ({
+              ...prev,
+              location_lat: latitude,
+              location_lng: longitude,
+              location_name: `${locationName} (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`
+            }));
+          } catch (e) {
+            // Fallback if reverse geocode fails
+            setLocalPrefs(prev => ({
+              ...prev,
+              location_lat: latitude,
+              location_lng: longitude,
+              location_name: `Coordinates: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`
+            }));
+          }
         },
         (err) => console.error('Geolocation error:', err)
       );

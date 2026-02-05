@@ -25,7 +25,7 @@ serve(async (req) => {
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const ELEVENLABS_API_KEY = Deno.env.get('ELEVENLABS_API_KEY')!;
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
     const SHORT_SCOUT_URL = Deno.env.get('SHORT_SCOUT_URL');
     const SHORT_SCOUT_ANON_KEY = Deno.env.get('SHORT_SCOUT_ANON_KEY');
 
@@ -379,41 +379,42 @@ ${intentionWord ? `4. Word of the Month reflection\n5. Brief energizing close` :
 
 Write the briefing script now:`;
 
-    // Step 7: Generate script with Lovable AI
-    console.log('Generating script with AI...');
+    // Step 7: Generate script with Anthropic Claude
+    console.log('Generating script with Claude...');
     
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY not configured');
+    if (!ANTHROPIC_API_KEY) {
+      throw new Error('ANTHROPIC_API_KEY not configured');
     }
 
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const aiResponse = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [{ role: 'user', content: prompt }],
+        model: 'claude-sonnet-4-20250514',
         max_tokens: 2000,
+        messages: [{ role: 'user', content: prompt }],
       }),
     });
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
-      console.error('AI error:', aiResponse.status, errorText);
+      console.error('Claude API error:', aiResponse.status, errorText);
       
       if (aiResponse.status === 429) {
         throw new Error('Rate limit exceeded. Please try again in a moment.');
       }
-      if (aiResponse.status === 402) {
-        throw new Error('AI credits exhausted. Please add credits to continue.');
+      if (aiResponse.status === 402 || aiResponse.status === 400) {
+        throw new Error('Claude API error. Please check your API key and credits.');
       }
-      throw new Error(`AI generation failed: ${aiResponse.status}`);
+      throw new Error(`Claude generation failed: ${aiResponse.status}`);
     }
 
     const aiData = await aiResponse.json();
-    const script = aiData.choices?.[0]?.message?.content;
+    const script = aiData.content?.[0]?.text;
 
     if (!script) {
       throw new Error('No script generated');

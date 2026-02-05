@@ -1,136 +1,89 @@
 
 
-# Add Manual Zip Code Entry for Weather Widget
+# Add Phone Number Validation for SMS Delivery
 
 ## Summary
 
-Add a zip code input field to the Weather Widget popover that allows users to manually set their location instead of relying on browser geolocation, which can hang or fail. The zip code will be saved to localStorage and used as the preferred location source.
+When a user enables "SMS Delivery" for their morning briefing, we should verify they have a phone number on file. If not, show a warning and guide them to add one in Profile Settings.
 
-## Problem
+## Current State
 
-The current WeatherWidget uses browser geolocation exclusively, which can:
-- Hang indefinitely on some browsers/devices
-- Fail if users deny location permissions
-- Be slow or unreliable on mobile devices
+- The SMS Delivery toggle (`sms_delivery_enabled`) in BriefingSettings can be enabled without any validation
+- Phone numbers are stored in `profiles.phone_us`
+- Users can set their phone in Profile Settings (separate section in the same page)
 
-## Solution
+## Proposed Changes
 
-Add a zip code input inside the existing Weather popover that:
-1. Allows users to enter a 5-digit US zip code
-2. Converts the zip code to lat/lng using a free API
-3. Saves the preference to localStorage
-4. Prioritizes manual location over geolocation when set
-5. Includes a "Use my location" button to revert to geolocation
+### File: `src/components/settings/BriefingSettings.tsx`
+
+1. **Fetch user's phone number** alongside existing queries:
+   ```typescript
+   const { data: userProfile } = useQuery({
+     queryKey: ['profile-phone', user?.id],
+     queryFn: async () => {
+       const { data } = await supabase
+         .from('profiles')
+         .select('phone_us')
+         .eq('user_id', user?.id)
+         .single();
+       return data;
+     },
+     enabled: !!user?.id,
+   });
+   ```
+
+2. **Add validation when toggling SMS Delivery**:
+   - If user has no phone and tries to enable SMS → show warning toast and don't enable
+   - Guide them to Profile Settings section
+
+3. **Show inline warning** if SMS is enabled but no phone exists:
+   ```tsx
+   {preferences?.sms_delivery_enabled && !userProfile?.phone_us && (
+     <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+       <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5" />
+       <div className="text-sm">
+         <p className="font-medium text-amber-600 dark:text-amber-400">
+           No phone number on file
+         </p>
+         <p className="text-muted-foreground">
+           Add your US phone number in the Profile section above to receive SMS delivery.
+         </p>
+       </div>
+     </div>
+   )}
+   ```
+
+4. **Update toggle handler** to validate before enabling:
+   ```typescript
+   const handleSmsDeliveryToggle = (checked: boolean) => {
+     if (checked && !userProfile?.phone_us) {
+       toast.error('Please add your US phone number in Profile Settings first');
+       return;
+     }
+     handleToggle('sms_delivery_enabled', checked);
+   };
+   ```
 
 ## User Experience
 
-```text
-+---------------------------+
-|  📍 Austin, TX           |
-|                          |
-|   72°                    |
-|   Partly cloudy          |
-|   Feels like 75°         |
-|                          |
-|  💧 45%     💨 8 mph     |
-|                          |
-|  ─────────────────────── |
-|  📮 Set Zip Code         |
-|  ┌─────────────┬───────┐ |
-|  │ 78701       │ Save  │ |
-|  └─────────────┴───────┘ |
-|  [Use my location]       |
-+---------------------------+
-```
+**Before** (no phone on file):
+- User enables SMS Delivery toggle
+- Toast: "Please add your US phone number in Profile Settings first"
+- Toggle stays off
 
-## Technical Implementation
+**After** (phone on file):
+- User enables SMS Delivery toggle
+- Toggle turns on
+- Toast: "Preferences saved"
 
-### File: `src/components/dashboard/WeatherWidget.tsx`
+**Edge case** (phone removed after enabling):
+- Warning banner appears below the SMS toggle
+- "No phone number on file - Add your US phone number in the Profile section above"
 
-**Changes:**
+## Implementation Details
 
-1. **Add new state variables:**
-   - `zipCode` - controlled input for zip code entry
-   - `isSettingZip` - loading state during zip lookup
-   - `showZipInput` - toggle to show/hide the input field
-
-2. **Add zip code geocoding function:**
-   - Use OpenDataSoft free API for US zip code lookup
-   - API endpoint: `https://public.opendatasoft.com/api/records/1.0/search/?dataset=us-zip-code-latitude-and-longitude&q={zipCode}`
-   - Returns latitude, longitude, city, and state
-
-3. **Modify localStorage structure:**
-   ```typescript
-   // Current:
-   localStorage.setItem('weather_cache', JSON.stringify({
-     data: weatherData,
-     timestamp: Date.now(),
-   }));
-   
-   // Add new key for manual location:
-   localStorage.setItem('weather_manual_location', JSON.stringify({
-     zipCode: '78701',
-     latitude: 30.2672,
-     longitude: -97.7431,
-     city: 'Austin',
-     state: 'TX'
-   }));
-   ```
-
-4. **Update fetch logic priority:**
-   ```text
-   1. Check for manual location in localStorage
-   2. If found, use those coordinates
-   3. If not, fall back to geolocation
-   4. On geolocation failure, show zip input prompt
-   ```
-
-5. **Add UI elements to popover:**
-   - "Set zip code" link/button below weather details
-   - Input field with 5-digit validation
-   - Save button to confirm
-   - "Use my location" button to clear manual override
-   - Error message for invalid zip codes
-
-### API Integration
-
-```typescript
-const lookupZipCode = async (zip: string) => {
-  const response = await fetch(
-    `https://public.opendatasoft.com/api/records/1.0/search/?dataset=us-zip-code-latitude-and-longitude&q=${zip}&rows=1`
-  );
-  const data = await response.json();
-  
-  if (data.records?.length > 0) {
-    const record = data.records[0].fields;
-    return {
-      latitude: record.latitude,
-      longitude: record.longitude,
-      city: record.city,
-      state: record.state
-    };
-  }
-  throw new Error('Zip code not found');
-};
-```
-
-### Validation
-
-- Accept only 5-digit US zip codes
-- Validate format before API call
-- Show user-friendly error if zip not found
-
-### Edge Cases
-
-- Invalid zip format → show inline error
-- Zip not found in database → show "Zip code not found"
-- API failure → fall back to "try again" message
-- Clear manual location → remove from localStorage, retry geolocation
-
-## Dependencies
-
-No new dependencies required - uses existing UI components:
-- Input (already imported pattern)
-- Button (already imported)
-- Popover content area (already in use)
+- Uses existing query pattern already in the component
+- Reuses `AlertTriangle` icon (already imported via lucide-react)
+- Consistent styling with other warning states in the app
+- Profile Settings section is above Briefing Settings on the same page, so "above" direction is accurate
 

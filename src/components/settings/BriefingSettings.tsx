@@ -291,6 +291,45 @@ export function BriefingSettings() {
     );
   };
 
+  const handleZipCodeLookup = async (zipCode: string) => {
+    setIsLocating(true);
+    try {
+      // Use OpenDataSoft API to convert zip code to coordinates
+      const response = await fetch(
+        `https://public.opendatasoft.com/api/records/1.0/search/?dataset=us-zip-code-latitude-and-longitude&q=${zipCode}&rows=1`
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to lookup zip code');
+      }
+      
+      const data = await response.json();
+      
+      if (data.records && data.records.length > 0) {
+        const record = data.records[0].fields;
+        const latitude = record.latitude;
+        const longitude = record.longitude;
+        const city = record.city;
+        const state = record.state;
+        const locationName = city && state ? `${city}, ${state}` : `Zip ${zipCode}`;
+        
+        updateMutation.mutate({
+          location_lat: latitude,
+          location_lng: longitude,
+          location_name: locationName
+        });
+        toast.success(`Location set to ${locationName}`);
+      } else {
+        toast.error('Zip code not found. Please try another.');
+      }
+    } catch (error) {
+      console.error('Zip code lookup error:', error);
+      toast.error('Failed to lookup zip code. Please try again.');
+    } finally {
+      setIsLocating(false);
+    }
+  };
+
   const copyApiKey = () => {
     if (profile?.api_key) {
       navigator.clipboard.writeText(profile.api_key);
@@ -395,12 +434,68 @@ export function BriefingSettings() {
           </div>
 
           {/* Weather Location */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label className="flex items-center gap-2">
               <MapPin className="h-4 w-4" />
               Weather Location
             </Label>
-            <div className="flex items-center gap-3">
+            
+            {/* Current location display */}
+            {preferences?.location_name ? (
+              <p className="text-sm text-muted-foreground">
+                📍 {preferences.location_name}
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No location set (defaults to Chicago)
+              </p>
+            )}
+            
+            {/* Two options: Zip code OR geolocation */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              {/* Zip code input */}
+              <div className="flex gap-2 flex-1">
+                <Input
+                  type="text"
+                  placeholder="Enter 5-digit zip code"
+                  maxLength={5}
+                  pattern="[0-9]*"
+                  className="max-w-[160px]"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const input = e.currentTarget;
+                      const zip = input.value.trim();
+                      if (/^\d{5}$/.test(zip)) {
+                        handleZipCodeLookup(zip);
+                        input.blur();
+                      } else {
+                        toast.error('Please enter a valid 5-digit zip code');
+                      }
+                    }
+                  }}
+                  id="briefing-zip-input"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isLocating}
+                  onClick={() => {
+                    const input = document.getElementById('briefing-zip-input') as HTMLInputElement;
+                    const zip = input?.value?.trim() || '';
+                    if (/^\d{5}$/.test(zip)) {
+                      handleZipCodeLookup(zip);
+                    } else {
+                      toast.error('Please enter a valid 5-digit zip code');
+                    }
+                  }}
+                >
+                  {isLocating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Set'}
+                </Button>
+              </div>
+              
+              <span className="text-sm text-muted-foreground self-center">or</span>
+              
+              {/* Geolocation button */}
               <Button
                 variant="outline"
                 size="sm"
@@ -414,16 +509,6 @@ export function BriefingSettings() {
                 )}
                 Use Current Location
               </Button>
-              {preferences?.location_name && (
-                <span className="text-sm text-muted-foreground">
-                  📍 {preferences.location_name}
-                </span>
-              )}
-              {!preferences?.location_name && (
-                <span className="text-sm text-muted-foreground">
-                  No location set (defaults to Chicago)
-                </span>
-              )}
             </div>
           </div>
 

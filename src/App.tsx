@@ -64,6 +64,7 @@ import WhatsNew from "./pages/WhatsNew";
 import MonthInReviewBlog from "./pages/MonthInReviewBlog";
 import MorningBriefingBlog from "./pages/MorningBriefingBlog";
 import AIArena from "./pages/AIArena";
+import MorningBriefingLab from "./pages/MorningBriefingLab";
 const queryClient = new QueryClient();
 
 // Apply saved text size on app load
@@ -113,6 +114,7 @@ const App = () => (
                     <Route path="/blog/affirmations" element={<AffirmationsBlog />} />
                     <Route path="/blog/month-in-review" element={<MonthInReviewBlog />} />
                     <Route path="/blog/morning-briefing" element={<MorningBriefingBlog />} />
+                    <Route path="/morning-briefing" element={<ProtectedRoute><MorningBriefingLab /></ProtectedRoute>} />
                     <Route path="/whats-new" element={<WhatsNew />} />
                     <Route path="/primed" element={<ProtectedRoute><Primed /></ProtectedRoute>} />
                     <Route path="/primed/physical" element={<ProtectedRoute><PhysicalPillar /></ProtectedRoute>} />

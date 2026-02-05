@@ -1,5 +1,6 @@
 
 
+
 # Browserless-First News Scraping Architecture
 
 ## Overview
@@ -179,4 +180,3 @@ Since selectors can break:
 4. **Phase 4**: Replace remaining Tavily calls with Browserless (Tech, Science, Health)
 5. **Phase 5**: Add Google News as universal fallback
 6. **Phase 6**: Remove all Tavily code
-

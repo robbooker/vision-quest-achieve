@@ -80,9 +80,8 @@ export default function MorningBriefingLab() {
 
   const [localPrefs, setLocalPrefs] = useState<Partial<BriefingLabPreferences>>({});
   const [zipCode, setZipCode] = useState('');
-  const [showSaved, setShowSaved] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const initialLoadRef = useRef(true);
   const [generatedBriefing, setGeneratedBriefing] = useState<{
     podcast_url: string;
@@ -100,47 +99,24 @@ export default function MorningBriefingLab() {
     }
   }, [prefs]);
 
-  // Debounced auto-save
-  const savePrefs = useCallback(async (prefsToSave: Partial<BriefingLabPreferences>) => {
-    setIsSaving(true);
-    try {
-      await updatePrefs.mutateAsync(prefsToSave);
-      setShowSaved(true);
-      setTimeout(() => setShowSaved(false), 2000);
-    } catch (e) {
-      console.error('Auto-save error:', e);
-    } finally {
-      setIsSaving(false);
-    }
-  }, [updatePrefs]);
-
-  useEffect(() => {
-    // Skip auto-save on initial load
-    if (initialLoadRef.current || !prefs) return;
-    
-    // Clear existing timeout
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-
-    // Set new debounced save (1.5 second delay)
-    saveTimeoutRef.current = setTimeout(() => {
-      savePrefs(localPrefs);
-    }, 1500);
-
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
-  }, [localPrefs, prefs, savePrefs]);
-
   const handleToggle = (key: keyof BriefingLabPreferences) => {
     setLocalPrefs(prev => ({ ...prev, [key]: !prev[key] }));
+    if (!initialLoadRef.current) setHasUnsavedChanges(true);
   };
 
   const handleTopicChange = (key: keyof BriefingLabPreferences, value: string) => {
     setLocalPrefs(prev => ({ ...prev, [key]: value }));
+    if (!initialLoadRef.current) setHasUnsavedChanges(true);
+  };
+
+  const handleSavePrefs = async () => {
+    setIsSaving(true);
+    try {
+      await updatePrefs.mutateAsync(localPrefs);
+      setHasUnsavedChanges(false);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSetLocation = async () => {
@@ -161,6 +137,7 @@ export default function MorningBriefingLab() {
           location_lng: longitude,
           location_name: `${city}, ${state}`
         }));
+        if (!initialLoadRef.current) setHasUnsavedChanges(true);
       }
     } catch (e) {
       console.error('Zip lookup error:', e);
@@ -189,6 +166,7 @@ export default function MorningBriefingLab() {
               location_lng: longitude,
               location_name: `${locationName} (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`
             }));
+            if (!initialLoadRef.current) setHasUnsavedChanges(true);
           } catch (e) {
             // Fallback if reverse geocode fails
             setLocalPrefs(prev => ({
@@ -197,6 +175,7 @@ export default function MorningBriefingLab() {
               location_lng: longitude,
               location_name: `Coordinates: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`
             }));
+            if (!initialLoadRef.current) setHasUnsavedChanges(true);
           }
         },
         (err) => console.error('Geolocation error:', err)
@@ -205,11 +184,10 @@ export default function MorningBriefingLab() {
   };
 
   const handleGenerate = async () => {
-    // Cancel any pending auto-save and save immediately
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
+    // Save prefs first if there are unsaved changes
+    if (hasUnsavedChanges) {
+      await handleSavePrefs();
     }
-    await savePrefs(localPrefs);
     
     // Generate briefing
     const result = await generateBriefing.mutateAsync();
@@ -237,36 +215,44 @@ export default function MorningBriefingLab() {
       <div className="max-w-4xl mx-auto space-y-6 p-4">
         <div className="flex items-center justify-between">
           <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold">Morning Briefing Lab</h1>
-              {/* Auto-save indicator */}
-              <div className={`flex items-center gap-1 text-sm transition-opacity duration-300 ${showSaved ? 'opacity-100' : 'opacity-0'}`}>
-                <Check className="h-4 w-4 text-primary" />
-                <span className="text-muted-foreground">Saved</span>
-              </div>
-              {isSaving && (
-                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  <span>Saving...</span>
-                </div>
-              )}
-            </div>
+            <h1 className="text-2xl font-bold">Morning Briefing Lab</h1>
             <p className="text-muted-foreground">Experimental briefing generator with enhanced news scraping</p>
           </div>
-          <Button 
-            onClick={handleGenerate} 
-            disabled={generateBriefing.isPending}
-            size="lg"
-          >
-            {generateBriefing.isPending ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              'Generate Briefing'
-            )}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline"
+              onClick={handleSavePrefs} 
+              disabled={isSaving || !hasUnsavedChanges}
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : hasUnsavedChanges ? (
+                'Save'
+              ) : (
+                <>
+                  <Check className="h-4 w-4 mr-1" />
+                  Saved
+                </>
+              )}
+            </Button>
+            <Button 
+              onClick={handleGenerate} 
+              disabled={generateBriefing.isPending}
+              size="lg"
+            >
+              {generateBriefing.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                'Generate Briefing'
+              )}
+            </Button>
+          </div>
         </div>
 
         {/* Location Section */}

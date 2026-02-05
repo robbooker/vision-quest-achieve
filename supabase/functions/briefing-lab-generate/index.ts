@@ -269,14 +269,18 @@ serve(async (req) => {
     let intentionWord: string | null = null;
     let intentionDescription: string | null = null;
     if (labPrefs?.include_intention) {
-      const currentMonth = new Date().toISOString().slice(0, 7);
+      // Month is stored as first day of month (YYYY-MM-01) in database
+      const nowForMonth = new Date();
+      const currentMonthDate = `${nowForMonth.getFullYear()}-${String(nowForMonth.getMonth() + 1).padStart(2, '0')}-01`;
+      console.log(`Looking for monthly intention for: ${currentMonthDate}`);
       const { data: monthlyIntention } = await supabase
         .from('monthly_intentions')
         .select('word, description')
         .eq('user_id', userId)
-        .eq('month', currentMonth)
+        .eq('month', currentMonthDate)
         .maybeSingle();
       
+      console.log(`Monthly intention found:`, monthlyIntention);
       intentionWord = monthlyIntention?.word || null;
       intentionDescription = monthlyIntention?.description || null;
     }

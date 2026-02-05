@@ -12,11 +12,12 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Badge } from '@/components/ui/badge';
 import { 
   Loader2, Send, MapPin, Cloud, Calendar, Trophy, TrendingUp, 
   Briefcase, Vote, BookOpen, Tv, Music, Gamepad2, FlaskConical, 
   HeartPulse, Target, Sparkles, Newspaper, Mic, Check, Clock,
-  MessageSquare, Phone, Sunrise, AlertTriangle
+  MessageSquare, Phone, Sunrise, AlertTriangle, Play, FileText
 } from 'lucide-react';
 import { 
   useBriefingLabPreferences, 
@@ -24,12 +25,13 @@ import {
   useGenerateLabBriefing,
   useSendBriefingSms 
 } from '@/hooks/useBriefingLab';
-
+import { useBriefingHistory } from '@/hooks/useBriefings';
 import type { BriefingLabPreferences, DepthLevel } from '@/hooks/useBriefingLab';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
 
 // Voice options with descriptions
 const VOICE_OPTIONS = [
@@ -103,9 +105,13 @@ export default function MorningBriefingLab() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: prefs, isLoading: prefsLoading } = useBriefingLabPreferences();
+  const { data: briefingHistory } = useBriefingHistory(5);
   const updatePrefs = useUpdateBriefingLabPreferences();
   const generateBriefing = useGenerateLabBriefing();
   const sendSms = useSendBriefingSms();
+  
+  // Get the latest briefing
+  const latestBriefing = briefingHistory?.briefings?.[0];
 
   const [localPrefs, setLocalPrefs] = useState<Partial<BriefingLabPreferences>>({});
   const [zipCode, setZipCode] = useState('');
@@ -340,6 +346,76 @@ export default function MorningBriefingLab() {
             </div>
           </CardHeader>
         </Card>
+
+        {/* Latest Briefing */}
+        {latestBriefing && latestBriefing.status === 'ready' && latestBriefing.podcast_url && (
+          <Card className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-amber-500/30">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Play className="h-4 w-4" />
+                  Latest Briefing
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">
+                    {format(new Date(latestBriefing.wake_date), 'MMM d, yyyy')}
+                  </Badge>
+                  {latestBriefing.duration_seconds && (
+                    <span className="text-xs text-muted-foreground">
+                      {Math.floor(latestBriefing.duration_seconds / 60)}:{String(latestBriefing.duration_seconds % 60).padStart(2, '0')}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <audio 
+                controls 
+                src={latestBriefing.podcast_url} 
+                className="w-full"
+              />
+              
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => sendSms.mutateAsync(latestBriefing.podcast_url!)}
+                  disabled={sendSms.isPending || !userProfile?.phone_us}
+                >
+                  {sendSms.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                  <span className="ml-2">Send SMS</span>
+                </Button>
+                {!userProfile?.phone_us && (
+                  <span className="text-xs text-muted-foreground">
+                    Add phone in <Link to="/settings" className="text-primary hover:underline">Settings</Link>
+                  </span>
+                )}
+              </div>
+
+              {latestBriefing.script && (
+                <Accordion type="single" collapsible>
+                  <AccordionItem value="transcript" className="border-none">
+                    <AccordionTrigger className="py-1 text-sm">
+                      <span className="flex items-center gap-1">
+                        <FileText className="h-3 w-3" />
+                        View Transcript
+                      </span>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="text-sm text-muted-foreground whitespace-pre-wrap bg-background/50 p-3 rounded-md max-h-60 overflow-y-auto">
+                        {latestBriefing.script}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Scheduling Section */}
         <Card>

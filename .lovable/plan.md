@@ -1,47 +1,33 @@
 
 
-# Morning Briefing - Unified System
+# Fix: Google Calendar Events Edge Function Not Deployed
 
-## Status: ✅ Complete
+## Problem Identified
+The `google-calendar-events` edge function is returning **404 errors** (function not found), even though:
+- The function file exists in `supabase/functions/google-calendar-events/index.ts`
+- Your calendar connection is still valid in `user_calendar_tokens`
 
-The Morning Briefing Lab has been upgraded to be the unified Morning Briefing page, incorporating all features from the original settings-based system.
+The edge function logs show multiple 404 responses:
+```
+POST | 404 | .../functions/v1/google-calendar-events
+```
 
-## Features Integrated
+This means the function code exists but isn't currently deployed to Lovable Cloud.
 
-### Scheduling & Delivery (from old briefing)
-- ✅ Default Wake Time
-- ✅ Evening Reminder Time  
-- ✅ Timezone selection
-- ✅ Reminder Method (SMS, Call, Both)
-- ✅ Weekend Briefings toggle
-- ✅ SMS Delivery toggle with phone validation
+## Root Cause
+Edge functions sometimes need redeployment after system updates or if deployment was interrupted. The function file is present, but the deployed version is missing.
 
-### Content Customization (from Lab)
-- ✅ Weather Location (zip code + geolocation)
-- ✅ Voice selection (8 ElevenLabs voices)
-- ✅ Max Duration slider (2-10 min)
-- ✅ News Categories with depth controls (Off/Brief/Full)
-  - Sports (ESPN + The Athletic)
-  - Tech/AI (Hacker News + TechCrunch)
-  - Business (Bloomberg + Yahoo Finance)
-  - Trading/Markets (Bloomberg + MarketWatch)
-  - Politics (Reuters + AP News)
-  - Science (Phys.org + ScienceDaily)
-  - Health (Healthline + Medical News Today)
-  - Film/TV (Variety + Deadline)
-  - Music (Pitchfork + Billboard)
-  - Gaming (IGN + Kotaku)
-  - Books (BookRiot)
-- ✅ Extras toggles (Short Scout, Weather, Calendar, Monthly Intention)
-- ✅ Custom Topics freeform input
-- ✅ Generate Briefing button with live preview
+## Solution
+Redeploy the `google-calendar-events` edge function.
 
-## Navigation Updates
-- ✅ Announcement bar links to `/morning-briefing` 
-- ✅ Morning Briefing added to user dropdown menu
-- ✅ Settings page links to `/morning-briefing` for configuration
+## Implementation
+1. Deploy the `google-calendar-events` edge function
+2. Verify the function responds correctly
+3. Test that calendar events appear on the Today page
 
-## Technical Notes
-- Uses both `briefing_preferences` table (scheduling) and `briefing_lab_preferences` table (content)
-- Location synced to both tables for weather in automation
-- Browserless-first news scraping (see previous plan for source details)
+## Technical Note
+No code changes are needed - the function code at `supabase/functions/google-calendar-events/index.ts` is correct and includes:
+- OAuth token refresh logic
+- Proper error handling for expired tokens
+- Event fetching from Google Calendar API
+

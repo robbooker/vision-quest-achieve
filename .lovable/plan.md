@@ -1,352 +1,182 @@
 
-# Morning Briefing Lab - Enhanced Version
 
-## Summary
-Create a `/morning-briefing` lab page with an experimental briefing system featuring:
-1. **Anthropic Claude** for script generation (replacing Lovable AI/Gemini)
-2. **Browserless.io** web scraping for authoritative news data
-3. **Short Scout** integration for trending stocks
-4. **User-configurable news categories** with specific interest inputs
-5. **SMS delivery** after generation (like production)
-6. **Zip code / location** picker (reusing existing pattern)
+# Browserless-First News Scraping Architecture
 
-## User Experience Flow
+## Overview
+Replace Tavily dependency with a curated Browserless scraping strategy. Each news category will target specific, trusted sources with tailored CSS selectors for reliable content extraction.
 
-### Generation Page (`/morning-briefing`)
-1. User configures their preferences (saved for future)
-2. User clicks "Generate Briefing"
-3. System scrapes news sources, fetches Short Scout data
-4. Claude generates script from scraped data
-5. ElevenLabs creates audio
-6. Audio player appears with transcript
-7. "Send SMS" button immediately sends link to their phone
+## Current State
+- **ESPN**: Already uses Browserless for team pages + ESPN API for scores (working well)
+- **All other categories**: Use Tavily search API for general queries
+- **Fallbacks**: Tavily is used when ESPN fails or for soccer teams
 
-### Preferences Panel
-Users will see a grid of content categories they can toggle on/off. When a category is enabled, they can optionally add specific interests.
+## Updated Source Mapping (Per User Request)
 
-## News Categories & Preferences
+| Category | Primary Sources | Notes |
+|----------|----------------|-------|
+| **Sports** | ESPN (existing) + **The Athletic** | Athletic for premium analysis/features |
+| **Tech/AI** | Hacker News, TechCrunch | Headlines + article titles |
+| **Business** | Yahoo Finance, **Bloomberg** | Top stories, market news |
+| **Trading/Markets** | **Bloomberg**, Yahoo Finance, MarketWatch | Market movers, headlines |
+| **Science** | Phys.org, ScienceDaily | Latest discoveries |
+| **Health** | Healthline, Medical News Today | Trending articles |
+| **Politics** | **Reuters**, AP News | Top political stories |
+| **Books** | Goodreads, BookRiot | New releases |
+| **Film/TV** | Variety, Deadline | Entertainment headlines |
+| **Music** | Pitchfork, Billboard | Music news |
+| **Gaming** | IGN, Kotaku | Game news |
+| **Custom Topics** | Google News search | Fallback for user queries |
 
-| Category | Toggle | Optional Input |
-|----------|--------|----------------|
-| Sports | Checkbox | Teams input (e.g., "Heat, Yankees, Giants") |
-| Tech / AI | Checkbox | Topics input (e.g., "vibe coding, Claude, cursor") |
-| Business | Checkbox | Companies/industries input |
-| Trading / Markets | Checkbox | - |
-| Politics | Checkbox | Topics input |
-| Books | Checkbox | Genres/authors input |
-| Film & TV | Checkbox | - |
-| Music | Checkbox | Genres/artists input |
-| Gaming | Checkbox | Platforms/games input |
-| Science | Checkbox | Topics input |
-| Health & Fitness | Checkbox | Topics input |
-| Short Scout Updates | Checkbox | - (pulls top_searched, most_traded) |
-| Weather | Checkbox | Uses saved location |
-| Calendar | Checkbox | Pulls from Google Calendar |
-| Monthly Intention | Checkbox | Reflection on word of the month |
-| **Custom Topics** | Text area | Free-form input for anything else |
-
-## Database Schema
-
-### Table: `briefing_lab_preferences`
-```sql
-CREATE TABLE briefing_lab_preferences (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
-  
-  -- Core settings
-  location_lat DOUBLE PRECISION,
-  location_lng DOUBLE PRECISION,
-  location_name TEXT,
-  voice_id TEXT DEFAULT 'JBFqnCBsd6RMkjVDRZzb',
-  
-  -- Category toggles
-  include_sports BOOLEAN DEFAULT false,
-  include_tech BOOLEAN DEFAULT false,
-  include_business BOOLEAN DEFAULT false,
-  include_trading BOOLEAN DEFAULT false,
-  include_politics BOOLEAN DEFAULT false,
-  include_books BOOLEAN DEFAULT false,
-  include_film_tv BOOLEAN DEFAULT false,
-  include_music BOOLEAN DEFAULT false,
-  include_gaming BOOLEAN DEFAULT false,
-  include_science BOOLEAN DEFAULT false,
-  include_health BOOLEAN DEFAULT false,
-  include_short_scout BOOLEAN DEFAULT false,
-  include_weather BOOLEAN DEFAULT true,
-  include_calendar BOOLEAN DEFAULT true,
-  include_intention BOOLEAN DEFAULT true,
-  
-  -- Category-specific interests
-  sports_teams TEXT,           -- "Heat, Yankees, Giants"
-  tech_topics TEXT,            -- "vibe coding, Claude, AI agents"
-  business_topics TEXT,        -- "Tesla, fintech, startups"
-  politics_topics TEXT,        -- "economic policy, tech regulation"
-  books_topics TEXT,           -- "sci-fi, business books"
-  music_topics TEXT,           -- "electronic, jazz"
-  gaming_topics TEXT,          -- "PlayStation, indie games"
-  science_topics TEXT,         -- "space, climate"
-  health_topics TEXT,          -- "nutrition, longevity"
-  
-  -- Free-form custom topics
-  custom_topics TEXT,          -- Anything else the user wants
-  
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-
--- Enable RLS
-ALTER TABLE briefing_lab_preferences ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users manage own lab preferences" ON briefing_lab_preferences
-  FOR ALL USING (auth.uid() = user_id);
-```
-
-### Table: `briefing_scraped_data`
-```sql
-CREATE TABLE briefing_scraped_data (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  scraped_at TIMESTAMPTZ DEFAULT now(),
-  data JSONB NOT NULL,
-  sources_succeeded TEXT[] DEFAULT '{}',
-  sources_failed TEXT[] DEFAULT '{}',
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- Enable RLS
-ALTER TABLE briefing_scraped_data ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users view own scraped data" ON briefing_scraped_data
-  FOR ALL USING (auth.uid() = user_id);
-```
-
-### Table: `briefing_lab_episodes`
-```sql
-CREATE TABLE briefing_lab_episodes (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  generated_at TIMESTAMPTZ DEFAULT now(),
-  podcast_url TEXT,
-  script TEXT,
-  duration_seconds INTEGER,
-  categories_used TEXT[],
-  scraped_data_id UUID REFERENCES briefing_scraped_data(id),
-  status TEXT DEFAULT 'generating',
-  error_message TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- Enable RLS
-ALTER TABLE briefing_lab_episodes ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users manage own lab episodes" ON briefing_lab_episodes
-  FOR ALL USING (auth.uid() = user_id);
-```
-
-## Edge Functions
-
-### 1. `scrape-briefing-news/index.ts`
-Uses Browserless.io to scrape authoritative sources based on user's enabled categories.
-
-**Key scraping targets:**
-- **Sports**: ESPN pages for user's specified teams
-- **Tech/AI**: Hacker News (filtered by keywords), TechCrunch AI
-- **Business**: Bloomberg, WSJ top stories
-- **Trading/Markets**: Yahoo Finance, MarketWatch
-- **Politics**: AP News, Reuters
-- **Books**: NYT Book Review, Goodreads trending
-- **Film/TV**: Variety, Hollywood Reporter
-- **Music**: Billboard, Pitchfork
-- **Gaming**: IGN, Polygon
-- **Science**: Ars Technica, Science Daily
-- **Health**: WebMD, Healthline trending
-
-**Returns structured JSON:**
-```json
-{
-  "scraped_at": "2026-02-05T06:30:00Z",
-  "sports": {
-    "heat": { "last_game": {...}, "next_game": {...}, "record": "28-24" }
-  },
-  "tech": {
-    "ai_news": [{ "title": "...", "source": "...", "url": "..." }]
-  },
-  "markets": { "sp500": {...}, "dow": {...}, "headlines": [...] },
-  "sources_succeeded": ["sports", "tech", "markets"],
-  "sources_failed": []
-}
-```
-
-### 2. `briefing-lab-generate/index.ts`
-Main generation using Anthropic API:
-
-```typescript
-// Key differences from production:
-
-// 1. Use Anthropic API instead of Lovable AI
-const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
-  method: 'POST',
-  headers: {
-    'x-api-key': ANTHROPIC_API_KEY,
-    'anthropic-version': '2023-06-01',
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 4000,
-    messages: [{ role: 'user', content: prompt }]
-  }),
-});
-
-// 2. Fetch user's lab preferences (categories + specific interests)
-const { data: labPrefs } = await supabase
-  .from('briefing_lab_preferences')
-  .select('*')
-  .eq('user_id', userId)
-  .single();
-
-// 3. Call scrape-briefing-news with user's enabled categories
-const scrapedData = await supabase.functions.invoke('scrape-briefing-news', {
-  body: { 
-    userId,
-    categories: getEnabledCategories(labPrefs),
-    sports_teams: labPrefs.sports_teams,
-    tech_topics: labPrefs.tech_topics,
-    // ... etc
-  }
-});
-
-// 4. Fetch Short Scout if enabled
-if (labPrefs.include_short_scout) {
-  const shortScoutResponse = await fetch(
-    `${SHORT_SCOUT_URL}/rest/v1/rpc/get_tickers_data?section=tickers`,
-    { headers: { 'apikey': SHORT_SCOUT_ANON_KEY } }
-  );
-  // Add top_searched, most_traded to prompt
-}
-
-// 5. Build prompt with STRICT anti-hallucination rules
-const prompt = buildPromptFromScrapedData(scrapedData, labPrefs, shortScoutData);
-```
-
-### 3. `send-briefing-sms/index.ts` (or reuse existing pattern)
-Sends SMS with briefing link after generation completes.
-
-## Frontend Components
-
-### `src/pages/MorningBriefingLab.tsx`
-Main lab page with:
-- Category toggle grid with interest inputs
-- Location picker (zip code or geolocation - reusing existing pattern)
-- Voice selector
-- Generate button
-- Audio player with transcript
-- "Send SMS" button
-
-### `src/hooks/useBriefingLab.ts`
-```typescript
-export function useBriefingLabPreferences() {
-  // Fetch and mutate briefing_lab_preferences
-}
-
-export function useGenerateLabBriefing() {
-  // Mutation to call briefing-lab-generate
-}
-
-export function useSendBriefingSms() {
-  // Send SMS with podcast URL
-}
-```
-
-## UI Layout
+## Implementation Architecture
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────┐
-│  Morning Briefing Lab                                         [Generate]│
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│  📍 Location: [Enter zip code] [Set] or [Use Current Location]         │
-│     Currently: Chicago, IL                                              │
-│                                                                         │
-│  ──────────────────────────────────────────────────────────────────────│
-│                                                                         │
-│  What would you like in your briefing?                                  │
-│                                                                         │
-│  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐            │
-│  │ ☑ Sports       │  │ ☑ Tech / AI    │  │ ☐ Business     │            │
-│  │ [Heat, Yankees]│  │ [vibe coding,  │  │ [             ]│            │
-│  │                │  │  Claude, AI]   │  │                │            │
-│  └────────────────┘  └────────────────┘  └────────────────┘            │
-│                                                                         │
-│  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐            │
-│  │ ☑ Trading      │  │ ☐ Politics     │  │ ☐ Books        │            │
-│  └────────────────┘  └────────────────┘  └────────────────┘            │
-│                                                                         │
-│  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐            │
-│  │ ☐ Film & TV    │  │ ☐ Music        │  │ ☐ Gaming       │            │
-│  └────────────────┘  └────────────────┘  └────────────────┘            │
-│                                                                         │
-│  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐            │
-│  │ ☐ Science      │  │ ☐ Health       │  │ ☑ Short Scout  │            │
-│  └────────────────┘  └────────────────┘  │ (trending stks)│            │
-│                                          └────────────────┘            │
-│                                                                         │
-│  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐            │
-│  │ ☑ Weather      │  │ ☑ Calendar     │  │ ☑ Monthly Word │            │
-│  └────────────────┘  └────────────────┘  └────────────────┘            │
-│                                                                         │
-│  ──────────────────────────────────────────────────────────────────────│
-│                                                                         │
-│  Anything else you'd like to know about?                                │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │ I want to know about upcoming SpaceX launches and any news     │   │
-│  │ about the new ChatGPT features...                               │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-│                                                                         │
-│  ──────────────────────────────────────────────────────────────────────│
-│                                                                         │
-│  🎧 Voice: [George (Default) ▼]                                        │
-│                                                                         │
-│  ═══════════════════════════════════════════════════════════════════   │
-│                                                                         │
-│  [▶ Audio Player ──────────────────────────────── 0:00 / 3:45]         │
-│                                                                         │
-│  📱 [Send SMS]                                                          │
-│                                                                         │
-│  ▼ View Transcript                                                      │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │ Good morning! It's Wednesday, February 5th...                   │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
++-------------------+      +--------------------+      +------------------+
+|  briefing-lab-    | ---> | scrape-briefing-   | ---> | Browserless API  |
+|  generate         |      | news               |      | (Headless Chrome)|
++-------------------+      +--------------------+      +------------------+
+                                    |
+                                    v
+                           +------------------------+
+                           | Category-Specific      |
+                           | Scrapers:              |
+                           | - scrapeSportsNews()   |  <- ESPN + The Athletic
+                           | - scrapeTechNews()     |  <- HN + TechCrunch
+                           | - scrapeBusinessNews() |  <- Bloomberg + Yahoo
+                           | - scrapeTradingNews()  |  <- Bloomberg + MarketWatch
+                           | - scrapePoliticsNews() |  <- Reuters + AP
+                           | - scrapeScienceNews()  |
+                           | - scrapeHealthNews()   |
+                           | - scrapeCustomTopics() |  <- Google News fallback
+                           +------------------------+
 ```
 
-## Secrets Required
+## Technical Details
 
-| Secret | Purpose | Status |
-|--------|---------|--------|
-| `BROWSERLESS_API_KEY` | Web scraping | New - need to add |
-| `ANTHROPIC_API_KEY` | Claude script generation | Already exists |
-| `SHORT_SCOUT_URL` | Trending stocks API | Already exists |
-| `SHORT_SCOUT_ANON_KEY` | Trending stocks API | Already exists |
-| `ELEVENLABS_API_KEY` | TTS audio | Already exists |
-| `TWILIO_*` credentials | SMS delivery | Already exists |
+### New Browserless Scraper Functions
 
-## File Summary
+Each function will call the Browserless `/scrape` endpoint with site-specific CSS selectors:
 
-| File | Purpose |
-|------|---------|
-| `src/pages/MorningBriefingLab.tsx` | Lab page with category toggles and player |
-| `src/hooks/useBriefingLab.ts` | Data fetching and mutations |
-| `supabase/functions/scrape-briefing-news/index.ts` | Browserless web scraping |
-| `supabase/functions/briefing-lab-generate/index.ts` | Anthropic-powered generation |
-| `briefing_lab_preferences` table | User category preferences |
-| `briefing_scraped_data` table | Cached scraped news |
-| `briefing_lab_episodes` table | Generated lab briefings |
+**`scrapeAthleticNews(teamName: string)`** - NEW
+- URL: `https://theathletic.com/search/?q=${teamName}`
+- Selectors: `.article-card__title a`, `.headline a`
+- Note: The Athletic has a paywall but headlines are visible
 
-## Implementation Order
+**`scrapeBloombergNews(category: 'business' | 'markets')`** - NEW
+- Business URL: `https://www.bloomberg.com/`
+- Markets URL: `https://www.bloomberg.com/markets`
+- Selectors: `[data-component="headline"] a`, `.story-package-module__headline a`
+- Note: Bloomberg may require handling anti-bot measures
 
-1. **Database**: Create the three new tables
-2. **Secrets**: Add `BROWSERLESS_API_KEY`
-3. **Edge Function**: `scrape-briefing-news` with Browserless integration
-4. **Edge Function**: `briefing-lab-generate` with Anthropic + scraped data
-5. **Frontend**: `useBriefingLab.ts` hook
-6. **Frontend**: `MorningBriefingLab.tsx` page
-7. **Routing**: Add `/morning-briefing` route in App.tsx
+**`scrapeReutersPolitics()`** - NEW
+- URL: `https://www.reuters.com/world/us/`
+- Selectors: `[data-testid="Heading"] a`, `.media-story-card__headline a`
+
+**`scrapeTechNews(topics?: string)`**
+- Primary: `https://news.ycombinator.com`
+- Secondary: `https://techcrunch.com/category/artificial-intelligence/`
+- Selectors: `.titleline a` for HN, `.post-block__title a` for TechCrunch
+
+**`scrapeScienceNews(topics?: string)`**
+- Primary: `https://phys.org/`
+- Selectors: `.news-link`, `.sorted-articles-list a`
+
+**`scrapeHealthNews(topics?: string)`**
+- Primary: `https://www.healthline.com/health-news`
+- Selectors: Article card links
+
+**`scrapeCustomTopics(query: string)`** - Fallback
+- URL: `https://news.google.com/search?q=${query}&hl=en-US`
+- Selectors: Article cards in Google News results
+
+### Browserless Request Pattern
+
+```javascript
+async function scrapeWithBrowserless(url: string, selector: string): Promise<Array<{title: string, url: string}>> {
+  const BROWSERLESS_API_KEY = Deno.env.get('BROWSERLESS_API_KEY');
+  
+  const response = await fetch(`https://chrome.browserless.io/scrape?token=${BROWSERLESS_API_KEY}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      url,
+      elements: [{ selector, timeout: 15000 }],
+      waitFor: 3000,
+      gotoOptions: { waitUntil: 'networkidle0' }
+    })
+  });
+  
+  // Parse and return headlines...
+}
+```
+
+### Sports: ESPN + The Athletic
+
+The current ESPN scraping stays intact. We add The Athletic as a secondary source for richer analysis:
+
+```javascript
+// In sports scraping logic
+if (categories.sports && body.sports_teams) {
+  for (const team of teams) {
+    // 1. Get ESPN game scores (existing)
+    const gameScore = await getESPNGameScore(mapping.slug, mapping.league);
+    
+    // 2. Get ESPN headlines (existing)
+    const espnHeadlines = await scrapeESPNTeamNews(mapping.league, mapping.espnSlug);
+    
+    // 3. NEW: Get The Athletic analysis
+    const athleticHeadlines = await scrapeAthleticNews(mapping.fullName);
+    
+    // Combine: ESPN for scores/news, Athletic for features
+    teamData.headlines = [...espnHeadlines, ...athleticHeadlines].slice(0, 5);
+  }
+}
+```
+
+### Fallback & Caching Strategy
+
+Since selectors can break:
+1. **Cache successful scrapes** in `briefing_scraped_data` table (already exists)
+2. **Stale-while-revalidate**: If fresh scrape fails, use cached data within 6 hours
+3. **Google News fallback**: For custom topics or when all sources fail
+
+## File Changes
+
+### Modified File
+**`supabase/functions/scrape-briefing-news/index.ts`**
+- Remove `fetchNewsWithTavily` and `fetchSportsNewsWithTavily` functions
+- Add new Browserless scrapers:
+  - `scrapeAthleticNews(teamName)`
+  - `scrapeBloombergNews(category)`
+  - `scrapeReutersPolitics()`
+  - `scrapeTechNews(topics)`
+  - `scrapeScienceNews(topics)`
+  - `scrapeHealthNews(topics)`
+  - `scrapeGoogleNews(query)` (fallback)
+- Update main handler to use category-specific scrapers
+- Keep ESPN integration as-is (already working)
+
+## Benefits
+
+1. **Curated sources**: Bloomberg, The Athletic, Reuters are premium sources
+2. **Consistency**: Same extraction logic every run (no search ranking variance)
+3. **Cost reduction**: Removes Tavily API dependency
+4. **Full control**: We choose exactly which sites to trust
+
+## Risks & Mitigations
+
+| Risk | Mitigation |
+|------|------------|
+| Bloomberg/Athletic paywalls | Scrape visible headlines only; paywall content won't render |
+| Selector changes | Monitor `sources_failed`; keep Google News as fallback |
+| Rate limiting | Add delays between requests; use caching |
+| Browserless timeouts | Parallel scraping with individual try/catch |
+
+## Rollout Phases
+
+1. **Phase 1**: Add The Athletic for sports (alongside ESPN)
+2. **Phase 2**: Add Bloomberg for business/trading
+3. **Phase 3**: Add Reuters for politics
+4. **Phase 4**: Replace remaining Tavily calls with Browserless (Tech, Science, Health)
+5. **Phase 5**: Add Google News as universal fallback
+6. **Phase 6**: Remove all Tavily code
+

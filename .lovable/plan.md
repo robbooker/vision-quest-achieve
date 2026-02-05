@@ -1,84 +1,85 @@
 
 
-# Continue Edge Function Deployment
+# Edge Function Deployment - Phase 2
 
-## Current Status
-
-**Successfully Deployed (21 functions):**
-- Subscription: `check-subscription`, `create-checkout`, `cancel-subscription`, `customer-portal`
-- Briefing: `briefing-generate`, `briefing-history`, `briefing-mark-played`, `briefing-wake-check`, `briefing-auto-generate`, `briefing-evening-reminder`, `briefing-evening-scheduler`, `briefing-lab-generate`, `scrape-briefing-news`
-- Goals: `goal-coach`, `goal-interview`, `goal-help`, `extract-goal`, `woop-interview`, `extract-woop`
-- Utilities: `elevenlabs-tts`, `parse-nutrition`, `get-vapid-key`, `fetch-link-metadata`
+## Objective
+Deploy the remaining 37 edge functions to restore full site functionality.
 
 ---
 
-## Remaining Functions (~37)
+## Deployment Queue
 
-### Priority Batch A - Google Calendar (Critical for Today page)
-- `google-calendar-auth`
-- `google-calendar-callback`
-- `google-calendar-events`
-- `google-calendar-create-event`
+### Batch A - Google Calendar (Critical)
+1. `google-calendar-auth`
+2. `google-calendar-callback`
+3. `google-calendar-events`
+4. `google-calendar-create-event`
 
-### Priority Batch B - AI/Chat Features
-- `ai-arena`
-- `journal-chat`
-- `generate-journal-image`
+### Batch B - AI/Chat Features
+5. `ai-arena`
+6. `journal-chat`
+7. `generate-journal-image`
 
-### Priority Batch C - Notifications
-- `notification-scheduler`
-- `send-push-notification`
-- `push-subscribe`
-- `push-unsubscribe`
+### Batch C - Notifications
+8. `notification-scheduler`
+9. `send-push-notification`
+10. `push-subscribe`
+11. `push-unsubscribe`
 
-### Priority Batch D - Audio/Voice
-- `transcribe-audio`
-- `twilio-voice-webhook`
-- `twilio-sms-webhook`
+### Batch D - Audio/Voice
+12. `transcribe-audio`
+13. `twilio-voice-webhook`
+14. `twilio-sms-webhook`
 
-### Priority Batch E - Embeddings/Search
-- `generate-embedding`
-- `semantic-search`
-- `backfill-embeddings`
+### Batch E - Embeddings/Search
+15. `generate-embedding`
+16. `semantic-search`
+17. `backfill-embeddings`
 
-### Priority Batch F - Monthly Reports
-- `generate-monthly-recap`
-- `regenerate-recap-section`
-- `email-recap`
-- `generate-monthly-audit`
+### Batch F - Monthly Reports
+18. `generate-monthly-recap`
+19. `regenerate-recap-section`
+20. `email-recap`
+21. `generate-monthly-audit`
 
-### Priority Batch G - Communication
-- `send-broadcast`
-- `send-sms-broadcast`
-- `test-email`
-- `test-sms`
-- `share-list-sms`
-- `send-briefing-sms`
+### Batch G - Communication
+22. `send-broadcast`
+23. `send-sms-broadcast`
+24. `test-email`
+25. `test-sms`
+26. `share-list-sms`
+27. `send-briefing-sms`
 
-### Priority Batch H - Utilities
-- `parse-bloodwork`
-- `generate-daily-insight`
-- `generate-packing-list`
-- `oura-sync-performance`
-- `backfill-calendar-pillars`
+### Batch H - Utilities
+28. `parse-bloodwork`
+29. `generate-daily-insight`
+30. `generate-packing-list`
+31. `oura-sync-performance`
+32. `backfill-calendar-pillars`
 
-### Priority Batch I - Admin/Background
-- `admin-delete-user`
-- `bird-ai-research`
-- `sync-trading-journal`
+### Batch I - Admin/Background
+33. `admin-delete-user`
+34. `bird-ai-research`
+35. `sync-trading-journal`
 
 ---
 
 ## Deployment Strategy
 
-1. Deploy functions one at a time with 5-second cooldowns between attempts
-2. Skip functions that timeout and return to them later
-3. Prioritize Google Calendar functions first (most requested feature)
-4. Track successes and continue until all functions are deployed
+1. **Single-function deploys** - One function at a time to reduce infrastructure load
+2. **5-10 second cooldowns** - Wait between each deployment attempt
+3. **Skip on timeout** - If a function times out, move to the next and circle back later
+4. **Track progress** - Report successes as we go
 
 ---
 
 ## Expected Outcome
 
-All 58 edge functions deployed and operational, restoring full site functionality.
+All 58 edge functions deployed and operational, restoring:
+- Google Calendar sync on Today page
+- AI Arena and Journal Chat features
+- Push notifications
+- Audio transcription
+- Monthly recap generation
+- All admin and utility functions
 

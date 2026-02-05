@@ -327,13 +327,17 @@ serve(async (req) => {
     const voiceId = prefs?.voice_id || 'JBFqnCBsd6RMkjVDRZzb';
 
     // Fetch current month's intention word
-    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
+    // Month is stored as first day of month (YYYY-MM-01) in database
+    const now2 = new Date();
+    const currentMonthDate = `${now2.getFullYear()}-${String(now2.getMonth() + 1).padStart(2, '0')}-01`;
+    console.log(`Looking for monthly intention for: ${currentMonthDate}`);
     const { data: monthlyIntention } = await supabase
       .from('monthly_intentions')
       .select('word, description')
       .eq('user_id', userId)
-      .eq('month', currentMonth)
+      .eq('month', currentMonthDate)
       .maybeSingle();
+    console.log(`Monthly intention found:`, monthlyIntention);
     
     const intentionWord = monthlyIntention?.word || null;
     const intentionDescription = monthlyIntention?.description || null;

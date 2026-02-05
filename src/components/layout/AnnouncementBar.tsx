@@ -26,7 +26,7 @@ export function AnnouncementBar() {
             </Link>
           </Button>
           <Button size="sm" asChild className="shrink-0 gap-1.5">
-            <Link to="/settings">
+            <Link to="/morning-briefing">
               <Mic className="h-3.5 w-3.5" />
               Set Up
               <ArrowRight className="h-3.5 w-3.5" />

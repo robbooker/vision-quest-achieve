@@ -416,10 +416,18 @@ async function executeTool(
   args: Record<string, unknown>,
   supabase: any,
   userId: string,
-  LOVABLE_API_KEY: string
+  LOVABLE_API_KEY: string,
+  userTimezone: string = 'America/Chicago'
 ): Promise<string> {
-  const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
+  // Calculate today's date in the user's timezone
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat('en-CA', { 
+    timeZone: userTimezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+  const todayStr = formatter.format(now); // Returns YYYY-MM-DD format
   
   switch (toolName) {
     case 'create_task': {
@@ -1305,6 +1313,15 @@ serve(async (req) => {
     const goals = goalsResult.data || [];
     const cycle = cycleResult.data;
 
+    // Fetch user timezone for date calculations
+    const { data: briefingPrefs } = await supabase
+      .from('briefing_preferences')
+      .select('timezone')
+      .eq('user_id', userId)
+      .maybeSingle();
+    
+    const userTimezone = briefingPrefs?.timezone || 'America/Chicago';
+
     let cycleContext = '';
     if (cycle) {
       const startDate = new Date(cycle.start_date);
@@ -1400,7 +1417,7 @@ Respond naturally to their message. Use tools when appropriate.`;
         }
         
         console.log(`Executing tool: ${toolName}`, toolArgs);
-        const result = await executeTool(toolName, toolArgs, supabase, userId, LOVABLE_API_KEY);
+        const result = await executeTool(toolName, toolArgs, supabase, userId, LOVABLE_API_KEY, userTimezone);
         toolResults.push(result);
       }
       

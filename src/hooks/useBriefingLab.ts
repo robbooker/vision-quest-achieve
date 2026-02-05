@@ -193,31 +193,20 @@ export function useSendBriefingSms() {
         throw new Error('No phone number configured. Please add your phone number in Settings.');
       }
 
-      // Use existing SMS infrastructure
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/test-sms`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`,
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          },
-          body: JSON.stringify({
-            to: profile.phone_us,
-            message: `☀️ Your morning briefing is ready!\n\nListen now: ${podcastUrl}`
-          })
-        }
-      );
+      // Use dedicated briefing SMS endpoint
+      const { data, error } = await supabase.functions.invoke('send-briefing-sms', {
+        body: { podcast_url: podcastUrl }
+      });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to send SMS');
+      if (error) {
+        throw new Error(error.message || 'Failed to send SMS');
       }
 
-      return response.json();
+      if (!data?.success) {
+        throw new Error(data?.error || 'Failed to send SMS');
+      }
+
+      return data;
     },
     onSuccess: () => {
       toast({ title: 'SMS sent!' });

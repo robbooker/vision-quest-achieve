@@ -245,9 +245,27 @@ serve(async (req) => {
     const buildSectionData = () => {
       const sections: string[] = [];
 
-      // Sports
+      // Sports - now with headlines
       if (labPrefs?.include_sports && Object.keys(scrapedData.sports || {}).length > 0) {
-        sections.push(`**SPORTS:**\n${JSON.stringify(scrapedData.sports, null, 2)}`);
+        const sportsLines: string[] = [];
+        for (const [teamKey, teamData] of Object.entries(scrapedData.sports)) {
+          const team = teamData as any;
+          const teamSection: string[] = [`**${team.name || teamKey.toUpperCase()}:**`];
+          
+          if (team.last_game) {
+            teamSection.push(`Last game: ${team.last_game.result} vs ${team.last_game.opponent} (${team.last_game.score}) on ${team.last_game.date}`);
+          }
+          
+          if (team.headlines && team.headlines.length > 0) {
+            teamSection.push('Headlines:');
+            team.headlines.slice(0, 3).forEach((h: any) => {
+              teamSection.push(`- ${h.title}`);
+            });
+          }
+          
+          sportsLines.push(teamSection.join('\n'));
+        }
+        sections.push(`**SPORTS:**\n${sportsLines.join('\n\n')}`);
       }
 
       // Tech/AI
@@ -259,6 +277,16 @@ serve(async (req) => {
         if (techItems.length > 0) {
           sections.push(`**TECH/AI NEWS:**\n${techItems.map((t: any) => `- ${t.title} (${t.source})`).join('\n')}`);
         }
+      }
+
+      // Business
+      if (scrapedData.business && scrapedData.business.length > 0) {
+        sections.push(`**BUSINESS NEWS:**\n${scrapedData.business.map((b: any) => `- ${b.title} (${b.source})`).join('\n')}`);
+      }
+
+      // Custom topics
+      if (scrapedData.custom && scrapedData.custom.length > 0) {
+        sections.push(`**CUSTOM TOPICS:**\n${scrapedData.custom.map((c: any) => `- ${c.title} (${c.source})`).join('\n')}`);
       }
 
       // Short Scout

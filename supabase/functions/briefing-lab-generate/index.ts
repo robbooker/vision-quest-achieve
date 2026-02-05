@@ -80,21 +80,47 @@ serve(async (req) => {
       timeZone: timezone 
     });
 
-    // Build categories object for scraper
+    // Get depth settings and max duration
+    const maxDuration = labPrefs?.max_duration_minutes || 5;
+    const sportsDepth = labPrefs?.sports_depth || 'off';
+    const techDepth = labPrefs?.tech_depth || 'off';
+    const businessDepth = labPrefs?.business_depth || 'off';
+    const tradingDepth = labPrefs?.trading_depth || 'off';
+
+    // Build categories object for scraper based on depth settings
     const categories = {
-      sports: labPrefs?.include_sports ?? false,
-      tech: labPrefs?.include_tech ?? false,
-      business: labPrefs?.include_business ?? false,
-      trading: labPrefs?.include_trading ?? false,
+      sports: sportsDepth !== 'off',
+      tech: techDepth !== 'off',
+      business: businessDepth !== 'off',
+      trading: tradingDepth !== 'off',
+    };
+
+    // Build depth map for script generation
+    const depthMap = {
+      sports: sportsDepth,
+      tech: techDepth,
+      business: businessDepth,
+      trading: tradingDepth,
+      politics: labPrefs?.politics_depth || 'off',
+      books: labPrefs?.books_depth || 'off',
+      film_tv: labPrefs?.film_tv_depth || 'off',
+      music: labPrefs?.music_depth || 'off',
+      gaming: labPrefs?.gaming_depth || 'off',
+      science: labPrefs?.science_depth || 'off',
+      health: labPrefs?.health_depth || 'off',
     };
 
     // Create episode record
+    const activeCategories = Object.entries(depthMap)
+      .filter(([_, depth]) => depth !== 'off')
+      .map(([cat, depth]) => `${cat}:${depth}`);
+
     const { data: episode, error: episodeError } = await supabase
       .from('briefing_lab_episodes')
       .insert({
         user_id: userId,
         status: 'generating',
-        categories_used: Object.entries(categories).filter(([_, v]) => v).map(([k]) => k)
+        categories_used: activeCategories
       })
       .select()
       .single();
@@ -241,12 +267,12 @@ serve(async (req) => {
       intentionDescription = monthlyIntention?.description || null;
     }
 
-    // Step 6: Build the prompt
+    // Step 6: Build the prompt with depth awareness
     const buildSectionData = () => {
       const sections: string[] = [];
 
-      // Sports - now with headlines
-      if (labPrefs?.include_sports && Object.keys(scrapedData.sports || {}).length > 0) {
+      // Sports - depth-aware
+      if (depthMap.sports !== 'off' && Object.keys(scrapedData.sports || {}).length > 0) {
         const sportsLines: string[] = [];
         for (const [teamKey, teamData] of Object.entries(scrapedData.sports)) {
           const team = teamData as any;
@@ -256,7 +282,8 @@ serve(async (req) => {
             teamSection.push(`Last game: ${team.last_game.result} vs ${team.last_game.opponent} (${team.last_game.score}) on ${team.last_game.date}`);
           }
           
-          if (team.headlines && team.headlines.length > 0) {
+          // Only include headlines for FULL depth
+          if (depthMap.sports === 'full' && team.headlines && team.headlines.length > 0) {
             teamSection.push('Headlines:');
             team.headlines.slice(0, 3).forEach((h: any) => {
               teamSection.push(`- ${h.title}`);
@@ -265,23 +292,25 @@ serve(async (req) => {
           
           sportsLines.push(teamSection.join('\n'));
         }
-        sections.push(`**SPORTS:**\n${sportsLines.join('\n\n')}`);
+        sections.push(`**SPORTS (${depthMap.sports === 'brief' ? 'quick scores' : 'full coverage'}):**\n${sportsLines.join('\n\n')}`);
       }
 
-      // Tech/AI
-      if (labPrefs?.include_tech && scrapedData.tech) {
+      // Tech/AI - depth-aware
+      if (depthMap.tech !== 'off' && scrapedData.tech) {
         const techItems = [
           ...scrapedData.tech.ai_news || [],
           ...scrapedData.tech.general_tech || []
         ];
+        const itemLimit = depthMap.tech === 'brief' ? 2 : 5;
         if (techItems.length > 0) {
-          sections.push(`**TECH/AI NEWS:**\n${techItems.map((t: any) => `- ${t.title} (${t.source})`).join('\n')}`);
+          sections.push(`**TECH/AI NEWS (${depthMap.tech === 'brief' ? 'highlights' : 'deep dive'}):**\n${techItems.slice(0, itemLimit).map((t: any) => `- ${t.title} (${t.source})`).join('\n')}`);
         }
       }
 
-      // Business
-      if (scrapedData.business && scrapedData.business.length > 0) {
-        sections.push(`**BUSINESS NEWS:**\n${scrapedData.business.map((b: any) => `- ${b.title} (${b.source})`).join('\n')}`);
+      // Business - depth-aware
+      if (depthMap.business !== 'off' && scrapedData.business && scrapedData.business.length > 0) {
+        const itemLimit = depthMap.business === 'brief' ? 2 : 4;
+        sections.push(`**BUSINESS NEWS (${depthMap.business === 'brief' ? 'key movers' : 'analysis'}):**\n${scrapedData.business.slice(0, itemLimit).map((b: any) => `- ${b.title} (${b.source})`).join('\n')}`);
       }
 
       // Custom topics
@@ -303,6 +332,21 @@ ${intentionDescription ? `User's notes: ${intentionDescription}` : ''}
 
 Include a 30-60 second reflection on this word at the end of the briefing.` : '';
 
+    // Calculate target word count based on max duration (approx 150 words per minute)
+    const targetWordCount = maxDuration * 150;
+    const wordCountRange = `${targetWordCount - 50}-${targetWordCount + 50}`;
+
+    // Build depth instructions for the AI
+    const depthInstructions = Object.entries(depthMap)
+      .filter(([_, depth]) => depth !== 'off')
+      .map(([cat, depth]) => {
+        const catName = cat.replace('_', ' ');
+        return depth === 'brief' 
+          ? `- ${catName}: Quick mention only (1-2 sentences)`
+          : `- ${catName}: Full segment with context (30-45 seconds)`;
+      })
+      .join('\n');
+
     const prompt = `You are a professional podcast host creating a personalized morning briefing for ${userName}. 
 Today is ${dayOfWeek}, ${fullDate}.
 
@@ -310,7 +354,10 @@ Today is ${dayOfWeek}, ${fullDate}.
 - Use ONLY the data provided below. Do NOT infer, guess, or hallucinate any facts.
 - Write for the EAR - short sentences, conversational, natural rhythm.
 - No bullet points, headers, or formatting - this will be spoken aloud.
-- Target approximately 400-500 words for a 2-3 minute briefing.
+- Target approximately ${wordCountRange} words for a ${maxDuration}-minute briefing.
+
+**DEPTH INSTRUCTIONS (how much to cover each topic):**
+${depthInstructions || '- No specific news categories selected'}
 
 **WEATHER:**
 ${weatherData}
@@ -327,7 +374,7 @@ ${intentionSection}
 STRUCTURE:
 1. Opening - "Good morning, ${userName}!" + weather
 2. Calendar - Quick mention of today's events
-3. News sections - Cover each category naturally
+3. News sections - Cover each category according to its depth level
 ${intentionWord ? `4. Word of the Month reflection\n5. Brief energizing close` : `4. Brief energizing close`}
 
 Write the briefing script now:`;

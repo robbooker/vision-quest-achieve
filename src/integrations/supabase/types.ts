@@ -492,11 +492,16 @@ export type Database = {
       }
       briefing_lab_preferences: {
         Row: {
+          books_depth: string | null
           books_topics: string | null
+          business_depth: string | null
           business_topics: string | null
           created_at: string | null
           custom_topics: string | null
+          film_tv_depth: string | null
+          gaming_depth: string | null
           gaming_topics: string | null
+          health_depth: string | null
           health_topics: string | null
           id: string
           include_books: boolean | null
@@ -517,21 +522,33 @@ export type Database = {
           location_lat: number | null
           location_lng: number | null
           location_name: string | null
+          max_duration_minutes: number | null
+          music_depth: string | null
           music_topics: string | null
+          politics_depth: string | null
           politics_topics: string | null
+          science_depth: string | null
           science_topics: string | null
+          sports_depth: string | null
           sports_teams: string | null
+          tech_depth: string | null
           tech_topics: string | null
+          trading_depth: string | null
           updated_at: string | null
           user_id: string
           voice_id: string | null
         }
         Insert: {
+          books_depth?: string | null
           books_topics?: string | null
+          business_depth?: string | null
           business_topics?: string | null
           created_at?: string | null
           custom_topics?: string | null
+          film_tv_depth?: string | null
+          gaming_depth?: string | null
           gaming_topics?: string | null
+          health_depth?: string | null
           health_topics?: string | null
           id?: string
           include_books?: boolean | null
@@ -552,21 +569,33 @@ export type Database = {
           location_lat?: number | null
           location_lng?: number | null
           location_name?: string | null
+          max_duration_minutes?: number | null
+          music_depth?: string | null
           music_topics?: string | null
+          politics_depth?: string | null
           politics_topics?: string | null
+          science_depth?: string | null
           science_topics?: string | null
+          sports_depth?: string | null
           sports_teams?: string | null
+          tech_depth?: string | null
           tech_topics?: string | null
+          trading_depth?: string | null
           updated_at?: string | null
           user_id: string
           voice_id?: string | null
         }
         Update: {
+          books_depth?: string | null
           books_topics?: string | null
+          business_depth?: string | null
           business_topics?: string | null
           created_at?: string | null
           custom_topics?: string | null
+          film_tv_depth?: string | null
+          gaming_depth?: string | null
           gaming_topics?: string | null
+          health_depth?: string | null
           health_topics?: string | null
           id?: string
           include_books?: boolean | null
@@ -587,11 +616,18 @@ export type Database = {
           location_lat?: number | null
           location_lng?: number | null
           location_name?: string | null
+          max_duration_minutes?: number | null
+          music_depth?: string | null
           music_topics?: string | null
+          politics_depth?: string | null
           politics_topics?: string | null
+          science_depth?: string | null
           science_topics?: string | null
+          sports_depth?: string | null
           sports_teams?: string | null
+          tech_depth?: string | null
           tech_topics?: string | null
+          trading_depth?: string | null
           updated_at?: string | null
           user_id?: string
           voice_id?: string | null

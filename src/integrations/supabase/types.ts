@@ -440,6 +440,164 @@ export type Database = {
         }
         Relationships: []
       }
+      briefing_lab_episodes: {
+        Row: {
+          categories_used: string[] | null
+          created_at: string | null
+          duration_seconds: number | null
+          error_message: string | null
+          generated_at: string | null
+          id: string
+          podcast_url: string | null
+          scraped_data_id: string | null
+          script: string | null
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          categories_used?: string[] | null
+          created_at?: string | null
+          duration_seconds?: number | null
+          error_message?: string | null
+          generated_at?: string | null
+          id?: string
+          podcast_url?: string | null
+          scraped_data_id?: string | null
+          script?: string | null
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          categories_used?: string[] | null
+          created_at?: string | null
+          duration_seconds?: number | null
+          error_message?: string | null
+          generated_at?: string | null
+          id?: string
+          podcast_url?: string | null
+          scraped_data_id?: string | null
+          script?: string | null
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "briefing_lab_episodes_scraped_data_id_fkey"
+            columns: ["scraped_data_id"]
+            isOneToOne: false
+            referencedRelation: "briefing_scraped_data"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      briefing_lab_preferences: {
+        Row: {
+          books_topics: string | null
+          business_topics: string | null
+          created_at: string | null
+          custom_topics: string | null
+          gaming_topics: string | null
+          health_topics: string | null
+          id: string
+          include_books: boolean | null
+          include_business: boolean | null
+          include_calendar: boolean | null
+          include_film_tv: boolean | null
+          include_gaming: boolean | null
+          include_health: boolean | null
+          include_intention: boolean | null
+          include_music: boolean | null
+          include_politics: boolean | null
+          include_science: boolean | null
+          include_short_scout: boolean | null
+          include_sports: boolean | null
+          include_tech: boolean | null
+          include_trading: boolean | null
+          include_weather: boolean | null
+          location_lat: number | null
+          location_lng: number | null
+          location_name: string | null
+          music_topics: string | null
+          politics_topics: string | null
+          science_topics: string | null
+          sports_teams: string | null
+          tech_topics: string | null
+          updated_at: string | null
+          user_id: string
+          voice_id: string | null
+        }
+        Insert: {
+          books_topics?: string | null
+          business_topics?: string | null
+          created_at?: string | null
+          custom_topics?: string | null
+          gaming_topics?: string | null
+          health_topics?: string | null
+          id?: string
+          include_books?: boolean | null
+          include_business?: boolean | null
+          include_calendar?: boolean | null
+          include_film_tv?: boolean | null
+          include_gaming?: boolean | null
+          include_health?: boolean | null
+          include_intention?: boolean | null
+          include_music?: boolean | null
+          include_politics?: boolean | null
+          include_science?: boolean | null
+          include_short_scout?: boolean | null
+          include_sports?: boolean | null
+          include_tech?: boolean | null
+          include_trading?: boolean | null
+          include_weather?: boolean | null
+          location_lat?: number | null
+          location_lng?: number | null
+          location_name?: string | null
+          music_topics?: string | null
+          politics_topics?: string | null
+          science_topics?: string | null
+          sports_teams?: string | null
+          tech_topics?: string | null
+          updated_at?: string | null
+          user_id: string
+          voice_id?: string | null
+        }
+        Update: {
+          books_topics?: string | null
+          business_topics?: string | null
+          created_at?: string | null
+          custom_topics?: string | null
+          gaming_topics?: string | null
+          health_topics?: string | null
+          id?: string
+          include_books?: boolean | null
+          include_business?: boolean | null
+          include_calendar?: boolean | null
+          include_film_tv?: boolean | null
+          include_gaming?: boolean | null
+          include_health?: boolean | null
+          include_intention?: boolean | null
+          include_music?: boolean | null
+          include_politics?: boolean | null
+          include_science?: boolean | null
+          include_short_scout?: boolean | null
+          include_sports?: boolean | null
+          include_tech?: boolean | null
+          include_trading?: boolean | null
+          include_weather?: boolean | null
+          location_lat?: number | null
+          location_lng?: number | null
+          location_name?: string | null
+          music_topics?: string | null
+          politics_topics?: string | null
+          science_topics?: string | null
+          sports_teams?: string | null
+          tech_topics?: string | null
+          updated_at?: string | null
+          user_id?: string
+          voice_id?: string | null
+        }
+        Relationships: []
+      }
       briefing_preferences: {
         Row: {
           created_at: string | null
@@ -506,6 +664,36 @@ export type Database = {
           user_id?: string
           voice_id?: string | null
           weekend_enabled?: boolean | null
+        }
+        Relationships: []
+      }
+      briefing_scraped_data: {
+        Row: {
+          created_at: string | null
+          data: Json
+          id: string
+          scraped_at: string | null
+          sources_failed: string[] | null
+          sources_succeeded: string[] | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          data: Json
+          id?: string
+          scraped_at?: string | null
+          sources_failed?: string[] | null
+          sources_succeeded?: string[] | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          data?: Json
+          id?: string
+          scraped_at?: string | null
+          sources_failed?: string[] | null
+          sources_succeeded?: string[] | null
+          user_id?: string
         }
         Relationships: []
       }

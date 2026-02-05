@@ -1,61 +1,136 @@
 
 
-# Update: Evening Briefing SMS Message
+# Add Manual Zip Code Entry for Weather Widget
 
 ## Summary
 
-Update the evening SMS reminder to be clearer about what it's asking for and guide users to settings for topic configuration.
+Add a zip code input field to the Weather Widget popover that allows users to manually set their location instead of relying on browser geolocation, which can hang or fail. The zip code will be saved to localStorage and used as the preferred location source.
 
-## Current State
+## Problem
 
-The evening SMS message is:
+The current WeatherWidget uses browser geolocation exclusively, which can:
+- Hang indefinitely on some browsers/devices
+- Fail if users deny location permissions
+- Be slow or unreliable on mobile devices
+
+## Solution
+
+Add a zip code input inside the existing Weather popover that:
+1. Allows users to enter a 5-digit US zip code
+2. Converts the zip code to lat/lng using a free API
+3. Saves the preference to localStorage
+4. Prioritizes manual location over geolocation when set
+5. Includes a "Use my location" button to revert to geolocation
+
+## User Experience
+
+```text
++---------------------------+
+|  📍 Austin, TX           |
+|                          |
+|   72°                    |
+|   Partly cloudy          |
+|   Feels like 75°         |
+|                          |
+|  💧 45%     💨 8 mph     |
+|                          |
+|  ─────────────────────── |
+|  📮 Set Zip Code         |
+|  ┌─────────────┬───────┐ |
+|  │ 78701       │ Save  │ |
+|  └─────────────┴───────┘ |
+|  [Use my location]       |
++---------------------------+
 ```
-Hey! What time tomorrow? Reply with time + any topics you want covered (default: SMCI, ...)
 
-Examples:
-"6:30 SMCI earnings"
-"7am" (uses defaults)
-"skip" (no briefing)
-```
+## Technical Implementation
 
-## Proposed New Message
+### File: `src/components/dashboard/WeatherWidget.tsx`
 
-```
-What time would you like your morning briefing tomorrow?
+**Changes:**
 
-Reply with a time like "6:30" or "7am"
-Reply "skip" to skip tomorrow
+1. **Add new state variables:**
+   - `zipCode` - controlled input for zip code entry
+   - `isSettingZip` - loading state during zip lookup
+   - `showZipInput` - toggle to show/hide the input field
 
-Tip: Set your default news topics in Settings > Morning Briefing to customize what's covered each day.
-```
+2. **Add zip code geocoding function:**
+   - Use OpenDataSoft free API for US zip code lookup
+   - API endpoint: `https://public.opendatasoft.com/api/records/1.0/search/?dataset=us-zip-code-latitude-and-longitude&q={zipCode}`
+   - Returns latitude, longitude, city, and state
 
-This message:
-- Asks the question clearly
-- Keeps reply examples simple
-- Reminds users where to configure topics
-- Removes the complex "time + topics" syntax for now (keeps it simple)
+3. **Modify localStorage structure:**
+   ```typescript
+   // Current:
+   localStorage.setItem('weather_cache', JSON.stringify({
+     data: weatherData,
+     timestamp: Date.now(),
+   }));
+   
+   // Add new key for manual location:
+   localStorage.setItem('weather_manual_location', JSON.stringify({
+     zipCode: '78701',
+     latitude: 30.2672,
+     longitude: -97.7431,
+     city: 'Austin',
+     state: 'TX'
+   }));
+   ```
 
-## Technical Changes
+4. **Update fetch logic priority:**
+   ```text
+   1. Check for manual location in localStorage
+   2. If found, use those coordinates
+   3. If not, fall back to geolocation
+   4. On geolocation failure, show zip input prompt
+   ```
 
-**File: `supabase/functions/briefing-evening-reminder/index.ts`**
+5. **Add UI elements to popover:**
+   - "Set zip code" link/button below weather details
+   - Input field with 5-digit validation
+   - Save button to confirm
+   - "Use my location" button to clear manual override
+   - Error message for invalid zip codes
 
-Update lines 64-67 to use the new message format:
+### API Integration
 
 ```typescript
-// Remove the topics hint complexity for now
-const message = `What time would you like your morning briefing tomorrow?\n\nReply with a time like "6:30" or "7am"\nReply "skip" to skip tomorrow\n\n💡 Set your default topics in Settings → Morning Briefing`;
+const lookupZipCode = async (zip: string) => {
+  const response = await fetch(
+    `https://public.opendatasoft.com/api/records/1.0/search/?dataset=us-zip-code-latitude-and-longitude&q=${zip}&rows=1`
+  );
+  const data = await response.json();
+  
+  if (data.records?.length > 0) {
+    const record = data.records[0].fields;
+    return {
+      latitude: record.latitude,
+      longitude: record.longitude,
+      city: record.city,
+      state: record.state
+    };
+  }
+  throw new Error('Zip code not found');
+};
 ```
 
-## Future Enhancement (Not in this change)
+### Validation
 
-The existing Twilio SMS webhook already supports parsing topics in replies via the `set_wake_time` tool:
-- `topics` parameter (line 337): Optional news topics
-- `custom_instructions` parameter (line 338): Special instructions
+- Accept only 5-digit US zip codes
+- Validate format before API call
+- Show user-friendly error if zip not found
 
-A future iteration could:
-1. Add a new tool like `add_briefing_topic` to the SMS webhook
-2. Allow replies like "add NVDA to my topics" to append to `default_topics`
-3. The AI assistant (Toasty) would recognize this pattern and update `briefing_preferences.default_topics`
+### Edge Cases
 
-For now, we'll keep the simple approach and guide users to Settings.
+- Invalid zip format → show inline error
+- Zip not found in database → show "Zip code not found"
+- API failure → fall back to "try again" message
+- Clear manual location → remove from localStorage, retry geolocation
+
+## Dependencies
+
+No new dependencies required - uses existing UI components:
+- Input (already imported pattern)
+- Button (already imported)
+- Popover content area (already in use)
 

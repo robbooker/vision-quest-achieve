@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Sunrise, Clock, Phone, MessageSquare, Copy, Check, RefreshCw, Loader2, MapPin, FileText, Send } from 'lucide-react';
+import { Sunrise, Clock, Phone, MessageSquare, Copy, Check, RefreshCw, Loader2, MapPin, FileText, Send, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface BriefingPreferences {
@@ -101,6 +101,22 @@ export function BriefingSettings() {
         .single();
       
       if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Fetch user's phone number for SMS delivery validation
+  const { data: userProfile } = useQuery({
+    queryKey: ['profile-phone', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('phone_us')
+        .eq('user_id', user?.id)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') throw error;
       return data;
     },
     enabled: !!user?.id,
@@ -500,9 +516,30 @@ export function BriefingSettings() {
               </div>
               <Switch
                 checked={preferences?.sms_delivery_enabled ?? false}
-                onCheckedChange={(checked) => handleToggle('sms_delivery_enabled', checked)}
+                onCheckedChange={(checked) => {
+                  if (checked && !userProfile?.phone_us) {
+                    toast.error('Please add your US phone number in Profile Settings first');
+                    return;
+                  }
+                  handleToggle('sms_delivery_enabled', checked);
+                }}
               />
             </div>
+            
+            {/* Warning if SMS enabled but no phone on file */}
+            {preferences?.sms_delivery_enabled && !userProfile?.phone_us && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                <div className="text-sm">
+                  <p className="font-medium text-amber-600 dark:text-amber-400">
+                    No phone number on file
+                  </p>
+                  <p className="text-muted-foreground">
+                    Add your US phone number in the Profile section above to receive SMS delivery.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Voice Selection */}

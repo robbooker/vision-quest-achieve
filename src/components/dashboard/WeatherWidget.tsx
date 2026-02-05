@@ -274,10 +274,48 @@ export function WeatherWidget() {
 
   if (error) {
     return (
-      <Button variant="ghost" size="sm" className="gap-1.5 px-2 text-muted-foreground" disabled>
-        <Cloud className="h-4 w-4" />
-        <span className="text-xs">{error}</span>
-      </Button>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="sm" className="gap-1.5 px-2 text-muted-foreground">
+            <Cloud className="h-4 w-4" />
+            <span className="text-xs">{error}</span>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-56 p-3" align="end">
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Enter your zip code to get weather:
+            </p>
+            <div className="flex gap-2">
+              <Input
+                type="text"
+                placeholder="e.g. 78701"
+                value={zipCode}
+                onChange={(e) => {
+                  setZipCode(e.target.value);
+                  setZipError(null);
+                }}
+                maxLength={5}
+                className="h-8 text-sm"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSaveZip();
+                }}
+              />
+              <Button
+                size="sm"
+                onClick={handleSaveZip}
+                disabled={isSettingZip}
+                className="h-8"
+              >
+                {isSettingZip ? '...' : 'Go'}
+              </Button>
+            </div>
+            {zipError && (
+              <p className="text-xs text-destructive">{zipError}</p>
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
     );
   }
 

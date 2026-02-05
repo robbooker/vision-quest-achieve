@@ -1,11 +1,13 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
@@ -13,7 +15,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { 
   Loader2, Send, MapPin, Cloud, Calendar, Trophy, TrendingUp, 
   Briefcase, Vote, BookOpen, Tv, Music, Gamepad2, FlaskConical, 
-  HeartPulse, Target, Sparkles, Newspaper, Mic, Check, Clock
+  HeartPulse, Target, Sparkles, Newspaper, Mic, Check, Clock,
+  MessageSquare, Phone, Sunrise, AlertTriangle
 } from 'lucide-react';
 import { 
   useBriefingLabPreferences, 
@@ -21,7 +24,12 @@ import {
   useGenerateLabBriefing,
   useSendBriefingSms 
 } from '@/hooks/useBriefingLab';
+
 import type { BriefingLabPreferences, DepthLevel } from '@/hooks/useBriefingLab';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 // Voice options with descriptions
 const VOICE_OPTIONS = [
@@ -33,6 +41,15 @@ const VOICE_OPTIONS = [
   { id: 'FGY2WhTYpPnrIDTdsKH5', name: 'Laura', description: 'American female, bright and upbeat morning show host' },
   { id: 'XrExE9yKIg1WjnnlVkGX', name: 'Matilda', description: 'British female, sophisticated and articulate' },
   { id: 'pFZP5JQG7iQjIQuC4Bku', name: 'Lily', description: 'British female, soft and soothing with clear diction' },
+];
+
+const TIMEZONE_OPTIONS = [
+  { value: 'America/New_York', label: 'Eastern (ET)' },
+  { value: 'America/Chicago', label: 'Central (CT)' },
+  { value: 'America/Denver', label: 'Mountain (MT)' },
+  { value: 'America/Los_Angeles', label: 'Pacific (PT)' },
+  { value: 'America/Phoenix', label: 'Arizona (MST)' },
+  { value: 'Pacific/Honolulu', label: 'Hawaii (HST)' },
 ];
 
 interface DepthCategoryConfig {
@@ -72,7 +89,19 @@ const TOGGLE_CATEGORIES: ToggleCategoryConfig[] = [
   { key: 'include_intention', label: 'Word of Month', icon: Target, description: 'Monthly intention reflection' },
 ];
 
+interface SchedulingPreferences {
+  enabled: boolean;
+  default_wake_time: string;
+  evening_reminder_time: string;
+  timezone: string;
+  preferred_channel: 'sms' | 'call' | 'both';
+  weekend_enabled: boolean;
+  sms_delivery_enabled: boolean;
+}
+
 export default function MorningBriefingLab() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const { data: prefs, isLoading: prefsLoading } = useBriefingLabPreferences();
   const updatePrefs = useUpdateBriefingLabPreferences();
   const generateBriefing = useGenerateLabBriefing();
@@ -90,6 +119,69 @@ export default function MorningBriefingLab() {
     sources_succeeded: string[];
     sources_failed: string[];
   } | null>(null);
+
+  // Fetch scheduling preferences from briefing_preferences table
+  const { data: schedulingPrefs } = useQuery({
+    queryKey: ['briefing-preferences', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('briefing_preferences')
+        .select('*')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+      
+      if (error && error.code !== 'PGRST116') throw error;
+      return data as SchedulingPreferences | null;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Fetch user's phone number for SMS validation
+  const { data: userProfile } = useQuery({
+    queryKey: ['profile-phone', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('phone_us')
+        .eq('user_id', user?.id)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Mutation for scheduling preferences
+  const updateSchedulingMutation = useMutation({
+    mutationFn: async (updates: Partial<SchedulingPreferences>) => {
+      const { data: existing } = await supabase
+        .from('briefing_preferences')
+        .select('id')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+
+      if (existing) {
+        const { error } = await supabase
+          .from('briefing_preferences')
+          .update(updates)
+          .eq('user_id', user?.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('briefing_preferences')
+          .insert({ user_id: user?.id, ...updates });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['briefing-preferences'] });
+      toast.success('Preferences saved');
+    },
+    onError: (error) => {
+      toast.error('Failed to save: ' + (error as Error).message);
+    },
+  });
 
   // Initialize local prefs from server
   useEffect(() => {
@@ -123,7 +215,6 @@ export default function MorningBriefingLab() {
     if (!zipCode || zipCode.length !== 5) return;
     
     try {
-      // Use OpenDataSoft API for zip code lookup
       const response = await fetch(
         `https://public.opendatasoft.com/api/records/1.0/search/?dataset=us-zip-code-latitude-and-longitude&q=${zipCode}&rows=1`
       );
@@ -137,6 +228,12 @@ export default function MorningBriefingLab() {
           location_lng: longitude,
           location_name: `${city}, ${state}`
         }));
+        // Also update briefing_preferences for weather in automation
+        updateSchedulingMutation.mutate({
+          location_lat: latitude,
+          location_lng: longitude,
+          location_name: `${city}, ${state}`
+        } as any);
         if (!initialLoadRef.current) setHasUnsavedChanges(true);
       }
     } catch (e) {
@@ -150,7 +247,6 @@ export default function MorningBriefingLab() {
         async (pos) => {
           const { latitude, longitude } = pos.coords;
           
-          // Reverse geocode to get location name
           try {
             const response = await fetch(
               `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
@@ -166,9 +262,14 @@ export default function MorningBriefingLab() {
               location_lng: longitude,
               location_name: `${locationName} (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`
             }));
+            // Also update briefing_preferences
+            updateSchedulingMutation.mutate({
+              location_lat: latitude,
+              location_lng: longitude,
+              location_name: locationName
+            } as any);
             if (!initialLoadRef.current) setHasUnsavedChanges(true);
           } catch (e) {
-            // Fallback if reverse geocode fails
             setLocalPrefs(prev => ({
               ...prev,
               location_lat: latitude,
@@ -183,13 +284,15 @@ export default function MorningBriefingLab() {
     }
   };
 
+  const handleSchedulingChange = (field: keyof SchedulingPreferences, value: any) => {
+    updateSchedulingMutation.mutate({ [field]: value });
+  };
+
   const handleGenerate = async () => {
-    // Save prefs first if there are unsaved changes
     if (hasUnsavedChanges) {
       await handleSavePrefs();
     }
     
-    // Generate briefing
     const result = await generateBriefing.mutateAsync();
     setGeneratedBriefing(result);
   };
@@ -213,76 +316,190 @@ export default function MorningBriefingLab() {
   return (
     <DashboardLayout>
       <div className="max-w-4xl mx-auto space-y-6 p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Morning Briefing Lab</h1>
-            <p className="text-muted-foreground">Experimental briefing generator with enhanced news scraping</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="outline"
-              onClick={handleSavePrefs} 
-              disabled={isSaving || !hasUnsavedChanges}
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : hasUnsavedChanges ? (
-                'Save'
-              ) : (
-                <>
-                  <Check className="h-4 w-4 mr-1" />
-                  Saved
-                </>
+        {/* Header */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Sunrise className="h-5 w-5 text-amber-500" />
+                  Morning Briefing
+                </CardTitle>
+                <CardDescription>
+                  Wake up to a personalized AI podcast covering your calendar, weather, and custom news topics. 
+                  Your briefing will appear on the Today page when ready.{' '}
+                  <Link to="/blog/morning-briefing" className="text-primary hover:underline">
+                    Setup guide →
+                  </Link>
+                </CardDescription>
+              </div>
+              <Switch
+                checked={schedulingPrefs?.enabled ?? false}
+                onCheckedChange={(checked) => handleSchedulingChange('enabled', checked)}
+              />
+            </div>
+          </CardHeader>
+        </Card>
+
+        {/* Scheduling Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Schedule & Delivery
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Wake Time & Evening Reminder */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  Default Wake Time
+                </Label>
+                <Input
+                  type="time"
+                  value={schedulingPrefs?.default_wake_time || '07:00'}
+                  onChange={(e) => handleSchedulingChange('default_wake_time', e.target.value)}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Evening Reminder Time</Label>
+                <Input
+                  type="time"
+                  value={schedulingPrefs?.evening_reminder_time || '19:00'}
+                  onChange={(e) => handleSchedulingChange('evening_reminder_time', e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Timezone */}
+            <div className="space-y-2">
+              <Label>Timezone</Label>
+              <Select
+                value={schedulingPrefs?.timezone || 'America/Chicago'}
+                onValueChange={(value) => handleSchedulingChange('timezone', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIMEZONE_OPTIONS.map(tz => (
+                    <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Reminder Method */}
+            <div className="space-y-2">
+              <Label>Reminder Method</Label>
+              <div className="flex gap-2">
+                {(['sms', 'call', 'both'] as const).map(channel => (
+                  <Button
+                    key={channel}
+                    variant={schedulingPrefs?.preferred_channel === channel ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => handleSchedulingChange('preferred_channel', channel)}
+                    className="flex items-center gap-1"
+                  >
+                    {channel === 'sms' && <MessageSquare className="h-4 w-4" />}
+                    {channel === 'call' && <Phone className="h-4 w-4" />}
+                    {channel === 'both' && <>📱</>}
+                    {channel.charAt(0).toUpperCase() + channel.slice(1)}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Weekend Briefings */}
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Weekend Briefings</Label>
+                <p className="text-sm text-muted-foreground">Send reminders on Saturday and Sunday</p>
+              </div>
+              <Switch
+                checked={schedulingPrefs?.weekend_enabled ?? false}
+                onCheckedChange={(checked) => handleSchedulingChange('weekend_enabled', checked)}
+              />
+            </div>
+
+            {/* SMS Delivery */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Send className="h-4 w-4" />
+                SMS Delivery
+              </Label>
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-sm">Send me an SMS when my briefing is ready</span>
+                  <p className="text-xs text-muted-foreground">
+                    Delivers a link to your podcast via text message
+                  </p>
+                </div>
+                <Switch
+                  checked={schedulingPrefs?.sms_delivery_enabled ?? false}
+                  onCheckedChange={(checked) => {
+                    if (checked && !userProfile?.phone_us) {
+                      toast.error('Please add your US phone number in Profile Settings first');
+                      return;
+                    }
+                    handleSchedulingChange('sms_delivery_enabled', checked);
+                  }}
+                />
+              </div>
+              
+              {schedulingPrefs?.sms_delivery_enabled && !userProfile?.phone_us && (
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                  <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                  <div className="text-sm">
+                    <p className="font-medium text-amber-600 dark:text-amber-400">
+                      No phone number on file
+                    </p>
+                    <p className="text-muted-foreground">
+                      Add your US phone number in{' '}
+                      <Link to="/settings" className="text-primary hover:underline">Settings → Profile</Link>
+                      {' '}to receive SMS delivery.
+                    </p>
+                  </div>
+                </div>
               )}
-            </Button>
-            <Button 
-              onClick={handleGenerate} 
-              disabled={generateBriefing.isPending}
-              size="lg"
-            >
-              {generateBriefing.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                'Generate Briefing'
-              )}
-            </Button>
-          </div>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Location Section */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <MapPin className="h-5 w-5" />
-              Location
+              Weather Location
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex gap-2">
-              <Input
-                placeholder="Enter zip code"
-                value={zipCode}
-                onChange={(e) => setZipCode(e.target.value)}
-                maxLength={5}
-                className="w-32"
-              />
-              <Button variant="outline" onClick={handleSetLocation}>Set</Button>
-              <span className="text-muted-foreground px-2">or</span>
+            {localPrefs.location_name && (
+              <p className="text-sm text-muted-foreground">
+                📍 {localPrefs.location_name}
+              </p>
+            )}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter 5-digit zip code"
+                  value={zipCode}
+                  onChange={(e) => setZipCode(e.target.value)}
+                  maxLength={5}
+                  className="w-40"
+                />
+                <Button variant="outline" onClick={handleSetLocation}>Set</Button>
+              </div>
+              <span className="text-muted-foreground self-center">or</span>
               <Button variant="outline" onClick={handleUseCurrentLocation}>
+                <MapPin className="h-4 w-4 mr-2" />
                 Use Current Location
               </Button>
             </div>
-            {localPrefs.location_name && (
-              <p className="text-sm text-muted-foreground">
-                Currently: <span className="font-medium text-foreground">{localPrefs.location_name}</span>
-              </p>
-            )}
           </CardContent>
         </Card>
 
@@ -297,7 +514,10 @@ export default function MorningBriefingLab() {
           <CardContent className="space-y-4">
             <Select
               value={localPrefs.voice_id || 'nPczCjzI2devNBz1zQrb'}
-              onValueChange={(value) => setLocalPrefs(prev => ({ ...prev, voice_id: value }))}
+              onValueChange={(value) => {
+                setLocalPrefs(prev => ({ ...prev, voice_id: value }));
+                if (!initialLoadRef.current) setHasUnsavedChanges(true);
+              }}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select a voice" />
@@ -310,17 +530,9 @@ export default function MorningBriefingLab() {
                 ))}
               </SelectContent>
             </Select>
-            {localPrefs.voice_id && (
-              <p className="text-sm text-muted-foreground">
-                {VOICE_OPTIONS.find(v => v.id === localPrefs.voice_id)?.description || 
-                 VOICE_OPTIONS.find(v => v.id === 'nPczCjzI2devNBz1zQrb')?.description}
-              </p>
-            )}
-            {!localPrefs.voice_id && (
-              <p className="text-sm text-muted-foreground">
-                {VOICE_OPTIONS[0].description}
-              </p>
-            )}
+            <p className="text-sm text-muted-foreground">
+              {VOICE_OPTIONS.find(v => v.id === (localPrefs.voice_id || 'nPczCjzI2devNBz1zQrb'))?.description}
+            </p>
           </CardContent>
         </Card>
 
@@ -336,7 +548,10 @@ export default function MorningBriefingLab() {
             <div className="flex items-center gap-4">
               <Slider
                 value={[localPrefs.max_duration_minutes || 5]}
-                onValueChange={([value]) => setLocalPrefs(prev => ({ ...prev, max_duration_minutes: value }))}
+                onValueChange={([value]) => {
+                  setLocalPrefs(prev => ({ ...prev, max_duration_minutes: value }));
+                  if (!initialLoadRef.current) setHasUnsavedChanges(true);
+                }}
                 min={2}
                 max={10}
                 step={1}
@@ -382,7 +597,10 @@ export default function MorningBriefingLab() {
                       </div>
                       <RadioGroup
                         value={depth}
-                        onValueChange={(v) => setLocalPrefs(prev => ({ ...prev, [cat.depthKey]: v as DepthLevel }))}
+                        onValueChange={(v) => {
+                          setLocalPrefs(prev => ({ ...prev, [cat.depthKey]: v as DepthLevel }));
+                          if (!initialLoadRef.current) setHasUnsavedChanges(true);
+                        }}
                         className="flex gap-0"
                       >
                         {(['off', 'brief', 'full'] as DepthLevel[]).map((level, idx) => (
@@ -488,6 +706,43 @@ export default function MorningBriefingLab() {
           </CardContent>
         </Card>
 
+        {/* Actions */}
+        <div className="flex items-center justify-end gap-2">
+          <Button 
+            variant="outline"
+            onClick={handleSavePrefs} 
+            disabled={isSaving || !hasUnsavedChanges}
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : hasUnsavedChanges ? (
+              'Save Preferences'
+            ) : (
+              <>
+                <Check className="h-4 w-4 mr-1" />
+                Saved
+              </>
+            )}
+          </Button>
+          <Button 
+            onClick={handleGenerate} 
+            disabled={generateBriefing.isPending}
+            size="lg"
+          >
+            {generateBriefing.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              'Generate Briefing'
+            )}
+          </Button>
+        </div>
+
         {/* Generated Briefing */}
         {generatedBriefing && (
           <Card>
@@ -503,7 +758,6 @@ export default function MorningBriefingLab() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Audio Player */}
               <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
                 <audio 
                   controls 
@@ -517,7 +771,6 @@ export default function MorningBriefingLab() {
                 <span>Sources: {generatedBriefing.sources_succeeded.length} succeeded, {generatedBriefing.sources_failed.length} failed</span>
               </div>
 
-              {/* Transcript */}
               <Accordion type="single" collapsible>
                 <AccordionItem value="transcript">
                   <AccordionTrigger>View Transcript</AccordionTrigger>
@@ -529,7 +782,6 @@ export default function MorningBriefingLab() {
                 </AccordionItem>
               </Accordion>
 
-              {/* Source Debug */}
               {generatedBriefing.sources_failed.length > 0 && (
                 <div className="text-xs text-destructive">
                   Failed sources: {generatedBriefing.sources_failed.join(', ')}

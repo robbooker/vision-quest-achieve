@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 
+export type DepthLevel = 'off' | 'brief' | 'full';
+
 export interface BriefingLabPreferences {
   id: string;
   user_id: string;
@@ -10,21 +12,25 @@ export interface BriefingLabPreferences {
   location_lng: number | null;
   location_name: string | null;
   voice_id: string;
-  include_sports: boolean;
-  include_tech: boolean;
-  include_business: boolean;
-  include_trading: boolean;
-  include_politics: boolean;
-  include_books: boolean;
-  include_film_tv: boolean;
-  include_music: boolean;
-  include_gaming: boolean;
-  include_science: boolean;
-  include_health: boolean;
+  max_duration_minutes: number;
+  // Legacy boolean toggles (for non-news categories)
   include_short_scout: boolean;
   include_weather: boolean;
   include_calendar: boolean;
   include_intention: boolean;
+  // Depth levels for news categories
+  sports_depth: DepthLevel;
+  tech_depth: DepthLevel;
+  business_depth: DepthLevel;
+  trading_depth: DepthLevel;
+  politics_depth: DepthLevel;
+  books_depth: DepthLevel;
+  film_tv_depth: DepthLevel;
+  music_depth: DepthLevel;
+  gaming_depth: DepthLevel;
+  science_depth: DepthLevel;
+  health_depth: DepthLevel;
+  // Topic details
   sports_teams: string | null;
   tech_topics: string | null;
   business_topics: string | null;

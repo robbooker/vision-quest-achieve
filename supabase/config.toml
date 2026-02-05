@@ -143,3 +143,33 @@ verify_jwt = false
 
 [functions.scrape-briefing-news]
 verify_jwt = false
+
+[functions.admin-delete-user]
+verify_jwt = false
+
+[functions.bird-ai-research]
+verify_jwt = false
+
+[functions.briefing-lab-generate]
+verify_jwt = false
+
+[functions.email-recap]
+verify_jwt = false
+
+[functions.extract-woop]
+verify_jwt = false
+
+[functions.generate-monthly-recap]
+verify_jwt = false
+
+[functions.regenerate-recap-section]
+verify_jwt = false
+
+[functions.send-briefing-sms]
+verify_jwt = false
+
+[functions.sync-trading-journal]
+verify_jwt = false
+
+[functions.woop-interview]
+verify_jwt = false

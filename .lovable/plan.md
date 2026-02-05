@@ -1,118 +1,84 @@
 
 
-# Emergency Edge Function Redeployment Plan
+# Continue Edge Function Deployment
 
-## Problem Summary
+## Current Status
 
-Your edge functions have been de-deployed from the cloud infrastructure, causing widespread **404 errors** across the site. The code exists, but the deployed instances are missing. This is affecting critical features including:
+**Successfully Deployed (21 functions):**
+- Subscription: `check-subscription`, `create-checkout`, `cancel-subscription`, `customer-portal`
+- Briefing: `briefing-generate`, `briefing-history`, `briefing-mark-played`, `briefing-wake-check`, `briefing-auto-generate`, `briefing-evening-reminder`, `briefing-evening-scheduler`, `briefing-lab-generate`, `scrape-briefing-news`
+- Goals: `goal-coach`, `goal-interview`, `goal-help`, `extract-goal`, `woop-interview`, `extract-woop`
+- Utilities: `elevenlabs-tts`, `parse-nutrition`, `get-vapid-key`, `fetch-link-metadata`
 
-- **Subscription checks** (check-subscription)
-- **Google Calendar** integration
-- **Morning Briefings** system
-- **Nutrition parsing**
-- **And many more...**
+---
+
+## Remaining Functions (~37)
+
+### Priority Batch A - Google Calendar (Critical for Today page)
+- `google-calendar-auth`
+- `google-calendar-callback`
+- `google-calendar-events`
+- `google-calendar-create-event`
+
+### Priority Batch B - AI/Chat Features
+- `ai-arena`
+- `journal-chat`
+- `generate-journal-image`
+
+### Priority Batch C - Notifications
+- `notification-scheduler`
+- `send-push-notification`
+- `push-subscribe`
+- `push-unsubscribe`
+
+### Priority Batch D - Audio/Voice
+- `transcribe-audio`
+- `twilio-voice-webhook`
+- `twilio-sms-webhook`
+
+### Priority Batch E - Embeddings/Search
+- `generate-embedding`
+- `semantic-search`
+- `backfill-embeddings`
+
+### Priority Batch F - Monthly Reports
+- `generate-monthly-recap`
+- `regenerate-recap-section`
+- `email-recap`
+- `generate-monthly-audit`
+
+### Priority Batch G - Communication
+- `send-broadcast`
+- `send-sms-broadcast`
+- `test-email`
+- `test-sms`
+- `share-list-sms`
+- `send-briefing-sms`
+
+### Priority Batch H - Utilities
+- `parse-bloodwork`
+- `generate-daily-insight`
+- `generate-packing-list`
+- `oura-sync-performance`
+- `backfill-calendar-pillars`
+
+### Priority Batch I - Admin/Background
+- `admin-delete-user`
+- `bird-ai-research`
+- `sync-trading-journal`
 
 ---
 
 ## Deployment Strategy
 
-To avoid "Bundle generation timed out" errors, I'll deploy functions in **small batches of 3-5 functions** with verification between batches.
+1. Deploy functions one at a time with 5-second cooldowns between attempts
+2. Skip functions that timeout and return to them later
+3. Prioritize Google Calendar functions first (most requested feature)
+4. Track successes and continue until all functions are deployed
 
 ---
 
-## Phase 1: Critical User-Facing Functions
+## Expected Outcome
 
-These are blocking core app functionality right now:
-
-| Batch | Functions | Why Critical |
-|-------|-----------|--------------|
-| 1A | `check-subscription`, `create-checkout`, `cancel-subscription`, `customer-portal` | Payment/subscription system completely broken |
-| 1B | `google-calendar-events`, `google-calendar-auth`, `google-calendar-callback`, `google-calendar-create-event` | Calendar integration (Today page) |
-| 1C | `parse-nutrition`, `parse-bloodwork`, `transcribe-audio` | Voice/nutrition features |
-
----
-
-## Phase 2: Briefing System
-
-| Batch | Functions | Why Critical |
-|-------|-----------|--------------|
-| 2A | `briefing-generate`, `briefing-lab-generate`, `scrape-briefing-news` | Main briefing generation |
-| 2B | `briefing-wake-check`, `briefing-auto-generate`, `briefing-mark-played`, `briefing-history` | Scheduling & playback |
-| 2C | `briefing-evening-reminder`, `briefing-evening-scheduler`, `send-briefing-sms` | Evening/SMS features |
-
----
-
-## Phase 3: AI & Goal Features
-
-| Batch | Functions | Why Critical |
-|-------|-----------|--------------|
-| 3A | `goal-coach`, `goal-interview`, `goal-help`, `extract-goal` | Goal coaching system |
-| 3B | `woop-interview`, `extract-woop` | WOOP goal methodology |
-| 3C | `ai-arena`, `journal-chat`, `generate-journal-image` | AI chat features |
-
----
-
-## Phase 4: Notifications & Communication
-
-| Batch | Functions | Why Critical |
-|-------|-----------|--------------|
-| 4A | `notification-scheduler`, `send-push-notification`, `push-subscribe`, `push-unsubscribe`, `get-vapid-key` | Push notifications |
-| 4B | `elevenlabs-tts`, `twilio-voice-webhook`, `twilio-sms-webhook` | Voice/SMS webhooks |
-| 4C | `send-broadcast`, `send-sms-broadcast`, `test-email`, `test-sms`, `share-list-sms` | Broadcasting features |
-
----
-
-## Phase 5: Utilities & Background Jobs
-
-| Batch | Functions | Why Critical |
-|-------|-----------|--------------|
-| 5A | `generate-embedding`, `semantic-search`, `backfill-embeddings` | Search/AI embeddings |
-| 5B | `generate-monthly-recap`, `regenerate-recap-section`, `email-recap`, `generate-monthly-audit` | Monthly reports |
-| 5C | `fetch-link-metadata`, `generate-daily-insight`, `generate-packing-list`, `oura-sync-performance` | Various utilities |
-| 5D | `admin-delete-user`, `backfill-calendar-pillars`, `bird-ai-research`, `sync-trading-journal` | Admin/background tasks |
-
----
-
-## Configuration Fix Required
-
-**10 functions are missing from `config.toml`** and need to be added:
-
-```text
-- admin-delete-user
-- bird-ai-research  
-- briefing-lab-generate
-- email-recap
-- extract-woop
-- generate-monthly-recap
-- regenerate-recap-section
-- send-briefing-sms
-- sync-trading-journal
-- woop-interview
-```
-
----
-
-## Execution Plan
-
-1. **First**: Update `config.toml` to add the 10 missing function configurations
-2. **Deploy Batch 1A**: Subscription functions (most critical for site access)
-3. **Verify**: Test that subscription check works
-4. **Continue**: Deploy remaining batches in order, verifying between phases
-5. **Final check**: Run a quick health check across all major features
-
----
-
-## Expected Timeline
-
-- Each batch deployment: ~30-60 seconds
-- Total batches: 16
-- Estimated total time: **15-25 minutes** (with verification pauses)
-
----
-
-## Technical Notes
-
-- Deploying in small batches avoids the "Bundle generation timed out" error
-- Functions will be immediately available after each batch completes
-- No code changes needed - just redeployment of existing code
+All 58 edge functions deployed and operational, restoring full site functionality.
 

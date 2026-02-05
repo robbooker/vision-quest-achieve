@@ -7,11 +7,24 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Loader2, Send, MapPin, Cloud, Calendar, Trophy, TrendingUp, 
   Briefcase, Vote, BookOpen, Tv, Music, Gamepad2, FlaskConical, 
-  HeartPulse, Target, Sparkles, Newspaper
+  HeartPulse, Target, Sparkles, Newspaper, Mic
 } from 'lucide-react';
+
+// Voice options with descriptions
+const VOICE_OPTIONS = [
+  { id: 'nPczCjzI2devNBz1zQrb', name: 'Brian', description: 'British male, warm and conversational with a slightly sardonic wit' },
+  { id: 'JBFqnCBsd6RMkjVDRZzb', name: 'George', description: 'British male, deep and authoritative news anchor style' },
+  { id: 'TX3LPaxmHKxFdv7VOQHJ', name: 'Liam', description: 'American male, friendly and energetic morning host vibe' },
+  { id: 'onwK4e9ZLuTAKqWW03F9', name: 'Daniel', description: 'British male, calm and measured documentary narrator' },
+  { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah', description: 'American female, warm and professional news presenter' },
+  { id: 'FGY2WhTYpPnrIDTdsKH5', name: 'Laura', description: 'American female, bright and upbeat morning show host' },
+  { id: 'XrExE9yKIg1WjnnlVkGX', name: 'Matilda', description: 'British female, sophisticated and articulate' },
+  { id: 'pFZP5JQG7iQjIQuC4Bku', name: 'Lily', description: 'British female, soft and soothing with clear diction' },
+];
 import { 
   useBriefingLabPreferences, 
   useUpdateBriefingLabPreferences, 
@@ -217,6 +230,44 @@ export default function MorningBriefingLab() {
             {localPrefs.location_name && (
               <p className="text-sm text-muted-foreground">
                 Currently: <span className="font-medium text-foreground">{localPrefs.location_name}</span>
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Voice Selection */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Mic className="h-5 w-5" />
+              Voice
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Select
+              value={localPrefs.voice_id || 'nPczCjzI2devNBz1zQrb'}
+              onValueChange={(value) => setLocalPrefs(prev => ({ ...prev, voice_id: value }))}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select a voice" />
+              </SelectTrigger>
+              <SelectContent>
+                {VOICE_OPTIONS.map((voice) => (
+                  <SelectItem key={voice.id} value={voice.id}>
+                    <span className="font-medium">{voice.name}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {localPrefs.voice_id && (
+              <p className="text-sm text-muted-foreground">
+                {VOICE_OPTIONS.find(v => v.id === localPrefs.voice_id)?.description || 
+                 VOICE_OPTIONS.find(v => v.id === 'nPczCjzI2devNBz1zQrb')?.description}
+              </p>
+            )}
+            {!localPrefs.voice_id && (
+              <p className="text-sm text-muted-foreground">
+                {VOICE_OPTIONS[0].description}
               </p>
             )}
           </CardContent>

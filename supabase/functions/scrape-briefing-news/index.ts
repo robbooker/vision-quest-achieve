@@ -618,10 +618,10 @@ serve(async (req) => {
 
     const scrapePromises: Promise<void>[] = [];
 
-    // ========== SPORTS: Tavily search (primary) + ESPN API (scores) ==========
+    // ========== SPORTS: Browserless (ESPN/Athletic) PRIMARY + Tavily fallback ==========
     if (categories.sports && body.sports_teams) {
       const teams = body.sports_teams.split(',').map(t => t.trim().toLowerCase());
-      console.log('Processing sports teams:', teams);
+      console.log('Processing sports teams with Browserless:', teams);
       
       for (const team of teams) {
         const mapping = TEAM_MAPPINGS[team];
@@ -640,22 +640,46 @@ serve(async (req) => {
               const gameScore = await getESPNGameScore(mapping.slug, mapping.league);
               if (gameScore) {
                 teamData.last_game = gameScore;
+                console.log(`Got ESPN score for ${team}:`, gameScore);
               }
             }
 
-            // Use Tavily for news headlines (primary)
-            const tavilyNews = await searchWithTavily(`${teamName} latest news today`, 5);
-            if (tavilyNews.length > 0) {
-              teamData.headlines = tavilyNews;
-              result.sources_succeeded.push(`sports:${team}:tavily`);
-            } else {
-              // Fallback to Browserless if Tavily fails
-              if (mapping?.espnSlug) {
-                const espnHeadlines = await scrapeESPNTeamNews(mapping.league, mapping.espnSlug);
-                if (espnHeadlines.length > 0) {
-                  teamData.headlines = espnHeadlines;
-                  result.sources_succeeded.push(`sports:${team}:espn`);
-                }
+            // PRIMARY: Use Browserless for ESPN team page + The Athletic
+            let browserlessSucceeded = false;
+            
+            if (mapping?.espnSlug) {
+              console.log(`Browserless: Scraping ESPN for ${teamName}...`);
+              const espnHeadlines = await scrapeESPNTeamNews(mapping.league, mapping.espnSlug);
+              if (espnHeadlines.length > 0) {
+                teamData.headlines = espnHeadlines;
+                result.sources_succeeded.push(`sports:${team}:espn-browserless`);
+                browserlessSucceeded = true;
+                console.log(`Browserless ESPN success for ${team}: ${espnHeadlines.length} headlines`);
+              }
+            }
+            
+            // Also try The Athletic for more in-depth coverage
+            if (!browserlessSucceeded || teamData.headlines.length < 3) {
+              console.log(`Browserless: Scraping The Athletic for ${teamName}...`);
+              const athleticHeadlines = await scrapeAthleticNews(teamName);
+              if (athleticHeadlines.length > 0) {
+                // Merge with existing, avoid duplicates
+                const existingTitles = new Set(teamData.headlines.map((h: any) => h.title.toLowerCase()));
+                const newHeadlines = athleticHeadlines.filter(h => !existingTitles.has(h.title.toLowerCase()));
+                teamData.headlines = [...teamData.headlines, ...newHeadlines].slice(0, 5);
+                result.sources_succeeded.push(`sports:${team}:athletic-browserless`);
+                browserlessSucceeded = true;
+                console.log(`Browserless Athletic success for ${team}: ${athleticHeadlines.length} headlines`);
+              }
+            }
+
+            // FALLBACK: Use Tavily only if Browserless failed completely
+            if (!browserlessSucceeded) {
+              console.log(`Browserless failed for ${team}, falling back to Tavily...`);
+              const tavilyNews = await searchWithTavily(`${teamName} latest news today`, 5);
+              if (tavilyNews.length > 0) {
+                teamData.headlines = tavilyNews;
+                result.sources_succeeded.push(`sports:${team}:tavily-fallback`);
               }
             }
 

@@ -34,6 +34,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { MorningBriefingPlayer } from '@/components/dashboard/MorningBriefingPlayer';
 
 // Voice options with descriptions
 const VOICE_OPTIONS = [
@@ -884,6 +885,9 @@ export default function MorningBriefingLab() {
             </CardContent>
           </Card>
         )}
+
+        {/* Today's Briefing Player - persists even if user navigates away */}
+        <MorningBriefingPlayer />
 
         {/* Admin: iOS Shortcut Integration */}
         {isAdmin && (

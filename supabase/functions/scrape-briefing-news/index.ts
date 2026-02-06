@@ -153,7 +153,7 @@ async function searchWithTavily(
   }
 }
 
-// Fallback: Generic Browserless scrape helper
+// Fallback: Generic Browserless scrape helper (v2 API)
 async function scrapeWithBrowserless(
   url: string, 
   selector: string,
@@ -168,26 +168,35 @@ async function scrapeWithBrowserless(
   }
 
   try {
-    console.log(`Browserless scraping: ${url} with selector: ${selector}`);
+    console.log(`Browserless v2 scraping: ${url} with selector: ${selector}`);
     
-    const response = await fetch(`https://chrome.browserless.io/scrape?token=${BROWSERLESS_API_KEY}`, {
+    // Browserless v2 API endpoint
+    const response = await fetch(`https://production-sfo.browserless.io/scrape?token=${BROWSERLESS_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         url,
-        elements: [{ selector, timeout }],
-        waitFor,
-        gotoOptions: { waitUntil: 'networkidle0' }
+        elements: [{ selector }],
+        gotoOptions: { 
+          waitUntil: 'networkidle0',
+          timeout 
+        },
+        waitForSelector: {
+          selector,
+          timeout: waitFor
+        }
       })
     });
 
     if (!response.ok) {
-      console.error(`Browserless error for ${url}:`, response.status);
+      const errorText = await response.text();
+      console.error(`Browserless error for ${url}:`, response.status, errorText.substring(0, 200));
       return [];
     }
 
     const data = await response.json();
-    const elements = data.data?.[0]?.results || [];
+    // v2 API returns data in a slightly different format
+    const elements = data.data?.[0]?.results || data.elements?.[0]?.results || [];
     
     const headlines: ScrapedHeadline[] = [];
     const seenTitles = new Set<string>();

@@ -378,15 +378,24 @@ ${intentionDescription ? `User's notes: ${intentionDescription}` : ''}
 Include a 30-60 second reflection on this word at the end of the briefing.` : '';
 
     // Build Short Scout section with formatted trading data
+    // Format ticker symbols for TTS pronunciation (letter by letter)
+    const formatTickerForTTS = (ticker: string) => {
+      return ticker.split('').join('-'); // "NVDA" becomes "N-V-D-A"
+    };
+    
     const buildShortScoutSection = () => {
       if (!shortScoutData) return '';
       
       const topSearched = shortScoutData.tickers?.top_searched?.slice(0, 5)
-        .map(t => t.ticker).join(', ') || 'None';
+        .map(t => formatTickerForTTS(t.ticker)).join(', ') || 'None';
       const mostTraded = shortScoutData.tickers?.most_traded?.slice(0, 5)
-        .map(t => t.ticker).join(', ') || 'None';
+        .map(t => formatTickerForTTS(t.ticker)).join(', ') || 'None';
       const totalUsers = shortScoutData.engagement?.total_users || 0;
       const totalAnalyses = shortScoutData.engagement?.total_analyses || 0;
+      
+      const exampleTicker = shortScoutData.tickers?.top_searched?.[0]?.ticker 
+        ? formatTickerForTTS(shortScoutData.tickers.top_searched[0].ticker)
+        : 'small caps';
       
       return `
 **SHORT SCOUT TRADING COMMUNITY DATA (include this in your briefing):**
@@ -395,7 +404,9 @@ Short Scout is a trading research platform where ${totalUsers.toLocaleString()} 
 Top Searched Tickers (small caps traders are researching): ${topSearched}
 Most Traded Tickers (stocks with actual trade check-ins): ${mostTraded}
 
-Mention this data naturally, e.g., "Over on Short Scout, traders are buzzing about ${shortScoutData.tickers?.top_searched?.[0]?.ticker || 'small caps'}..."`;
+IMPORTANT: Stock ticker symbols are formatted with hyphens (like "N-V-D-A") so they are read letter-by-letter. Keep this format when speaking them.
+
+Mention this data naturally, e.g., "Over on Short Scout, traders are buzzing about ${exampleTicker}..."`;
     };
     
     const shortScoutSection = buildShortScoutSection();

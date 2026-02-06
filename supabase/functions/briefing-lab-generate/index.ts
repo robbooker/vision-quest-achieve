@@ -16,6 +16,23 @@ function formatSimpleTime(dateTimeStr: string, timezone: string): string {
   return timeStr.replace(':00', '').toLowerCase();
 }
 
+function getTimeOfDayGreeting(hour: number): { greeting: string; period: string } {
+  if (hour >= 5 && hour < 12) {
+    return { greeting: 'Good morning', period: 'morning' };
+  } else if (hour >= 12 && hour < 17) {
+    return { greeting: 'Good afternoon', period: 'afternoon' };
+  } else if (hour >= 17 && hour < 21) {
+    return { greeting: 'Good evening', period: 'evening' };
+  } else {
+    return { greeting: 'Hello', period: 'night' };
+  }
+}
+
+function isEventPast(eventStart: string, nowInTimezone: Date): boolean {
+  const eventDate = new Date(eventStart);
+  return eventDate < nowInTimezone;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -68,14 +85,22 @@ serve(async (req) => {
     const timezone = 'America/Chicago';
     const voiceId = labPrefs?.voice_id || 'JBFqnCBsd6RMkjVDRZzb';
 
-    // Get today's date info
+    // Get today's date info and time of day
     const now = new Date();
-    const userDate = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
+    const userDateStr = now.toLocaleString('en-US', { timeZone: timezone });
+    const userDate = new Date(userDateStr);
+    const userHour = userDate.getHours();
+    const { greeting: timeOfDayGreeting, period: timePeriod } = getTimeOfDayGreeting(userHour);
     const dayOfWeek = userDate.toLocaleDateString('en-US', { weekday: 'long', timeZone: timezone });
     const fullDate = userDate.toLocaleDateString('en-US', { 
       month: 'long', 
       day: 'numeric', 
       year: 'numeric',
+      timeZone: timezone 
+    });
+    const currentTimeStr = userDate.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
       timeZone: timezone 
     });
 
@@ -198,7 +223,9 @@ serve(async (req) => {
               calendarEvents = events.map((e: any) => {
                 if (e.start?.dateTime) {
                   const simpleTime = formatSimpleTime(e.start.dateTime, timezone);
-                  return `${e.summary || 'Untitled'} at ${simpleTime}`;
+                  const isPast = isEventPast(e.start.dateTime, userDate);
+                  const status = isPast ? ' (already passed)' : '';
+                  return `${e.summary || 'Untitled'} at ${simpleTime}${status}`;
                 }
                 return `${e.summary || 'Untitled'} (all day)`;
               }).join(', ');
@@ -412,8 +439,8 @@ Mention this data naturally, e.g., "Over on Short Scout, traders are buzzing abo
     const shortScoutSection = buildShortScoutSection();
 
     // Build the prompt for Claude with web search
-    const prompt = `You are creating a personalized morning briefing podcast for ${userName}. 
-Today is ${dayOfWeek}, ${fullDate}.
+    const prompt = `You are creating a personalized briefing podcast for ${userName}. 
+Today is ${dayOfWeek}, ${fullDate}. The current time is ${currentTimeStr} (${timePeriod}).
 
 You have access to a web search tool. USE IT to research REAL, CURRENT news for each enabled category below.
 
@@ -422,6 +449,7 @@ You have access to a web search tool. USE IT to research REAL, CURRENT news for 
 2. Synthesize the search results into a natural, conversational podcast script
 3. Only include information you actually found from your searches - do NOT make up or hallucinate facts
 4. Cite your sources naturally (e.g., "According to ESPN..." or "The New York Times is reporting...")
+5. For calendar events marked "(already passed)", acknowledge they've already happened if relevant
 
 **SEARCH INSTRUCTIONS:**
 ${hasNewsCategories ? searchInstructions : 'No news categories are enabled - focus on weather, calendar, and any other enabled sections.'}
@@ -442,8 +470,9 @@ ${intentionSection}
 - Target approximately ${wordCountRange} words for a ${maxDuration}-minute briefing
 - Write for the EAR - short sentences, conversational, natural rhythm
 - No bullet points, headers, or formatting - this will be spoken aloud
-- Start with "Good morning, ${userName}!" + weather
-- Mention calendar events early
+- Start with "${timeOfDayGreeting}, ${userName}!" and then mention the weather
+- If it's afternoon/evening, you can reference how the day has gone so far
+- Mention calendar events early (acknowledge any that have passed if in afternoon/evening)
 - Cover news categories in order of depth (full coverage first, brief mentions after)
 ${intentionWord ? `- End with a 30-60 second reflection on the word "${intentionWord}"` : '- End with a brief energizing close'}
 
@@ -531,7 +560,34 @@ Write the complete briefing script now:`;
     console.log(`Generated script: ${script.length} characters, ${citations.length} citations`);
     console.log('Citations:', JSON.stringify(citations.slice(0, 5)));
 
-    // Step 7: Generate audio with ElevenLabs
+    // Step 7: Generate intro jingle with ElevenLabs Sound Effects
+    console.log('Generating intro jingle...');
+    let jingleBuffer: ArrayBuffer | null = null;
+    try {
+      const jingleResponse = await fetch('https://api.elevenlabs.io/v1/sound-generation', {
+        method: 'POST',
+        headers: {
+          'xi-api-key': ELEVENLABS_API_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: 'A short, pleasant 3-note ascending chime melody, like a gentle notification or podcast intro. Bright, clear tones.',
+          duration_seconds: 2,
+          prompt_influence: 0.5,
+        }),
+      });
+
+      if (jingleResponse.ok) {
+        jingleBuffer = await jingleResponse.arrayBuffer();
+        console.log(`Generated jingle: ${jingleBuffer.byteLength} bytes`);
+      } else {
+        console.warn('Jingle generation failed, continuing without jingle');
+      }
+    } catch (e) {
+      console.warn('Jingle generation error:', e);
+    }
+
+    // Step 8: Generate audio with ElevenLabs TTS
     console.log('Generating audio...');
     const ttsResponse = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
@@ -560,18 +616,32 @@ Write the complete briefing script now:`;
       throw new Error(`ElevenLabs API error: ${ttsResponse.status}`);
     }
 
-    const audioBuffer = await ttsResponse.arrayBuffer();
-    console.log(`Generated audio: ${audioBuffer.byteLength} bytes`);
+    const speechBuffer = await ttsResponse.arrayBuffer();
+    console.log(`Generated speech audio: ${speechBuffer.byteLength} bytes`);
+
+    // Step 9: Combine jingle + speech (simple concatenation for MP3)
+    // Note: For proper audio mixing, we'd need a library. Simple concat works for sequential playback.
+    let finalAudioBuffer: ArrayBuffer;
+    if (jingleBuffer && jingleBuffer.byteLength > 0) {
+      // Combine jingle + brief silence gap + speech
+      const combined = new Uint8Array(jingleBuffer.byteLength + speechBuffer.byteLength);
+      combined.set(new Uint8Array(jingleBuffer), 0);
+      combined.set(new Uint8Array(speechBuffer), jingleBuffer.byteLength);
+      finalAudioBuffer = combined.buffer;
+      console.log(`Combined audio: ${finalAudioBuffer.byteLength} bytes`);
+    } else {
+      finalAudioBuffer = speechBuffer;
+    }
 
     // Estimate duration
     const wordCount = script.split(/\s+/).length;
-    const estimatedDuration = Math.round((wordCount / 150) * 60);
+    const estimatedDuration = Math.round((wordCount / 150) * 60) + (jingleBuffer ? 2 : 0);
 
     // Upload to storage
     const fileName = `lab/${userId}/${episode.id}.mp3`;
     const { error: uploadError } = await supabase.storage
       .from('briefings')
-      .upload(fileName, audioBuffer, {
+      .upload(fileName, finalAudioBuffer, {
         contentType: 'audio/mpeg',
         upsert: true
       });

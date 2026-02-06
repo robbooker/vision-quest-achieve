@@ -101,6 +101,33 @@ interface ScrapedHeadline {
   source: string;
 }
 
+// Browserless concurrency limiter (max 3 concurrent browsers)
+let activeBrowserlessRequests = 0;
+const browserlessQueue: Array<() => void> = [];
+const MAX_CONCURRENT_BROWSERS = 3;
+
+async function waitForBrowserSlot(): Promise<void> {
+  if (activeBrowserlessRequests < MAX_CONCURRENT_BROWSERS) {
+    activeBrowserlessRequests++;
+    return;
+  }
+  
+  return new Promise<void>((resolve) => {
+    browserlessQueue.push(() => {
+      activeBrowserlessRequests++;
+      resolve();
+    });
+  });
+}
+
+function releaseBrowserSlot(): void {
+  activeBrowserlessRequests--;
+  const next = browserlessQueue.shift();
+  if (next) {
+    next();
+  }
+}
+
 // Primary news search using Tavily API (more reliable than web scraping)
 async function searchWithTavily(
   query: string,
@@ -153,7 +180,7 @@ async function searchWithTavily(
   }
 }
 
-// Fallback: Generic Browserless scrape helper (v2 API)
+// Fallback: Generic Browserless scrape helper (v2 API with concurrency limit)
 async function scrapeWithBrowserless(
   url: string, 
   selector: string,
@@ -167,36 +194,47 @@ async function scrapeWithBrowserless(
     return [];
   }
 
+  // Wait for available browser slot
+  await waitForBrowserSlot();
+  console.log(`Browserless slot acquired (${activeBrowserlessRequests}/${MAX_CONCURRENT_BROWSERS}): ${url}`);
+
   try {
     console.log(`Browserless v2 scraping: ${url} with selector: ${selector}`);
     
-    // Browserless v2 API endpoint
+    // Browserless v2 /scrape API format
+    const requestBody = {
+      url,
+      elements: [{ 
+        selector,
+        timeout: waitFor
+      }],
+      gotoOptions: { 
+        waitUntil: 'networkidle2',
+        timeout 
+      }
+    };
+    
+    console.log('Browserless request body:', JSON.stringify(requestBody).slice(0, 500));
+    
     const response = await fetch(`https://production-sfo.browserless.io/scrape?token=${BROWSERLESS_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        url,
-        elements: [{ selector }],
-        gotoOptions: { 
-          waitUntil: 'networkidle0',
-          timeout 
-        },
-        waitForSelector: {
-          selector,
-          timeout: waitFor
-        }
-      })
+      body: JSON.stringify(requestBody)
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`Browserless error for ${url}:`, response.status, errorText.substring(0, 200));
+      console.error(`Browserless error for ${url}: ${response.status} - ${errorText.substring(0, 300)}`);
       return [];
     }
 
     const data = await response.json();
-    // v2 API returns data in a slightly different format
+    console.log('Browserless response keys:', Object.keys(data));
+    console.log('Browserless response sample:', JSON.stringify(data).slice(0, 500));
+    
+    // v2 API response format: { data: [{ results: [...] }] }
     const elements = data.data?.[0]?.results || data.elements?.[0]?.results || [];
+    console.log(`Browserless found ${elements.length} raw elements from ${source}`);
     
     const headlines: ScrapedHeadline[] = [];
     const seenTitles = new Set<string>();
@@ -222,11 +260,14 @@ async function scrapeWithBrowserless(
       }
     }
 
-    console.log(`Found ${headlines.length} headlines from ${source}`);
+    console.log(`Browserless: Found ${headlines.length} valid headlines from ${source}`);
     return headlines;
   } catch (e) {
     console.error(`Browserless scrape error for ${url}:`, e);
     return [];
+  } finally {
+    releaseBrowserSlot();
+    console.log(`Browserless slot released (${activeBrowserlessRequests}/${MAX_CONCURRENT_BROWSERS})`);
   }
 }
 

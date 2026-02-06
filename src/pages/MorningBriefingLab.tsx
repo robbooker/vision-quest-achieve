@@ -17,7 +17,8 @@ import {
   Loader2, Send, MapPin, Cloud, Calendar, Trophy, TrendingUp, 
   Briefcase, Vote, BookOpen, Tv, Music, Gamepad2, FlaskConical, 
   HeartPulse, Target, Sparkles, Newspaper, Mic, Check, Clock,
-  MessageSquare, Phone, Sunrise, AlertTriangle, Play, FileText
+  MessageSquare, Phone, Sunrise, AlertTriangle, Play, FileText,
+  Smartphone, Copy, ExternalLink
 } from 'lucide-react';
 import { 
   useBriefingLabPreferences, 
@@ -30,6 +31,7 @@ import type { BriefingLabPreferences, DepthLevel } from '@/hooks/useBriefingLab'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserRole } from '@/hooks/useUserRole';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
@@ -103,6 +105,7 @@ interface SchedulingPreferences {
 
 export default function MorningBriefingLab() {
   const { user } = useAuth();
+  const { isAdmin } = useUserRole();
   const queryClient = useQueryClient();
   const { data: prefs, isLoading: prefsLoading } = useBriefingLabPreferences();
   const { data: briefingHistory } = useBriefingHistory(5);
@@ -863,6 +866,81 @@ export default function MorningBriefingLab() {
                   Failed sources: {generatedBriefing.sources_failed.join(', ')}
                 </div>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Admin: iOS Shortcut Integration */}
+        {isAdmin && (
+          <Card className="border-dashed border-2 border-muted-foreground/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Smartphone className="h-4 w-4" />
+                iOS Shortcut Integration
+                <Badge variant="outline" className="ml-2 text-xs">Admin</Badge>
+              </CardTitle>
+              <CardDescription>
+                Use these endpoints to trigger and retrieve your morning briefing from iOS Shortcuts.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Wake Check Endpoint */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Briefing Wake Check Endpoint</Label>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 bg-muted px-3 py-2 rounded-md text-xs font-mono break-all">
+                    https://gogzkyjylruuziseprfw.supabase.co/functions/v1/briefing-wake-check
+                  </code>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      navigator.clipboard.writeText('https://gogzkyjylruuziseprfw.supabase.co/functions/v1/briefing-wake-check');
+                      toast.success('Copied to clipboard');
+                    }}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  POST with <code className="bg-muted px-1 rounded">{"{ \"wake_time\": \"07:00\" }"}</code> and Authorization header
+                </p>
+              </div>
+
+              {/* Response Format */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Response Format</Label>
+                <pre className="bg-muted p-3 rounded-md text-xs font-mono overflow-x-auto">
+{`{
+  "status": "ready" | "generating" | "scheduled",
+  "podcast_url": "https://...",
+  "briefing_id": "uuid",
+  "message": "..."
+}`}
+                </pre>
+              </div>
+
+              {/* Authorization */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Authorization</Label>
+                <p className="text-xs text-muted-foreground">
+                  Include your Supabase access token in the Authorization header:
+                </p>
+                <code className="block bg-muted px-3 py-2 rounded-md text-xs font-mono">
+                  Authorization: Bearer YOUR_ACCESS_TOKEN
+                </code>
+              </div>
+
+              {/* iOS Shortcut Tips */}
+              <div className="space-y-2 pt-2 border-t border-border">
+                <Label className="text-sm font-medium">iOS Shortcut Flow</Label>
+                <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                  <li>Call the wake-check endpoint at your wake time</li>
+                  <li>If status is "ready", use podcast_url to play audio</li>
+                  <li>If status is "generating", wait and retry in 30-60 seconds</li>
+                  <li>If status is "scheduled", the briefing will be generated shortly</li>
+                </ol>
+              </div>
             </CardContent>
           </Card>
         )}

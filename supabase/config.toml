@@ -173,3 +173,6 @@ verify_jwt = false
 
 [functions.woop-interview]
 verify_jwt = false
+
+[functions.test-short-scout]
+verify_jwt = false

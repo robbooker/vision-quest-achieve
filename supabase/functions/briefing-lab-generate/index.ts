@@ -124,23 +124,41 @@ serve(async (req) => {
     }
 
     // Step 1: Fetch Short Scout data if enabled (private API, not web-searchable)
-    let shortScoutData: { top_searched: string[]; most_traded: string[] } | null = null;
+    let shortScoutData: {
+      tickers?: {
+        top_searched?: Array<{ ticker: string; count: number; last_seen: string }>;
+        most_traded?: Array<{ ticker: string; checkins: number; last_seen: string }>;
+      };
+      engagement?: {
+        total_users?: number;
+        total_analyses?: number;
+      };
+    } | null = null;
+    
     const SHORT_SCOUT_PLATFORM_KEY = Deno.env.get('SHORT_SCOUT_PLATFORM_KEY');
     if (labPrefs?.include_short_scout && SHORT_SCOUT_URL && SHORT_SCOUT_PLATFORM_KEY) {
       try {
         console.log('Fetching Short Scout data...');
-        const ssResponse = await fetch(
-          `${SHORT_SCOUT_URL}/functions/v1/platform-stats?section=tickers&days=30`,
-          {
-            headers: {
-              'x-api-key': SHORT_SCOUT_PLATFORM_KEY
-            }
-          }
-        );
         
-        if (ssResponse.ok) {
-          shortScoutData = await ssResponse.json();
-          console.log('Short Scout data:', shortScoutData);
+        // Fetch tickers and engagement in parallel
+        const [tickersResponse, engagementResponse] = await Promise.all([
+          fetch(`${SHORT_SCOUT_URL}/functions/v1/platform-stats?section=tickers&days=30`, {
+            headers: { 'x-api-key': SHORT_SCOUT_PLATFORM_KEY }
+          }),
+          fetch(`${SHORT_SCOUT_URL}/functions/v1/platform-stats?section=engagement&days=30`, {
+            headers: { 'x-api-key': SHORT_SCOUT_PLATFORM_KEY }
+          })
+        ]);
+        
+        if (tickersResponse.ok && engagementResponse.ok) {
+          const tickersData = await tickersResponse.json();
+          const engagementData = await engagementResponse.json();
+          
+          shortScoutData = {
+            tickers: tickersData.tickers,
+            engagement: engagementData.engagement
+          };
+          console.log('Short Scout data fetched successfully');
         }
       } catch (e) {
         console.error('Short Scout fetch error:', e);
@@ -359,11 +377,28 @@ ${intentionDescription ? `User's notes: ${intentionDescription}` : ''}
 
 Include a 30-60 second reflection on this word at the end of the briefing.` : '';
 
-    // Build Short Scout section
-    const shortScoutSection = shortScoutData ? `
-**SHORT SCOUT TRADING DATA (include this in your briefing):**
-Top Searched Tickers: ${shortScoutData.top_searched?.slice(0, 5).join(', ') || 'None'}
-Most Traded Tickers: ${shortScoutData.most_traded?.slice(0, 5).join(', ') || 'None'}` : '';
+    // Build Short Scout section with formatted trading data
+    const buildShortScoutSection = () => {
+      if (!shortScoutData) return '';
+      
+      const topSearched = shortScoutData.tickers?.top_searched?.slice(0, 5)
+        .map(t => t.ticker).join(', ') || 'None';
+      const mostTraded = shortScoutData.tickers?.most_traded?.slice(0, 5)
+        .map(t => t.ticker).join(', ') || 'None';
+      const totalUsers = shortScoutData.engagement?.total_users || 0;
+      const totalAnalyses = shortScoutData.engagement?.total_analyses || 0;
+      
+      return `
+**SHORT SCOUT TRADING COMMUNITY DATA (include this in your briefing):**
+Short Scout is a trading research platform where ${totalUsers.toLocaleString()} traders have run ${totalAnalyses.toLocaleString()} stock analyses this month.
+
+Top Searched Tickers (small caps traders are researching): ${topSearched}
+Most Traded Tickers (stocks with actual trade check-ins): ${mostTraded}
+
+Mention this data naturally, e.g., "Over on Short Scout, traders are buzzing about ${shortScoutData.tickers?.top_searched?.[0]?.ticker || 'small caps'}..."`;
+    };
+    
+    const shortScoutSection = buildShortScoutSection();
 
     // Build the prompt for Claude with web search
     const prompt = `You are creating a personalized morning briefing podcast for ${userName}. 

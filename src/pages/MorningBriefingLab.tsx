@@ -18,7 +18,7 @@ import {
   Briefcase, Vote, BookOpen, Tv, Music, Gamepad2, FlaskConical, 
   HeartPulse, Target, Sparkles, Newspaper, Mic, Check, Clock,
   MessageSquare, Phone, Sunrise, AlertTriangle, Play, FileText,
-  Smartphone, Copy, ExternalLink
+  Smartphone, Copy, ExternalLink, TestTube, CheckCircle, XCircle
 } from 'lucide-react';
 import { 
   useBriefingLabPreferences, 
@@ -131,6 +131,18 @@ export default function MorningBriefingLab() {
     sources_succeeded: string[];
     sources_failed: string[];
   } | null>(null);
+
+  // Short Scout API testing state
+  const [shortScoutTestResult, setShortScoutTestResult] = useState<{
+    secrets_configured: boolean;
+    short_scout_url?: string;
+    tickers: { success: boolean; data: unknown; error?: string };
+    engagement: { success: boolean; data: unknown; error?: string };
+    trends: { success: boolean; data: unknown; error?: string };
+    tested_at?: string;
+    error?: string;
+  } | null>(null);
+  const [isTestingShortScout, setIsTestingShortScout] = useState(false);
 
   // Fetch API key for admin iOS shortcut section
   useEffect(() => {
@@ -325,6 +337,46 @@ export default function MorningBriefingLab() {
   const handleSendSms = async () => {
     if (generatedBriefing?.podcast_url) {
       await sendSms.mutateAsync(generatedBriefing.podcast_url);
+    }
+  };
+
+  const handleTestShortScout = async () => {
+    setIsTestingShortScout(true);
+    setShortScoutTestResult(null);
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast.error('Not authenticated');
+        return;
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/test-short-scout`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const result = await response.json();
+      setShortScoutTestResult(result);
+      
+      if (result.tickers?.success && result.engagement?.success && result.trends?.success) {
+        toast.success('Short Scout API test passed!');
+      } else if (result.secrets_configured === false) {
+        toast.error('Short Scout secrets not configured');
+      } else {
+        toast.warning('Some Short Scout endpoints failed');
+      }
+    } catch (error) {
+      console.error('Short Scout test error:', error);
+      toast.error('Failed to test Short Scout API');
+    } finally {
+      setIsTestingShortScout(false);
     }
   };
 
@@ -888,6 +940,135 @@ export default function MorningBriefingLab() {
 
         {/* Today's Briefing Player - persists even if user navigates away */}
         <MorningBriefingPlayer />
+
+        {/* Admin: Short Scout API Testing */}
+        {isAdmin && (
+          <Card className="border-dashed border-2 border-muted-foreground/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <TestTube className="h-4 w-4" />
+                Short Scout API Test
+                <Badge variant="outline" className="ml-2 text-xs">Admin</Badge>
+              </CardTitle>
+              <CardDescription>
+                Test the Short Scout API endpoints to verify connectivity and response format.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button
+                onClick={handleTestShortScout}
+                disabled={isTestingShortScout}
+                variant="outline"
+              >
+                {isTestingShortScout ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Testing...
+                  </>
+                ) : (
+                  <>
+                    <TestTube className="h-4 w-4 mr-2" />
+                    Test Short Scout API
+                  </>
+                )}
+              </Button>
+
+              {shortScoutTestResult && (
+                <div className="space-y-4">
+                  {/* Status Overview */}
+                  <div className="flex items-center gap-4 text-sm">
+                    <span className="flex items-center gap-1">
+                      {shortScoutTestResult.secrets_configured ? (
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-destructive" />
+                      )}
+                      Secrets: {shortScoutTestResult.secrets_configured ? 'Configured' : 'Missing'}
+                    </span>
+                    {shortScoutTestResult.tested_at && (
+                      <span className="text-muted-foreground">
+                        Tested: {format(new Date(shortScoutTestResult.tested_at), 'h:mm:ss a')}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Individual Section Results */}
+                  <div className="grid gap-3">
+                    {/* Tickers */}
+                    <div className="p-3 bg-muted rounded-lg space-y-2">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        {shortScoutTestResult.tickers.success ? (
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-destructive" />
+                        )}
+                        Tickers Section
+                      </div>
+                      {shortScoutTestResult.tickers.success ? (
+                        <pre className="text-xs bg-background p-2 rounded overflow-x-auto max-h-32">
+                          {JSON.stringify(shortScoutTestResult.tickers.data, null, 2)}
+                        </pre>
+                      ) : (
+                        <p className="text-xs text-destructive">{shortScoutTestResult.tickers.error}</p>
+                      )}
+                    </div>
+
+                    {/* Engagement */}
+                    <div className="p-3 bg-muted rounded-lg space-y-2">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        {shortScoutTestResult.engagement.success ? (
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-destructive" />
+                        )}
+                        Engagement Section
+                      </div>
+                      {shortScoutTestResult.engagement.success ? (
+                        <pre className="text-xs bg-background p-2 rounded overflow-x-auto max-h-32">
+                          {JSON.stringify(shortScoutTestResult.engagement.data, null, 2)}
+                        </pre>
+                      ) : (
+                        <p className="text-xs text-destructive">{shortScoutTestResult.engagement.error}</p>
+                      )}
+                    </div>
+
+                    {/* Trends */}
+                    <div className="p-3 bg-muted rounded-lg space-y-2">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        {shortScoutTestResult.trends.success ? (
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-destructive" />
+                        )}
+                        Trends Section
+                      </div>
+                      {shortScoutTestResult.trends.success ? (
+                        <pre className="text-xs bg-background p-2 rounded overflow-x-auto max-h-32">
+                          {JSON.stringify(shortScoutTestResult.trends.data, null, 2)}
+                        </pre>
+                      ) : (
+                        <p className="text-xs text-destructive">{shortScoutTestResult.trends.error}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Copy Raw JSON Button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      navigator.clipboard.writeText(JSON.stringify(shortScoutTestResult, null, 2));
+                      toast.success('Copied raw JSON to clipboard');
+                    }}
+                  >
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy Raw JSON
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Admin: iOS Shortcut Integration */}
         {isAdmin && (

@@ -89,22 +89,8 @@ serve(async (req) => {
     const scienceDepth = labPrefs?.science_depth || 'off';
     const healthDepth = labPrefs?.health_depth || 'off';
 
-    // Build categories object for scraper based on depth settings
-    const categories = {
-      sports: sportsDepth !== 'off',
-      tech: techDepth !== 'off',
-      business: businessDepth !== 'off',
-      trading: tradingDepth !== 'off',
-      science: scienceDepth !== 'off',
-      health: healthDepth !== 'off',
-    };
-
-    console.log('Categories for scraper:', JSON.stringify(categories));
-    console.log('Sports teams:', labPrefs?.sports_teams);
-    console.log('Tech topics:', labPrefs?.tech_topics);
-
     // Build depth map for script generation
-    const depthMap = {
+    const depthMap: Record<string, string> = {
       sports: sportsDepth,
       tech: techDepth,
       business: businessDepth,
@@ -138,38 +124,7 @@ serve(async (req) => {
       throw new Error('Failed to create episode record');
     }
 
-    // Step 1: Scrape news data
-    console.log('Scraping news data...');
-    const scrapeResponse = await supabase.functions.invoke('scrape-briefing-news', {
-      body: {
-        categories,
-        sports_teams: labPrefs?.sports_teams,
-        tech_topics: labPrefs?.tech_topics,
-        business_topics: labPrefs?.business_topics,
-        science_topics: labPrefs?.science_topics,
-        health_topics: labPrefs?.health_topics,
-        custom_topics: labPrefs?.custom_topics,
-      }
-    });
-
-    const scrapedData = scrapeResponse.data || { sources_succeeded: [], sources_failed: [] };
-    console.log('Scraped sources succeeded:', scrapedData.sources_succeeded);
-    console.log('Scraped sources failed:', scrapedData.sources_failed);
-    console.log('Scraped sports data:', JSON.stringify(scrapedData.sports));
-
-    // Store scraped data
-    const { data: scrapedRecord } = await supabase
-      .from('briefing_scraped_data')
-      .insert({
-        user_id: userId,
-        data: scrapedData,
-        sources_succeeded: scrapedData.sources_succeeded || [],
-        sources_failed: scrapedData.sources_failed || []
-      })
-      .select()
-      .single();
-
-    // Step 2: Fetch Short Scout data if enabled
+    // Step 1: Fetch Short Scout data if enabled (private API, not web-searchable)
     let shortScoutData: { top_searched: string[]; most_traded: string[] } | null = null;
     if (labPrefs?.include_short_scout && SHORT_SCOUT_URL && SHORT_SCOUT_ANON_KEY) {
       try {
@@ -194,7 +149,7 @@ serve(async (req) => {
       }
     }
 
-    // Step 3: Fetch calendar events if enabled
+    // Step 2: Fetch calendar events if enabled (private user data)
     let calendarEvents = 'No scheduled events';
     if (labPrefs?.include_calendar) {
       const { data: calendarTokens } = await supabase
@@ -239,7 +194,7 @@ serve(async (req) => {
       }
     }
 
-    // Step 4: Fetch weather if enabled
+    // Step 3: Fetch weather if enabled (structured API data)
     let weatherData = 'Weather data unavailable';
     if (labPrefs?.include_weather) {
       try {
@@ -265,11 +220,10 @@ serve(async (req) => {
       }
     }
 
-    // Step 5: Fetch monthly intention if enabled
+    // Step 4: Fetch monthly intention if enabled (private user data)
     let intentionWord: string | null = null;
     let intentionDescription: string | null = null;
     if (labPrefs?.include_intention) {
-      // Month is stored as first day of month (YYYY-MM-01) in database
       const nowForMonth = new Date();
       const currentMonthDate = `${nowForMonth.getFullYear()}-${String(nowForMonth.getMonth() + 1).padStart(2, '0')}-01`;
       console.log(`Looking for monthly intention for: ${currentMonthDate}`);
@@ -285,142 +239,182 @@ serve(async (req) => {
       intentionDescription = monthlyIntention?.description || null;
     }
 
-    // Step 6: Build the prompt with depth awareness
-    const buildSectionData = () => {
-      const sections: string[] = [];
-
-      // Sports - depth-aware
-      if (depthMap.sports !== 'off' && Object.keys(scrapedData.sports || {}).length > 0) {
-        const sportsLines: string[] = [];
-        for (const [teamKey, teamData] of Object.entries(scrapedData.sports)) {
-          const team = teamData as any;
-          const teamSection: string[] = [`**${team.name || teamKey.toUpperCase()}:**`];
-          
-          if (team.last_game) {
-            teamSection.push(`Last game: ${team.last_game.result} vs ${team.last_game.opponent} (${team.last_game.score}) on ${team.last_game.date}`);
-          }
-          
-          // Only include headlines for FULL depth
-          if (depthMap.sports === 'full' && team.headlines && team.headlines.length > 0) {
-            teamSection.push('Headlines:');
-            team.headlines.slice(0, 3).forEach((h: any) => {
-              teamSection.push(`- ${h.title}`);
-            });
-          }
-          
-          sportsLines.push(teamSection.join('\n'));
+    // Step 5: Build search instructions for Claude based on enabled categories
+    const buildSearchInstructions = () => {
+      const instructions: string[] = [];
+      
+      // Sports
+      if (depthMap.sports !== 'off') {
+        const teams = labPrefs?.sports_teams || '';
+        if (teams) {
+          const teamList = teams.split(',').map((t: string) => t.trim()).filter(Boolean);
+          teamList.forEach((team: string) => {
+            instructions.push(`- Search "${team} latest news today ${fullDate}" for recent games, scores, and news`);
+          });
+        } else {
+          instructions.push(`- Search "top sports news today ${fullDate}" for major sports headlines`);
         }
-        sections.push(`**SPORTS (${depthMap.sports === 'brief' ? 'quick scores' : 'full coverage'}):**\n${sportsLines.join('\n\n')}`);
-      } else if (depthMap.sports !== 'off') {
-        console.log('Sports enabled but no data scraped');
-      }
-
-      // Tech/AI - depth-aware
-      if (depthMap.tech !== 'off' && scrapedData.tech) {
-        const techItems = [
-          ...(scrapedData.tech.ai_news || []),
-          ...(scrapedData.tech.general_tech || [])
-        ];
-        const itemLimit = depthMap.tech === 'brief' ? 2 : 5;
-        if (techItems.length > 0) {
-          sections.push(`**TECH/AI NEWS (${depthMap.tech === 'brief' ? 'highlights' : 'deep dive'}):**\n${techItems.slice(0, itemLimit).map((t: any) => `- ${t.title} (${t.source})`).join('\n')}`);
+        if (depthMap.sports === 'full') {
+          instructions.push(`  → Provide full coverage with context and analysis for each team/story`);
+        } else {
+          instructions.push(`  → Keep brief: just scores and key headlines`);
         }
       }
-
-      // Business - depth-aware
-      if (depthMap.business !== 'off' && scrapedData.business && scrapedData.business.length > 0) {
-        const itemLimit = depthMap.business === 'brief' ? 2 : 4;
-        sections.push(`**BUSINESS NEWS (${depthMap.business === 'brief' ? 'key movers' : 'analysis'}):**\n${scrapedData.business.slice(0, itemLimit).map((b: any) => `- ${b.title} (${b.source})`).join('\n')}`);
+      
+      // Tech/AI
+      if (depthMap.tech !== 'off') {
+        const topics = labPrefs?.tech_topics || 'AI, technology';
+        instructions.push(`- Search "${topics} news today ${fullDate}" for latest tech developments`);
+        if (depthMap.tech === 'full') {
+          instructions.push(`  → Provide detailed coverage with implications and context`);
+        } else {
+          instructions.push(`  → Brief highlights only`);
+        }
       }
-
-      // Science - depth-aware
-      if (depthMap.science !== 'off' && scrapedData.science && scrapedData.science.length > 0) {
-        const itemLimit = depthMap.science === 'brief' ? 2 : 4;
-        sections.push(`**SCIENCE NEWS (${depthMap.science === 'brief' ? 'discoveries' : 'deep dive'}):**\n${scrapedData.science.slice(0, itemLimit).map((s: any) => `- ${s.title} (${s.source})`).join('\n')}`);
+      
+      // Business
+      if (depthMap.business !== 'off') {
+        const topics = labPrefs?.business_topics || 'stock market, business';
+        instructions.push(`- Search "${topics} news today ${fullDate}" for market and business news`);
+        if (depthMap.business === 'full') {
+          instructions.push(`  → Include market analysis and major company news`);
+        } else {
+          instructions.push(`  → Key headlines only`);
+        }
       }
-
-      // Health - depth-aware
-      if (depthMap.health !== 'off' && scrapedData.health && scrapedData.health.length > 0) {
-        const itemLimit = depthMap.health === 'brief' ? 2 : 4;
-        sections.push(`**HEALTH & FITNESS (${depthMap.health === 'brief' ? 'tips' : 'research + advice'}):**\n${scrapedData.health.slice(0, itemLimit).map((h: any) => `- ${h.title} (${h.source})`).join('\n')}`);
+      
+      // Politics
+      if (depthMap.politics !== 'off') {
+        const topics = labPrefs?.politics_topics || 'US politics';
+        instructions.push(`- Search "${topics} news today ${fullDate}" for political developments`);
+        if (depthMap.politics === 'full') {
+          instructions.push(`  → Provide context and analysis`);
+        } else {
+          instructions.push(`  → Brief headlines only`);
+        }
       }
-
+      
+      // Science
+      if (depthMap.science !== 'off') {
+        const topics = labPrefs?.science_topics || 'science discoveries';
+        instructions.push(`- Search "${topics} news today ${fullDate}" for science news`);
+        if (depthMap.science === 'full') {
+          instructions.push(`  → Explain significance and context`);
+        } else {
+          instructions.push(`  → Key discoveries only`);
+        }
+      }
+      
+      // Health
+      if (depthMap.health !== 'off') {
+        const topics = labPrefs?.health_topics || 'health, fitness, wellness';
+        instructions.push(`- Search "${topics} news today ${fullDate}" for health news`);
+        if (depthMap.health === 'full') {
+          instructions.push(`  → Include research findings and practical advice`);
+        } else {
+          instructions.push(`  → Quick tips and headlines`);
+        }
+      }
+      
+      // Books
+      if (depthMap.books !== 'off') {
+        const topics = labPrefs?.books_topics || 'book releases, bestsellers';
+        instructions.push(`- Search "${topics} ${fullDate}" for literary news`);
+      }
+      
+      // Film/TV
+      if (depthMap.film_tv !== 'off') {
+        instructions.push(`- Search "movies TV shows streaming news today ${fullDate}" for entertainment news`);
+      }
+      
+      // Music
+      if (depthMap.music !== 'off') {
+        const topics = labPrefs?.music_topics || 'music releases, concerts';
+        instructions.push(`- Search "${topics} news today ${fullDate}" for music news`);
+      }
+      
+      // Gaming
+      if (depthMap.gaming !== 'off') {
+        const topics = labPrefs?.gaming_topics || 'video games';
+        instructions.push(`- Search "${topics} news today ${fullDate}" for gaming news`);
+      }
+      
       // Custom topics
-      if (scrapedData.custom && scrapedData.custom.length > 0) {
-        sections.push(`**CUSTOM TOPICS:**\n${scrapedData.custom.map((c: any) => `- ${c.title} (${c.source})`).join('\n')}`);
+      if (labPrefs?.custom_topics) {
+        instructions.push(`- Search "${labPrefs.custom_topics} news today ${fullDate}" for custom topic updates`);
       }
-
-      // Short Scout
-      if (shortScoutData) {
-        sections.push(`**SHORT SCOUT TRENDING:**\nTop Searched: ${shortScoutData.top_searched?.slice(0, 5).join(', ') || 'None'}\nMost Traded: ${shortScoutData.most_traded?.slice(0, 5).join(', ') || 'None'}`);
-      }
-
-      return sections.join('\n\n');
+      
+      return instructions.join('\n');
     };
 
-    const sectionDataForPrompt = buildSectionData();
-    console.log('Section data for prompt:', sectionDataForPrompt);
+    const searchInstructions = buildSearchInstructions();
+    const hasNewsCategories = Object.entries(depthMap).some(([_, depth]) => depth !== 'off');
+    
+    // Calculate target word count based on max duration (approx 150 words per minute)
+    const targetWordCount = maxDuration * 150;
+    const wordCountRange = `${targetWordCount - 50}-${targetWordCount + 50}`;
 
+    // Build the intention section
     const intentionSection = intentionWord ? `
 **WORD OF THE MONTH: ${intentionWord}**
 ${intentionDescription ? `User's notes: ${intentionDescription}` : ''}
 
 Include a 30-60 second reflection on this word at the end of the briefing.` : '';
 
-    // Calculate target word count based on max duration (approx 150 words per minute)
-    const targetWordCount = maxDuration * 150;
-    const wordCountRange = `${targetWordCount - 50}-${targetWordCount + 50}`;
+    // Build Short Scout section
+    const shortScoutSection = shortScoutData ? `
+**SHORT SCOUT TRADING DATA (include this in your briefing):**
+Top Searched Tickers: ${shortScoutData.top_searched?.slice(0, 5).join(', ') || 'None'}
+Most Traded Tickers: ${shortScoutData.most_traded?.slice(0, 5).join(', ') || 'None'}` : '';
 
-    // Build depth instructions for the AI
-    const depthInstructions = Object.entries(depthMap)
-      .filter(([_, depth]) => depth !== 'off')
-      .map(([cat, depth]) => {
-        const catName = cat.replace('_', ' ');
-        return depth === 'brief' 
-          ? `- ${catName}: Quick mention only (1-2 sentences)`
-          : `- ${catName}: Full segment with context (30-45 seconds)`;
-      })
-      .join('\n');
-
-    const prompt = `You are a professional podcast host creating a personalized morning briefing for ${userName}. 
+    // Build the prompt for Claude with web search
+    const prompt = `You are creating a personalized morning briefing podcast for ${userName}. 
 Today is ${dayOfWeek}, ${fullDate}.
 
-**CRITICAL RULES:**
-- Use ONLY the data provided below. Do NOT infer, guess, or hallucinate any facts.
-- Write for the EAR - short sentences, conversational, natural rhythm.
-- No bullet points, headers, or formatting - this will be spoken aloud.
-- Target approximately ${wordCountRange} words for a ${maxDuration}-minute briefing.
+You have access to a web search tool. USE IT to research REAL, CURRENT news for each enabled category below.
 
-**DEPTH INSTRUCTIONS (how much to cover each topic):**
-${depthInstructions || '- No specific news categories selected'}
+**YOUR TASK:**
+1. Search for current news using the search instructions below
+2. Synthesize the search results into a natural, conversational podcast script
+3. Only include information you actually found from your searches - do NOT make up or hallucinate facts
+4. Cite your sources naturally (e.g., "According to ESPN..." or "The New York Times is reporting...")
+
+**SEARCH INSTRUCTIONS:**
+${hasNewsCategories ? searchInstructions : 'No news categories are enabled - focus on weather, calendar, and any other enabled sections.'}
+
+**STRUCTURED DATA (already provided - no search needed):**
 
 **WEATHER:**
 ${weatherData}
 
 **CALENDAR TODAY:**
 ${calendarEvents}
-
-${sectionDataForPrompt}
-
+${shortScoutSection}
 ${intentionSection}
 
 ---
 
-STRUCTURE:
-1. Opening - "Good morning, ${userName}!" + weather
-2. Calendar - Quick mention of today's events
-3. News sections - Cover each category according to its depth level
-${intentionWord ? `4. Word of the Month reflection\n5. Brief energizing close` : `4. Brief energizing close`}
+**SCRIPT REQUIREMENTS:**
+- Target approximately ${wordCountRange} words for a ${maxDuration}-minute briefing
+- Write for the EAR - short sentences, conversational, natural rhythm
+- No bullet points, headers, or formatting - this will be spoken aloud
+- Start with "Good morning, ${userName}!" + weather
+- Mention calendar events early
+- Cover news categories in order of depth (full coverage first, brief mentions after)
+${intentionWord ? `- End with a 30-60 second reflection on the word "${intentionWord}"` : '- End with a brief energizing close'}
 
-Write the briefing script now:`;
+Write the complete briefing script now:`;
 
-    // Step 7: Generate script with Anthropic Claude
-    console.log('Generating script with Claude...');
+    // Step 6: Generate script with Claude Sonnet 4.5 + Web Search
+    console.log('Generating script with Claude Sonnet 4.5 + Web Search...');
     
     if (!ANTHROPIC_API_KEY) {
       throw new Error('ANTHROPIC_API_KEY not configured');
     }
 
+    // Determine location for web search context
+    const locationName = labPrefs?.location_name || 'Chicago';
+    
     const aiResponse = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -429,9 +423,21 @@ Write the briefing script now:`;
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 2000,
+        model: 'claude-sonnet-4-5-20250929',
+        max_tokens: 16000,
         messages: [{ role: 'user', content: prompt }],
+        tools: [{
+          type: 'web_search_20250305',
+          name: 'web_search',
+          max_uses: 20,
+          user_location: {
+            type: 'approximate',
+            city: locationName,
+            region: 'Illinois',
+            country: 'US',
+            timezone: timezone
+          }
+        }]
       }),
     });
 
@@ -449,15 +455,39 @@ Write the briefing script now:`;
     }
 
     const aiData = await aiResponse.json();
-    const script = aiData.content?.[0]?.text;
+    console.log('Claude response received, stop_reason:', aiData.stop_reason);
+    
+    // Extract the final text content from Claude's response
+    // With web search, the response contains multiple content blocks:
+    // - server_tool_use blocks (searches performed)
+    // - web_search_tool_result blocks (search results)
+    // - text blocks (the final script with citations)
+    const textBlocks = aiData.content?.filter((block: any) => block.type === 'text') || [];
+    const script = textBlocks.map((b: any) => b.text).join('\n\n');
 
-    if (!script) {
-      throw new Error('No script generated');
+    if (!script || script.trim().length === 0) {
+      console.error('No script in response. Full response:', JSON.stringify(aiData));
+      throw new Error('No script generated from Claude');
     }
 
-    console.log(`Generated script: ${script.length} characters`);
+    // Extract citations for logging
+    const citations: Array<{ url: string; title: string; cited_text: string }> = [];
+    textBlocks.forEach((block: any) => {
+      if (block.citations && Array.isArray(block.citations)) {
+        block.citations.forEach((c: any) => {
+          citations.push({
+            url: c.url || '',
+            title: c.title || '',
+            cited_text: c.cited_text || ''
+          });
+        });
+      }
+    });
+    
+    console.log(`Generated script: ${script.length} characters, ${citations.length} citations`);
+    console.log('Citations:', JSON.stringify(citations.slice(0, 5)));
 
-    // Step 8: Generate audio with ElevenLabs
+    // Step 7: Generate audio with ElevenLabs
     console.log('Generating audio...');
     const ttsResponse = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
@@ -519,7 +549,6 @@ Write the briefing script now:`;
         podcast_url: publicUrl,
         script,
         duration_seconds: estimatedDuration,
-        scraped_data_id: scrapedRecord?.id,
         generated_at: new Date().toISOString()
       })
       .eq('id', episode.id);
@@ -530,8 +559,9 @@ Write the briefing script now:`;
       podcast_url: publicUrl,
       script,
       duration_seconds: estimatedDuration,
-      sources_succeeded: scrapedData.sources_succeeded || [],
-      sources_failed: scrapedData.sources_failed || []
+      citations: citations.slice(0, 10),
+      sources_succeeded: ['claude-web-search'],
+      sources_failed: []
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });

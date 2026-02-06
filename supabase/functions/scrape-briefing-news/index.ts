@@ -93,7 +93,7 @@ const TEAM_MAPPINGS: Record<string, { slug: string; league: string; espnSlug: st
   'inter miami': { slug: 'mia', league: 'mls', espnSlug: '', fullName: 'Inter Miami CF' },
 };
 
-// ========== BROWSERLESS SCRAPER UTILITIES ==========
+// ========== TAVILY + BROWSERLESS SCRAPER UTILITIES ==========
 
 interface ScrapedHeadline {
   title: string;
@@ -101,7 +101,59 @@ interface ScrapedHeadline {
   source: string;
 }
 
-// Generic Browserless scrape helper
+// Primary news search using Tavily API (more reliable than web scraping)
+async function searchWithTavily(
+  query: string,
+  maxResults = 5
+): Promise<ScrapedHeadline[]> {
+  const TAVILY_API_KEY = Deno.env.get('TAVILY_API_KEY');
+  if (!TAVILY_API_KEY) {
+    console.log('TAVILY_API_KEY not configured, falling back to Browserless');
+    return [];
+  }
+
+  try {
+    console.log(`Tavily search: ${query}`);
+    
+    const response = await fetch('https://api.tavily.com/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_key: TAVILY_API_KEY,
+        query,
+        search_depth: 'basic',
+        max_results: maxResults,
+        include_domains: [],
+        exclude_domains: []
+      })
+    });
+
+    if (!response.ok) {
+      console.error(`Tavily error: ${response.status}`);
+      return [];
+    }
+
+    const data = await response.json();
+    const results = data.results || [];
+    
+    const headlines: ScrapedHeadline[] = results
+      .filter((r: any) => r.title && r.title.length > 10)
+      .slice(0, maxResults)
+      .map((r: any) => ({
+        title: r.title,
+        url: r.url,
+        source: new URL(r.url).hostname.replace('www.', '')
+      }));
+
+    console.log(`Tavily found ${headlines.length} results for: ${query}`);
+    return headlines;
+  } catch (e) {
+    console.error(`Tavily search error:`, e);
+    return [];
+  }
+}
+
+// Fallback: Generic Browserless scrape helper
 async function scrapeWithBrowserless(
   url: string, 
   selector: string,
@@ -516,112 +568,84 @@ serve(async (req) => {
 
     const scrapePromises: Promise<void>[] = [];
 
-    // ========== SPORTS: ESPN + The Athletic ==========
+    // ========== SPORTS: Tavily search (primary) + ESPN API (scores) ==========
     if (categories.sports && body.sports_teams) {
       const teams = body.sports_teams.split(',').map(t => t.trim().toLowerCase());
       console.log('Processing sports teams:', teams);
       
       for (const team of teams) {
         const mapping = TEAM_MAPPINGS[team];
-        if (mapping) {
-          scrapePromises.push(
-            (async () => {
-              const teamData: any = {
-                name: mapping.fullName,
-                headlines: [],
-                last_game: null
-              };
+        const teamName = mapping?.fullName || team;
+        
+        scrapePromises.push(
+          (async () => {
+            const teamData: any = {
+              name: teamName,
+              headlines: [],
+              last_game: null
+            };
 
-              // For soccer teams, use The Athletic search
-              if (mapping.league === 'soccer' || mapping.league === 'mls') {
-                const athleticNews = await scrapeAthleticNews(mapping.fullName);
-                if (athleticNews.length > 0) {
-                  teamData.headlines = athleticNews;
-                  result.sources_succeeded.push(`sports:${team}:athletic`);
-                } else {
-                  // Fallback to Google News for soccer
-                  const googleNews = await scrapeGoogleNews(`${mapping.fullName} news`);
-                  if (googleNews.length > 0) {
-                    teamData.headlines = googleNews;
-                    result.sources_succeeded.push(`sports:${team}:google`);
-                  }
-                }
-              } else {
-                // Try to get game score from ESPN API
-                const gameScore = await getESPNGameScore(mapping.slug, mapping.league);
-                if (gameScore) {
-                  teamData.last_game = gameScore;
-                }
+            // Get yesterday's game score from ESPN API (reliable, no scraping)
+            if (mapping && mapping.league !== 'soccer' && mapping.league !== 'mls') {
+              const gameScore = await getESPNGameScore(mapping.slug, mapping.league);
+              if (gameScore) {
+                teamData.last_game = gameScore;
+              }
+            }
 
-                // Scrape ESPN team page for headlines
+            // Use Tavily for news headlines (primary)
+            const tavilyNews = await searchWithTavily(`${teamName} latest news today`, 5);
+            if (tavilyNews.length > 0) {
+              teamData.headlines = tavilyNews;
+              result.sources_succeeded.push(`sports:${team}:tavily`);
+            } else {
+              // Fallback to Browserless if Tavily fails
+              if (mapping?.espnSlug) {
                 const espnHeadlines = await scrapeESPNTeamNews(mapping.league, mapping.espnSlug);
-                
-                // Also get The Athletic for premium analysis
-                const athleticHeadlines = await scrapeAthleticNews(mapping.fullName);
-                
-                // Combine: ESPN first, then Athletic
-                const allHeadlines = [...espnHeadlines, ...athleticHeadlines];
-                if (allHeadlines.length > 0) {
-                  teamData.headlines = allHeadlines.slice(0, 5);
-                  if (espnHeadlines.length > 0) result.sources_succeeded.push(`sports:${team}:espn`);
-                  if (athleticHeadlines.length > 0) result.sources_succeeded.push(`sports:${team}:athletic`);
+                if (espnHeadlines.length > 0) {
+                  teamData.headlines = espnHeadlines;
+                  result.sources_succeeded.push(`sports:${team}:espn`);
                 }
               }
+            }
 
-              // Only add team if we have ANY data
-              if (teamData.last_game || teamData.headlines.length > 0) {
-                result.sports[team] = teamData;
-              } else {
-                result.sources_failed.push(`sports:${team}`);
-              }
-            })().catch(e => {
-              console.error(`Sports scrape error for ${team}:`, e);
+            // Only add team if we have ANY data
+            if (teamData.last_game || teamData.headlines.length > 0) {
+              result.sports[team] = teamData;
+            } else {
               result.sources_failed.push(`sports:${team}`);
-            })
-          );
-        } else {
-          console.log(`No mapping found for team: ${team}, using Google News fallback`);
-          scrapePromises.push(
-            (async () => {
-              const googleNews = await scrapeGoogleNews(`${team} sports news`);
-              if (googleNews.length > 0) {
-                result.sports[team] = {
-                  name: team.charAt(0).toUpperCase() + team.slice(1),
-                  headlines: googleNews,
-                  last_game: null
-                };
-                result.sources_succeeded.push(`sports:${team}:google`);
-              } else {
-                result.sources_failed.push(`sports:${team}`);
-              }
-            })().catch(e => {
-              console.error(`Sports scrape error for ${team}:`, e);
-              result.sources_failed.push(`sports:${team}`);
-            })
-          );
-        }
+            }
+          })().catch(e => {
+            console.error(`Sports scrape error for ${team}:`, e);
+            result.sources_failed.push(`sports:${team}`);
+          })
+        );
       }
     }
 
-    // ========== TECH/AI: Hacker News + TechCrunch ==========
+    // ========== TECH/AI: Tavily search (primary) ==========
     if (categories.tech) {
       scrapePromises.push(
         (async () => {
-          const [hnNews, tcNews] = await Promise.all([
-            scrapeHackerNews(),
-            scrapeTechCrunch(body.tech_topics)
-          ]);
+          const techQuery = body.tech_topics 
+            ? `${body.tech_topics} technology news today`
+            : 'AI artificial intelligence technology news today';
           
-          result.tech.ai_news = [...hnNews, ...tcNews].slice(0, 5);
+          const techNews = await searchWithTavily(techQuery, 5);
           
-          if (hnNews.length > 0) result.sources_succeeded.push('tech:hackernews');
-          if (tcNews.length > 0) result.sources_succeeded.push('tech:techcrunch');
-          if (hnNews.length === 0 && tcNews.length === 0) {
-            // Fallback to Google News
-            const googleTech = await scrapeGoogleNews(body.tech_topics || 'AI technology news');
-            result.tech.ai_news = googleTech;
-            if (googleTech.length > 0) result.sources_succeeded.push('tech:google');
-            else result.sources_failed.push('tech');
+          if (techNews.length > 0) {
+            result.tech.ai_news = techNews;
+            result.sources_succeeded.push('tech:tavily');
+          } else {
+            // Fallback to Browserless
+            const [hnNews, tcNews] = await Promise.all([
+              scrapeHackerNews(),
+              scrapeTechCrunch(body.tech_topics)
+            ]);
+            result.tech.ai_news = [...hnNews, ...tcNews].slice(0, 5);
+            if (hnNews.length > 0) result.sources_succeeded.push('tech:hackernews');
+            if (tcNews.length > 0) result.sources_succeeded.push('tech:techcrunch');
+            if (result.tech.ai_news.length === 0) result.sources_failed.push('tech');
           }
         })().catch(e => {
           console.error('Tech scrape error:', e);
@@ -630,24 +654,29 @@ serve(async (req) => {
       );
     }
 
-    // ========== BUSINESS: Bloomberg + Yahoo Finance ==========
+    // ========== BUSINESS: Tavily search (primary) ==========
     if (categories.business) {
       scrapePromises.push(
         (async () => {
-          const [bloombergNews, yahooNews] = await Promise.all([
-            scrapeBloombergNews('business'),
-            scrapeYahooFinance()
-          ]);
+          const businessQuery = body.business_topics 
+            ? `${body.business_topics} business news today`
+            : 'business finance economy news today';
           
-          result.business = [...bloombergNews, ...yahooNews].slice(0, 5);
+          const businessNews = await searchWithTavily(businessQuery, 5);
           
-          if (bloombergNews.length > 0) result.sources_succeeded.push('business:bloomberg');
-          if (yahooNews.length > 0) result.sources_succeeded.push('business:yahoo');
-          if (bloombergNews.length === 0 && yahooNews.length === 0) {
-            const googleBiz = await scrapeGoogleNews(body.business_topics || 'business news');
-            result.business = googleBiz;
-            if (googleBiz.length > 0) result.sources_succeeded.push('business:google');
-            else result.sources_failed.push('business');
+          if (businessNews.length > 0) {
+            result.business = businessNews;
+            result.sources_succeeded.push('business:tavily');
+          } else {
+            // Fallback to Browserless
+            const [bloombergNews, yahooNews] = await Promise.all([
+              scrapeBloombergNews('business'),
+              scrapeYahooFinance()
+            ]);
+            result.business = [...bloombergNews, ...yahooNews].slice(0, 5);
+            if (bloombergNews.length > 0) result.sources_succeeded.push('business:bloomberg');
+            if (yahooNews.length > 0) result.sources_succeeded.push('business:yahoo');
+            if (result.business.length === 0) result.sources_failed.push('business');
           }
         })().catch(e => {
           console.error('Business scrape error:', e);
@@ -656,26 +685,27 @@ serve(async (req) => {
       );
     }
 
-    // ========== TRADING/MARKETS: Bloomberg + MarketWatch ==========
+    // ========== TRADING/MARKETS: Tavily search (primary) ==========
     if (categories.trading) {
       scrapePromises.push(
         (async () => {
-          const [bloombergMarkets, marketWatchNews] = await Promise.all([
-            scrapeBloombergNews('markets'),
-            scrapeMarketWatch()
-          ]);
+          const tradingNews = await searchWithTavily('stock market trading finance news today', 5);
           
-          result.trading = [...bloombergMarkets, ...marketWatchNews].slice(0, 5);
-          result.markets.headlines = result.trading.map(h => h.title);
-          
-          if (bloombergMarkets.length > 0) result.sources_succeeded.push('trading:bloomberg');
-          if (marketWatchNews.length > 0) result.sources_succeeded.push('trading:marketwatch');
-          if (bloombergMarkets.length === 0 && marketWatchNews.length === 0) {
-            const googleMarkets = await scrapeGoogleNews('stock market trading news');
-            result.trading = googleMarkets;
-            result.markets.headlines = googleMarkets.map(h => h.title);
-            if (googleMarkets.length > 0) result.sources_succeeded.push('trading:google');
-            else result.sources_failed.push('trading');
+          if (tradingNews.length > 0) {
+            result.trading = tradingNews;
+            result.markets.headlines = tradingNews.map(h => h.title);
+            result.sources_succeeded.push('trading:tavily');
+          } else {
+            // Fallback to Browserless
+            const [bloombergMarkets, marketWatchNews] = await Promise.all([
+              scrapeBloombergNews('markets'),
+              scrapeMarketWatch()
+            ]);
+            result.trading = [...bloombergMarkets, ...marketWatchNews].slice(0, 5);
+            result.markets.headlines = result.trading.map(h => h.title);
+            if (bloombergMarkets.length > 0) result.sources_succeeded.push('trading:bloomberg');
+            if (marketWatchNews.length > 0) result.sources_succeeded.push('trading:marketwatch');
+            if (result.trading.length === 0) result.sources_failed.push('trading');
           }
         })().catch(e => {
           console.error('Trading scrape error:', e);
@@ -862,14 +892,21 @@ serve(async (req) => {
       );
     }
 
-    // ========== CUSTOM TOPICS: Google News ==========
+    // ========== CUSTOM TOPICS: Tavily search (primary) ==========
     if (body.custom_topics) {
       scrapePromises.push(
         (async () => {
-          const customNews = await scrapeGoogleNews(body.custom_topics!);
-          result.custom = customNews;
-          if (customNews.length > 0) result.sources_succeeded.push('custom:google');
-          else result.sources_failed.push('custom');
+          const customNews = await searchWithTavily(`${body.custom_topics} news today`, 5);
+          if (customNews.length > 0) {
+            result.custom = customNews;
+            result.sources_succeeded.push('custom:tavily');
+          } else {
+            // Fallback to Google News scraping
+            const googleCustom = await scrapeGoogleNews(body.custom_topics!);
+            result.custom = googleCustom;
+            if (googleCustom.length > 0) result.sources_succeeded.push('custom:google');
+            else result.sources_failed.push('custom');
+          }
         })().catch(e => {
           console.error('Custom topics scrape error:', e);
           result.sources_failed.push('custom');

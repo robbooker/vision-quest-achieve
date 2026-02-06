@@ -1,17 +1,63 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Sparkles, Edit2 } from 'lucide-react';
+import { Sparkles, Edit2, Play, Pause, Sunrise } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCurrentMonthIntention } from '@/hooks/useMonthlyIntention';
 import { SetIntentionDialog } from './SetIntentionDialog';
+import { useTodaysBriefing, useBriefingPreferences } from '@/hooks/useBriefings';
+import { Link } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
 export const MonthlyIntentionWidget = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const { data: intention, isLoading } = useCurrentMonthIntention();
+  const { data: briefingPrefs } = useBriefingPreferences();
+  const { data: todayBriefing } = useTodaysBriefing();
+  
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const currentMonth = format(new Date(), 'MMMM');
+  
+  const hasBriefing = briefingPrefs?.enabled && todayBriefing?.status === 'ready' && todayBriefing?.podcast_url;
+
+  const handlePlayPause = async () => {
+    if (!audioRef.current) return;
+    
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+      // Mark as played if not already
+      if (todayBriefing && !todayBriefing.played_at) {
+        await supabase.functions.invoke('briefing-mark-played', {
+          body: { briefingId: todayBriefing.id }
+        });
+      }
+    }
+    setIsPlaying(!isPlaying);
+  };
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    
+    const handleEnded = () => setIsPlaying(false);
+    const handlePause = () => setIsPlaying(false);
+    const handlePlay = () => setIsPlaying(true);
+    
+    audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('pause', handlePause);
+    audio.addEventListener('play', handlePlay);
+    
+    return () => {
+      audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('pause', handlePause);
+      audio.removeEventListener('play', handlePlay);
+    };
+  }, [todayBriefing?.podcast_url]);
 
   if (isLoading) {
     return (
@@ -45,24 +91,62 @@ export const MonthlyIntentionWidget = () => {
   return (
     <>
       <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent group">
-        <CardContent className="py-3 px-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Sparkles className="h-4 w-4 text-primary" />
-            <div>
-              <p className="text-xs text-muted-foreground">{currentMonth}'s Word</p>
-              <p className="text-lg font-bold tracking-wide uppercase text-primary">
-                {intention.word}
-              </p>
+        <CardContent className="py-3 px-4">
+          <div className={`flex items-center ${hasBriefing ? 'justify-between' : 'justify-between'}`}>
+            {/* Left: Monthly Word */}
+            <div className="flex items-center gap-3">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <div>
+                <p className="text-xs text-muted-foreground">{currentMonth}'s Word</p>
+                <p className="text-lg font-bold tracking-wide uppercase text-primary">
+                  {intention.word}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={() => setDialogOpen(true)}
+              >
+                <Edit2 className="h-3 w-3" />
+              </Button>
             </div>
+            
+            {/* Right: Briefing Player (if available) */}
+            {hasBriefing && (
+              <div className="flex items-center gap-3">
+                <div className="hidden sm:flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                  <Sunrise className="h-4 w-4" />
+                  <span className="text-xs font-medium">Briefing</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="gap-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/30"
+                  onClick={handlePlayPause}
+                >
+                  {isPlaying ? (
+                    <>
+                      <Pause className="h-4 w-4" />
+                      <span className="hidden sm:inline">Pause</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-4 w-4" />
+                      <span className="hidden sm:inline">Play</span>
+                    </>
+                  )}
+                </Button>
+                
+                {/* Hidden audio element */}
+                <audio
+                  ref={audioRef}
+                  src={todayBriefing.podcast_url || undefined}
+                  className="hidden"
+                />
+              </div>
+            )}
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-            onClick={() => setDialogOpen(true)}
-          >
-            <Edit2 className="h-3 w-3" />
-          </Button>
         </CardContent>
       </Card>
       <SetIntentionDialog 

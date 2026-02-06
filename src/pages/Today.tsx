@@ -50,7 +50,6 @@ import { UniversalVoiceRecorder } from '@/components/dashboard/UniversalVoiceRec
 import { HealthMetricsWidget } from '@/components/dashboard/HealthMetricsWidget';
 import { MonthlyIntentionWidget } from '@/components/dashboard/MonthlyIntentionWidget';
 import { WeatherWidget } from '@/components/dashboard/WeatherWidget';
-import { MorningBriefingPlayer } from '@/components/dashboard/MorningBriefingPlayer';
 
 export default function Today() {
   const navigate = useNavigate();
@@ -311,10 +310,7 @@ export default function Today() {
         {/* Compact Reset Card - when reset is active */}
         {isResetActive && <CompactResetCard />}
 
-        {/* Morning Briefing Player - shows when briefing is ready */}
-        <MorningBriefingPlayer />
-
-        {/* Monthly Intention Widget */}
+        {/* Monthly Intention Widget (includes briefing player) */}
         <MonthlyIntentionWidget />
 
         {/* Sick Day Banner */}

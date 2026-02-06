@@ -130,7 +130,7 @@ serve(async (req) => {
       try {
         console.log('Fetching Short Scout data...');
         const ssResponse = await fetch(
-          `${SHORT_SCOUT_URL}/rest/v1/rpc/get_tickers_data?section=tickers`,
+          `${SHORT_SCOUT_URL}/functions/v1/platform-stats?section=tickers`,
           {
             headers: {
               'apikey': SHORT_SCOUT_ANON_KEY,

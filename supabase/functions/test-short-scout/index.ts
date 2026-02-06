@@ -19,7 +19,7 @@ async function fetchShortScoutSection(
 ): Promise<ShortScoutResponse> {
   try {
     const response = await fetch(
-      `${baseUrl}/rest/v1/rpc/get_tickers_data?section=${section}`,
+      `${baseUrl}/functions/v1/platform-stats?section=${section}`,
       {
         headers: {
           'apikey': anonKey,

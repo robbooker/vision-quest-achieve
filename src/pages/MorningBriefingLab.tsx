@@ -280,6 +280,7 @@ export default function MorningBriefingLab() {
 
   const handleUseCurrentLocation = async () => {
     if ('geolocation' in navigator) {
+      toast.info('Getting your location...');
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
           const { latitude, longitude } = pos.coords;
@@ -297,7 +298,7 @@ export default function MorningBriefingLab() {
               ...prev,
               location_lat: latitude,
               location_lng: longitude,
-              location_name: `${locationName} (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`
+              location_name: locationName
             }));
             // Also update briefing_preferences
             updateSchedulingMutation.mutate({
@@ -306,18 +307,34 @@ export default function MorningBriefingLab() {
               location_name: locationName
             } as any);
             if (!initialLoadRef.current) setHasUnsavedChanges(true);
+            
+            toast.success(`Location set to ${locationName}`, {
+              description: `Coordinates: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`
+            });
           } catch (e) {
+            const fallbackName = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
             setLocalPrefs(prev => ({
               ...prev,
               location_lat: latitude,
               location_lng: longitude,
-              location_name: `Coordinates: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`
+              location_name: fallbackName
             }));
             if (!initialLoadRef.current) setHasUnsavedChanges(true);
+            
+            toast.success(`Location set`, {
+              description: `Coordinates: ${fallbackName}`
+            });
           }
         },
-        (err) => console.error('Geolocation error:', err)
+        (err) => {
+          console.error('Geolocation error:', err);
+          toast.error('Could not get location', {
+            description: err.message || 'Please check your browser permissions'
+          });
+        }
       );
+    } else {
+      toast.error('Geolocation not supported by your browser');
     }
   };
 
@@ -418,9 +435,9 @@ export default function MorningBriefingLab() {
           </CardHeader>
         </Card>
 
-        {/* Latest Briefing */}
-        {latestBriefing && latestBriefing.status === 'ready' && latestBriefing.podcast_url && (
-          <Card className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-amber-500/30">
+        {/* Latest Briefing - only show if no freshly generated briefing */}
+        {!generatedBriefing && latestBriefing && latestBriefing.status === 'ready' && latestBriefing.podcast_url && (
+          <Card className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-amber-200/30 dark:border-amber-500/30">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -625,10 +642,20 @@ export default function MorningBriefingLab() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {localPrefs.location_name && (
-              <p className="text-sm text-muted-foreground">
-                📍 {localPrefs.location_name}
-              </p>
+            {localPrefs.location_name ? (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">{localPrefs.location_name}</p>
+                  {localPrefs.location_lat && localPrefs.location_lng && (
+                    <p className="text-xs text-muted-foreground">
+                      {localPrefs.location_lat.toFixed(4)}, {localPrefs.location_lng.toFixed(4)}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground italic">No location set</p>
             )}
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="flex gap-2">

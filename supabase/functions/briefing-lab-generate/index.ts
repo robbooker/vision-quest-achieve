@@ -27,7 +27,6 @@ serve(async (req) => {
     const ELEVENLABS_API_KEY = Deno.env.get('ELEVENLABS_API_KEY')!;
     const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
     const SHORT_SCOUT_URL = Deno.env.get('SHORT_SCOUT_URL');
-    const SHORT_SCOUT_ANON_KEY = Deno.env.get('SHORT_SCOUT_ANON_KEY');
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -126,16 +125,15 @@ serve(async (req) => {
 
     // Step 1: Fetch Short Scout data if enabled (private API, not web-searchable)
     let shortScoutData: { top_searched: string[]; most_traded: string[] } | null = null;
-    if (labPrefs?.include_short_scout && SHORT_SCOUT_URL && SHORT_SCOUT_ANON_KEY) {
+    const SHORT_SCOUT_PLATFORM_KEY = Deno.env.get('SHORT_SCOUT_PLATFORM_KEY');
+    if (labPrefs?.include_short_scout && SHORT_SCOUT_URL && SHORT_SCOUT_PLATFORM_KEY) {
       try {
         console.log('Fetching Short Scout data...');
         const ssResponse = await fetch(
-          `${SHORT_SCOUT_URL}/functions/v1/platform-stats?section=tickers`,
+          `${SHORT_SCOUT_URL}/functions/v1/platform-stats?section=tickers&days=30`,
           {
             headers: {
-              'apikey': SHORT_SCOUT_ANON_KEY,
-              'Authorization': `Bearer ${SHORT_SCOUT_ANON_KEY}`,
-              'Content-Type': 'application/json'
+              'x-api-key': SHORT_SCOUT_PLATFORM_KEY
             }
           }
         );

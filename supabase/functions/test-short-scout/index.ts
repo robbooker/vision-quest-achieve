@@ -14,17 +14,15 @@ interface ShortScoutResponse {
 
 async function fetchShortScoutSection(
   baseUrl: string,
-  anonKey: string,
+  apiKey: string,
   section: string
 ): Promise<ShortScoutResponse> {
   try {
     const response = await fetch(
-      `${baseUrl}/functions/v1/platform-stats?section=${section}`,
+      `${baseUrl}/functions/v1/platform-stats?section=${section}&days=30`,
       {
         headers: {
-          'apikey': anonKey,
-          'Authorization': `Bearer ${anonKey}`,
-          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
         },
       }
     );
@@ -96,15 +94,15 @@ serve(async (req) => {
 
     // Check if Short Scout secrets are configured
     const shortScoutUrl = Deno.env.get('SHORT_SCOUT_URL');
-    const shortScoutAnonKey = Deno.env.get('SHORT_SCOUT_ANON_KEY');
+    const shortScoutPlatformKey = Deno.env.get('SHORT_SCOUT_PLATFORM_KEY');
 
-    const secretsConfigured = !!(shortScoutUrl && shortScoutAnonKey);
+    const secretsConfigured = !!(shortScoutUrl && shortScoutPlatformKey);
 
     if (!secretsConfigured) {
       return new Response(
         JSON.stringify({
           secrets_configured: false,
-          error: 'SHORT_SCOUT_URL and/or SHORT_SCOUT_ANON_KEY not configured',
+          error: 'SHORT_SCOUT_URL and/or SHORT_SCOUT_PLATFORM_KEY not configured',
           tickers: { success: false, data: null, error: 'Secrets not configured' },
           engagement: { success: false, data: null, error: 'Secrets not configured' },
           trends: { success: false, data: null, error: 'Secrets not configured' },
@@ -117,9 +115,9 @@ serve(async (req) => {
 
     // Test all three sections in parallel
     const [tickers, engagement, trends] = await Promise.all([
-      fetchShortScoutSection(shortScoutUrl!, shortScoutAnonKey!, 'tickers'),
-      fetchShortScoutSection(shortScoutUrl!, shortScoutAnonKey!, 'engagement'),
-      fetchShortScoutSection(shortScoutUrl!, shortScoutAnonKey!, 'trends'),
+      fetchShortScoutSection(shortScoutUrl!, shortScoutPlatformKey!, 'tickers'),
+      fetchShortScoutSection(shortScoutUrl!, shortScoutPlatformKey!, 'engagement'),
+      fetchShortScoutSection(shortScoutUrl!, shortScoutPlatformKey!, 'trends'),
     ]);
 
     console.log('Tickers response:', JSON.stringify(tickers, null, 2));

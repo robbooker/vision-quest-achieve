@@ -120,8 +120,8 @@ export default function MorningBriefingLab() {
   const [zipCode, setZipCode] = useState('');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [showToken, setShowToken] = useState(false);
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [showApiKey, setShowApiKey] = useState(false);
   const initialLoadRef = useRef(true);
   const [generatedBriefing, setGeneratedBriefing] = useState<{
     podcast_url: string;
@@ -131,14 +131,19 @@ export default function MorningBriefingLab() {
     sources_failed: string[];
   } | null>(null);
 
-  // Fetch access token for admin iOS shortcut section
+  // Fetch API key for admin iOS shortcut section
   useEffect(() => {
-    if (isAdmin) {
-      supabase.auth.getSession().then(({ data }) => {
-        setAccessToken(data.session?.access_token || null);
-      });
+    if (isAdmin && user?.id) {
+      supabase
+        .from('profiles')
+        .select('api_key')
+        .eq('user_id', user.id)
+        .single()
+        .then(({ data }) => {
+          setApiKey(data?.api_key || null);
+        });
     }
-  }, [isAdmin]);
+  }, [isAdmin, user?.id]);
   // Fetch scheduling preferences from briefing_preferences table
   const { data: schedulingPrefs } = useQuery({
     queryKey: ['briefing-preferences', user?.id],
@@ -930,43 +935,43 @@ export default function MorningBriefingLab() {
                 </pre>
               </div>
 
-              {/* Your Access Token */}
+              {/* Your API Key */}
               <div className="space-y-2">
-                <Label className="text-sm font-medium">Your Access Token</Label>
+                <Label className="text-sm font-medium">Your API Key</Label>
                 <p className="text-xs text-muted-foreground">
-                  Copy this token into your iOS Shortcut. Token refreshes on login.
+                  Copy this key into your iOS Shortcut as the Bearer token. This is a permanent key (not a session token).
                 </p>
-                {accessToken ? (
+                {apiKey ? (
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <code className="flex-1 bg-muted px-3 py-2 rounded-md text-xs font-mono break-all max-h-20 overflow-y-auto">
-                        {showToken ? accessToken : '••••••••••••••••••••••••••••••••'}
+                      <code className="flex-1 bg-muted px-3 py-2 rounded-md text-xs font-mono break-all">
+                        {showApiKey ? apiKey : '••••••••••••••••••••••••••••••••'}
                       </code>
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => setShowToken(!showToken)}
-                        title={showToken ? 'Hide token' : 'Show token'}
+                        onClick={() => setShowApiKey(!showApiKey)}
+                        title={showApiKey ? 'Hide key' : 'Show key'}
                       >
-                        {showToken ? <Check className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
+                        {showApiKey ? <Check className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
                       </Button>
                       <Button
                         variant="outline"
                         size="icon"
                         onClick={() => {
-                          navigator.clipboard.writeText(accessToken);
-                          toast.success('Access token copied to clipboard');
+                          navigator.clipboard.writeText(apiKey);
+                          toast.success('API key copied to clipboard');
                         }}
                       >
                         <Copy className="h-4 w-4" />
                       </Button>
                     </div>
                     <p className="text-xs text-amber-600 dark:text-amber-400">
-                      ⚠️ Keep this token private. It grants access to your account.
+                      ⚠️ Keep this key private. It grants access to your briefings.
                     </p>
                   </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground italic">Loading token...</p>
+                  <p className="text-xs text-muted-foreground italic">No API key found. Contact admin to generate one.</p>
                 )}
               </div>
 

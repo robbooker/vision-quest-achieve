@@ -88,24 +88,29 @@ export function useUpdateBriefingLabPreferences() {
     mutationFn: async (prefs: Partial<BriefingLabPreferences>) => {
       if (!user?.id) throw new Error('Not authenticated');
 
-      const { data: existing } = await supabase
-        .from('briefing_lab_preferences')
-        .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      console.log('[BriefingLab] Saving preferences for user:', user.id, prefs);
 
-      if (existing) {
-        const { error } = await supabase
-          .from('briefing_lab_preferences')
-          .update({ ...prefs, updated_at: new Date().toISOString() })
-          .eq('user_id', user.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('briefing_lab_preferences')
-          .insert({ user_id: user.id, ...prefs });
-        if (error) throw error;
+      // Use upsert to simplify logic and avoid race conditions
+      const { error } = await supabase
+        .from('briefing_lab_preferences')
+        .upsert(
+          { 
+            user_id: user.id, 
+            ...prefs,
+            updated_at: new Date().toISOString() 
+          },
+          { 
+            onConflict: 'user_id',
+            ignoreDuplicates: false 
+          }
+        );
+      
+      if (error) {
+        console.error('[BriefingLab] Save error:', error);
+        throw error;
       }
+      
+      console.log('[BriefingLab] Preferences saved successfully');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['briefing-lab-preferences'] });

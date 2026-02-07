@@ -251,12 +251,25 @@ export function useAudioJournal() {
         .single();
 
       if (entry?.audio_url) {
-        // Extract file path from URL
-        const url = new URL(entry.audio_url);
-        const pathParts = url.pathname.split("/");
-        const filePath = pathParts.slice(-2).join("/");
-
-        await supabase.storage.from("journal-audio").remove([filePath]);
+        // Extract file path from URL more robustly
+        // Supabase storage URLs have format: .../storage/v1/object/public/bucket-name/path/to/file
+        try {
+          const url = new URL(entry.audio_url);
+          const bucketName = "journal-audio";
+          const bucketIndex = url.pathname.indexOf(`/${bucketName}/`);
+          
+          if (bucketIndex !== -1) {
+            // Extract everything after the bucket name
+            const filePath = url.pathname.slice(bucketIndex + bucketName.length + 2);
+            if (filePath) {
+              await supabase.storage.from(bucketName).remove([filePath]);
+            }
+          } else {
+            console.warn("Could not extract file path from audio URL:", entry.audio_url);
+          }
+        } catch (e) {
+          console.error("Failed to parse audio URL for deletion:", e);
+        }
       }
 
       const { error } = await supabase

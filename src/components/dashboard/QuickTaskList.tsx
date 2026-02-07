@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format, isToday, isTomorrow, isPast, parseISO } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -366,6 +366,11 @@ function SortableSharedTaskItem({
   };
 
   const [selectedFriends, setSelectedFriends] = useState<string[]>(task.shared_with);
+
+  // Sync selectedFriends when task.shared_with changes (e.g., after mutation success)
+  useEffect(() => {
+    setSelectedFriends(task.shared_with);
+  }, [task.shared_with]);
 
   const toggleFriend = (friendId: string) => {
     const newSelection = selectedFriends.includes(friendId)

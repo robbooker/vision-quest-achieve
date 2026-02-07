@@ -24,10 +24,10 @@ import {
   useBriefingLabPreferences, 
   useUpdateBriefingLabPreferences, 
   useGenerateLabBriefing,
-  useSendBriefingSms 
+  useSendBriefingSms,
+  useBriefingLabEpisodes
 } from '@/hooks/useBriefingLab';
-import { useBriefingHistory } from '@/hooks/useBriefings';
-import type { BriefingLabPreferences, DepthLevel } from '@/hooks/useBriefingLab';
+import type { BriefingLabPreferences, DepthLevel, BriefingLabEpisode } from '@/hooks/useBriefingLab';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -109,13 +109,13 @@ export default function MorningBriefingLab() {
   const { isAdmin } = useUserRole();
   const queryClient = useQueryClient();
   const { data: prefs, isLoading: prefsLoading } = useBriefingLabPreferences();
-  const { data: briefingHistory } = useBriefingHistory(5);
+  const { data: labEpisodes } = useBriefingLabEpisodes(5);
   const updatePrefs = useUpdateBriefingLabPreferences();
   const generateBriefing = useGenerateLabBriefing();
   const sendSms = useSendBriefingSms();
   
-  // Get the latest briefing
-  const latestBriefing = briefingHistory?.briefings?.[0];
+  // Get the latest ready briefing from the NEW system (briefing_lab_episodes)
+  const latestBriefing = labEpisodes?.find(ep => ep.status === 'ready' && ep.podcast_url);
 
   const [localPrefs, setLocalPrefs] = useState<Partial<BriefingLabPreferences>>({});
   const [zipCode, setZipCode] = useState('');
@@ -436,7 +436,7 @@ export default function MorningBriefingLab() {
         </Card>
 
         {/* Latest Briefing - only show if no freshly generated briefing */}
-        {!generatedBriefing && latestBriefing && latestBriefing.status === 'ready' && latestBriefing.podcast_url && (
+        {!generatedBriefing && latestBriefing && latestBriefing.podcast_url && (
           <Card className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-amber-200/30 dark:border-amber-500/30">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -446,10 +446,10 @@ export default function MorningBriefingLab() {
                 </CardTitle>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="text-xs">
-                    {(() => {
-                      const [year, month, day] = latestBriefing.wake_date.split('-').map(Number);
-                      return format(new Date(year, month - 1, day), 'MMM d, yyyy');
-                    })()}
+                    {latestBriefing.generated_at 
+                      ? format(new Date(latestBriefing.generated_at), 'MMM d, yyyy')
+                      : format(new Date(latestBriefing.created_at), 'MMM d, yyyy')
+                    }
                   </Badge>
                   {latestBriefing.duration_seconds && (
                     <span className="text-xs text-muted-foreground">

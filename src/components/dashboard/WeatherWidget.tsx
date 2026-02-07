@@ -98,27 +98,37 @@ export function WeatherWidget() {
         // Check for cached weather data (cache for 30 min)
         const cached = localStorage.getItem('weather_cache');
         if (cached) {
-          const { data, timestamp } = JSON.parse(cached);
-          if (Date.now() - timestamp < 30 * 60 * 1000) {
-            setWeather(data);
-           // Check if we're using manual location
-           const manualLocation = localStorage.getItem('weather_manual_location');
-           setUsingManualLocation(!!manualLocation);
-            setLoading(false);
-            return;
+          try {
+            const { data, timestamp } = JSON.parse(cached);
+            if (Date.now() - timestamp < 30 * 60 * 1000) {
+              setWeather(data);
+             // Check if we're using manual location
+             const manualLocation = localStorage.getItem('weather_manual_location');
+             setUsingManualLocation(!!manualLocation);
+              setLoading(false);
+              return;
+            }
+          } catch {
+            console.error('Failed to parse weather cache from localStorage');
+            localStorage.removeItem('weather_cache');
           }
         }
 
        // Check for manual location first
        const manualLocation = localStorage.getItem('weather_manual_location');
        if (manualLocation) {
-         const { latitude, longitude, city, state } = JSON.parse(manualLocation);
-         const weatherData = await fetchWeatherData(latitude, longitude, `${city}, ${state}`);
-         setWeather(weatherData);
-         setUsingManualLocation(true);
-         setError(null);
-         setLoading(false);
-         return;
+         try {
+           const { latitude, longitude, city, state } = JSON.parse(manualLocation);
+           const weatherData = await fetchWeatherData(latitude, longitude, `${city}, ${state}`);
+           setWeather(weatherData);
+           setUsingManualLocation(true);
+           setError(null);
+           setLoading(false);
+           return;
+         } catch {
+           console.error('Failed to parse manual location from localStorage');
+           localStorage.removeItem('weather_manual_location');
+         }
        }
  
         // Check if geolocation is available

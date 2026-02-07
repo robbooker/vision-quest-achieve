@@ -69,7 +69,9 @@ export function useGoals(cycleId?: string) {
   const goalsQuery = useQuery({
     queryKey: ['goals', cycleId],
     queryFn: async () => {
-      let query = supabase.from('goals').select('*');
+      if (!user) throw new Error('Not authenticated');
+      
+      let query = supabase.from('goals').select('*').eq('user_id', user.id);
       
       if (cycleId) {
         query = query.eq('cycle_id', cycleId);

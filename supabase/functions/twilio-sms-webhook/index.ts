@@ -361,7 +361,7 @@ function getWebhookUrl(functionName: string): string {
   return `${supabaseUrl}/functions/v1/${functionName}`;
 }
 
-// Validate Twilio request signature
+// Validate Twilio request signature using HMAC-SHA1
 async function validateTwilioSignature(
   authToken: string,
   signature: string,
@@ -369,24 +369,13 @@ async function validateTwilioSignature(
   params: Record<string, string>
 ): Promise<boolean> {
   try {
-    // Sort params alphabetically by key (case-sensitive Unix-style sort)
-    const sortedKeys = Object.keys(params).sort();
-    const sortedParams = sortedKeys
+    // Sort params alphabetically by key and concatenate key+value
+    const sortedParams = Object.keys(params)
+      .sort()
       .map(key => key + params[key])
       .join('');
     
     const data = url + sortedParams;
-    
-    // Debug: Log what we're signing (partial for security)
-    console.log('Signature validation debug:', {
-      url,
-      paramCount: sortedKeys.length,
-      sortedKeys,
-      dataLength: data.length,
-      dataPreview: data.substring(0, 100) + '...',
-      receivedSig: signature?.substring(0, 20) + '...',
-      authTokenLength: authToken?.length
-    });
     
     const encoder = new TextEncoder();
     const keyData = encoder.encode(authToken);
@@ -402,12 +391,6 @@ async function validateTwilioSignature(
     
     const signatureBytes = await crypto.subtle.sign('HMAC', key, dataBytes);
     const computedSignature = btoa(String.fromCharCode(...new Uint8Array(signatureBytes)));
-    
-    console.log('Signature comparison:', {
-      computed: computedSignature.substring(0, 20) + '...',
-      received: signature?.substring(0, 20) + '...',
-      match: computedSignature === signature
-    });
     
     return computedSignature === signature;
   } catch (error) {
@@ -1272,34 +1255,24 @@ serve(async (req) => {
 
     console.log('Twilio SMS webhook received:', JSON.stringify(params, null, 2));
 
-    // Validate Twilio signature
+    // Validate Twilio signature - REQUIRED for security
     const twilioSignature = req.headers.get('x-twilio-signature');
+    if (!twilioSignature) {
+      console.error('Missing Twilio signature header');
+      return new Response('Forbidden', { status: 403, headers: corsHeaders });
+    }
+
     const webhookUrl = getWebhookUrl('twilio-sms-webhook');
-    
-    // TEMPORARY: Log signature info but don't block
-    // This allows us to verify what URL Twilio is signing with
-    if (twilioSignature) {
-      const isValid = await validateTwilioSignature(
-        TWILIO_AUTH_TOKEN,
-        twilioSignature,
-        webhookUrl,
-        params
-      );
-      
-      if (!isValid) {
-        // Log but don't block - temporarily bypassed for debugging
-        console.warn('Signature validation failed - TEMPORARILY BYPASSED for debugging', {
-          webhookUrl,
-          hasSignature: !!twilioSignature,
-          accountSid: params.AccountSid
-        });
-        // TODO: Re-enable blocking after confirming URL match
-        // return new Response('Forbidden', { status: 403, headers: corsHeaders });
-      } else {
-        console.log('Signature validation PASSED!', { webhookUrl });
-      }
-    } else {
-      console.warn('Missing Twilio signature - TEMPORARILY BYPASSED');
+    const isValid = await validateTwilioSignature(
+      TWILIO_AUTH_TOKEN,
+      twilioSignature,
+      webhookUrl,
+      params
+    );
+
+    if (!isValid) {
+      console.error('Invalid Twilio signature');
+      return new Response('Forbidden', { status: 403, headers: corsHeaders });
     }
 
     // Create Supabase admin client

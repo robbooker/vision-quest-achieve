@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -129,23 +130,25 @@ export function useBirdwatching() {
     enabled: !!user,
   });
 
-  // Calculate life list (unique species)
-  const lifeList = [...new Set(sightings.map(s => s.species_name))].map(species => {
-    const speciesSightings = sightings.filter(s => s.species_name === species);
-    const firstSighting = speciesSightings[speciesSightings.length - 1];
-    const lastSighting = speciesSightings[0];
-    return {
-      species,
-      count: speciesSightings.length,
-      firstSeen: firstSighting?.sighting_date,
-      lastSeen: lastSighting?.sighting_date,
-      isNew: speciesSightings.length === 1 && 
-        new Date(firstSighting?.created_at).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000, // Within last 7 days
-    };
-  }).sort((a, b) => a.species.localeCompare(b.species));
+  // Calculate life list (unique species) - memoized to prevent recalculation on every render
+  const lifeList = useMemo(() => {
+    return [...new Set(sightings.map(s => s.species_name))].map(species => {
+      const speciesSightings = sightings.filter(s => s.species_name === species);
+      const firstSighting = speciesSightings[speciesSightings.length - 1];
+      const lastSighting = speciesSightings[0];
+      return {
+        species,
+        count: speciesSightings.length,
+        firstSeen: firstSighting?.sighting_date,
+        lastSeen: lastSighting?.sighting_date,
+        isNew: speciesSightings.length === 1 && 
+          new Date(firstSighting?.created_at).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000, // Within last 7 days
+      };
+    }).sort((a, b) => a.species.localeCompare(b.species));
+  }, [sightings]);
 
-  // Calculate stats
-  const stats = {
+  // Calculate stats - memoized
+  const stats = useMemo(() => ({
     totalSpecies: lifeList.length,
     totalSightings: sightings.length,
     mostFrequentBird: lifeList.reduce((max, bird) => bird.count > (max?.count || 0) ? bird : max, null as typeof lifeList[0] | null),
@@ -155,19 +158,21 @@ export function useBirdwatching() {
       return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
     }).length,
     thisYear: sightings.filter(s => new Date(s.sighting_date).getFullYear() === new Date().getFullYear()).length,
-  };
+  }), [sightings, lifeList]);
 
-  // Get seasonal data (which months each species has been spotted)
-  const seasonalData = lifeList.map(bird => {
-    const months = new Array(12).fill(0);
-    sightings
-      .filter(s => s.species_name === bird.species)
-      .forEach(s => {
-        const month = new Date(s.sighting_date).getMonth();
-        months[month]++;
-      });
-    return { species: bird.species, months };
-  });
+  // Get seasonal data (which months each species has been spotted) - memoized
+  const seasonalData = useMemo(() => {
+    return lifeList.map(bird => {
+      const months = new Array(12).fill(0);
+      sightings
+        .filter(s => s.species_name === bird.species)
+        .forEach(s => {
+          const month = new Date(s.sighting_date).getMonth();
+          months[month]++;
+        });
+      return { species: bird.species, months };
+    });
+  }, [sightings, lifeList]);
 
   // Add sighting mutation
   const addSighting = useMutation({

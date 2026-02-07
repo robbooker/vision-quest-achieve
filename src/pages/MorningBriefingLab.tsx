@@ -222,13 +222,18 @@ export default function MorningBriefingLab() {
     },
   });
 
-  // Initialize local prefs from server
+  // Initialize local prefs from server - handles both existing prefs and new users
   useEffect(() => {
+    // Only run initialization once when prefsLoading completes
+    if (prefsLoading) return;
+    
     if (prefs) {
       setLocalPrefs(prefs);
-      initialLoadRef.current = false;
     }
-  }, [prefs]);
+    // Mark initial load complete whether or not prefs exist
+    // This allows new users to save their first preferences
+    initialLoadRef.current = false;
+  }, [prefs, prefsLoading]);
 
   // Auto-save preferences with debounce
   useEffect(() => {

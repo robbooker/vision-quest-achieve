@@ -18,33 +18,39 @@ export function BreakTimer({ onClose, onBreakComplete }: BreakTimerProps) {
   const [breakMinutes, setBreakMinutes] = useState<number | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const onBreakCompleteRef = useRef(onBreakComplete);
+
+  // Keep the ref updated with the latest callback
+  useEffect(() => {
+    onBreakCompleteRef.current = onBreakComplete;
+  }, [onBreakComplete]);
 
   useEffect(() => {
-    if (breakMinutes !== null && remainingSeconds > 0) {
-      intervalRef.current = setInterval(() => {
-        setRemainingSeconds(prev => {
-          if (prev <= 1) {
-            // Break complete
-            if ('Notification' in window && Notification.permission === 'granted') {
-              new Notification('Break Over! ☕', {
-                body: 'Time to get back to focused work!',
-                icon: '/icon-192.png',
-              });
-            }
-            onBreakComplete();
-            return 0;
+    if (breakMinutes === null || remainingSeconds === 0) return;
+
+    intervalRef.current = setInterval(() => {
+      setRemainingSeconds(prev => {
+        if (prev <= 1) {
+          // Break complete
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('Break Over! ☕', {
+              body: 'Time to get back to focused work!',
+              icon: '/icon-192.png',
+            });
           }
-          return prev - 1;
-        });
-      }, 1000);
-    }
+          onBreakCompleteRef.current();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
 
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
     };
-  }, [breakMinutes, remainingSeconds, onBreakComplete]);
+  }, [breakMinutes]); // Only restart interval when breakMinutes changes (new break started)
 
   const startBreak = (minutes: number) => {
     setBreakMinutes(minutes);

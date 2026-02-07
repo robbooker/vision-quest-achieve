@@ -24,9 +24,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const previousUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
+    let isMounted = true;
+    let initialLoadComplete = false;
+
+    // Set up auth state listener for ONGOING changes (not initial load)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        if (!isMounted) return;
+        
         const newUserId = session?.user?.id ?? null;
         
         // Clear all cached queries when user changes (login/logout)
@@ -37,19 +42,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         setSession(session);
         setUser(session?.user ?? null);
-        setLoading(false);
+        
+        // Only set loading false from listener if initial load already completed
+        // This prevents the listener from prematurely ending the loading state
+        if (initialLoadComplete) {
+          setLoading(false);
+        }
       }
     );
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      previousUserIdRef.current = session?.user?.id ?? null;
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    // Initial session check - controls loading state
+    const initializeAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!isMounted) return;
+        
+        previousUserIdRef.current = session?.user?.id ?? null;
+        setSession(session);
+        setUser(session?.user ?? null);
+      } finally {
+        if (isMounted) {
+          initialLoadComplete = true;
+          setLoading(false);
+        }
+      }
+    };
 
-    return () => subscription.unsubscribe();
+    initializeAuth();
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, [queryClient]);
 
   const signInWithGoogle = async () => {

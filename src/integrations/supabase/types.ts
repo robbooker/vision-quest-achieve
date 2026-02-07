@@ -566,6 +566,9 @@ export type Database = {
           business_topics: string | null
           created_at: string | null
           custom_topics: string | null
+          default_wake_time: string | null
+          enabled: boolean | null
+          evening_reminder_time: string | null
           film_tv_depth: string | null
           gaming_depth: string | null
           gaming_topics: string | null
@@ -595,16 +598,20 @@ export type Database = {
           music_topics: string | null
           politics_depth: string | null
           politics_topics: string | null
+          preferred_channel: string | null
           science_depth: string | null
           science_topics: string | null
+          sms_delivery_enabled: boolean | null
           sports_depth: string | null
           sports_teams: string | null
           tech_depth: string | null
           tech_topics: string | null
+          timezone: string | null
           trading_depth: string | null
           updated_at: string | null
           user_id: string
           voice_id: string | null
+          weekend_enabled: boolean | null
         }
         Insert: {
           books_depth?: string | null
@@ -613,6 +620,9 @@ export type Database = {
           business_topics?: string | null
           created_at?: string | null
           custom_topics?: string | null
+          default_wake_time?: string | null
+          enabled?: boolean | null
+          evening_reminder_time?: string | null
           film_tv_depth?: string | null
           gaming_depth?: string | null
           gaming_topics?: string | null
@@ -642,16 +652,20 @@ export type Database = {
           music_topics?: string | null
           politics_depth?: string | null
           politics_topics?: string | null
+          preferred_channel?: string | null
           science_depth?: string | null
           science_topics?: string | null
+          sms_delivery_enabled?: boolean | null
           sports_depth?: string | null
           sports_teams?: string | null
           tech_depth?: string | null
           tech_topics?: string | null
+          timezone?: string | null
           trading_depth?: string | null
           updated_at?: string | null
           user_id: string
           voice_id?: string | null
+          weekend_enabled?: boolean | null
         }
         Update: {
           books_depth?: string | null
@@ -660,6 +674,9 @@ export type Database = {
           business_topics?: string | null
           created_at?: string | null
           custom_topics?: string | null
+          default_wake_time?: string | null
+          enabled?: boolean | null
+          evening_reminder_time?: string | null
           film_tv_depth?: string | null
           gaming_depth?: string | null
           gaming_topics?: string | null
@@ -689,16 +706,20 @@ export type Database = {
           music_topics?: string | null
           politics_depth?: string | null
           politics_topics?: string | null
+          preferred_channel?: string | null
           science_depth?: string | null
           science_topics?: string | null
+          sms_delivery_enabled?: boolean | null
           sports_depth?: string | null
           sports_teams?: string | null
           tech_depth?: string | null
           tech_topics?: string | null
+          timezone?: string | null
           trading_depth?: string | null
           updated_at?: string | null
           user_id?: string
           voice_id?: string | null
+          weekend_enabled?: boolean | null
         }
         Relationships: []
       }

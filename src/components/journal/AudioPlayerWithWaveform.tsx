@@ -68,12 +68,25 @@ export function AudioPlayerWithWaveform({
   useEffect(() => {
     if (!signedUrl) return;
     
+    const abortController = new AbortController();
+    let audioContext: AudioContext | null = null;
+    
     const generateWaveform = async () => {
       try {
-        const response = await fetch(signedUrl);
+        const response = await fetch(signedUrl, { signal: abortController.signal });
         const arrayBuffer = await response.arrayBuffer();
-        const audioContext = new AudioContext();
+        
+        // Check if aborted before creating AudioContext
+        if (abortController.signal.aborted) return;
+        
+        audioContext = new AudioContext();
         const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        
+        // Check if aborted after decoding
+        if (abortController.signal.aborted) {
+          audioContext.close();
+          return;
+        }
         
         const rawData = audioBuffer.getChannelData(0);
         const samples = 64;
@@ -94,14 +107,23 @@ export function AudioPlayerWithWaveform({
         setWaveformData(normalized);
         
         audioContext.close();
+        audioContext = null;
       } catch (err) {
-        // Fallback to random waveform if decoding fails
+        // Ignore abort errors, fallback for other errors
+        if (err instanceof Error && err.name === 'AbortError') return;
         const fallback = Array(64).fill(0).map(() => 0.2 + Math.random() * 0.8);
         setWaveformData(fallback);
       }
     };
 
     generateWaveform();
+    
+    return () => {
+      abortController.abort();
+      if (audioContext) {
+        audioContext.close();
+      }
+    };
   }, [signedUrl]);
 
   // Draw waveform

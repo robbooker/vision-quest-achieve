@@ -14,6 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Sparkles, ChevronRight, PenLine, RotateCcw } from 'lucide-react';
 import { useSiteTour } from '@/hooks/useSiteTour';
+import { AppVersion } from '@/components/layout/AppVersion';
 
 export default function Settings() {
   const { startTour } = useSiteTour();
@@ -108,6 +109,10 @@ export default function Settings() {
 
         <div data-tour="settings-voice-calls">
           <VoiceCallHistory />
+        </div>
+
+        <div className="pt-4 border-t flex justify-center">
+          <AppVersion />
         </div>
       </div>
     </DashboardLayout>

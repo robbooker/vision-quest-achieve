@@ -560,34 +560,7 @@ Write the complete briefing script now:`;
     console.log(`Generated script: ${script.length} characters, ${citations.length} citations`);
     console.log('Citations:', JSON.stringify(citations.slice(0, 5)));
 
-    // Step 7: Generate intro jingle with ElevenLabs Sound Effects
-    console.log('Generating intro jingle...');
-    let jingleBuffer: ArrayBuffer | null = null;
-    try {
-      const jingleResponse = await fetch('https://api.elevenlabs.io/v1/sound-generation', {
-        method: 'POST',
-        headers: {
-          'xi-api-key': ELEVENLABS_API_KEY,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          text: 'A short, pleasant 3-note ascending chime melody, like a gentle notification or podcast intro. Bright, clear tones.',
-          duration_seconds: 2,
-          prompt_influence: 0.5,
-        }),
-      });
-
-      if (jingleResponse.ok) {
-        jingleBuffer = await jingleResponse.arrayBuffer();
-        console.log(`Generated jingle: ${jingleBuffer.byteLength} bytes`);
-      } else {
-        console.warn('Jingle generation failed, continuing without jingle');
-      }
-    } catch (e) {
-      console.warn('Jingle generation error:', e);
-    }
-
-    // Step 8: Generate audio with ElevenLabs TTS
+    // Step 7: Generate audio with ElevenLabs TTS (jingle removed - MP3 concatenation doesn't work reliably)
     console.log('Generating audio...');
     const ttsResponse = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
@@ -616,26 +589,12 @@ Write the complete briefing script now:`;
       throw new Error(`ElevenLabs API error: ${ttsResponse.status}`);
     }
 
-    const speechBuffer = await ttsResponse.arrayBuffer();
-    console.log(`Generated speech audio: ${speechBuffer.byteLength} bytes`);
-
-    // Step 9: Combine jingle + speech (simple concatenation for MP3)
-    // Note: For proper audio mixing, we'd need a library. Simple concat works for sequential playback.
-    let finalAudioBuffer: ArrayBuffer;
-    if (jingleBuffer && jingleBuffer.byteLength > 0) {
-      // Combine jingle + brief silence gap + speech
-      const combined = new Uint8Array(jingleBuffer.byteLength + speechBuffer.byteLength);
-      combined.set(new Uint8Array(jingleBuffer), 0);
-      combined.set(new Uint8Array(speechBuffer), jingleBuffer.byteLength);
-      finalAudioBuffer = combined.buffer;
-      console.log(`Combined audio: ${finalAudioBuffer.byteLength} bytes`);
-    } else {
-      finalAudioBuffer = speechBuffer;
-    }
+    const finalAudioBuffer = await ttsResponse.arrayBuffer();
+    console.log(`Generated audio: ${finalAudioBuffer.byteLength} bytes`);
 
     // Estimate duration
     const wordCount = script.split(/\s+/).length;
-    const estimatedDuration = Math.round((wordCount / 150) * 60) + (jingleBuffer ? 2 : 0);
+    const estimatedDuration = Math.round((wordCount / 150) * 60);
 
     // Upload to storage
     const fileName = `lab/${userId}/${episode.id}.mp3`;

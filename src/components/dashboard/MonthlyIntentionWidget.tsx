@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import { Sparkles, Edit2, Play, Pause, Radio } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,12 +9,17 @@ import { SetIntentionDialog } from './SetIntentionDialog';
 import { useBriefingLabEpisodes } from '@/hooks/useBriefingLab';
 import { supabase } from '@/integrations/supabase/client';
 
+// Jingle URL - stored in Supabase storage
+const JINGLE_URL = 'https://gogzkyjylruuziseprfw.supabase.co/storage/v1/object/public/briefing-audio/jingles/jingle-option-1.mp3';
+
 export const MonthlyIntentionWidget = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const { data: intention, isLoading } = useCurrentMonthIntention();
   const { data: episodes } = useBriefingLabEpisodes(1);
   
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlayingJingle, setIsPlayingJingle] = useState(false);
+  const jingleRef = useRef<HTMLAudioElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const currentMonth = format(new Date(), 'MMMM');
@@ -23,16 +28,54 @@ export const MonthlyIntentionWidget = () => {
   const latestBriefing = episodes?.find(ep => ep.status === 'ready' && ep.podcast_url);
   const hasBriefing = !!latestBriefing;
 
-  const handlePlayPause = async () => {
-    if (!audioRef.current) return;
+  // Initialize jingle audio
+  useEffect(() => {
+    jingleRef.current = new Audio(JINGLE_URL);
+    jingleRef.current.volume = 0.8;
     
-    if (isPlaying) {
-      audioRef.current.pause();
-    } else {
-      audioRef.current.play();
+    return () => {
+      if (jingleRef.current) {
+        jingleRef.current.pause();
+        jingleRef.current = null;
+      }
+    };
+  }, []);
+
+  const handlePlayPause = useCallback(async () => {
+    if (isPlaying || isPlayingJingle) {
+      // Stop everything
+      if (jingleRef.current) jingleRef.current.pause();
+      if (audioRef.current) audioRef.current.pause();
+      setIsPlaying(false);
+      setIsPlayingJingle(false);
+      return;
     }
-    setIsPlaying(!isPlaying);
-  };
+
+    // Start with jingle, then play briefing
+    if (jingleRef.current && audioRef.current) {
+      setIsPlayingJingle(true);
+      
+      jingleRef.current.currentTime = 0;
+      audioRef.current.currentTime = 0;
+      
+      // When jingle ends, start briefing
+      jingleRef.current.onended = () => {
+        setIsPlayingJingle(false);
+        setIsPlaying(true);
+        audioRef.current?.play();
+      };
+      
+      try {
+        await jingleRef.current.play();
+      } catch (e) {
+        console.error('Failed to play jingle:', e);
+        // Fallback: just play the briefing
+        setIsPlayingJingle(false);
+        setIsPlaying(true);
+        audioRef.current.play();
+      }
+    }
+  }, [isPlaying, isPlayingJingle]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -119,10 +162,10 @@ export const MonthlyIntentionWidget = () => {
                   className="gap-2"
                   onClick={handlePlayPause}
                 >
-                  {isPlaying ? (
+                  {isPlaying || isPlayingJingle ? (
                     <>
                       <Pause className="h-4 w-4" />
-                      <span className="hidden sm:inline">Pause</span>
+                      <span className="hidden sm:inline">{isPlayingJingle ? 'Stop' : 'Pause'}</span>
                     </>
                   ) : (
                     <>

@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { subDays, format } from 'date-fns';
 import { TrendingUp, TrendingDown, Minus, Lightbulb, Clock, CheckSquare } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 
 interface PillarWeeklyData {
   pillar: PillarKey;
@@ -249,8 +250,10 @@ export function PrimedWeeklySummary() {
             </div>
             <ul className="space-y-1.5">
               {recommendations.map((rec, i) => (
-                <li key={i} className="text-xs text-muted-foreground">
-                  <span dangerouslySetInnerHTML={{ __html: rec.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+                <li key={i} className="text-xs text-muted-foreground [&_strong]:font-semibold [&_strong]:text-foreground">
+                  <ReactMarkdown components={{ p: ({ children }) => <span>{children}</span> }}>
+                    {rec}
+                  </ReactMarkdown>
                 </li>
               ))}
             </ul>

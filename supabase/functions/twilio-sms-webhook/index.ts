@@ -1246,8 +1246,10 @@ serve(async (req) => {
 
     // Validate Twilio signature - REQUIRED for security
     const twilioSignature = req.headers.get('x-twilio-signature');
-    const SUPABASE_PROJECT_ID = SUPABASE_URL.replace('https://', '').split('.')[0];
-    const webhookUrl = `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/twilio-sms-webhook`;
+    // Use the actual Supabase project ID for webhook URL validation
+    // This must match the URL configured in Twilio console
+    const SUPABASE_PROJECT_REF = Deno.env.get('SUPABASE_PROJECT_REF') || 'gogzkyjylruuziseprfw';
+    const webhookUrl = `https://${SUPABASE_PROJECT_REF}.supabase.co/functions/v1/twilio-sms-webhook`;
     
     if (!twilioSignature) {
       console.error('Missing Twilio signature header - rejecting request');

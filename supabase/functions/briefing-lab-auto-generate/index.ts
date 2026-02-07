@@ -213,6 +213,13 @@ async function sendBriefingSMS(
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
     const credentials = btoa(`${accountSid}:${authToken}`);
 
+    // Build nicely formatted message matching the old style
+    const smsBody = `☀️ Your morning briefing is ready!
+
+Listen now: ${podcastUrl}
+
+Topics: your interests`;
+
     const response = await fetch(twilioUrl, {
       method: 'POST',
       headers: {
@@ -222,7 +229,7 @@ async function sendBriefingSMS(
       body: new URLSearchParams({
         To: profile.phone_us,
         From: fromNumber,
-        Body: `☀️ Your morning briefing is ready!\n\n${podcastUrl}`,
+        Body: smsBody,
       }),
     });
 

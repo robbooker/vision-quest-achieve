@@ -257,11 +257,17 @@ export function useAIArena() {
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
+    // Get the user's session access token for proper authentication
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      throw new Error('Not authenticated');
+    }
+
     const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-arena`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        'Authorization': `Bearer ${session.access_token}`,
       },
       body: JSON.stringify({
         messages: allMessages.map(m => ({ role: m.role, content: m.content })),

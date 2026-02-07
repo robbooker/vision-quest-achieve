@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -37,6 +37,12 @@ export function useAudioJournal() {
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const isRecordingRef = useRef(isRecording);
+
+  // Keep ref in sync with state to avoid stale closures
+  useEffect(() => {
+    isRecordingRef.current = isRecording;
+  }, [isRecording]);
 
   const MAX_RECORDING_SECONDS = 600; // 10 minutes
 
@@ -112,7 +118,8 @@ export function useAudioJournal() {
   }, [isSupported]);
 
   const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && isRecording) {
+    // Use ref to avoid stale closure issues
+    if (mediaRecorderRef.current && isRecordingRef.current) {
       mediaRecorderRef.current.stop();
     }
 
@@ -133,7 +140,7 @@ export function useAudioJournal() {
 
     setIsRecording(false);
     setAnalyser(null);
-  }, [isRecording]);
+  }, []); // No dependencies needed - uses refs
 
   const cancelRecording = useCallback(() => {
     stopRecording();

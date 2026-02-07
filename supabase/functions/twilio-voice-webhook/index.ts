@@ -1255,7 +1255,6 @@ serve(async (req) => {
 
     // Construct the webhook URL that matches what Twilio signed
     const webhookUrl = getWebhookUrl('twilio-voice-webhook');
-    console.log('Signature validation:', { webhookUrl });
 
     const isValid = await validateTwilioSignature(
       TWILIO_AUTH_TOKEN,

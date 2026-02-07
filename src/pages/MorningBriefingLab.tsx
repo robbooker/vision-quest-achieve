@@ -219,14 +219,33 @@ export default function MorningBriefingLab() {
     if (!zipCode || zipCode.length !== 5) return;
     
     try {
+      // Use Nominatim OpenStreetMap API for geocoding US zip codes
       const response = await fetch(
-        `https://public.opendatasoft.com/api/records/1.0/search/?dataset=us-zip-code-latitude-and-longitude&q=${zipCode}&rows=1`
+        `https://nominatim.openstreetmap.org/search?postalcode=${zipCode}&country=US&format=json&limit=1`,
+        {
+          headers: {
+            'User-Agent': 'GPMorningBriefing/1.0'
+          }
+        }
       );
       const data = await response.json();
       
-      if (data.records?.[0]?.fields) {
-        const { latitude, longitude, city, state } = data.records[0].fields;
-        const locationName = `${city}, ${state}`;
+      if (data && data.length > 0) {
+        const result = data[0];
+        const latitude = parseFloat(result.lat);
+        const longitude = parseFloat(result.lon);
+        
+        // Extract city/state from display_name (format: "78701, Austin, Travis County, Texas, United States")
+        const parts = result.display_name.split(', ');
+        let locationName = result.display_name;
+        
+        // Try to build a clean "City, State" format
+        if (parts.length >= 4) {
+          // Skip zip code and county, get city and state
+          const city = parts[1] || parts[0];
+          const state = parts[parts.length - 2]; // State is usually second to last
+          locationName = `${city}, ${state}`;
+        }
         
         // Update local state
         const newPrefs = {

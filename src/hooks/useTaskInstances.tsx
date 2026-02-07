@@ -68,6 +68,8 @@ export function useTaskInstances(cycleId?: string, goalId?: string) {
 
   const createTask = useMutation({
     mutationFn: async (input: CreateTaskInput) => {
+      if (!user) throw new Error('Not authenticated');
+      
       const { data, error } = await supabase
         .from('task_instances')
         .insert({

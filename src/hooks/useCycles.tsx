@@ -41,6 +41,8 @@ export function useCycles() {
 
   const createCycle = useMutation({
     mutationFn: async (input: CreateCycleInput) => {
+      if (!user) throw new Error('Not authenticated');
+      
       const startDate = startOfDay(new Date(input.start_date));
       const endDate = addWeeks(startDate, 6);
       

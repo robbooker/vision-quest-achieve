@@ -61,6 +61,8 @@ export function useIndicators(goalId?: string) {
 
   const createIndicator = useMutation({
     mutationFn: async (input: CreateIndicatorInput) => {
+      if (!user) throw new Error('Not authenticated');
+      
       const { data, error } = await supabase
         .from('goal_indicators')
         .insert({
@@ -140,6 +142,8 @@ export function useIndicatorLogs(indicatorId?: string) {
 
   const createLog = useMutation({
     mutationFn: async (input: CreateLogInput) => {
+      if (!user) throw new Error('Not authenticated');
+      
       const { data, error } = await supabase
         .from('indicator_logs')
         .insert({

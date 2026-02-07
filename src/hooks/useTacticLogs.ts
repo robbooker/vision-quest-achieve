@@ -103,6 +103,8 @@ export function useTacticLogs(date?: Date) {
       notes?: string;
       tacticTitle?: string;
     }) => {
+      if (!user) throw new Error('Not authenticated');
+      
       // First try to find existing log
       const { data: existing } = await supabase
         .from('tactic_logs')

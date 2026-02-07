@@ -45,6 +45,8 @@ export function useMilestones(goalId?: string) {
 
   const createMilestone = useMutation({
     mutationFn: async (input: CreateMilestoneInput) => {
+      if (!user) throw new Error('Not authenticated');
+      
       const { data, error } = await supabase
         .from('milestones')
         .insert({
@@ -95,6 +97,8 @@ export function useMilestones(goalId?: string) {
 
   const bulkCreateMilestones = useMutation({
     mutationFn: async (inputs: CreateMilestoneInput[]) => {
+      if (!user) throw new Error('Not authenticated');
+      
       // First delete existing milestones for this goal
       if (inputs.length > 0) {
         const { error: deleteError } = await supabase

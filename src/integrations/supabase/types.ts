@@ -3412,6 +3412,10 @@ export type Database = {
     }
     Functions: {
       assign_member_pin: { Args: { target_user_id: string }; Returns: string }
+      batch_update_task_positions: {
+        Args: { task_updates: Json }
+        Returns: undefined
+      }
       delete_user_account: { Args: never; Returns: undefined }
       generate_unique_member_pin: { Args: never; Returns: string }
       get_sitewide_stats: { Args: never; Returns: Json }

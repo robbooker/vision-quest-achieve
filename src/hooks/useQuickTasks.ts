@@ -106,17 +106,12 @@ export function useQuickTasks() {
 
   const reorderTasks = useMutation({
     mutationFn: async (updates: { id: string; position: number }[]) => {
-      // Update all positions in parallel
-      const promises = updates.map(({ id, position }) =>
-        supabase
-          .from('quick_tasks')
-          .update({ position })
-          .eq('id', id)
-      );
+      // Use batch RPC function for efficient single-query update
+      const { error } = await supabase.rpc('batch_update_task_positions', {
+        task_updates: updates.map(({ id, position }) => ({ id, position }))
+      });
       
-      const results = await Promise.all(promises);
-      const errors = results.filter(r => r.error);
-      if (errors.length > 0) throw errors[0].error;
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quick-tasks'] });

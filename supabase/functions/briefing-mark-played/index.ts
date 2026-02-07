@@ -49,12 +49,13 @@ serve(async (req) => {
       });
     }
 
-    // Update briefing to played
+    // Update Lab episode to played status
     const { error: updateError } = await supabase
-      .from('morning_briefings')
+      .from('briefing_lab_episodes')
       .update({
-        status: 'played',
-        played_at: new Date().toISOString()
+        status: 'played'
+        // Note: briefing_lab_episodes doesn't have played_at column
+        // Could add via migration if needed
       })
       .eq('id', briefing_id)
       .eq('user_id', profile.user_id);

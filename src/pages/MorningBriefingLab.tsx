@@ -34,7 +34,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { MorningBriefingPlayer } from '@/components/dashboard/MorningBriefingPlayer';
 
 // Voice options with descriptions
 const VOICE_OPTIONS = [
@@ -987,8 +986,6 @@ export default function MorningBriefingLab() {
           </Card>
         )}
 
-        {/* Today's Briefing Player - persists even if user navigates away */}
-        <MorningBriefingPlayer />
 
         {/* Admin: Short Scout API Testing */}
         {isAdmin && (

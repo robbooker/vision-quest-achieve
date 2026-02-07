@@ -663,6 +663,34 @@ Write the complete briefing script now:`;
   } catch (error) {
     console.error('Error in briefing-lab-generate:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
+    
+    // Update episode status to failed so it doesn't block future attempts
+    // Note: episode is defined in the try block, so we need to check if it was created
+    try {
+      // Try to get the episode from the error context or find the generating one
+      const { data: generatingEpisode } = await supabase
+        .from('briefing_lab_episodes')
+        .select('id')
+        .eq('user_id', userData?.user?.id)
+        .eq('status', 'generating')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (generatingEpisode?.id) {
+        await supabase
+          .from('briefing_lab_episodes')
+          .update({
+            status: 'failed',
+            error_message: message
+          })
+          .eq('id', generatingEpisode.id);
+        console.log('Marked episode as failed:', generatingEpisode.id);
+      }
+    } catch (updateError) {
+      console.error('Failed to update episode status:', updateError);
+    }
+    
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

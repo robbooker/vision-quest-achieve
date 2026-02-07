@@ -7,6 +7,56 @@ const corsHeaders = {
 };
 
 /**
+ * Validate wake_time is in HH:MM or HH:MM:SS format
+ */
+function isValidWakeTime(wakeTime: string): boolean {
+  const pattern = /^([01]?\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$/;
+  return pattern.test(wakeTime);
+}
+
+/**
+ * Parse a locale string date safely using date components
+ * Avoids issues with new Date(localeString) parsing differently across environments
+ */
+function parseLocaleDateTime(localeStr: string): Date {
+  // Format: "1/15/2025, 7:30:00 AM" or "1/15/2025, 19:30:00"
+  const match = localeStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s+(\d{1,2}):(\d{2}):?(\d{2})?\s*(AM|PM)?/i);
+  if (!match) {
+    console.error('[parseLocaleDateTime] Failed to parse:', localeStr);
+    return new Date(); // Fallback to now
+  }
+  
+  const [, month, day, year, hourStr, minute, second = '0', ampm] = match;
+  let hour = parseInt(hourStr, 10);
+  
+  // Handle 12-hour format
+  if (ampm) {
+    if (ampm.toUpperCase() === 'PM' && hour !== 12) hour += 12;
+    if (ampm.toUpperCase() === 'AM' && hour === 12) hour = 0;
+  }
+  
+  return new Date(
+    parseInt(year, 10),
+    parseInt(month, 10) - 1, // Month is 0-indexed
+    parseInt(day, 10),
+    hour,
+    parseInt(minute, 10),
+    parseInt(second, 10)
+  );
+}
+
+/**
+ * Format date as YYYY-MM-DD using local components (NOT UTC)
+ * This prevents timezone shift issues with toISOString()
+ */
+function formatLocalDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
  * Auto-generate LAB briefings for users with SMS delivery enabled.
  * This function should be called by a cron job every 5 minutes.
  * 
@@ -61,11 +111,22 @@ serve(async (req) => {
         const timezone = userPrefs.timezone || 'America/Chicago';
         const wakeTime = userPrefs.default_wake_time || '07:00:00';
 
-        // Get current time in user's timezone
+        // Validate wake_time format
+        if (!isValidWakeTime(wakeTime)) {
+          console.error(`[briefing-lab-auto-generate] Invalid wake_time format for ${userPrefs.user_id}: ${wakeTime}`);
+          skipped.push(`${userPrefs.user_id}: invalid wake_time format`);
+          continue;
+        }
+
+        // Get current time in user's timezone using locale string
         const now = new Date();
         const userTimeStr = now.toLocaleString('en-US', { timeZone: timezone });
-        const userNow = new Date(userTimeStr);
-        const userTodayStr = userNow.toISOString().split('T')[0];
+        
+        // Parse locale string safely (avoids new Date(localeString) issues)
+        const userNow = parseLocaleDateTime(userTimeStr);
+        
+        // Use local date components to avoid UTC shift
+        const userTodayStr = formatLocalDate(userNow);
 
         // Check if weekend and weekend is disabled
         const dayOfWeek = userNow.getDay();
@@ -75,23 +136,25 @@ serve(async (req) => {
           continue;
         }
 
-        // Parse wake time (HH:MM:SS or HH:MM format)
+        // Parse wake time (HH:MM:SS or HH:MM format) - already validated above
         const wakeTimeParts = wakeTime.split(':');
-        const wakeHour = parseInt(wakeTimeParts[0]);
-        const wakeMinute = parseInt(wakeTimeParts[1]);
+        const wakeHour = parseInt(wakeTimeParts[0], 10);
+        const wakeMinute = parseInt(wakeTimeParts[1], 10);
 
-        // Create wake time date object in user's timezone
+        // Create wake time date object using the user's local "now" as base
         const wakeDateTime = new Date(userNow);
         wakeDateTime.setHours(wakeHour, wakeMinute, 0, 0);
 
         // Calculate minutes until wake time
         const minutesUntilWake = (wakeDateTime.getTime() - userNow.getTime()) / (1000 * 60);
 
-        console.log(`[briefing-lab-auto-generate] User ${userPrefs.user_id}: ${minutesUntilWake.toFixed(1)} min until wake (${wakeTime})`);
+        console.log(`[briefing-lab-auto-generate] User ${userPrefs.user_id}: ${minutesUntilWake.toFixed(1)} min until wake (${wakeTime} in ${timezone}), local date: ${userTodayStr}`);
 
-        // Generate if within 30 minutes of wake time (but not past it by more than 5 min)
-        if (minutesUntilWake <= 30 && minutesUntilWake >= -5) {
+        // Generate if within 35 minutes of wake time (but not past it by more than 10 min)
+        // Slightly wider window to handle DST edge cases and cron timing variance
+        if (minutesUntilWake <= 35 && minutesUntilWake >= -10) {
           // Check if we already generated a Lab briefing today for this user
+          // Use the user's local date, not UTC
           const { data: existingBriefing } = await supabase
             .from('briefing_lab_episodes')
             .select('id, podcast_url, status')

@@ -446,7 +446,10 @@ export default function MorningBriefingLab() {
                 </CardTitle>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="text-xs">
-                    {format(new Date(latestBriefing.wake_date), 'MMM d, yyyy')}
+                    {(() => {
+                      const [year, month, day] = latestBriefing.wake_date.split('-').map(Number);
+                      return format(new Date(year, month - 1, day), 'MMM d, yyyy');
+                    })()}
                   </Badge>
                   {latestBriefing.duration_seconds && (
                     <span className="text-xs text-muted-foreground">

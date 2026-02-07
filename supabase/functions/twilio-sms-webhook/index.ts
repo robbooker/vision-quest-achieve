@@ -352,6 +352,22 @@ const smsTools = [
   }
 ];
 
+// Extract the actual webhook URL from the request headers
+// This ensures we validate against the same URL Twilio signed
+function getWebhookUrl(req: Request): string {
+  const forwardedProto = req.headers.get('x-forwarded-proto') || 'https';
+  const forwardedHost = req.headers.get('x-forwarded-host') || req.headers.get('host');
+  const url = new URL(req.url);
+  
+  if (forwardedHost) {
+    // Reconstruct URL from forwarded headers (proxy scenario)
+    return `${forwardedProto}://${forwardedHost}${url.pathname}`;
+  }
+  
+  // Fall back to the request URL without query string
+  return `${url.protocol}//${url.host}${url.pathname}`;
+}
+
 // Validate Twilio request signature
 async function validateTwilioSignature(
   authToken: string,
@@ -367,13 +383,6 @@ async function validateTwilioSignature(
     
     const data = url + sortedParams;
     
-    // Debug logging for signature validation
-    console.log('Signature validation debug:', {
-      url,
-      receivedSignature: signature?.substring(0, 20) + '...',
-      paramKeys: Object.keys(params).sort()
-    });
-    
     const encoder = new TextEncoder();
     const keyData = encoder.encode(authToken);
     const dataBytes = encoder.encode(data);
@@ -388,8 +397,6 @@ async function validateTwilioSignature(
     
     const signatureBytes = await crypto.subtle.sign('HMAC', key, dataBytes);
     const computedSignature = btoa(String.fromCharCode(...new Uint8Array(signatureBytes)));
-    
-    console.log('Computed signature prefix:', computedSignature.substring(0, 20) + '...');
     
     return computedSignature === signature;
   } catch (error) {
@@ -1254,12 +1261,33 @@ serve(async (req) => {
 
     console.log('Twilio SMS webhook received:', JSON.stringify(params, null, 2));
 
-    // TODO: Re-enable Twilio signature validation after debugging URL mismatch
-    // The signature validation is temporarily disabled because Twilio signs the request
-    // with the actual URL it calls, but there's a mismatch with what we're computing
-    // This is safe as a temporary measure since the webhook only processes Twilio-formatted requests
+    // Validate Twilio signature - REQUIRED for security
     const twilioSignature = req.headers.get('x-twilio-signature');
-    console.log('Twilio signature received:', twilioSignature ? 'present' : 'missing');
+    if (!twilioSignature) {
+      console.error('Missing Twilio signature header');
+      return new Response('Forbidden', { status: 403, headers: corsHeaders });
+    }
+
+    // Extract the actual URL from request headers (matches what Twilio signed)
+    const webhookUrl = getWebhookUrl(req);
+    console.log('Signature validation:', { 
+      webhookUrl, 
+      originalUrl: req.url,
+      forwardedHost: req.headers.get('x-forwarded-host'),
+      forwardedProto: req.headers.get('x-forwarded-proto')
+    });
+
+    const isValid = await validateTwilioSignature(
+      TWILIO_AUTH_TOKEN,
+      twilioSignature,
+      webhookUrl,
+      params
+    );
+
+    if (!isValid) {
+      console.error('Invalid Twilio signature - rejecting request');
+      return new Response('Forbidden', { status: 403, headers: corsHeaders });
+    }
 
     // Create Supabase admin client
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);

@@ -326,6 +326,22 @@ const voiceTools = [
   }
 ];
 
+// Extract the actual webhook URL from the request headers
+// This ensures we validate against the same URL Twilio signed
+function getWebhookUrl(req: Request): string {
+  const forwardedProto = req.headers.get('x-forwarded-proto') || 'https';
+  const forwardedHost = req.headers.get('x-forwarded-host') || req.headers.get('host');
+  const url = new URL(req.url);
+  
+  if (forwardedHost) {
+    // Reconstruct URL from forwarded headers (proxy scenario)
+    return `${forwardedProto}://${forwardedHost}${url.pathname}`;
+  }
+  
+  // Fall back to the request URL without query string
+  return `${url.protocol}//${url.host}${url.pathname}`;
+}
+
 // Validate Twilio request signature using Web Crypto API
 async function validateTwilioSignature(
   authToken: string,
@@ -1237,18 +1253,21 @@ serve(async (req) => {
 
     console.log('Twilio webhook received:', JSON.stringify(params, null, 2));
 
-    // Validate Twilio signature using the actual webhook URL (not req.url which may differ)
     // Validate Twilio signature - REQUIRED for security
     const twilioSignature = req.headers.get('x-twilio-signature');
-    // Use the actual Supabase project ID for webhook URL validation
-    // This must match the URL configured in Twilio console
-    const SUPABASE_PROJECT_REF = Deno.env.get('SUPABASE_PROJECT_REF') || 'gogzkyjylruuziseprfw';
-    const webhookUrl = `https://${SUPABASE_PROJECT_REF}.supabase.co/functions/v1/twilio-voice-webhook`;
-    
     if (!twilioSignature) {
-      console.error('Missing Twilio signature header - rejecting request');
+      console.error('Missing Twilio signature header');
       return new Response('Forbidden', { status: 403, headers: corsHeaders });
     }
+
+    // Extract the actual URL from request headers (matches what Twilio signed)
+    const webhookUrl = getWebhookUrl(req);
+    console.log('Signature validation:', { 
+      webhookUrl, 
+      originalUrl: req.url,
+      forwardedHost: req.headers.get('x-forwarded-host'),
+      forwardedProto: req.headers.get('x-forwarded-proto')
+    });
 
     const isValid = await validateTwilioSignature(
       TWILIO_AUTH_TOKEN,
@@ -1256,7 +1275,7 @@ serve(async (req) => {
       webhookUrl,
       params
     );
-    
+
     if (!isValid) {
       console.error('Invalid Twilio signature - rejecting request');
       return new Response('Forbidden', { status: 403, headers: corsHeaders });

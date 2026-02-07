@@ -14,6 +14,8 @@ export function InstallPrompt() {
   const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout | null = null;
+
     // Check if already installed
     const standalone = window.matchMedia('(display-mode: standalone)').matches;
     const iosStandalone = (navigator as any).standalone === true;
@@ -44,11 +46,14 @@ export function InstallPrompt() {
 
     // Show iOS prompt after a delay
     if (iOS && !iosStandalone) {
-      setTimeout(() => setShowPrompt(true), 3000);
+      timeoutId = setTimeout(() => setShowPrompt(true), 3000);
     }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handler);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     };
   }, []);
 

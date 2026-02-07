@@ -93,6 +93,8 @@ export function WeatherWidget() {
  }, []);
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchWeather = async () => {
       try {
         // Check for cached weather data (cache for 30 min)
@@ -101,6 +103,7 @@ export function WeatherWidget() {
           try {
             const { data, timestamp } = JSON.parse(cached);
             if (Date.now() - timestamp < 30 * 60 * 1000) {
+              if (!isMounted) return;
               setWeather(data);
              // Check if we're using manual location
              const manualLocation = localStorage.getItem('weather_manual_location');
@@ -120,6 +123,7 @@ export function WeatherWidget() {
          try {
            const { latitude, longitude, city, state } = JSON.parse(manualLocation);
            const weatherData = await fetchWeatherData(latitude, longitude, `${city}, ${state}`);
+           if (!isMounted) return;
            setWeather(weatherData);
            setUsingManualLocation(true);
            setError(null);
@@ -145,6 +149,8 @@ export function WeatherWidget() {
           });
         });
 
+        if (!isMounted) return;
+
         const { latitude, longitude } = position.coords;
 
         // Get city name from reverse geocoding (don't fail if this doesn't work)
@@ -159,11 +165,15 @@ export function WeatherWidget() {
           // Ignore geocoding errors, use default city name
         }
 
+        if (!isMounted) return;
+
        const weatherData = await fetchWeatherData(latitude, longitude, cityName);
+       if (!isMounted) return;
        setWeather(weatherData);
        setUsingManualLocation(false);
         setError(null);
       } catch (err) {
+        if (!isMounted) return;
         console.error('Weather fetch error:', err);
         // Check for specific geolocation errors
         if (err instanceof GeolocationPositionError) {
@@ -178,11 +188,17 @@ export function WeatherWidget() {
           setError('Weather unavailable');
         }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchWeather();
+
+    return () => {
+      isMounted = false;
+    };
  }, [fetchWeatherData]);
  
  const handleSaveZip = async () => {

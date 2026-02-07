@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState, useRef } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,6 +12,9 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const location = useLocation();
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
+  
+  // Ref to track if we've already handled the just-completed flag (survives re-renders)
+  const hasHandledFlagRef = useRef(false);
 
   useEffect(() => {
     async function checkOnboarding() {
@@ -23,10 +26,17 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       // Check if user just completed onboarding (skip DB check to avoid race condition)
       const justCompleted = sessionStorage.getItem("just-completed-onboarding");
       if (justCompleted === "true") {
-        // Clear the flag so future navigations check the DB
-        sessionStorage.removeItem("just-completed-onboarding");
-        setOnboardingCompleted(true);
-        setCheckingOnboarding(false);
+        // Mark as handled to prevent re-processing on re-renders (React Strict Mode)
+        if (!hasHandledFlagRef.current) {
+          hasHandledFlagRef.current = true;
+          setOnboardingCompleted(true);
+          setCheckingOnboarding(false);
+          
+          // Remove flag after a delay to survive React Strict Mode double-invoke
+          setTimeout(() => {
+            sessionStorage.removeItem("just-completed-onboarding");
+          }, 1000);
+        }
         return;
       }
 

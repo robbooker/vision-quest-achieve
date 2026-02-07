@@ -230,6 +230,23 @@ export default function MorningBriefingLab() {
     }
   }, [prefs]);
 
+  // Auto-save preferences with debounce
+  useEffect(() => {
+    if (!hasUnsavedChanges || initialLoadRef.current) return;
+    
+    const timeout = setTimeout(async () => {
+      try {
+        console.log('[MorningBriefingLab] Auto-saving preferences...');
+        await updatePrefs.mutateAsync(localPrefs);
+        setHasUnsavedChanges(false);
+      } catch (error) {
+        console.error('[MorningBriefingLab] Auto-save failed:', error);
+      }
+    }, 1500); // 1.5 second debounce
+    
+    return () => clearTimeout(timeout);
+  }, [hasUnsavedChanges, localPrefs]);
+
   const handleToggle = (key: keyof BriefingLabPreferences) => {
     setLocalPrefs(prev => ({ ...prev, [key]: !prev[key] }));
     if (!initialLoadRef.current) setHasUnsavedChanges(true);

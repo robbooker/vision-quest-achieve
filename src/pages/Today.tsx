@@ -96,7 +96,15 @@ export default function Today() {
   const [practiceCompleted, setPracticeCompleted] = useState<Record<string, boolean>>(() => {
     const today = format(new Date(), 'yyyy-MM-dd');
     const stored = localStorage.getItem(`practice_${today}`);
-    return stored ? JSON.parse(stored) : {};
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        console.error('Failed to parse practice data from localStorage');
+        return {};
+      }
+    }
+    return {};
   });
 
   const handlePracticeToggle = (scheduleId: string) => {

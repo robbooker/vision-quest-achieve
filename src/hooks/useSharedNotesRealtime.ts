@@ -63,7 +63,12 @@ export function useSharedNotesRealtime(onToast: ToastCallback) {
             const contributorName = newItem.contributor_name || await fetchContributorName(newItem.contributor_id);
             
             // Mark the list as having updates in localStorage
-            const updatedNotes = JSON.parse(localStorage.getItem("updated_notes") || "{}");
+            let updatedNotes: Record<string, string> = {};
+            try {
+              updatedNotes = JSON.parse(localStorage.getItem("updated_notes") || "{}");
+            } catch {
+              console.error('Failed to parse updated_notes from localStorage');
+            }
             updatedNotes[newItem.list_id] = new Date().toISOString();
             localStorage.setItem("updated_notes", JSON.stringify(updatedNotes));
 
@@ -91,7 +96,13 @@ export function useSharedNotesRealtime(onToast: ToastCallback) {
 // Hook to check if a note has updates
 export function useNoteHasUpdates(listId: string): boolean {
   const lastViewed = localStorage.getItem(`note_viewed_${listId}`);
-  const updatedNotes = JSON.parse(localStorage.getItem("updated_notes") || "{}");
+  let updatedNotes: Record<string, string> = {};
+  try {
+    updatedNotes = JSON.parse(localStorage.getItem("updated_notes") || "{}");
+  } catch {
+    console.error('Failed to parse updated_notes from localStorage');
+    return false;
+  }
   const lastUpdate = updatedNotes[listId];
   
   if (!lastUpdate) return false;
@@ -105,7 +116,12 @@ export function markNoteAsViewed(listId: string) {
   localStorage.setItem(`note_viewed_${listId}`, new Date().toISOString());
   
   // Remove from updated notes
-  const updatedNotes = JSON.parse(localStorage.getItem("updated_notes") || "{}");
+  let updatedNotes: Record<string, string> = {};
+  try {
+    updatedNotes = JSON.parse(localStorage.getItem("updated_notes") || "{}");
+  } catch {
+    console.error('Failed to parse updated_notes from localStorage');
+  }
   delete updatedNotes[listId];
   localStorage.setItem("updated_notes", JSON.stringify(updatedNotes));
 }

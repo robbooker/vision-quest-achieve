@@ -176,3 +176,6 @@ verify_jwt = false
 
 [functions.test-short-scout]
 verify_jwt = false
+
+[functions.generate-jingle]
+verify_jwt = false

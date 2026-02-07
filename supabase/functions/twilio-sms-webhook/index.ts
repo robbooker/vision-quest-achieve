@@ -1119,80 +1119,33 @@ async function executeTool(
     }
     
     case 'set_wake_time': {
-      const { wake_time, topics = [], custom_instructions } = args as { 
-        wake_time: string; 
-        topics?: string[]; 
-        custom_instructions?: string 
-      };
+      const { wake_time } = args as { wake_time: string };
       
-      // Get user's timezone
-      const { data: prefs } = await supabase
-        .from('briefing_preferences')
-        .select('timezone, default_topics')
+      // Get user's lab preferences
+      const { data: labPrefs } = await supabase
+        .from('briefing_lab_preferences')
+        .select('timezone, enabled')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
       
-      const timezone = prefs?.timezone || 'America/Chicago';
-      
-      // Calculate tomorrow's date in user's timezone
-      const now = new Date();
-      const userNow = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
-      const tomorrow = new Date(userNow);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const tomorrowStr = tomorrow.toISOString().split('T')[0];
-      
-      // Handle special cases
+      // Handle skip/off
       if (wake_time.toLowerCase() === 'skip' || wake_time.toLowerCase() === 'off') {
         await supabase
-          .from('morning_briefings')
-          .upsert({
-            user_id: userId,
-            wake_date: tomorrowStr,
-            wake_time: '00:00',
-            status: 'skipped',
-            topics: []
-          }, { onConflict: 'user_id,wake_date' });
+          .from('briefing_lab_preferences')
+          .update({ enabled: false })
+          .eq('user_id', userId);
         
-        return "⏭️ No briefing tomorrow. Sleep well!";
+        return "⏭️ Briefings disabled. Text 'enable briefing' to turn back on.";
       }
       
+      // Handle 'same' - just confirm current setting
       if (wake_time.toLowerCase() === 'same') {
-        // Get yesterday's briefing
-        const yesterday = new Date(userNow);
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = yesterday.toISOString().split('T')[0];
-        
-        const { data: lastBriefing } = await supabase
-          .from('morning_briefings')
-          .select('wake_time, topics')
-          .eq('user_id', userId)
-          .order('wake_date', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        
-        if (!lastBriefing) {
-          return "❓ No previous briefing found. Text me a time like '6:30am'";
-        }
-        
-        await supabase
-          .from('morning_briefings')
-          .upsert({
-            user_id: userId,
-            wake_date: tomorrowStr,
-            wake_time: lastBriefing.wake_time,
-            status: 'scheduled',
-            topics: lastBriefing.topics || []
-          }, { onConflict: 'user_id,wake_date' });
-        
-        const timeFormatted = lastBriefing.wake_time.slice(0, 5);
-        const topicList = (lastBriefing.topics as string[] || []).join(', ');
-        return `⏰ ${timeFormatted} locked in${topicList ? `. Topics: ${topicList}` : ''}. Sleep well! 🌙`;
+        const currentTime = labPrefs?.enabled ? 'enabled' : 'disabled';
+        return `📋 Briefings are currently ${currentTime}. Update in the Briefing Lab settings.`;
       }
       
       // Parse time - handle various formats
       let parsedTime = wake_time;
-      
-      // Remove am/pm and convert
       const timeMatch = wake_time.match(/^(\d{1,2}):?(\d{2})?\s*(am|pm)?$/i);
       if (timeMatch) {
         let hours = parseInt(timeMatch[1]);
@@ -1205,81 +1158,60 @@ async function executeTool(
         parsedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
       }
       
-      // Use provided topics or default topics
-      const finalTopics = topics.length > 0 ? topics : (prefs?.default_topics || []);
-      
+      // Update Lab preferences with new wake time
       await supabase
-        .from('morning_briefings')
+        .from('briefing_lab_preferences')
         .upsert({
           user_id: userId,
-          wake_date: tomorrowStr,
-          wake_time: parsedTime,
-          status: 'scheduled',
-          topics: finalTopics,
-          custom_instructions: custom_instructions || null
-        }, { onConflict: 'user_id,wake_date' });
+          default_wake_time: parsedTime,
+          enabled: true
+        }, { onConflict: 'user_id' });
       
-      const topicList = finalTopics.length > 0 ? finalTopics.join(', ') : null;
-      return `⏰ ${parsedTime} locked in${topicList ? `. Covering: ${topicList}` : ''}. Sleep well! 🌙`;
+      return `⏰ Wake time set to ${parsedTime}. Briefing will generate ~1hr before. 🌙`;
     }
     
     case 'get_briefing_status': {
-      const { data: prefs } = await supabase
-        .from('briefing_preferences')
-        .select('timezone')
+      // Get Lab preferences
+      const { data: labPrefs } = await supabase
+        .from('briefing_lab_preferences')
+        .select('timezone, enabled, default_wake_time')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
       
-      const timezone = prefs?.timezone || 'America/Chicago';
+      const timezone = labPrefs?.timezone || 'America/Chicago';
       const now = new Date();
       const userNow = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
       const todayStr = userNow.toISOString().split('T')[0];
       
-      const tomorrow = new Date(userNow);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const tomorrowStr = tomorrow.toISOString().split('T')[0];
-      
-      // Check today's briefing
-      const { data: todayBriefing } = await supabase
-        .from('morning_briefings')
+      // Check today's Lab episode
+      const { data: todayEpisode } = await supabase
+        .from('briefing_lab_episodes')
         .select('*')
         .eq('user_id', userId)
-        .eq('wake_date', todayStr)
-        .maybeSingle();
-      
-      // Check tomorrow's briefing
-      const { data: tomorrowBriefing } = await supabase
-        .from('morning_briefings')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('wake_date', tomorrowStr)
+        .gte('created_at', `${todayStr}T00:00:00Z`)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
       
       let response = '';
       
-      if (todayBriefing) {
-        const status = todayBriefing.status;
-        const time = todayBriefing.wake_time?.slice(0, 5);
-        if (status === 'ready') response += `☀️ Today's briefing is ready (${time})\n`;
-        else if (status === 'played') response += `✅ Played today's briefing at ${time}\n`;
-        else if (status === 'generating') response += `⏳ Generating today's briefing...\n`;
-        else if (status === 'failed') response += `❌ Today's briefing failed\n`;
-      }
-      
-      if (tomorrowBriefing) {
-        const status = tomorrowBriefing.status;
-        const time = tomorrowBriefing.wake_time?.slice(0, 5);
-        if (status === 'scheduled') {
-          const topics = (tomorrowBriefing.topics as string[] || []).join(', ');
-          response += `⏰ Tomorrow: ${time}${topics ? ` - ${topics}` : ''}`;
-        } else if (status === 'skipped') {
-          response += `⏭️ Tomorrow: skipped`;
-        }
+      if (todayEpisode) {
+        const status = todayEpisode.status;
+        if (status === 'ready') response += `☀️ Today's briefing is ready!\n`;
+        else if (status === 'played') response += `✅ Played today's briefing\n`;
+        else if (status === 'generating') response += `⏳ Generating briefing...\n`;
+        else if (status === 'failed') response += `❌ Today's briefing failed: ${todayEpisode.error_message || 'Unknown error'}\n`;
       } else {
-        response += `📋 No briefing scheduled for tomorrow. Text me a time!`;
+        response += `📋 No briefing generated today yet.\n`;
       }
       
-      return response.trim() || "No briefings configured";
+      if (labPrefs?.enabled) {
+        response += `⏰ Wake time: ${labPrefs.default_wake_time?.slice(0, 5) || '07:00'}`;
+      } else {
+        response += `⚠️ Briefings disabled. Text 'enable briefing' to turn on.`;
+      }
+      
+      return response.trim();
     }
     
     default:

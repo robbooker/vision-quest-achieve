@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -329,13 +329,3 @@ export function useCalendarAvailability(
   }, [events, preferences, date]);
 }
 
-function useMemo<T>(factory: () => T, deps: React.DependencyList): T {
-  const [value, setValue] = useState<T>(factory);
-  
-  useEffect(() => {
-    setValue(factory());
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
-  
-  return value;
-}

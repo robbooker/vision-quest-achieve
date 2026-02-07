@@ -87,6 +87,8 @@ export function useGoals(cycleId?: string) {
 
   const createGoal = useMutation({
     mutationFn: async (input: CreateGoalInput) => {
+      if (!user) throw new Error('Not authenticated');
+      
       const { data, error } = await supabase
         .from('goals')
         .insert({

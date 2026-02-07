@@ -62,6 +62,8 @@ export function useWeekReviews(cycleId?: string) {
 
   const createOrUpdateReview = useMutation({
     mutationFn: async (input: CreateWeekReviewInput) => {
+      if (!user) throw new Error('Not authenticated');
+      
       // Check if review already exists
       const { data: existing } = await supabase
         .from('week_reviews')

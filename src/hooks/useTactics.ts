@@ -46,6 +46,8 @@ export function useTactics(goalId?: string) {
 
   const createTactic = useMutation({
     mutationFn: async (input: CreateTacticInput) => {
+      if (!user) throw new Error('Not authenticated');
+      
       const { data, error } = await supabase
         .from('goal_tactics')
         .insert({

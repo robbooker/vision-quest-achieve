@@ -41,6 +41,8 @@ export function useVision() {
 
   const upsertVision = useMutation({
     mutationFn: async (input: VisionInput) => {
+      if (!user) throw new Error('Not authenticated');
+      
       // Check if vision exists
       const { data: existing } = await supabase
         .from('user_vision')

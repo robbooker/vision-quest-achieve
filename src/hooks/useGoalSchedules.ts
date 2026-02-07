@@ -46,6 +46,8 @@ export function useGoalSchedules(goalId?: string) {
 
   const createSchedule = useMutation({
     mutationFn: async (input: CreateScheduleInput) => {
+      if (!user) throw new Error('Not authenticated');
+      
       const { data, error } = await supabase
         .from('goal_schedules')
         .insert({
@@ -65,6 +67,8 @@ export function useGoalSchedules(goalId?: string) {
 
   const createMultipleSchedules = useMutation({
     mutationFn: async (inputs: CreateScheduleInput[]) => {
+      if (!user) throw new Error('Not authenticated');
+      
       const { data, error } = await supabase
         .from('goal_schedules')
         .insert(

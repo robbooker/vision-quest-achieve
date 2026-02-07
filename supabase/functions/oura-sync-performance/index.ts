@@ -295,6 +295,45 @@ serve(async (req) => {
       });
     }
 
+    // IMPORTANT: Fetch existing records to preserve manual entries
+    // This prevents Oura sync from overwriting manually logged sleep data
+    const supabaseService = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    const { data: existingRecords } = await supabaseService
+      .from('oura_daily_metrics')
+      .select('metric_date, source, manual_bedtime, manual_wake_time, manual_sleep_quality, nap_duration_minutes, total_sleep_seconds, sleep_score')
+      .eq('user_id', user.id)
+      .in('metric_date', allDates);
+
+    // Build lookup map for existing manual data
+    const existingByDate: Record<string, {
+      source: string;
+      manual_bedtime: string | null;
+      manual_wake_time: string | null;
+      manual_sleep_quality: number | null;
+      nap_duration_minutes: number | null;
+      total_sleep_seconds: number | null;
+      sleep_score: number | null;
+    }> = {};
+    
+    (existingRecords || []).forEach((record: {
+      metric_date: string;
+      source: string;
+      manual_bedtime: string | null;
+      manual_wake_time: string | null;
+      manual_sleep_quality: number | null;
+      nap_duration_minutes: number | null;
+      total_sleep_seconds: number | null;
+      sleep_score: number | null;
+    }) => {
+      existingByDate[record.metric_date] = record;
+    });
+
+    console.log(`Found ${Object.keys(existingByDate).length} existing records to check for manual data`);
+
     // Calculate 14-day baselines for RHR and HRV
     const rhrValues: number[] = [];
     const hrvValues: number[] = [];
@@ -316,7 +355,7 @@ serve(async (req) => {
       ? Math.round(hrvValues.reduce((a, b) => a + b, 0) / hrvValues.length)
       : null;
 
-    // Prepare upsert data
+    // Prepare upsert data - merge with existing manual entries
     const metricsToUpsert = allDates.map((date) => {
       const dailySleep = dailySleepByDate[date];
       let sleepSession = sleepSessionsByDate[date];
@@ -325,6 +364,12 @@ serve(async (req) => {
       const activity = activityByDate[date];
       const napDurationSeconds = napsByDate[date] ?? 0;
       const napDurationMinutes = napDurationSeconds > 0 ? Math.round(napDurationSeconds / 60) : null;
+      
+      // Check for existing manual data to preserve
+      const existing = existingByDate[date];
+      const hasManualSleepData = existing?.source === 'manual' && 
+        (existing.manual_bedtime || existing.manual_wake_time || existing.manual_sleep_quality);
+      const hasManualNap = existing?.source === 'manual' && existing.nap_duration_minutes;
 
       // IMPORTANT FIX: If we have a daily_sleep score for today but no sleep session,
       // that means the session data is attributed to "yesterday" (the wake-up day).
@@ -357,14 +402,18 @@ serve(async (req) => {
       const criticalDeficitAlert = rhrSpikeAlert && hrvStrainAlert;
 
       // Parse bedtime timestamps into proper format for our DB
-      let manualBedtime = null;
-      let manualWakeTime = null;
+      // Only use Oura bedtime if no manual override exists
+      let manualBedtime = hasManualSleepData ? existing.manual_bedtime : null;
+      let manualWakeTime = hasManualSleepData ? existing.manual_wake_time : null;
+      let manualSleepQuality = hasManualSleepData ? existing.manual_sleep_quality : null;
       
-      if (sleepSession?.bedtimeStart) {
-        manualBedtime = sleepSession.bedtimeStart;
-      }
-      if (sleepSession?.bedtimeEnd) {
-        manualWakeTime = sleepSession.bedtimeEnd;
+      if (!hasManualSleepData) {
+        if (sleepSession?.bedtimeStart) {
+          manualBedtime = sleepSession.bedtimeStart;
+        }
+        if (sleepSession?.bedtimeEnd) {
+          manualWakeTime = sleepSession.bedtimeEnd;
+        }
       }
 
       // FIX: If sleepSession exists but seems like a nap (under 2 hours = 7200 seconds), 
@@ -374,40 +423,52 @@ serve(async (req) => {
       let deepSleepSeconds: number | null = sleepSession?.deep ?? null;
       let remSleepSeconds: number | null = sleepSession?.rem ?? null;
       let lightSleepSeconds: number | null = sleepSession?.light ?? null;
+      let sleepScore: number | null = dailySleep?.score ?? null;
       
-      const MIN_REASONABLE_SLEEP = 7200; // 2 hours in seconds
-      if (dailySleep?.score && (!totalSleepSeconds || totalSleepSeconds < MIN_REASONABLE_SLEEP)) {
-        // Oura sleep score roughly correlates to sleep quantity and quality
-        // A score of 83 typically means ~6-7 hours of sleep
-        // Use formula: estimated_hours = (score / 100) * 8 hours (rough approximation)
-        const estimatedHours = (dailySleep.score / 100) * 8;
-        const estimatedSeconds = Math.round(estimatedHours * 3600);
-        console.log(`Sleep session seems wrong (${totalSleepSeconds}s). Estimating from score ${dailySleep.score}: ~${estimatedHours.toFixed(1)}h = ${estimatedSeconds}s`);
-        totalSleepSeconds = estimatedSeconds;
-        // Clear stage durations since they're unreliable
-        deepSleepSeconds = null;
-        remSleepSeconds = null;
-        lightSleepSeconds = null;
+      // If user has manually logged sleep, preserve their duration and score
+      if (hasManualSleepData && existing.total_sleep_seconds) {
+        totalSleepSeconds = existing.total_sleep_seconds;
+        sleepScore = existing.sleep_score;
+        console.log(`Preserving manual sleep data for ${date}: ${totalSleepSeconds}s, score=${sleepScore}`);
+      } else {
+        const MIN_REASONABLE_SLEEP = 7200; // 2 hours in seconds
+        if (dailySleep?.score && (!totalSleepSeconds || totalSleepSeconds < MIN_REASONABLE_SLEEP)) {
+          // Oura sleep score roughly correlates to sleep quantity and quality
+          // A score of 83 typically means ~6-7 hours of sleep
+          // Use formula: estimated_hours = (score / 100) * 8 hours (rough approximation)
+          const estimatedHours = (dailySleep.score / 100) * 8;
+          const estimatedSeconds = Math.round(estimatedHours * 3600);
+          console.log(`Sleep session seems wrong (${totalSleepSeconds}s). Estimating from score ${dailySleep.score}: ~${estimatedHours.toFixed(1)}h = ${estimatedSeconds}s`);
+          totalSleepSeconds = estimatedSeconds;
+          // Clear stage durations since they're unreliable
+          deepSleepSeconds = null;
+          remSleepSeconds = null;
+          lightSleepSeconds = null;
+        }
       }
 
-      console.log(`Building metrics for ${date}: sleep_score=${dailySleep?.score}, total_sleep=${totalSleepSeconds ?? 'null'} (raw session: ${sleepSession?.total ?? 'none'}), nap=${napDurationMinutes ?? 0}m, activity_score=${activity?.score ?? 'null'}, steps=${activity?.steps ?? 'null'}`);
+      // For naps: use Oura nap if detected, otherwise preserve manual nap
+      const finalNapMinutes = napDurationMinutes ?? (hasManualNap ? existing.nap_duration_minutes : null);
+
+      console.log(`Building metrics for ${date}: sleep_score=${sleepScore}, total_sleep=${totalSleepSeconds ?? 'null'} (raw session: ${sleepSession?.total ?? 'none'}), nap=${finalNapMinutes ?? 0}m, activity_score=${activity?.score ?? 'null'}, steps=${activity?.steps ?? 'null'}, manual_preserved=${hasManualSleepData}`);
 
       return {
         user_id: user.id,
         metric_date: date,
-        source: 'oura',
-        // Sleep score from daily_sleep endpoint
-        sleep_score: dailySleep?.score ?? null,
+        source: hasManualSleepData ? 'manual' : 'oura', // Preserve source if manual
+        // Sleep score from daily_sleep endpoint (or manual)
+        sleep_score: sleepScore,
         // Sleep durations - may be estimated if session data was wrong
         total_sleep_seconds: totalSleepSeconds,
         deep_sleep_seconds: deepSleepSeconds,
         rem_sleep_seconds: remSleepSeconds,
-        light_sleep_seconds: sleepSession?.light ?? null,
+        light_sleep_seconds: lightSleepSeconds ?? null,
         sleep_efficiency: sleepSession?.efficiency ?? null,
-        // Bedtime info for the edit dialog
+        // Bedtime info - preserved from manual if set
         manual_bedtime: manualBedtime,
         manual_wake_time: manualWakeTime,
-        // Readiness
+        manual_sleep_quality: manualSleepQuality,
+        // Readiness (always from Oura - biometric data)
         readiness_score: readiness?.score ?? null,
         resting_heart_rate: rhr,
         hrv_balance: hrvBalance,
@@ -430,20 +491,14 @@ serve(async (req) => {
         rhr_spike_alert: rhrSpikeAlert,
         hrv_strain_alert: hrvStrainAlert,
         critical_deficit_alert: criticalDeficitAlert,
-        // Nap duration from Oura (short sleep sessions)
-        nap_duration_minutes: napDurationMinutes,
+        // Nap duration - from Oura or preserved manual
+        nap_duration_minutes: finalNapMinutes,
         // Metadata
         synced_at: new Date().toISOString(),
       };
     });
 
-    // Use service role for upsert to handle RLS
-    const supabaseService = createClient(
-      supabaseUrl,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
-    // Upsert all records
+    // Upsert all records (supabaseService already created above for fetching existing records)
     const { error: upsertError } = await supabaseService
       .from("oura_daily_metrics")
       .upsert(metricsToUpsert, { 

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { format, subDays, startOfDay } from 'date-fns';
+import { format, subDays, getHours } from 'date-fns';
 import { toast } from 'sonner';
 
 export type MeasurementType = 'weight' | 'blood_pressure';
@@ -27,7 +27,31 @@ export interface WeightEntry {
 export interface BloodPressureEntry {
   systolic: number;
   diastolic: number;
-  notes?: string; // What were you doing before measuring
+  notes?: string;
+}
+
+export interface BPScatterPoint {
+  hour: number;
+  systolic: number;
+  diastolic: number;
+  date: string;
+  fullTime: string;
+  notes: string | null;
+}
+
+export interface TimeOfDayStats {
+  morningAvg: { systolic: number; diastolic: number } | null;
+  afternoonAvg: { systolic: number; diastolic: number } | null;
+  eveningAvg: { systolic: number; diastolic: number } | null;
+  lowestPeriod: 'morning' | 'afternoon' | 'evening' | null;
+  insight: string | null;
+}
+
+function calculatePeriodAvg(readings: HealthMeasurement[]): { systolic: number; diastolic: number } | null {
+  if (readings.length === 0) return null;
+  const avgSys = Math.round(readings.reduce((sum, r) => sum + r.primary_value, 0) / readings.length);
+  const avgDia = Math.round(readings.reduce((sum, r) => sum + (r.secondary_value || 0), 0) / readings.length);
+  return { systolic: avgSys, diastolic: avgDia };
 }
 
 export function useHealthMeasurements(daysBack: number = 30) {
@@ -99,6 +123,74 @@ export function useHealthMeasurements(daysBack: number = 30) {
   const avgDiastolic = recentBP.length > 0
     ? Math.round(recentBP.reduce((sum, bp) => sum + (bp.secondary_value || 0), 0) / recentBP.length)
     : null;
+
+  // Generate scatter plot data for BP time-of-day analysis
+  const bpScatterData: BPScatterPoint[] = bpHistory.map(reading => {
+    const date = new Date(reading.measured_at);
+    return {
+      hour: getHours(date),
+      systolic: reading.primary_value,
+      diastolic: reading.secondary_value || 0,
+      date: format(date, 'M/d'),
+      fullTime: format(date, 'M/d h:mm a'),
+      notes: reading.notes,
+    };
+  });
+
+  // Calculate time-of-day stats
+  const morningReadings = bpHistory.filter(r => {
+    const hour = getHours(new Date(r.measured_at));
+    return hour >= 6 && hour < 12;
+  });
+  const afternoonReadings = bpHistory.filter(r => {
+    const hour = getHours(new Date(r.measured_at));
+    return hour >= 12 && hour < 17;
+  });
+  const eveningReadings = bpHistory.filter(r => {
+    const hour = getHours(new Date(r.measured_at));
+    return hour >= 17 && hour < 22;
+  });
+
+  const morningAvg = calculatePeriodAvg(morningReadings);
+  const afternoonAvg = calculatePeriodAvg(afternoonReadings);
+  const eveningAvg = calculatePeriodAvg(eveningReadings);
+
+  // Determine lowest period
+  let lowestPeriod: 'morning' | 'afternoon' | 'evening' | null = null;
+  const periods = [
+    { name: 'morning' as const, avg: morningAvg },
+    { name: 'afternoon' as const, avg: afternoonAvg },
+    { name: 'evening' as const, avg: eveningAvg },
+  ].filter(p => p.avg !== null);
+
+  if (periods.length > 0) {
+    lowestPeriod = periods.reduce((lowest, current) => 
+      current.avg!.systolic < lowest.avg!.systolic ? current : lowest
+    ).name;
+  }
+
+  // Generate insight
+  let timeOfDayInsight: string | null = null;
+  if (morningAvg && eveningAvg) {
+    const diff = morningAvg.systolic - eveningAvg.systolic;
+    if (Math.abs(diff) >= 5) {
+      if (diff > 0) {
+        timeOfDayInsight = `Morning readings average ${diff} mmHg higher than evening readings.`;
+      } else {
+        timeOfDayInsight = `Evening readings average ${Math.abs(diff)} mmHg higher than morning readings.`;
+      }
+    }
+  } else if (bpHistory.length >= 3 && bpHistory.length < 6) {
+    timeOfDayInsight = "Log more readings at different times to reveal patterns.";
+  }
+
+  const timeOfDayStats: TimeOfDayStats = {
+    morningAvg,
+    afternoonAvg,
+    eveningAvg,
+    lowestPeriod,
+    insight: timeOfDayInsight,
+  };
 
   // Log weight
   const logWeight = useMutation({
@@ -186,6 +278,8 @@ export function useHealthMeasurements(daysBack: number = 30) {
     weightChange,
     avgSystolic,
     avgDiastolic,
+    bpScatterData,
+    timeOfDayStats,
     logWeight,
     logBloodPressure,
     deleteMeasurement,

@@ -226,8 +226,8 @@ export const useJournalChat = () => {
 
   const fetchSemanticContext = useCallback(async (query: string): Promise<SemanticResult[]> => {
     try {
-      // Search for relevant historical activities
-      const { results, error } = await search(query, { limit: 8 });
+      // Search for relevant historical activities - increased limit for deeper memory
+      const { results, error } = await search(query, { limit: 15 });
       if (error) {
         console.log('Semantic search error (non-blocking):', error);
         return [];

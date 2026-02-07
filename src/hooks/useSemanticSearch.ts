@@ -11,8 +11,12 @@ type SourceType =
   | "vision"
   | "big_ten_project"
   | "reset_audit"
+  | "bird_sighting"
+  | "voice_call_log"
   | "audio_journal"
-  | "audio_journal_chunk";
+  | "audio_journal_chunk"
+  | "monthly_intention"
+  | "chat_conversation";
 
 interface SearchOptions {
   limit?: number;
@@ -133,6 +137,24 @@ export function useSemanticSearch() {
           const mood = r.metadata?.mood ? ` (${r.metadata.mood})` : "";
           return `- ${r.activityDate}${mood}: ${r.contentText}`;
         }).join("\n"));
+    }
+
+    // Voice call logs
+    if (grouped.voice_call_log?.length) {
+      sections.push("**📞 Voice Call History:**\n" + 
+        grouped.voice_call_log.map(r => `- ${r.activityDate}: ${r.contentText}`).join("\n"));
+    }
+
+    // Monthly intentions
+    if (grouped.monthly_intention?.length) {
+      sections.push("**🎯 Monthly Intentions:**\n" + 
+        grouped.monthly_intention.map(r => r.contentText).join("\n"));
+    }
+
+    // Chat conversations
+    if (grouped.chat_conversation?.length) {
+      sections.push("**💬 Past Conversations:**\n" + 
+        grouped.chat_conversation.map(r => `- ${r.activityDate}: ${r.contentText}`).join("\n"));
     }
 
     return sections.join("\n\n");

@@ -1,94 +1,160 @@
 
 
-# Fix Short Scout API Integration
+# Version Number Implementation Plan
 
-## Problem
+## Overview
+Add visible version numbers to the app so users can easily verify they're running the latest version and you can debug with friends knowing everyone is on the same build.
 
-The current implementation is calling a non-existent RPC function:
-```
-GET ${SHORT_SCOUT_URL}/rest/v1/rpc/get_tickers_data?section=tickers
-```
+## Approach: Build-Time Version Injection
 
-Short Scout confirmed the correct approach is to call their **Edge Function**:
-```
-GET ${SHORT_SCOUT_URL}/functions/v1/platform-stats
-```
-
-Or use the Supabase client method:
-```typescript
-supabase.functions.invoke('platform-stats')
-```
-
-## Solution
-
-Update both edge functions to call the correct Edge Function endpoint with the `section` parameter.
+The best approach for a Vite/React app is to inject version information at build time. This provides:
+- **Automatic incrementing** - no manual version bumps needed
+- **Build timestamp** - know exactly when a version was deployed
+- **Git commit hash** (optional) - trace back to exact code state
 
 ---
 
-## Files to Modify
+## What Users Will See
 
-### 1. `supabase/functions/test-short-scout/index.ts`
-
-**Change the API call from:**
-```typescript
-const response = await fetch(
-  `${baseUrl}/rest/v1/rpc/get_tickers_data?section=${section}`,
-  { headers: { ... } }
-);
+### 1. Settings Page Footer
+A subtle version badge at the bottom of the Settings page:
+```
+v1.2.3 • Built Feb 7, 2026 at 8:42 AM
 ```
 
-**To:**
-```typescript
-const response = await fetch(
-  `${baseUrl}/functions/v1/platform-stats?section=${section}`,
-  { headers: { ... } }
-);
+### 2. Footer Component (Optional)
+Version in the global footer visible on public pages:
+```
+© 2026 Groovy Planning • v1.2.3
 ```
 
-### 2. `supabase/functions/briefing-lab-generate/index.ts` (line 132-141)
+### 3. Click to Copy
+Tapping the version copies the full version string to clipboard (useful for support/debugging).
 
-**Change from:**
-```typescript
-const ssResponse = await fetch(
-  `${SHORT_SCOUT_URL}/rest/v1/rpc/get_tickers_data?section=tickers`,
-  { headers: { ... } }
-);
-```
+---
 
-**To:**
-```typescript
-const ssResponse = await fetch(
-  `${SHORT_SCOUT_URL}/functions/v1/platform-stats?section=tickers`,
-  { headers: { ... } }
-);
+## How It Works
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                     BUILD PROCESS                           │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  package.json ──► version: "1.2.3"                         │
+│                          │                                  │
+│                          ▼                                  │
+│  vite.config.ts ──► define: {                              │
+│                       __APP_VERSION__: "1.2.3"             │
+│                       __BUILD_TIME__: "2026-02-07T14:42"   │
+│                     }                                       │
+│                          │                                  │
+│                          ▼                                  │
+│  React App ──► import.meta.env equivalent access           │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Expected Response Format
+## Technical Implementation
 
-Based on your documentation, the `platform-stats` endpoint with `?section=tickers` should return:
-```json
-{
-  "top_searched": ["NVDA", "TSLA", ...],
-  "top_scout_ahead": ["PLTR", "SMCI", ...],
-  "most_traded": ["SPY", "QQQ", ...]
+### Step 1: Update Vite Config
+Add build-time constants that inject the version from `package.json` and current timestamp:
+
+```typescript
+// vite.config.ts
+import pkg from './package.json';
+
+export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+  },
+  // ... rest of config
+});
+```
+
+### Step 2: Add TypeScript Declarations
+Create type definitions so TypeScript knows about the global constants:
+
+```typescript
+// src/vite-env.d.ts (add to existing file)
+declare const __APP_VERSION__: string;
+declare const __BUILD_TIME__: string;
+```
+
+### Step 3: Create Version Display Component
+A reusable component that shows version info:
+
+```typescript
+// src/components/layout/AppVersion.tsx
+export function AppVersion({ showBuildTime = true }) {
+  const version = __APP_VERSION__;
+  const buildTime = new Date(__BUILD_TIME__);
+  
+  const copyVersion = () => {
+    navigator.clipboard.writeText(`v${version} (${__BUILD_TIME__})`);
+    toast.success('Version copied to clipboard');
+  };
+  
+  return (
+    <button onClick={copyVersion} className="text-xs text-muted-foreground">
+      v{version} {showBuildTime && `• Built ${format(buildTime, 'MMM d, yyyy')}`}
+    </button>
+  );
 }
 ```
 
----
+### Step 4: Add to Settings Page
+Place the version component at the bottom of the Settings page, after all other settings cards.
 
-## Testing After Fix
-
-1. Deploy updated edge functions
-2. Click "Test Short Scout API" in the admin section
-3. Verify all three sections return data successfully
-4. Generate a briefing with Short Scout enabled to confirm integration
+### Step 5: Add to Footer (Optional)
+Include version in the global footer for public pages.
 
 ---
 
-## Technical Note
+## Versioning Strategy
 
-The update to the memory context has already been made noting the correct endpoint:
-> Uses the `platform-stats` edge function, NOT the RPC function
+**Semantic Versioning (Recommended):**
+- `MAJOR.MINOR.PATCH` (e.g., 1.2.3)
+- Bump `PATCH` for bug fixes
+- Bump `MINOR` for new features  
+- Bump `MAJOR` for breaking changes
+
+**How to Update:**
+Simply update the `version` field in `package.json`:
+```json
+{
+  "version": "1.2.3"
+}
+```
+
+The next build will automatically pick up the new version.
+
+---
+
+## Files to Create/Modify
+
+| File | Action |
+|------|--------|
+| `package.json` | Update version from "0.0.0" to "1.0.0" |
+| `vite.config.ts` | Add `define` block with version constants |
+| `src/vite-env.d.ts` | Add type declarations for global constants |
+| `src/components/layout/AppVersion.tsx` | New component for version display |
+| `src/pages/Settings.tsx` | Add AppVersion component at bottom |
+| `src/components/layout/Footer.tsx` | (Optional) Add version to footer |
+
+---
+
+## Example Output
+
+**Settings Page (bottom):**
+> **App Version**  
+> v1.0.0 • Built Feb 7, 2026 at 8:42 AM  
+> *Tap to copy*
+
+**Debugging Scenario:**
+> You: "What version are you on?"  
+> Markus: "v1.0.0, built Feb 7"  
+> You: "I'm on v1.0.1, built Feb 8 — that's the fix!"
 

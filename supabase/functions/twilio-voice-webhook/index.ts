@@ -1084,7 +1084,7 @@ async function executeTool(
     }
     
     case 'search_history': {
-      const { query, limit = 5 } = args as { query: string; limit?: number };
+      const { query, limit = 10 } = args as { query: string; limit?: number };
       
       try {
         // Generate embedding for query
@@ -1259,12 +1259,62 @@ serve(async (req) => {
     const userName = profile.display_name || 'there';
     const userId = profile.user_id;
 
-    // Handle call end - update call log
+    // Handle call end - update call log and generate embedding
     if (callStatus === 'completed') {
+      // Update call end time
       await supabase
         .from('voice_call_logs')
         .update({ call_ended_at: new Date().toISOString() })
         .eq('call_sid', callSid);
+      
+      // Fetch the complete call log for embedding
+      const { data: completedLog } = await supabase
+        .from('voice_call_logs')
+        .select('id, messages, tasks_created, tasks_completed, created_at')
+        .eq('call_sid', callSid)
+        .maybeSingle();
+      
+      // Generate embedding for the conversation if it has meaningful content
+      if (completedLog?.messages && Array.isArray(completedLog.messages) && completedLog.messages.length > 0) {
+        const messages = completedLog.messages as { role: string; content: string }[];
+        const userMessages = messages.filter(m => m.role === 'user').map(m => m.content).filter(Boolean);
+        
+        if (userMessages.length > 0) {
+          const parts: string[] = [`Voice call on ${new Date(completedLog.created_at).toLocaleDateString()}.`];
+          parts.push(`User requested: ${userMessages.join(". ")}`);
+          
+          const tasksCreated = (completedLog.tasks_created || []) as { title: string }[];
+          const tasksCompleted = (completedLog.tasks_completed || []) as { title: string }[];
+          
+          if (tasksCreated.length > 0) {
+            parts.push(`Tasks created: ${tasksCreated.map(t => t.title).join(", ")}`);
+          }
+          if (tasksCompleted.length > 0) {
+            parts.push(`Habits/tasks completed: ${tasksCompleted.map(t => t.title).join(", ")}`);
+          }
+          
+          // Fire and forget embedding generation
+          fetch(`${SUPABASE_URL}/functions/v1/generate-embedding`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            },
+            body: JSON.stringify({
+              sourceType: "voice_call_log",
+              sourceId: completedLog.id,
+              contentText: parts.join(" "),
+              activityDate: completedLog.created_at.split("T")[0],
+              metadata: {
+                callSid,
+                messageCount: messages.length,
+                tasksCreated: tasksCreated.length,
+                tasksCompleted: tasksCompleted.length,
+              },
+            }),
+          }).catch(err => console.error("Failed to generate embedding for call:", err));
+        }
+      }
       
       return new Response('OK', { headers: corsHeaders });
     }

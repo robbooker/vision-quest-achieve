@@ -12,7 +12,12 @@ type SourceType =
   | "vision"
   | "big_ten_project"
   | "reset_audit"
-  | "bird_sighting";
+  | "bird_sighting"
+  | "voice_call_log"
+  | "audio_journal"
+  | "audio_journal_chunk"
+  | "monthly_intention"
+  | "chat_conversation";
 
 interface EmbeddingData {
   sourceType: SourceType;
@@ -480,6 +485,154 @@ export function useActivityEmbeddings() {
     });
   }, [generateEmbedding]);
 
+  // Helper to format voice call log for embedding
+  const embedVoiceCallLog = useCallback(async (log: {
+    id: string;
+    user_id: string;
+    call_sid: string;
+    messages?: { role: string; content: string }[] | null;
+    tasks_created?: { title: string }[] | null;
+    tasks_completed?: { title: string }[] | null;
+    created_at: string;
+  }) => {
+    const parts: string[] = [`Voice call on ${format(new Date(log.created_at), "MMM d, yyyy")}.`];
+    
+    // Extract user messages
+    const userMessages = (log.messages || [])
+      .filter((m: any) => m.role === 'user')
+      .map((m: any) => m.content)
+      .filter(Boolean);
+    
+    if (userMessages.length > 0) {
+      parts.push(`User requested: ${userMessages.join(". ")}`);
+    }
+    
+    // Add tasks created/completed
+    if (log.tasks_created && log.tasks_created.length > 0) {
+      parts.push(`Tasks created: ${log.tasks_created.map(t => t.title).join(", ")}`);
+    }
+    if (log.tasks_completed && log.tasks_completed.length > 0) {
+      parts.push(`Habits/tasks completed: ${log.tasks_completed.map(t => t.title).join(", ")}`);
+    }
+
+    const activityDate = format(new Date(log.created_at), "yyyy-MM-dd");
+
+    return generateEmbedding({
+      sourceType: "voice_call_log",
+      sourceId: log.id,
+      contentText: parts.join(" "),
+      activityDate,
+      metadata: {
+        callSid: log.call_sid,
+        messageCount: log.messages?.length || 0,
+        tasksCreated: log.tasks_created?.length || 0,
+        tasksCompleted: log.tasks_completed?.length || 0,
+      },
+    });
+  }, [generateEmbedding]);
+
+  // Helper to format audio journal recording for embedding
+  const embedAudioJournal = useCallback(async (recording: {
+    id: string;
+    audio_transcript?: string | null;
+    audio_metadata?: {
+      mood?: string;
+      energyLevel?: number;
+      keyThemes?: string[];
+    } | null;
+    created_at: string;
+  }) => {
+    if (!recording.audio_transcript) {
+      return { success: true, skipped: true };
+    }
+
+    const metadata = recording.audio_metadata || {};
+    const parts: string[] = [`Voice journal from ${format(new Date(recording.created_at), "MMM d, yyyy")}.`];
+    
+    if (metadata.mood) {
+      parts.push(`Mood: ${metadata.mood}`);
+    }
+    if (metadata.energyLevel) {
+      parts.push(`Energy level: ${metadata.energyLevel}/10`);
+    }
+    if (metadata.keyThemes && metadata.keyThemes.length > 0) {
+      parts.push(`Key themes: ${metadata.keyThemes.join(", ")}`);
+    }
+    parts.push(`Transcript: ${recording.audio_transcript}`);
+
+    const activityDate = format(new Date(recording.created_at), "yyyy-MM-dd");
+
+    return generateEmbedding({
+      sourceType: "audio_journal",
+      sourceId: recording.id,
+      contentText: parts.join(" "),
+      activityDate,
+      metadata: {
+        mood: metadata.mood,
+        energyLevel: metadata.energyLevel,
+        keyThemes: metadata.keyThemes,
+      },
+    });
+  }, [generateEmbedding]);
+
+  // Helper to format monthly intention for embedding
+  const embedMonthlyIntention = useCallback(async (intention: {
+    id: string;
+    intention_word: string;
+    intention_description?: string | null;
+    month_year: string;
+    created_at: string;
+  }) => {
+    const parts: string[] = [`Monthly intention for ${intention.month_year}: "${intention.intention_word}".`];
+    
+    if (intention.intention_description) {
+      parts.push(`Description: ${intention.intention_description}`);
+    }
+
+    return generateEmbedding({
+      sourceType: "monthly_intention",
+      sourceId: intention.id,
+      contentText: parts.join(" "),
+      activityDate: intention.created_at.split('T')[0],
+      metadata: {
+        word: intention.intention_word,
+        monthYear: intention.month_year,
+      },
+    });
+  }, [generateEmbedding]);
+
+  // Helper to format chat conversation for embedding
+  const embedChatConversation = useCallback(async (conversation: {
+    id: string;
+    title: string;
+    messages: { role: string; content: string }[];
+    created_at: string;
+  }) => {
+    // Extract key content from the conversation
+    const userMessages = conversation.messages
+      .filter(m => m.role === 'user')
+      .map(m => m.content)
+      .slice(0, 5); // First 5 user messages for context
+    
+    const parts: string[] = [`Chat conversation: "${conversation.title}".`];
+    if (userMessages.length > 0) {
+      parts.push(`Topics discussed: ${userMessages.join(" | ")}`);
+    }
+
+    const activityDate = format(new Date(conversation.created_at), "yyyy-MM-dd");
+
+    return generateEmbedding({
+      sourceType: "chat_conversation",
+      sourceId: conversation.id,
+      contentText: parts.join(" "),
+      activityDate,
+      metadata: {
+        title: conversation.title,
+        messageCount: conversation.messages.length,
+      },
+    });
+  }, [generateEmbedding]);
+
   return {
     generateEmbedding,
     embedJournalEntry,
@@ -492,5 +645,9 @@ export function useActivityEmbeddings() {
     embedBigTenProject,
     embedResetAudit,
     embedBirdSighting,
+    embedVoiceCallLog,
+    embedAudioJournal,
+    embedMonthlyIntention,
+    embedChatConversation,
   };
 }

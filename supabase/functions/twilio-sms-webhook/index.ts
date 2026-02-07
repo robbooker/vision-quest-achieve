@@ -996,7 +996,7 @@ async function executeTool(
     }
     
     case 'search_history': {
-      const { query, limit = 5 } = args as { query: string; limit?: number };
+      const { query, limit = 10 } = args as { query: string; limit?: number };
       
       try {
         const embeddingResponse = await fetch('https://ai.gateway.lovable.dev/v1/embeddings', {

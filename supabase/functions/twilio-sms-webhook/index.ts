@@ -1312,22 +1312,26 @@ serve(async (req) => {
 
     console.log('Twilio SMS webhook received:', JSON.stringify(params, null, 2));
 
-    // Validate Twilio signature
+    // Validate Twilio signature - REQUIRED for security
     const twilioSignature = req.headers.get('x-twilio-signature');
     const SUPABASE_PROJECT_ID = SUPABASE_URL.replace('https://', '').split('.')[0];
     const webhookUrl = `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/twilio-sms-webhook`;
     
-    if (twilioSignature) {
-      const isValid = await validateTwilioSignature(
-        TWILIO_AUTH_TOKEN,
-        twilioSignature,
-        webhookUrl,
-        params
-      );
-      
-      if (!isValid) {
-        console.warn('Twilio signature validation failed - proceeding anyway');
-      }
+    if (!twilioSignature) {
+      console.error('Missing Twilio signature header - rejecting request');
+      return new Response('Forbidden', { status: 403, headers: corsHeaders });
+    }
+
+    const isValid = await validateTwilioSignature(
+      TWILIO_AUTH_TOKEN,
+      twilioSignature,
+      webhookUrl,
+      params
+    );
+    
+    if (!isValid) {
+      console.error('Invalid Twilio signature - rejecting request');
+      return new Response('Forbidden', { status: 403, headers: corsHeaders });
     }
 
     // Create Supabase admin client

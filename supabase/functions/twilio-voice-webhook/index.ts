@@ -326,20 +326,13 @@ const voiceTools = [
   }
 ];
 
-// Extract the actual webhook URL from the request headers
-// This ensures we validate against the same URL Twilio signed
-function getWebhookUrl(req: Request): string {
-  const forwardedProto = req.headers.get('x-forwarded-proto') || 'https';
-  const forwardedHost = req.headers.get('x-forwarded-host') || req.headers.get('host');
-  const url = new URL(req.url);
-  
-  if (forwardedHost) {
-    // Reconstruct URL from forwarded headers (proxy scenario)
-    return `${forwardedProto}://${forwardedHost}${url.pathname}`;
-  }
-  
-  // Fall back to the request URL without query string
-  return `${url.protocol}//${url.host}${url.pathname}`;
+// Construct the webhook URL that Twilio actually calls
+// The SUPABASE_URL gives us the base, but we need the functions URL format
+function getWebhookUrl(functionName: string): string {
+  // SUPABASE_URL is like: https://gogzkyjylruuziseprfw.supabase.co
+  // Twilio calls: https://gogzkyjylruuziseprfw.supabase.co/functions/v1/twilio-voice-webhook
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+  return `${supabaseUrl}/functions/v1/${functionName}`;
 }
 
 // Validate Twilio request signature using Web Crypto API
@@ -1260,14 +1253,9 @@ serve(async (req) => {
       return new Response('Forbidden', { status: 403, headers: corsHeaders });
     }
 
-    // Extract the actual URL from request headers (matches what Twilio signed)
-    const webhookUrl = getWebhookUrl(req);
-    console.log('Signature validation:', { 
-      webhookUrl, 
-      originalUrl: req.url,
-      forwardedHost: req.headers.get('x-forwarded-host'),
-      forwardedProto: req.headers.get('x-forwarded-proto')
-    });
+    // Construct the webhook URL that matches what Twilio signed
+    const webhookUrl = getWebhookUrl('twilio-voice-webhook');
+    console.log('Signature validation:', { webhookUrl });
 
     const isValid = await validateTwilioSignature(
       TWILIO_AUTH_TOKEN,

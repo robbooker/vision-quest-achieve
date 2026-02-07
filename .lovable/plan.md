@@ -1,59 +1,135 @@
 
-# Fix Custom useMemo Shadowing React Built-in
+# Fix Twilio Webhook Signature Validation Bypass
 
 ## Overview
-Remove the custom `useMemo` implementation in `useCalendar.tsx` that shadows React's built-in hook, and use the proper React `useMemo` instead.
+Fix a critical security vulnerability where both Twilio webhooks (SMS and Voice) bypass signature validation when it fails, allowing attackers to forge webhook requests.
 
 ---
 
-## The Problem
+## The Vulnerability
 
-At the bottom of `src/hooks/useCalendar.tsx` (lines 232-241), there's a custom `useMemo` function:
+### Current Behavior (INSECURE)
 
+**SMS Webhook** (`twilio-sms-webhook/index.ts`, lines 1320-1331):
 ```typescript
-function useMemo<T>(factory: () => T, deps: React.DependencyList): T {
-  const [value, setValue] = useState<T>(factory);
+if (twilioSignature) {
+  const isValid = await validateTwilioSignature(...);
   
-  useEffect(() => {
-    setValue(factory());
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
-  
-  return value;
+  if (!isValid) {
+    console.warn('Twilio signature validation failed - proceeding anyway');
+    // ❌ Continues processing the request!
+  }
 }
+// ❌ Also continues if no signature header is present!
 ```
 
-This implementation:
-- Runs the factory twice on mount (initial state + effect)
-- Updates asynchronously after render instead of synchronously
-- Can return stale values during the render phase
+**Voice Webhook** (`twilio-voice-webhook/index.ts`, lines 1245-1256):
+Same pattern - logs warning but proceeds anyway.
+
+### Why This Is Critical
+
+1. **No authentication barrier**: Anyone can POST to these endpoints
+2. **Data manipulation**: Attackers can:
+   - Create/complete tasks for any user (by spoofing their phone number)
+   - Log fake habits, sleep, weight, blood pressure data
+   - Trigger Reset Audit completions
+   - Access user insights and briefings
+3. **Phone number is the only "auth"**: The webhook looks up users by phone number in the request body - which an attacker controls
 
 ---
 
 ## The Fix
 
+### Required Changes
+
 | File | Change |
 |------|--------|
-| `src/hooks/useCalendar.tsx` | Add `useMemo` to React import, delete custom implementation |
+| `supabase/functions/twilio-sms-webhook/index.ts` | Reject requests with missing/invalid signatures |
+| `supabase/functions/twilio-voice-webhook/index.ts` | Reject requests with missing/invalid signatures |
 
-### Before
+### New Logic
+
 ```typescript
-import { useState, useEffect, useCallback } from 'react';
-```
+// Validate Twilio signature - REQUIRED
+const twilioSignature = req.headers.get('x-twilio-signature');
 
-### After
-```typescript
-import { useState, useEffect, useCallback, useMemo } from 'react';
-```
+if (!twilioSignature) {
+  console.error('Missing Twilio signature header');
+  return new Response('Forbidden', { status: 403, headers: corsHeaders });
+}
 
-Then delete lines 232-241 (the custom `useMemo` function).
+const isValid = await validateTwilioSignature(
+  TWILIO_AUTH_TOKEN,
+  twilioSignature,
+  webhookUrl,
+  params
+);
+
+if (!isValid) {
+  console.error('Invalid Twilio signature');
+  return new Response('Forbidden', { status: 403, headers: corsHeaders });
+}
+
+// Only proceed with authenticated requests
+```
 
 ---
 
-## Impact
+## Implementation Details
 
-**What changes**: The `useCalendarAvailability` hook will now use React's proper memoization.
+### SMS Webhook Changes (lines 1316-1331)
 
-**What you'll notice**: Nothing immediately - the hook isn't actively used in the app right now. This is a preventative fix that ensures correct behavior if the hook is used in the future.
+**Before:**
+```typescript
+if (twilioSignature) {
+  const isValid = await validateTwilioSignature(...);
+  if (!isValid) {
+    console.warn('Twilio signature validation failed - proceeding anyway');
+  }
+}
+```
 
-**Risk level**: Very low - straightforward import change with no logic modifications.
+**After:**
+```typescript
+if (!twilioSignature) {
+  console.error('Missing Twilio signature header');
+  return new Response('Forbidden', { status: 403, headers: corsHeaders });
+}
+
+const isValid = await validateTwilioSignature(
+  TWILIO_AUTH_TOKEN,
+  twilioSignature,
+  webhookUrl,
+  params
+);
+
+if (!isValid) {
+  console.error('Invalid Twilio signature - rejecting request');
+  return new Response('Forbidden', { status: 403, headers: corsHeaders });
+}
+```
+
+### Voice Webhook Changes (lines 1241-1256)
+
+Same pattern - require signature and reject if invalid.
+
+---
+
+## Testing Notes
+
+After deployment:
+1. Real Twilio requests will continue to work (they include valid signatures)
+2. Manual curl/Postman requests without valid signatures will be rejected with 403
+3. Test by sending a real SMS to confirm the webhook still processes legitimate requests
+
+---
+
+## Risk Assessment
+
+**Risk level**: Low - this is adding security, not changing functionality
+
+**Potential issues**:
+- If the webhook URL configured in Twilio doesn't exactly match what the code expects, legitimate requests could be rejected
+- The signature validation algorithm must match Twilio's exactly
+
+**Mitigation**: The `validateTwilioSignature` function already exists and appears correctly implemented. The fix only changes what happens when validation fails.

@@ -369,12 +369,24 @@ async function validateTwilioSignature(
   params: Record<string, string>
 ): Promise<boolean> {
   try {
-    const sortedParams = Object.keys(params)
-      .sort()
+    // Sort params alphabetically by key (case-sensitive Unix-style sort)
+    const sortedKeys = Object.keys(params).sort();
+    const sortedParams = sortedKeys
       .map(key => key + params[key])
       .join('');
     
     const data = url + sortedParams;
+    
+    // Debug: Log what we're signing (partial for security)
+    console.log('Signature validation debug:', {
+      url,
+      paramCount: sortedKeys.length,
+      sortedKeys,
+      dataLength: data.length,
+      dataPreview: data.substring(0, 100) + '...',
+      receivedSig: signature?.substring(0, 20) + '...',
+      authTokenLength: authToken?.length
+    });
     
     const encoder = new TextEncoder();
     const keyData = encoder.encode(authToken);
@@ -390,6 +402,12 @@ async function validateTwilioSignature(
     
     const signatureBytes = await crypto.subtle.sign('HMAC', key, dataBytes);
     const computedSignature = btoa(String.fromCharCode(...new Uint8Array(signatureBytes)));
+    
+    console.log('Signature comparison:', {
+      computed: computedSignature.substring(0, 20) + '...',
+      received: signature?.substring(0, 20) + '...',
+      match: computedSignature === signature
+    });
     
     return computedSignature === signature;
   } catch (error) {

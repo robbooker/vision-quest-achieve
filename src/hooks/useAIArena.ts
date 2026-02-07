@@ -42,11 +42,11 @@ async function fetchFullContext(userId: string) {
     primedResult,
   ] = await Promise.all([
     supabase.from('goals').select('*, milestones(*)').eq('user_id', userId),
-    supabase.from('cycles').select('*').eq('user_id', userId).eq('status', 'active').single(),
+    supabase.from('cycles').select('*').eq('user_id', userId).eq('status', 'active').maybeSingle(),
     supabase.from('quick_tasks').select('*').eq('user_id', userId).gte('created_at', thirtyDaysAgo.toISOString()).order('created_at', { ascending: false }).limit(100),
     supabase.from('focus_sessions').select('*').eq('user_id', userId).gte('started_at', thirtyDaysAgo.toISOString()).order('started_at', { ascending: false }).limit(50),
     supabase.from('journal_entries').select('*').eq('user_id', userId).gte('entry_date', thirtyDaysAgo.toISOString()).order('entry_date', { ascending: false }).limit(30),
-    supabase.from('user_vision').select('*').eq('user_id', userId).single(),
+    supabase.from('user_vision').select('*').eq('user_id', userId).maybeSingle(),
     supabase.from('trading_pnl').select('*').eq('user_id', userId).gte('trade_date', thirtyDaysAgo.toISOString()).order('trade_date', { ascending: false }).limit(30),
     supabase.from('tactic_logs').select('*, goal_tactics(title)').eq('user_id', userId).gte('logged_date', thirtyDaysAgo.toISOString()).order('logged_date', { ascending: false }).limit(100),
     supabase.from('oura_daily_metrics').select('*').eq('user_id', userId).gte('metric_date', thirtyDaysAgo.toISOString()).order('metric_date', { ascending: false }).limit(30),

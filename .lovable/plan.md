@@ -1,135 +1,128 @@
 
-# Fix Twilio Webhook Signature Validation Bypass
+
+# Fix Race Condition in Onboarding Check
 
 ## Overview
-Fix a critical security vulnerability where both Twilio webhooks (SMS and Voice) bypass signature validation when it fails, allowing attackers to forge webhook requests.
+Fix a race condition where the sessionStorage flag `just-completed-onboarding` is removed too early, potentially causing users to be redirected back to onboarding in a loop.
 
 ---
 
-## The Vulnerability
+## The Problem
 
-### Current Behavior (INSECURE)
+### Current Flow (Buggy)
 
-**SMS Webhook** (`twilio-sms-webhook/index.ts`, lines 1320-1331):
-```typescript
-if (twilioSignature) {
-  const isValid = await validateTwilioSignature(...);
-  
-  if (!isValid) {
-    console.warn('Twilio signature validation failed - proceeding anyway');
-    // ❌ Continues processing the request!
-  }
-}
-// ❌ Also continues if no signature header is present!
+```text
+Onboarding.tsx                     ProtectedRoute.tsx
+     |                                    |
+     | 1. Saves onboarding_completed=true |
+     |    to database                     |
+     |                                    |
+     | 2. Sets sessionStorage flag        |
+     |                                    |
+     | 3. setTimeout 100ms                |
+     |                                    |
+     | 4. window.location.href="/today"   |
+     |                                    |
+     |--------------------------------->  |
+     |                                    | 5. Mounts, reads flag (true)
+     |                                    | 6. IMMEDIATELY removes flag
+     |                                    | 7. Sets onboardingCompleted=true
+     |                                    |
+     |                                    | (React Strict Mode re-runs effect)
+     |                                    |
+     |                                    | 8. Re-runs effect
+     |                                    | 9. Flag is GONE
+     |                                    | 10. Queries database
+     |                                    | 11. Database might return stale data
+     |                                    | 12. Redirects to /onboarding ❌
 ```
 
-**Voice Webhook** (`twilio-voice-webhook/index.ts`, lines 1245-1256):
-Same pattern - logs warning but proceeds anyway.
+### Root Cause
 
-### Why This Is Critical
-
-1. **No authentication barrier**: Anyone can POST to these endpoints
-2. **Data manipulation**: Attackers can:
-   - Create/complete tasks for any user (by spoofing their phone number)
-   - Log fake habits, sleep, weight, blood pressure data
-   - Trigger Reset Audit completions
-   - Access user insights and briefings
-3. **Phone number is the only "auth"**: The webhook looks up users by phone number in the request body - which an attacker controls
+1. The flag is removed synchronously on first read
+2. React Strict Mode (dev) or natural re-renders cause the effect to run again
+3. Second run finds no flag, queries the database
+4. Database may still have stale data due to replication lag
+5. User gets redirected back to onboarding
 
 ---
 
 ## The Fix
 
-### Required Changes
+### Strategy: Don't remove the flag until we're certain
+
+Instead of immediately removing the sessionStorage flag, we'll:
+1. Keep the flag alive until we've confirmed the database has the correct value
+2. Use a ref to track if we've already processed the flag in this component lifecycle
+
+### Changes
 
 | File | Change |
 |------|--------|
-| `supabase/functions/twilio-sms-webhook/index.ts` | Reject requests with missing/invalid signatures |
-| `supabase/functions/twilio-voice-webhook/index.ts` | Reject requests with missing/invalid signatures |
+| `src/components/auth/ProtectedRoute.tsx` | Use ref to prevent duplicate processing, defer flag removal |
 
-### New Logic
+### Implementation
 
+**Before (lines 23-31):**
 ```typescript
-// Validate Twilio signature - REQUIRED
-const twilioSignature = req.headers.get('x-twilio-signature');
-
-if (!twilioSignature) {
-  console.error('Missing Twilio signature header');
-  return new Response('Forbidden', { status: 403, headers: corsHeaders });
-}
-
-const isValid = await validateTwilioSignature(
-  TWILIO_AUTH_TOKEN,
-  twilioSignature,
-  webhookUrl,
-  params
-);
-
-if (!isValid) {
-  console.error('Invalid Twilio signature');
-  return new Response('Forbidden', { status: 403, headers: corsHeaders });
-}
-
-// Only proceed with authenticated requests
-```
-
----
-
-## Implementation Details
-
-### SMS Webhook Changes (lines 1316-1331)
-
-**Before:**
-```typescript
-if (twilioSignature) {
-  const isValid = await validateTwilioSignature(...);
-  if (!isValid) {
-    console.warn('Twilio signature validation failed - proceeding anyway');
-  }
+const justCompleted = sessionStorage.getItem("just-completed-onboarding");
+if (justCompleted === "true") {
+  // Clear the flag so future navigations check the DB
+  sessionStorage.removeItem("just-completed-onboarding");
+  setOnboardingCompleted(true);
+  setCheckingOnboarding(false);
+  return;
 }
 ```
 
 **After:**
 ```typescript
-if (!twilioSignature) {
-  console.error('Missing Twilio signature header');
-  return new Response('Forbidden', { status: 403, headers: corsHeaders });
-}
+// Use a ref to track if we've already handled the just-completed flag
+const hasHandledFlagRef = useRef(false);
 
-const isValid = await validateTwilioSignature(
-  TWILIO_AUTH_TOKEN,
-  twilioSignature,
-  webhookUrl,
-  params
-);
-
-if (!isValid) {
-  console.error('Invalid Twilio signature - rejecting request');
-  return new Response('Forbidden', { status: 403, headers: corsHeaders });
+// Inside checkOnboarding():
+const justCompleted = sessionStorage.getItem("just-completed-onboarding");
+if (justCompleted === "true") {
+  // Mark as handled to prevent re-processing on re-renders
+  if (!hasHandledFlagRef.current) {
+    hasHandledFlagRef.current = true;
+    setOnboardingCompleted(true);
+    setCheckingOnboarding(false);
+    
+    // Remove flag after a delay to survive React Strict Mode double-invoke
+    setTimeout(() => {
+      sessionStorage.removeItem("just-completed-onboarding");
+    }, 1000);
+  }
+  return;
 }
 ```
 
-### Voice Webhook Changes (lines 1241-1256)
+### Why This Works
 
-Same pattern - require signature and reject if invalid.
-
----
-
-## Testing Notes
-
-After deployment:
-1. Real Twilio requests will continue to work (they include valid signatures)
-2. Manual curl/Postman requests without valid signatures will be rejected with 403
-3. Test by sending a real SMS to confirm the webhook still processes legitimate requests
+1. **Ref prevents duplicate processing**: Even if the effect runs twice (Strict Mode), the ref remembers we already handled it
+2. **Delayed flag removal**: The 1-second delay ensures:
+   - The component has fully mounted and rendered
+   - React Strict Mode's double-invoke has completed
+   - The user is safely on the target page
+3. **Flag still gets cleaned up**: We don't leave stale flags around forever
 
 ---
 
-## Risk Assessment
+## Alternative Considered (Not Recommended)
 
-**Risk level**: Low - this is adding security, not changing functionality
+Using React Query to manage onboarding state:
+- More complex to implement
+- Would require refactoring AuthProvider
+- Current fix is simpler and solves the specific issue
 
-**Potential issues**:
-- If the webhook URL configured in Twilio doesn't exactly match what the code expects, legitimate requests could be rejected
-- The signature validation algorithm must match Twilio's exactly
+---
 
-**Mitigation**: The `validateTwilioSignature` function already exists and appears correctly implemented. The fix only changes what happens when validation fails.
+## Impact
+
+**What changes**: The onboarding completion flow becomes more resilient to re-renders and React Strict Mode.
+
+**What you'll notice**: Users completing onboarding will reliably land on `/today` without being bounced back.
+
+**Risk level**: Very low - we're adding protection, not changing the core logic.
+

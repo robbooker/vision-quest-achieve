@@ -19,6 +19,7 @@ export function FocusTimer({ plannedMinutes, objective, onComplete, onCancel, on
   const [customMinutes, setCustomMinutes] = useState('');
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const completionSoundPlayedRef = useRef(false);
 
   const totalPlannedSeconds = plannedMinutes * 60;
   const remainingSeconds = Math.max(0, totalPlannedSeconds - elapsedSeconds);
@@ -47,9 +48,12 @@ export function FocusTimer({ plannedMinutes, objective, onComplete, onCancel, on
     };
   }, [isPaused]);
 
-  // Play sound when timer completes
+  // Play sound when timer completes (only once)
   useEffect(() => {
-    if (remainingSeconds === 0 && elapsedSeconds > 0 && !isOvertime) {
+    // Check if we've crossed the completion threshold and haven't played the sound yet
+    if (elapsedSeconds >= totalPlannedSeconds && elapsedSeconds > 0 && !completionSoundPlayedRef.current) {
+      completionSoundPlayedRef.current = true;
+      
       // Play completion sound
       try {
         audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleAAPh6i+eCIiQJ6rwS0MCmGXwqYnFheLrmYxCT+Zz5oxHiZlnLpGFhJqq6F5SEFyn7WTNx0nls2LUjhdtLRzKCxJpMd8IBg9w79GFgY+sb5oJho/');
@@ -66,7 +70,7 @@ export function FocusTimer({ plannedMinutes, objective, onComplete, onCancel, on
         });
       }
     }
-  }, [remainingSeconds, elapsedSeconds, isOvertime, objective]);
+  }, [elapsedSeconds, totalPlannedSeconds, objective]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);

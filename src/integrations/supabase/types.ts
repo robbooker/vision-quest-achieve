@@ -207,6 +207,74 @@ export type Database = {
           },
         ]
       }
+      bird_feed_likes: {
+        Row: {
+          created_at: string
+          id: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bird_feed_likes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "bird_feed_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bird_feed_posts: {
+        Row: {
+          caption: string | null
+          created_at: string
+          id: string
+          latitude: number | null
+          location_name: string | null
+          longitude: number | null
+          photo_url: string
+          posted_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          location_name?: string | null
+          longitude?: number | null
+          photo_url: string
+          posted_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          location_name?: string | null
+          longitude?: number | null
+          photo_url?: string
+          posted_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bird_sighting_photos: {
         Row: {
           created_at: string

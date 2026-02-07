@@ -218,12 +218,12 @@ const smsTools = [
     type: "function" as const,
     function: {
       name: "get_cumulative_habit_progress",
-      description: "Get cumulative progress on habits/tactics. Use for questions like 'how many pushups did I do this month', 'total meditation time', 'exercise count this week', etc.",
+      description: "Get cumulative progress on habits/tactics. Use for questions like 'how many pushups did I do this month', 'total meditation time', 'exercise count this week', 'pushups this cycle', etc.",
       parameters: {
         type: "object",
         properties: {
           habit_name: { type: "string", description: "Name of the habit (e.g., 'pushups', 'meditation')" },
-          period: { type: "string", enum: ["today", "week", "month", "year", "all"], description: "Time period for aggregation. Default 'month'." }
+          period: { type: "string", enum: ["today", "week", "month", "year", "cycle", "all"], description: "Time period for aggregation. Use 'cycle' for current 8-week cycle. Default 'month'." }
         },
         required: ["habit_name"],
         additionalProperties: false
@@ -759,15 +759,20 @@ async function executeTool(
     }
     
     case 'get_goal_progress': {
+      // Get goals with their tactics for progress tracking
       const { data: goals } = await supabase
         .from('goals')
-        .select('title, target_value, metric_type')
+        .select(`
+          id, title, target_value, metric_type, goal_type,
+          goal_tactics(id, title, target_count, tactic_logs(completed_count, logged_date)),
+          milestones(week_number, target_value)
+        `)
         .eq('user_id', userId)
         .limit(5);
       
       const { data: cycle } = await supabase
         .from('cycles')
-        .select('name, start_date')
+        .select('name, start_date, end_date')
         .eq('user_id', userId)
         .eq('status', 'active')
         .maybeSingle();
@@ -775,13 +780,65 @@ async function executeTool(
       if (!goals?.length) return "🎯 No active goals. Create one in the app!";
       
       let response = "";
+      let currentWeek = 0;
+      let daysRemaining = 0;
+      
       if (cycle) {
         const startDate = new Date(cycle.start_date);
-        const currentWeek = Math.floor((new Date().getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
-        response = `📅 ${cycle.name} (Wk ${Math.min(currentWeek, 8)})\n\n`;
+        const endDate = new Date(cycle.end_date);
+        const today = new Date();
+        currentWeek = Math.floor((today.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+        daysRemaining = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        response = `📅 ${cycle.name} (Wk ${Math.min(currentWeek, 8)}) - ${daysRemaining} days left\n\n`;
       }
       
-      response += `🎯 Goals:\n${goals.map((g: any) => `• ${g.title}: ${g.target_value} ${g.metric_type}`).join('\n')}`;
+      // Calculate actual progress for each goal
+      const goalProgress = goals.map((g: any) => {
+        let currentValue = 0;
+        let totalTarget = g.target_value;
+        
+        // For habit-based goals, sum up tactic logs from cycle start
+        if (g.goal_tactics?.length) {
+          for (const tactic of g.goal_tactics) {
+            const logs = tactic.tactic_logs || [];
+            // Filter logs to only include those from current cycle
+            const cycleLogs = cycle 
+              ? logs.filter((l: any) => l.logged_date >= cycle.start_date)
+              : logs;
+            
+            // Extract multiplier from tactic title (e.g., "Do 10 pushups" → 10)
+            const unitMatch = tactic.title.match(/(\d+)/);
+            const unitValue = unitMatch ? parseInt(unitMatch[1], 10) : 1;
+            
+            const tacticTotal = cycleLogs.reduce((sum: number, l: any) => 
+              sum + ((l.completed_count || 0) * unitValue), 0);
+            currentValue += tacticTotal;
+          }
+        }
+        
+        // Find current week's milestone target if exists
+        let weeklyTarget = null;
+        if (g.milestones?.length && currentWeek > 0) {
+          const milestone = g.milestones.find((m: any) => m.week_number === currentWeek);
+          if (milestone) weeklyTarget = milestone.target_value;
+        }
+        
+        const percentage = totalTarget > 0 ? Math.round((currentValue / totalTarget) * 100) : 0;
+        let status = '';
+        if (percentage >= 100) status = '✅';
+        else if (percentage >= 75) status = '🔥';
+        else if (percentage >= 50) status = '📈';
+        else status = '🎯';
+        
+        let info = `${status} ${g.title}: ${currentValue.toLocaleString()}/${totalTarget.toLocaleString()} (${percentage}%)`;
+        if (weeklyTarget !== null) {
+          info += ` | Wk${currentWeek} target: ${weeklyTarget}`;
+        }
+        
+        return info;
+      });
+      
+      response += `🎯 Goals:\n${goalProgress.join('\n')}`;
       
       return response;
     }
@@ -790,15 +847,18 @@ async function executeTool(
       const [tasksResult, habitsResult, cycleResult] = await Promise.all([
         supabase.from('quick_tasks').select('title').eq('user_id', userId).eq('completed', false).order('position').limit(3),
         supabase.from('goal_tactics').select('title').eq('user_id', userId).eq('is_active', true).limit(3),
-        supabase.from('cycles').select('name, start_date').eq('user_id', userId).eq('status', 'active').maybeSingle()
+        supabase.from('cycles').select('name, start_date, end_date').eq('user_id', userId).eq('status', 'active').maybeSingle()
       ]);
       
       let briefing = "☀️ Daily Briefing\n\n";
       
       if (cycleResult.data) {
         const startDate = new Date(cycleResult.data.start_date);
-        const currentWeek = Math.floor((new Date().getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
-        briefing += `📅 ${cycleResult.data.name} - Wk ${Math.min(currentWeek, 8)}\n\n`;
+        const endDate = new Date(cycleResult.data.end_date);
+        const today = new Date();
+        const currentWeek = Math.floor((today.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+        const daysRemaining = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        briefing += `📅 ${cycleResult.data.name} - Wk ${Math.min(currentWeek, 8)} (${daysRemaining} days left)\n\n`;
       }
       
       if (tasksResult.data?.length) {
@@ -828,16 +888,37 @@ async function executeTool(
       
       const now = new Date();
       let startDate: string | null = null;
+      let periodLabel = 'all time';
       
-      if (period === 'today') startDate = todayStr;
-      else if (period === 'week') {
+      if (period === 'today') {
+        startDate = todayStr;
+        periodLabel = 'today';
+      } else if (period === 'week') {
         const weekAgo = new Date(now);
         weekAgo.setDate(weekAgo.getDate() - 7);
         startDate = weekAgo.toISOString().split('T')[0];
+        periodLabel = 'this week';
       } else if (period === 'month') {
         startDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+        periodLabel = 'this month';
       } else if (period === 'year') {
         startDate = `${now.getFullYear()}-01-01`;
+        periodLabel = 'this year';
+      } else if (period === 'cycle') {
+        // Get active cycle start date
+        const { data: cycle } = await supabase
+          .from('cycles')
+          .select('start_date, name')
+          .eq('user_id', userId)
+          .eq('status', 'active')
+          .maybeSingle();
+        
+        if (cycle) {
+          startDate = cycle.start_date;
+          periodLabel = `this cycle (${cycle.name})`;
+        } else {
+          periodLabel = 'all time (no active cycle)';
+        }
       }
       
       let query = supabase
@@ -856,9 +937,7 @@ async function executeTool(
       const totalUnits = totalCount * unitValue;
       const daysLogged = new Set((logs || []).map((l: any) => l.logged_date)).size;
       
-      const periodLabels: Record<string, string> = { today: 'today', week: 'this week', month: 'this month', year: 'this year', all: 'all time' };
-      
-      return `📊 ${totalUnits.toLocaleString()} ${habit_name} ${periodLabels[period]}! (${daysLogged} days)`;
+      return `📊 ${totalUnits.toLocaleString()} ${habit_name} ${periodLabel}! (${daysLogged} days)`;
     }
     
     case 'get_sleep_insights': {

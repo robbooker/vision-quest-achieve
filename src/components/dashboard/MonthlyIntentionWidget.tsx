@@ -1,27 +1,27 @@
 import { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Sparkles, Edit2, Play, Pause, Sunrise } from 'lucide-react';
+import { Sparkles, Edit2, Play, Pause, Radio } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCurrentMonthIntention } from '@/hooks/useMonthlyIntention';
 import { SetIntentionDialog } from './SetIntentionDialog';
-import { useTodaysBriefing, useBriefingPreferences } from '@/hooks/useBriefings';
-import { Link } from 'react-router-dom';
+import { useBriefingLabEpisodes } from '@/hooks/useBriefingLab';
 import { supabase } from '@/integrations/supabase/client';
 
 export const MonthlyIntentionWidget = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const { data: intention, isLoading } = useCurrentMonthIntention();
-  const { data: briefingPrefs } = useBriefingPreferences();
-  const { data: todayBriefing } = useTodaysBriefing();
+  const { data: episodes } = useBriefingLabEpisodes(1);
   
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const currentMonth = format(new Date(), 'MMMM');
   
-  const hasBriefing = briefingPrefs?.enabled && todayBriefing?.status === 'ready' && todayBriefing?.podcast_url;
+  // Get the latest ready briefing from briefing_lab_episodes
+  const latestBriefing = episodes?.find(ep => ep.status === 'ready' && ep.podcast_url);
+  const hasBriefing = !!latestBriefing;
 
   const handlePlayPause = async () => {
     if (!audioRef.current) return;
@@ -30,12 +30,6 @@ export const MonthlyIntentionWidget = () => {
       audioRef.current.pause();
     } else {
       audioRef.current.play();
-      // Mark as played if not already
-      if (todayBriefing && !todayBriefing.played_at) {
-        await supabase.functions.invoke('briefing-mark-played', {
-          body: { briefingId: todayBriefing.id }
-        });
-      }
     }
     setIsPlaying(!isPlaying);
   };
@@ -57,7 +51,7 @@ export const MonthlyIntentionWidget = () => {
       audio.removeEventListener('pause', handlePause);
       audio.removeEventListener('play', handlePlay);
     };
-  }, [todayBriefing?.podcast_url]);
+  }, [latestBriefing?.podcast_url]);
 
   if (isLoading) {
     return (
@@ -113,16 +107,16 @@ export const MonthlyIntentionWidget = () => {
             </div>
             
             {/* Right: Briefing Player (if available) */}
-            {hasBriefing && (
+            {hasBriefing && latestBriefing && (
               <div className="flex items-center gap-3">
-                <div className="hidden sm:flex items-center gap-2 text-amber-600 dark:text-amber-400">
-                  <Sunrise className="h-4 w-4" />
+                <div className="hidden sm:flex items-center gap-2 text-primary">
+                  <Radio className="h-4 w-4" />
                   <span className="text-xs font-medium">Briefing</span>
                 </div>
                 <Button
                   size="sm"
                   variant="secondary"
-                  className="gap-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/30"
+                  className="gap-2"
                   onClick={handlePlayPause}
                 >
                   {isPlaying ? (
@@ -141,7 +135,7 @@ export const MonthlyIntentionWidget = () => {
                 {/* Hidden audio element */}
                 <audio
                   ref={audioRef}
-                  src={todayBriefing.podcast_url || undefined}
+                  src={latestBriefing.podcast_url || undefined}
                   className="hidden"
                 />
               </div>

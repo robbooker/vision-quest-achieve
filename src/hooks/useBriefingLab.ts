@@ -74,6 +74,8 @@ export function useBriefingLabPreferences() {
       return data as BriefingLabPreferences | null;
     },
     enabled: !!user?.id,
+    staleTime: 0, // Always consider data stale to ensure fresh fetch
+    refetchOnMount: 'always', // Always refetch when component mounts
   });
 }
 

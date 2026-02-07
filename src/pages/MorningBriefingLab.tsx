@@ -171,6 +171,8 @@ export default function MorningBriefingLab() {
       return data as SchedulingPreferences | null;
     },
     enabled: !!user?.id,
+    staleTime: 0, // Always consider data stale to ensure fresh fetch
+    refetchOnMount: 'always', // Always refetch when component mounts
   });
 
   // Fetch user's phone number for SMS validation

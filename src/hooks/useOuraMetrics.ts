@@ -282,25 +282,44 @@ export function useOuraMetrics() {
     },
   });
 
-  // Log nap for today
+  // Log nap for today - properly merges with existing data
   const logNap = useMutation({
     mutationFn: async ({ napMinutes }: { napMinutes: number }) => {
       if (!user?.id) throw new Error('Not authenticated');
       
-      // Upsert - add to existing entry or create new one
-      const { error } = await supabase
+      // First fetch existing record to preserve other fields
+      const { data: existing } = await supabase
         .from('oura_daily_metrics')
-        .upsert({
-          user_id: user.id,
-          metric_date: today,
-          nap_duration_minutes: napMinutes,
-          source: 'manual',
-        }, { 
-          onConflict: 'user_id,metric_date',
-          ignoreDuplicates: false 
-        });
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('metric_date', today)
+        .maybeSingle();
       
-      if (error) throw error;
+      if (existing) {
+        // Update only the nap field, preserve everything else
+        const { error } = await supabase
+          .from('oura_daily_metrics')
+          .update({
+            nap_duration_minutes: napMinutes,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existing.id)
+          .eq('user_id', user.id);
+        
+        if (error) throw error;
+      } else {
+        // Create new record with just nap data
+        const { error } = await supabase
+          .from('oura_daily_metrics')
+          .insert({
+            user_id: user.id,
+            metric_date: today,
+            nap_duration_minutes: napMinutes,
+            source: 'manual',
+          });
+        
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['oura-metrics'], refetchType: 'active' });

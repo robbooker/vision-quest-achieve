@@ -3,16 +3,17 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 
-export interface BirdFeedPost {
+export interface BirdFeedItem {
   id: string;
+  type: 'post' | 'sighting';
   user_id: string;
   photo_url: string;
   caption: string | null;
+  species_name?: string;
   location_name: string | null;
   latitude: number | null;
   longitude: number | null;
   posted_at: string;
-  created_at: string;
   likes_count: number;
   user_has_liked: boolean;
   author_name?: string;
@@ -23,11 +24,11 @@ export function useBirdFeed() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch all feed posts with like counts
-  const { data: posts = [], isLoading } = useQuery({
-    queryKey: ['bird-feed-posts', user?.id],
+  // Fetch combined feed: casual posts + official sighting photos
+  const { data: feedItems = [], isLoading } = useQuery({
+    queryKey: ['bird-feed-combined', user?.id],
     queryFn: async () => {
-      // Get posts
+      // 1. Get casual feed posts
       const { data: postsData, error: postsError } = await supabase
         .from('bird_feed_posts')
         .select('*')
@@ -35,21 +36,46 @@ export function useBirdFeed() {
 
       if (postsError) throw postsError;
 
-      // Get likes for all posts
-      const { data: likesData, error: likesError } = await supabase
+      // 2. Get official sighting photos with their sighting data
+      const { data: sightingPhotos, error: photosError } = await supabase
+        .from('bird_sighting_photos')
+        .select(`
+          id,
+          photo_url,
+          user_id,
+          created_at,
+          sighting_id,
+          bird_sightings (
+            species_name,
+            sighting_date,
+            location_name,
+            latitude,
+            longitude,
+            user_id
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (photosError) throw photosError;
+
+      // 3. Get likes for casual posts
+      const { data: likesData } = await supabase
         .from('bird_feed_likes')
         .select('post_id, user_id');
 
-      if (likesError) throw likesError;
+      // 4. Get all user IDs for profile lookup
+      const postUserIds = postsData?.map(p => p.user_id) || [];
+      const sightingUserIds = sightingPhotos?.map(p => p.user_id) || [];
+      const allUserIds = [...new Set([...postUserIds, ...sightingUserIds])];
 
-      // Get profiles for author names
-      const userIds = [...new Set(postsData.map(p => p.user_id))];
       const { data: profiles } = await supabase
         .from('profiles')
         .select('user_id, display_name, email')
-        .in('user_id', userIds);
+        .in('user_id', allUserIds);
 
-      const profileMap = new Map(profiles?.map(p => [p.user_id, p.display_name || p.email?.split('@')[0] || 'Anonymous']));
+      const profileMap = new Map(
+        profiles?.map(p => [p.user_id, p.display_name || p.email?.split('@')[0] || 'Anonymous'])
+      );
 
       // Aggregate likes per post
       const likesMap = new Map<string, { count: number; userLiked: boolean }>();
@@ -60,16 +86,54 @@ export function useBirdFeed() {
         likesMap.set(like.post_id, current);
       });
 
-      return postsData.map(post => ({
-        ...post,
+      // Transform casual posts
+      const casualPosts: BirdFeedItem[] = (postsData || []).map(post => ({
+        id: post.id,
+        type: 'post' as const,
+        user_id: post.user_id,
+        photo_url: post.photo_url,
+        caption: post.caption,
+        location_name: post.location_name,
+        latitude: post.latitude,
+        longitude: post.longitude,
+        posted_at: post.posted_at,
         likes_count: likesMap.get(post.id)?.count || 0,
         user_has_liked: likesMap.get(post.id)?.userLiked || false,
         author_name: profileMap.get(post.user_id) || 'Anonymous',
-      })) as BirdFeedPost[];
+      }));
+
+      // Transform sighting photos
+      const sightingItems: BirdFeedItem[] = (sightingPhotos || [])
+        .filter(p => p.bird_sightings)
+        .map(photo => {
+          const sighting = photo.bird_sightings as any;
+          return {
+            id: photo.id,
+            type: 'sighting' as const,
+            user_id: photo.user_id,
+            photo_url: photo.photo_url,
+            caption: null,
+            species_name: sighting.species_name,
+            location_name: sighting.location_name,
+            latitude: sighting.latitude,
+            longitude: sighting.longitude,
+            posted_at: photo.created_at,
+            likes_count: 0, // Sighting photos don't have likes (yet)
+            user_has_liked: false,
+            author_name: profileMap.get(photo.user_id) || 'Anonymous',
+          };
+        });
+
+      // Merge and sort by date
+      const combined = [...casualPosts, ...sightingItems].sort(
+        (a, b) => new Date(b.posted_at).getTime() - new Date(a.posted_at).getTime()
+      );
+
+      return combined;
     },
   });
 
-  // Create post mutation
+  // Create post mutation (casual posts only)
   const createPost = useMutation({
     mutationFn: async (data: { 
       file: File; 
@@ -108,7 +172,7 @@ export function useBirdFeed() {
       return post;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bird-feed-posts'] });
+      queryClient.invalidateQueries({ queryKey: ['bird-feed-combined'] });
       toast({ title: 'Posted!', description: 'Your photo is now in the feed 🐦' });
     },
     onError: () => {
@@ -116,7 +180,7 @@ export function useBirdFeed() {
     },
   });
 
-  // Toggle like mutation
+  // Toggle like mutation (casual posts only)
   const toggleLike = useMutation({
     mutationFn: async (postId: string) => {
       if (!user) throw new Error('Not authenticated');
@@ -147,11 +211,11 @@ export function useBirdFeed() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bird-feed-posts'] });
+      queryClient.invalidateQueries({ queryKey: ['bird-feed-combined'] });
     },
   });
 
-  // Delete post mutation
+  // Delete post mutation (casual posts only)
   const deletePost = useMutation({
     mutationFn: async (postId: string) => {
       if (!user) throw new Error('Not authenticated');
@@ -163,7 +227,7 @@ export function useBirdFeed() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bird-feed-posts'] });
+      queryClient.invalidateQueries({ queryKey: ['bird-feed-combined'] });
       toast({ title: 'Post deleted' });
     },
     onError: () => {
@@ -172,7 +236,7 @@ export function useBirdFeed() {
   });
 
   return {
-    posts,
+    feedItems,
     isLoading,
     createPost,
     toggleLike,

@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { ImageLightbox } from '@/components/ui/image-lightbox';
 import { 
   Bird, 
@@ -14,14 +15,14 @@ import {
   Loader2,
   Trash2
 } from 'lucide-react';
-import { useBirdFeed, BirdFeedPost } from '@/hooks/useBirdFeed';
+import { useBirdFeed, BirdFeedItem } from '@/hooks/useBirdFeed';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 export function BirdFeed() {
   const { user } = useAuth();
-  const { posts, isLoading, createPost, toggleLike, deletePost } = useBirdFeed();
+  const { feedItems, isLoading, createPost, toggleLike, deletePost } = useBirdFeed();
   const [showNewPost, setShowNewPost] = useState(false);
   const [caption, setCaption] = useState('');
   const [locationName, setLocationName] = useState('');
@@ -95,8 +96,8 @@ export function BirdFeed() {
     setCoords(null);
   };
 
-  const lightboxImages = posts.map(p => ({ url: p.photo_url, alt: p.caption || 'Bird photo' }));
-  const selectedPost = selectedPhotoIndex !== null ? posts[selectedPhotoIndex] : null;
+  const lightboxImages = feedItems.map(p => ({ url: p.photo_url, alt: p.caption || p.species_name || 'Bird photo' }));
+  const selectedPost = selectedPhotoIndex !== null ? feedItems[selectedPhotoIndex] : null;
 
   if (isLoading) {
     return (
@@ -217,7 +218,7 @@ export function BirdFeed() {
       )}
 
       {/* Feed Posts */}
-      {posts.length === 0 ? (
+      {feedItems.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <Bird className="h-12 w-12 text-muted-foreground mb-4" />
@@ -228,13 +229,13 @@ export function BirdFeed() {
           </CardContent>
         </Card>
       ) : (
-        posts.map((post, index) => (
+        feedItems.map((item, index) => (
           <FeedPostCard
-            key={post.id}
-            post={post}
-            isOwnPost={post.user_id === user?.id}
-            onLike={() => toggleLike.mutate(post.id)}
-            onDelete={() => deletePost.mutate(post.id)}
+            key={item.id}
+            item={item}
+            isOwnPost={item.user_id === user?.id}
+            onLike={() => item.type === 'post' && toggleLike.mutate(item.id)}
+            onDelete={() => item.type === 'post' && deletePost.mutate(item.id)}
             onPhotoClick={() => setSelectedPhotoIndex(index)}
             isLiking={toggleLike.isPending}
           />
@@ -255,7 +256,7 @@ export function BirdFeed() {
 }
 
 interface FeedPostCardProps {
-  post: BirdFeedPost;
+  item: BirdFeedItem;
   isOwnPost: boolean;
   onLike: () => void;
   onDelete: () => void;
@@ -263,7 +264,9 @@ interface FeedPostCardProps {
   isLiking: boolean;
 }
 
-function FeedPostCard({ post, isOwnPost, onLike, onDelete, onPhotoClick, isLiking }: FeedPostCardProps) {
+function FeedPostCard({ item, isOwnPost, onLike, onDelete, onPhotoClick, isLiking }: FeedPostCardProps) {
+  const isSighting = item.type === 'sighting';
+  
   return (
     <Card className="overflow-hidden">
       {/* Header */}
@@ -272,9 +275,12 @@ function FeedPostCard({ post, isOwnPost, onLike, onDelete, onPhotoClick, isLikin
           <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
             <Bird className="h-4 w-4 text-primary" />
           </div>
-          <span className="font-medium text-sm">{post.author_name}</span>
+          <span className="font-medium text-sm">{item.author_name}</span>
+          {isSighting && (
+            <Badge variant="outline" className="text-xs">Sighting</Badge>
+          )}
         </div>
-        {isOwnPost && (
+        {isOwnPost && !isSighting && (
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onDelete}>
             <Trash2 className="h-4 w-4 text-muted-foreground" />
           </Button>
@@ -287,8 +293,8 @@ function FeedPostCard({ post, isOwnPost, onLike, onDelete, onPhotoClick, isLikin
         onClick={onPhotoClick}
       >
         <img
-          src={post.photo_url}
-          alt={post.caption || 'Bird photo'}
+          src={item.photo_url}
+          alt={item.caption || item.species_name || 'Bird photo'}
           className="w-full h-full object-cover"
           loading="lazy"
         />
@@ -296,35 +302,42 @@ function FeedPostCard({ post, isOwnPost, onLike, onDelete, onPhotoClick, isLikin
 
       {/* Actions & Info */}
       <CardContent className="p-4 space-y-2">
-        {/* Like button */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onLike}
-            disabled={isLiking}
-            className={cn(
-              "transition-transform hover:scale-110 active:scale-95",
-              post.user_has_liked && "text-primary"
-            )}
-          >
-            <Bird 
+        {/* Like button - only for casual posts */}
+        {!isSighting && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onLike}
+              disabled={isLiking}
               className={cn(
-                "h-6 w-6",
-                post.user_has_liked ? "fill-primary text-primary" : "text-foreground"
-              )} 
-            />
-          </button>
-          {post.likes_count > 0 && (
-            <span className="text-sm font-medium">
-              {post.likes_count} {post.likes_count === 1 ? 'like' : 'likes'}
-            </span>
-          )}
-        </div>
+                "transition-transform hover:scale-110 active:scale-95",
+                item.user_has_liked && "text-primary"
+              )}
+            >
+              <Bird 
+                className={cn(
+                  "h-6 w-6",
+                  item.user_has_liked ? "fill-primary text-primary" : "text-foreground"
+                )} 
+              />
+            </button>
+            {item.likes_count > 0 && (
+              <span className="text-sm font-medium">
+                {item.likes_count} {item.likes_count === 1 ? 'like' : 'likes'}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Species name for sightings */}
+        {isSighting && item.species_name && (
+          <p className="text-sm font-medium text-primary">{item.species_name}</p>
+        )}
 
         {/* Caption */}
-        {post.caption && (
+        {item.caption && (
           <p className="text-sm">
-            <span className="font-medium">{post.author_name}</span>{' '}
-            {post.caption}
+            <span className="font-medium">{item.author_name}</span>{' '}
+            {item.caption}
           </p>
         )}
 
@@ -332,12 +345,12 @@ function FeedPostCard({ post, isOwnPost, onLike, onDelete, onPhotoClick, isLikin
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
             <Calendar className="h-3 w-3" />
-            {format(new Date(post.posted_at), 'MMM d, yyyy')}
+            {format(new Date(item.posted_at), 'MMM d, yyyy')}
           </span>
-          {post.location_name && (
+          {item.location_name && (
             <span className="flex items-center gap-1">
               <MapPin className="h-3 w-3" />
-              {post.location_name}
+              {item.location_name}
             </span>
           )}
         </div>

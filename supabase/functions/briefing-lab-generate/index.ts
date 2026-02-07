@@ -592,9 +592,13 @@ Write the complete briefing script now:`;
     const finalAudioBuffer = await ttsResponse.arrayBuffer();
     console.log(`Generated audio: ${finalAudioBuffer.byteLength} bytes`);
 
-    // Estimate duration
-    const wordCount = script.split(/\s+/).length;
-    const estimatedDuration = Math.round((wordCount / 150) * 60);
+    // Calculate actual duration from MP3 file size
+    // ElevenLabs uses 128kbps bitrate for mp3_44100_128 format
+    // Duration = file size in bits / bitrate
+    const fileSizeInBits = finalAudioBuffer.byteLength * 8;
+    const bitrateInBps = 128000; // 128 kbps
+    const actualDuration = Math.round(fileSizeInBits / bitrateInBps);
+    console.log(`Calculated duration: ${actualDuration} seconds (from ${finalAudioBuffer.byteLength} bytes)`);
 
     // Upload to storage
     const fileName = `lab/${userId}/${episode.id}.mp3`;
@@ -618,20 +622,20 @@ Write the complete briefing script now:`;
     await supabase
       .from('briefing_lab_episodes')
       .update({
-        status: 'ready',
-        podcast_url: publicUrl,
-        script,
-        duration_seconds: estimatedDuration,
-        generated_at: new Date().toISOString()
-      })
-      .eq('id', episode.id);
+      status: 'ready',
+      podcast_url: publicUrl,
+      script,
+      duration_seconds: actualDuration,
+      generated_at: new Date().toISOString()
+    })
+    .eq('id', episode.id);
 
     return new Response(JSON.stringify({
       success: true,
       episode_id: episode.id,
       podcast_url: publicUrl,
-      script,
-      duration_seconds: estimatedDuration,
+    script,
+    duration_seconds: actualDuration,
       citations: citations.slice(0, 10),
       sources_succeeded: ['claude-web-search'],
       sources_failed: []

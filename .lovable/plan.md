@@ -1,208 +1,158 @@
 
-# Expanding Semantic Search / Memory for Toasty
+# Blood Pressure Time-of-Day Analysis Enhancement
 
 ## Overview
-Expand the semantic search system so that Journal Chat, SMS Toasty, and Voice Toasty have access to a much richer history of your activities. This creates a personal AI memory that can answer questions like "When did I...", "What did I say about...", and reference patterns from months ago.
+Add an enhanced blood pressure analysis view that includes a scatter plot to visualize time-of-day patterns when multiple readings are taken throughout the day. This will help identify patterns like "BP tends to be higher in the morning" or "readings spike after stressful events."
 
 ---
 
 ## Current State
 
-### What's Already Being Embedded (10 types)
-| Source Type | Data | Notes |
-|------------|------|-------|
-| `journal_entry` | Daily journal notes + completed tasks/habits | ✅ Rich context |
-| `quick_task` | Completed task titles | ✅ Working |
-| `habit_log` | Habit completions with notes | ✅ Working |
-| `focus_session` | Focus sessions with objectives/notes | ✅ Working |
-| `goal` | Goal titles, whys, obstacles, plans | ✅ Working |
-| `week_review` | Weekly wins, lessons, next focus | ✅ Working |
-| `vision` | 3-year vision, long-term vision, values | ✅ Working |
-| `big_ten_project` | Big Ten project titles and categories | ✅ Working |
-| `reset_audit` | Reset audit scores with post-op notes | ✅ Only if has notes |
-| `bird_sighting` | Species, location, behavior notes | ✅ Working |
+The existing `PhysicalBiometricsSection.tsx` displays:
+- A `ComposedChart` with systolic (line) and diastolic (bars) over 14 readings
+- Reference lines at 120/80 mmHg
+- A list of the 5 most recent readings with timestamps and notes
+- 7-reading average with classification badge
 
-### What's NOT Being Embedded (Missing Data)
-| Source | Data Available | Count | Value |
-|--------|---------------|-------|-------|
-| `voice_call_logs` | Full conversation transcripts | 9 | **HIGH** - contains natural language about goals/tasks |
-| `journal_audio_recordings` | Full transcripts with mood/themes | 7 | **HIGH** - rich personal reflections |
-| `chat_messages` | AI Arena & Goal Coach conversations | 175 | **MEDIUM** - shows thinking patterns |
-| `monthly_intentions` | Monthly word + description | 3 | **MEDIUM** - core values/focus |
-| `primed_assessments` | Pillar assessments and behaviors | 6 | **LOW** - structured check data |
-| `trading_pnl` | Daily P&L with notes | 47 | **LOW** - numerical data |
+**Limitation**: The chart uses dates on X-axis, making it hard to spot time-of-day patterns when multiple readings happen on the same day.
 
 ---
 
-## Proposed Expansion
+## Proposed Enhancement
 
-### Priority 1: Voice Call Logs (High Impact)
-These contain natural conversation about your day, goals, and tasks. When you call Toasty and chat about "how's my week going" or "add a task", that context is valuable.
+### New "Time-of-Day Analysis" Section
+Add a tabbed view within the Blood Pressure section:
+1. **Trend** (current view) - BP over time
+2. **Time Patterns** (new) - Scatter plot showing BP by hour of day
 
-**Data structure:**
-```json
-{
-  "messages": [
-    {"role": "assistant", "content": "Here's your daily briefing..."},
-    {"role": "user", "content": "Add buy beef jerky to my task list"},
-    {"role": "assistant", "content": "I've added 'Buy beef jerky'..."}
-  ],
-  "tasks_created": [{"title": "Buy beef jerky"}],
-  "tasks_completed": [{"title": "Do 10 more pushups"}]
-}
-```
+### Scatter Plot Features
+- **X-axis**: Hour of day (0-23 or 6am-10pm range based on data)
+- **Y-axis**: Blood pressure value (60-160 mmHg)
+- **Two series**: 
+  - Red dots for Systolic
+  - Gray dots for Diastolic
+- **Reference bands**: Shaded zones for Normal/Elevated/Stage 1/Stage 2
+- **Tooltip**: Shows exact time, date, values, and notes
+- **Insights**: Auto-generated text like "Your systolic is 8 mmHg higher in the morning (6-9am) vs evening"
 
-**Embedding content:**
-```
-Voice call on Jan 24, 2026. 
-User requested: "Add buy beef jerky to my task list", "completed 10 pushups"
-Tasks created: Buy beef jerky
-Habits completed: Do 10 more pushups
-```
-
-### Priority 2: Audio Journal Transcripts (High Impact)
-These are rich personal reflections with mood and themes already extracted.
-
-**Example transcript:**
-> "I am exhausted. I don't know what came over me... my body is trying to fight something off..."
-
-**Embedding content:**
-```
-Voice journal from Jan 21, 2026. Mood: tired (energy 2/5)
-Key themes: Physical exhaustion, Potential illness, Deep sleep, Health tracking
-Transcript: "I am exhausted. I don't know what came over me..."
-```
-
-### Priority 3: Monthly Intentions (Medium Impact)
-These capture your core focus word and why it matters.
-
-**Example:**
-> Word: INTENTION
-> Description: "Living without obstruction. Asking myself, 'Am I rushing?'..."
-
-### Priority 4: Chat Messages (Goal Coach / AI Arena) (Medium Impact)
-Valuable for understanding your thinking patterns, especially around goal setting and problem solving.
+### Additional Stats
+- Morning average (6am-12pm) vs Evening average (5pm-10pm)
+- Best time of day (lowest average)
+- Most variable time of day
 
 ---
 
 ## Technical Implementation
 
-### Step 1: Update Source Type Constraint
-Add new source types to the database:
-- `voice_call_log`
-- `audio_journal`
-- `monthly_intention`
-- `chat_conversation` (grouped by conversation, not individual messages)
+### Step 1: Add Tabs to Blood Pressure Section
+Wrap the BP section in tabs for Trend vs Time Patterns.
 
-### Step 2: Expand useActivityEmbeddings Hook
-Add new embedding helpers:
-```typescript
-embedVoiceCallLog(log: VoiceCallLog)
-embedAudioJournal(recording: JournalAudioRecording)
-embedMonthlyIntention(intention: MonthlyIntention)
-embedChatConversation(conversation: Conversation)
-```
+### Step 2: Create Scatter Chart
+Use Recharts `ScatterChart` component with:
+- `ZAxis` for dot size (optional, could represent notes presence)
+- Custom tooltip showing full reading details
+- Reference areas for BP zones
 
-### Step 3: Expand useSemanticSearch formatAsContext
-Add new groupings for display:
-```typescript
-if (grouped.voice_call_log?.length) {
-  sections.push("**📞 Past Voice Calls:**\n" + ...);
-}
-if (grouped.audio_journal?.length) {
-  sections.push("**🎙️ Voice Journal Entries:**\n" + ...);
-}
-```
+### Step 3: Add Time-of-Day Analytics
+New calculations in `useHealthMeasurements.ts`:
+- Group readings by hour
+- Calculate hourly averages
+- Compute morning vs evening comparison
+- Identify patterns (if enough data)
 
-### Step 4: Add Embedding Triggers
-Embed new content when:
-- Voice call ends → embed the conversation
-- Audio journal is transcribed → embed the transcript
-- Monthly intention is saved → embed the intention
-- Chat conversation is saved → embed the conversation
-
-### Step 5: Create Backfill Edge Function
-Embed historical data that wasn't previously embedded:
-```typescript
-// backfill-extended-embeddings
-// - Voice call logs with messages
-// - Audio journal transcripts
-// - Monthly intentions
-// - Goal coach conversations
-```
-
-### Step 6: Increase Search Limits
-Update default limits in both webhooks:
-- Journal Chat: 8 → 15 results
-- SMS/Voice Toasty: 5 → 10 results
+### Step 4: Smart Insights
+Generate contextual insights when patterns are detected:
+- "BP tends to spike after lunch"
+- "Your lowest readings are around 7pm"
+- "Consider measuring at the same time each day for consistency"
 
 ---
 
-## Files to Create/Modify
+## UI Design
 
-| File | Action |
-|------|--------|
-| `src/hooks/useActivityEmbeddings.ts` | Add 4 new embedding helpers |
-| `src/hooks/useSemanticSearch.ts` | Add new source types and formatters |
-| `supabase/functions/twilio-sms-webhook/index.ts` | Increase search limit, embed voice logs |
-| `supabase/functions/twilio-voice-webhook/index.ts` | Embed call logs after call ends |
-| `supabase/functions/transcribe-audio/index.ts` | Embed after transcription |
-| `supabase/functions/backfill-extended-embeddings/index.ts` | New function for historical data |
-| `supabase/migrations/` | Update source_type constraint |
+```text
+┌─────────────────────────────────────────────────────────┐
+│  Blood Pressure            119/78 avg  [Normal badge]   │
+├─────────────────────────────────────────────────────────┤
+│  [Trend]  [Time Patterns]                               │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  (Scatter Plot - X: Hour, Y: BP)                        │
+│                                                         │
+│   160 ─┼───────────────────────────── Stage 2 zone     │
+│   140 ─┼───────────────────────────── Stage 1 zone     │
+│   130 ─┼─────●───────●─────────────── Elevated zone    │
+│   120 ─┼─────────●─────●───●───────── Normal zone      │
+│    80 ─┼─────○───○─────○───○───○─────                  │
+│        └─────┼─────┼─────┼─────┼────                    │
+│             6am  12pm   6pm  10pm                       │
+│                                                         │
+│  ● Systolic   ○ Diastolic   ─ Reference lines          │
+├─────────────────────────────────────────────────────────┤
+│  💡 Morning readings (6-9am) average 5 mmHg higher      │
+│     than evening readings.                              │
+├─────────────────────────────────────────────────────────┤
+│  Recent readings:                                        │
+│  ○ 2/7 8:30am  125/82  (after coffee)                   │
+│  ○ 2/7 7:15pm  118/77  (resting)                        │
+│  ○ 2/6 8:00am  128/84                                   │
+└─────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Example Queries After Expansion
+## Files to Modify
 
-Once expanded, Toasty can answer:
+| File | Changes |
+|------|---------|
+| `src/components/primed/PhysicalBiometricsSection.tsx` | Add tabs, create scatter chart view, add insights |
+| `src/hooks/useHealthMeasurements.ts` | Add time-of-day analytics calculations |
 
-- **"When did I talk about feeling exhausted?"** → Finds audio journal from Jan 21
-- **"What tasks did I add during calls last week?"** → Finds voice call logs
-- **"What was my word of the month in February?"** → Finds monthly intention
-- **"What did the goal coach help me with?"** → Finds chat conversations
-- **"Tell me about my energy patterns this year"** → Finds audio journals with energy levels
+---
+
+## Technical Details
+
+### Scatter Chart Data Shape
+```typescript
+interface BPScatterPoint {
+  hour: number;           // 0-23
+  systolic: number;
+  diastolic: number;
+  date: string;           // For tooltip
+  fullTime: string;       // For tooltip
+  notes: string | null;
+}
+```
+
+### Time Period Analytics
+```typescript
+interface TimeOfDayStats {
+  morningAvg: { systolic: number; diastolic: number } | null;  // 6am-12pm
+  afternoonAvg: { systolic: number; diastolic: number } | null; // 12pm-5pm
+  eveningAvg: { systolic: number; diastolic: number } | null;   // 5pm-10pm
+  lowestPeriod: 'morning' | 'afternoon' | 'evening' | null;
+  insight: string | null;  // Generated pattern description
+}
+```
+
+### Recharts Imports to Add
+```typescript
+import { 
+  ScatterChart, 
+  Scatter, 
+  ZAxis, 
+  ReferenceArea,
+  Cell 
+} from 'recharts';
+```
 
 ---
 
 ## Expected Outcome
 
 After implementation:
-- **~240+ additional embeddings** from existing data
-- **5-10x more context** available for AI responses
-- **SMS/Voice Toasty** can reference conversations, journal entries, and monthly focus
-- **Journal Chat** becomes a true reflection assistant with deep memory
-
----
-
-## Diagram: Data Flow
-
-```text
-┌─────────────────────────────────────────────────────────────────────┐
-│                        USER ACTIVITIES                               │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  📞 Voice Calls        🎙️ Audio Journals       💬 Chat Sessions      │
-│       ↓                       ↓                       ↓              │
-│  [messages]            [transcript]           [messages]             │
-│  [tasks_created]       [mood, themes]         [context]              │
-│       ↓                       ↓                       ↓              │
-│       └───────────────────────┼───────────────────────┘              │
-│                               ↓                                      │
-│                    ┌──────────────────────┐                          │
-│                    │  generate-embedding  │                          │
-│                    │    Edge Function     │                          │
-│                    └──────────────────────┘                          │
-│                               ↓                                      │
-│                    ┌──────────────────────┐                          │
-│                    │  activity_embeddings │                          │
-│                    │       (pgvector)     │                          │
-│                    └──────────────────────┘                          │
-│                               ↓                                      │
-│       ┌───────────────────────┼───────────────────────┐              │
-│       ↓                       ↓                       ↓              │
-│  📱 SMS Toasty         📝 Journal Chat         📞 Voice Toasty       │
-│                                                                      │
-│  "When did I..."       "What patterns..."      "Remind me..."        │
-│                                                                      │
-└─────────────────────────────────────────────────────────────────────┘
-```
+- Users can toggle between trend view and time-of-day pattern view
+- Scatter plot reveals patterns like "higher BP in morning"
+- Auto-generated insights help users understand their patterns
+- Notes on readings provide context for outliers
+- Works well with multiple readings per day

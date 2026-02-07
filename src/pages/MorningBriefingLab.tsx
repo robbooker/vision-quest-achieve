@@ -283,22 +283,40 @@ export default function MorningBriefingLab() {
       
       if (data.records?.[0]?.fields) {
         const { latitude, longitude, city, state } = data.records[0].fields;
-        setLocalPrefs(prev => ({
-          ...prev,
+        const locationName = `${city}, ${state}`;
+        
+        // Update local state
+        const newPrefs = {
+          ...localPrefs,
           location_lat: latitude,
           location_lng: longitude,
-          location_name: `${city}, ${state}`
-        }));
-        // Also update briefing_preferences for weather in automation
+          location_name: locationName
+        };
+        setLocalPrefs(newPrefs);
+        
+        // IMMEDIATELY save to briefing_lab_preferences (the correct table)
+        console.log('[MorningBriefingLab] Saving location to briefing_lab_preferences:', { latitude, longitude, locationName });
+        await updatePrefs.mutateAsync({
+          location_lat: latitude,
+          location_lng: longitude,
+          location_name: locationName
+        });
+        
+        // Also sync to briefing_preferences for automation compatibility
         updateSchedulingMutation.mutate({
           location_lat: latitude,
           location_lng: longitude,
-          location_name: `${city}, ${state}`
+          location_name: locationName
         } as any);
-        if (!initialLoadRef.current) setHasUnsavedChanges(true);
+        
+        setHasUnsavedChanges(false);
+        toast.success(`Location set to ${locationName}`);
+      } else {
+        toast.error('Could not find location for this zip code');
       }
     } catch (e) {
       console.error('Zip lookup error:', e);
+      toast.error('Failed to lookup zip code');
     }
   };
 
@@ -318,33 +336,55 @@ export default function MorningBriefingLab() {
             const state = data.address?.state || '';
             const locationName = state ? `${city}, ${state}` : city;
             
-            setLocalPrefs(prev => ({
-              ...prev,
+            // Update local state
+            const newPrefs = {
+              ...localPrefs,
               location_lat: latitude,
               location_lng: longitude,
               location_name: locationName
-            }));
-            // Also update briefing_preferences
+            };
+            setLocalPrefs(newPrefs);
+            
+            // IMMEDIATELY save to briefing_lab_preferences (the correct table)
+            console.log('[MorningBriefingLab] Saving geolocation to briefing_lab_preferences:', { latitude, longitude, locationName });
+            await updatePrefs.mutateAsync({
+              location_lat: latitude,
+              location_lng: longitude,
+              location_name: locationName
+            });
+            
+            // Also sync to briefing_preferences for automation compatibility
             updateSchedulingMutation.mutate({
               location_lat: latitude,
               location_lng: longitude,
               location_name: locationName
             } as any);
-            if (!initialLoadRef.current) setHasUnsavedChanges(true);
             
+            setHasUnsavedChanges(false);
             toast.success(`Location set to ${locationName}`, {
               description: `Coordinates: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`
             });
           } catch (e) {
             const fallbackName = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-            setLocalPrefs(prev => ({
-              ...prev,
+            
+            // Update local state
+            const newPrefs = {
+              ...localPrefs,
               location_lat: latitude,
               location_lng: longitude,
               location_name: fallbackName
-            }));
-            if (!initialLoadRef.current) setHasUnsavedChanges(true);
+            };
+            setLocalPrefs(newPrefs);
             
+            // IMMEDIATELY save to briefing_lab_preferences
+            console.log('[MorningBriefingLab] Saving fallback geolocation to briefing_lab_preferences:', { latitude, longitude, fallbackName });
+            await updatePrefs.mutateAsync({
+              location_lat: latitude,
+              location_lng: longitude,
+              location_name: fallbackName
+            });
+            
+            setHasUnsavedChanges(false);
             toast.success(`Location set`, {
               description: `Coordinates: ${fallbackName}`
             });

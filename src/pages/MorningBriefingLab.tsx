@@ -94,15 +94,7 @@ const TOGGLE_CATEGORIES: ToggleCategoryConfig[] = [
   { key: 'include_intention', label: 'Word of Month', icon: Target, description: 'Monthly intention reflection' },
 ];
 
-interface SchedulingPreferences {
-  enabled: boolean;
-  default_wake_time: string;
-  evening_reminder_time: string;
-  timezone: string;
-  preferred_channel: 'sms' | 'call' | 'both';
-  weekend_enabled: boolean;
-  sms_delivery_enabled: boolean;
-}
+// SchedulingPreferences is now part of BriefingLabPreferences - no separate interface needed
 
 export default function MorningBriefingLab() {
   const { user } = useAuth();
@@ -157,24 +149,6 @@ export default function MorningBriefingLab() {
         });
     }
   }, [isAdmin, user?.id]);
-  // Fetch scheduling preferences from briefing_preferences table
-  const { data: schedulingPrefs } = useQuery({
-    queryKey: ['briefing-preferences', user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('briefing_preferences')
-        .select('*')
-        .eq('user_id', user?.id)
-        .maybeSingle();
-      
-      if (error && error.code !== 'PGRST116') throw error;
-      return data as SchedulingPreferences | null;
-    },
-    enabled: !!user?.id,
-    staleTime: 0, // Always consider data stale to ensure fresh fetch
-    refetchOnMount: 'always', // Always refetch when component mounts
-  });
-
   // Fetch user's phone number for SMS validation
   const { data: userProfile } = useQuery({
     queryKey: ['profile-phone', user?.id],
@@ -189,37 +163,6 @@ export default function MorningBriefingLab() {
       return data;
     },
     enabled: !!user?.id,
-  });
-
-  // Mutation for scheduling preferences
-  const updateSchedulingMutation = useMutation({
-    mutationFn: async (updates: Partial<SchedulingPreferences>) => {
-      const { data: existing } = await supabase
-        .from('briefing_preferences')
-        .select('id')
-        .eq('user_id', user?.id)
-        .maybeSingle();
-
-      if (existing) {
-        const { error } = await supabase
-          .from('briefing_preferences')
-          .update(updates)
-          .eq('user_id', user?.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('briefing_preferences')
-          .insert({ user_id: user?.id, ...updates });
-        if (error) throw error;
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['briefing-preferences'] });
-      toast.success('Preferences saved');
-    },
-    onError: (error) => {
-      toast.error('Failed to save: ' + (error as Error).message);
-    },
   });
 
   // Initialize local prefs from server - handles both existing prefs and new users
@@ -301,14 +244,6 @@ export default function MorningBriefingLab() {
           location_lng: longitude,
           location_name: locationName
         });
-        
-        // Also sync to briefing_preferences for automation compatibility
-        updateSchedulingMutation.mutate({
-          location_lat: latitude,
-          location_lng: longitude,
-          location_name: locationName
-        } as any);
-        
         setHasUnsavedChanges(false);
         toast.success(`Location set to ${locationName}`);
       } else {
@@ -352,14 +287,6 @@ export default function MorningBriefingLab() {
               location_lng: longitude,
               location_name: locationName
             });
-            
-            // Also sync to briefing_preferences for automation compatibility
-            updateSchedulingMutation.mutate({
-              location_lat: latitude,
-              location_lng: longitude,
-              location_name: locationName
-            } as any);
-            
             setHasUnsavedChanges(false);
             toast.success(`Location set to ${locationName}`, {
               description: `Coordinates: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`
@@ -402,8 +329,17 @@ export default function MorningBriefingLab() {
     }
   };
 
-  const handleSchedulingChange = (field: keyof SchedulingPreferences, value: any) => {
-    updateSchedulingMutation.mutate({ [field]: value });
+  const handleSchedulingChange = async (field: keyof BriefingLabPreferences, value: any) => {
+    // Update local state
+    setLocalPrefs(prev => ({ ...prev, [field]: value }));
+    
+    // Immediately save to database
+    try {
+      console.log('[MorningBriefingLab] Saving scheduling change:', { field, value });
+      await updatePrefs.mutateAsync({ [field]: value });
+    } catch (error) {
+      console.error('[MorningBriefingLab] Failed to save scheduling change:', error);
+    }
   };
 
   const handleGenerate = async () => {
@@ -492,7 +428,7 @@ export default function MorningBriefingLab() {
                 </CardDescription>
               </div>
               <Switch
-                checked={schedulingPrefs?.enabled ?? false}
+                checked={localPrefs?.enabled ?? false}
                 onCheckedChange={(checked) => handleSchedulingChange('enabled', checked)}
               />
             </div>
@@ -590,7 +526,7 @@ export default function MorningBriefingLab() {
                 </Label>
                 <Input
                   type="time"
-                  value={schedulingPrefs?.default_wake_time || '07:00'}
+                  value={localPrefs?.default_wake_time || '07:00'}
                   onChange={(e) => handleSchedulingChange('default_wake_time', e.target.value)}
                 />
               </div>
@@ -599,7 +535,7 @@ export default function MorningBriefingLab() {
                 <Label>Evening Reminder Time</Label>
                 <Input
                   type="time"
-                  value={schedulingPrefs?.evening_reminder_time || '19:00'}
+                  value={localPrefs?.evening_reminder_time || '19:00'}
                   onChange={(e) => handleSchedulingChange('evening_reminder_time', e.target.value)}
                 />
               </div>
@@ -609,7 +545,7 @@ export default function MorningBriefingLab() {
             <div className="space-y-2">
               <Label>Timezone</Label>
               <Select
-                value={schedulingPrefs?.timezone || 'America/Chicago'}
+                value={localPrefs?.timezone || 'America/Chicago'}
                 onValueChange={(value) => handleSchedulingChange('timezone', value)}
               >
                 <SelectTrigger>
@@ -630,7 +566,7 @@ export default function MorningBriefingLab() {
                 {(['sms', 'call', 'both'] as const).map(channel => (
                   <Button
                     key={channel}
-                    variant={schedulingPrefs?.preferred_channel === channel ? 'default' : 'outline'}
+                    variant={localPrefs?.preferred_channel === channel ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => handleSchedulingChange('preferred_channel', channel)}
                     className="flex items-center gap-1"
@@ -651,7 +587,7 @@ export default function MorningBriefingLab() {
                 <p className="text-sm text-muted-foreground">Send reminders on Saturday and Sunday</p>
               </div>
               <Switch
-                checked={schedulingPrefs?.weekend_enabled ?? false}
+                checked={localPrefs?.weekend_enabled ?? false}
                 onCheckedChange={(checked) => handleSchedulingChange('weekend_enabled', checked)}
               />
             </div>
@@ -670,7 +606,7 @@ export default function MorningBriefingLab() {
                   </p>
                 </div>
                 <Switch
-                  checked={schedulingPrefs?.sms_delivery_enabled ?? false}
+                  checked={localPrefs?.sms_delivery_enabled ?? false}
                   onCheckedChange={(checked) => {
                     if (checked && !userProfile?.phone_us) {
                       toast.error('Please add your US phone number in Profile Settings first');
@@ -681,7 +617,7 @@ export default function MorningBriefingLab() {
                 />
               </div>
               
-              {schedulingPrefs?.sms_delivery_enabled && !userProfile?.phone_us && (
+              {localPrefs?.sms_delivery_enabled && !userProfile?.phone_us && (
                 <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                   <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
                   <div className="text-sm">

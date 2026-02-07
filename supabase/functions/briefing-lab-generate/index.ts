@@ -82,7 +82,7 @@ serve(async (req) => {
       .single();
 
     const userName = profile?.display_name || profile?.email?.split('@')[0] || 'there';
-    const timezone = 'America/Chicago';
+    const timezone = labPrefs?.timezone || 'America/Chicago';
     const voiceId = labPrefs?.voice_id || 'JBFqnCBsd6RMkjVDRZzb';
 
     // Get today's date info and time of day
@@ -262,7 +262,7 @@ serve(async (req) => {
         const lng = labPrefs?.location_lng || -87.63;
         
         const weatherResponse = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,weather_code&daily=temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&timezone=America/Chicago`
+          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,weather_code&daily=temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&timezone=${encodeURIComponent(timezone)}`
         );
         
         if (weatherResponse.ok) {

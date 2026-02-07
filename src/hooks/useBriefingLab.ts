@@ -41,6 +41,14 @@ export interface BriefingLabPreferences {
   science_topics: string | null;
   health_topics: string | null;
   custom_topics: string | null;
+  // Scheduling fields (consolidated from briefing_preferences)
+  enabled: boolean;
+  default_wake_time: string;
+  evening_reminder_time: string;
+  timezone: string;
+  preferred_channel: 'sms' | 'call' | 'both';
+  weekend_enabled: boolean;
+  sms_delivery_enabled: boolean;
   created_at: string;
   updated_at: string;
 }

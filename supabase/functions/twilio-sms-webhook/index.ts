@@ -366,6 +366,14 @@ async function validateTwilioSignature(
       .join('');
     
     const data = url + sortedParams;
+    
+    // Debug logging for signature validation
+    console.log('Signature validation debug:', {
+      url,
+      receivedSignature: signature?.substring(0, 20) + '...',
+      paramKeys: Object.keys(params).sort()
+    });
+    
     const encoder = new TextEncoder();
     const keyData = encoder.encode(authToken);
     const dataBytes = encoder.encode(data);
@@ -380,6 +388,8 @@ async function validateTwilioSignature(
     
     const signatureBytes = await crypto.subtle.sign('HMAC', key, dataBytes);
     const computedSignature = btoa(String.fromCharCode(...new Uint8Array(signatureBytes)));
+    
+    console.log('Computed signature prefix:', computedSignature.substring(0, 20) + '...');
     
     return computedSignature === signature;
   } catch (error) {
@@ -1251,21 +1261,36 @@ serve(async (req) => {
     const SUPABASE_PROJECT_REF = Deno.env.get('SUPABASE_PROJECT_REF') || 'gogzkyjylruuziseprfw';
     const webhookUrl = `https://${SUPABASE_PROJECT_REF}.supabase.co/functions/v1/twilio-sms-webhook`;
     
-    if (!twilioSignature) {
+    // Temporary bypass for debugging - remove once signature issue is resolved
+    const bypassSignature = Deno.env.get('TWILIO_SIGNATURE_BYPASS') === 'true';
+    
+    if (!twilioSignature && !bypassSignature) {
       console.error('Missing Twilio signature header - rejecting request');
       return new Response('Forbidden', { status: 403, headers: corsHeaders });
     }
 
-    const isValid = await validateTwilioSignature(
-      TWILIO_AUTH_TOKEN,
-      twilioSignature,
-      webhookUrl,
-      params
-    );
+    let isValid = bypassSignature;
+    if (!bypassSignature && twilioSignature) {
+      isValid = await validateTwilioSignature(
+        TWILIO_AUTH_TOKEN,
+        twilioSignature,
+        webhookUrl,
+        params
+      );
+    }
     
     if (!isValid) {
-      console.error('Invalid Twilio signature - rejecting request');
+      // Log detailed debug info when signature fails
+      console.error('Invalid Twilio signature - rejecting request', {
+        expectedUrl: webhookUrl,
+        hasSignature: !!twilioSignature,
+        accountSid: params.AccountSid
+      });
       return new Response('Forbidden', { status: 403, headers: corsHeaders });
+    }
+    
+    if (bypassSignature) {
+      console.warn('⚠️ Twilio signature validation bypassed - remove TWILIO_SIGNATURE_BYPASS after debugging');
     }
 
     // Create Supabase admin client

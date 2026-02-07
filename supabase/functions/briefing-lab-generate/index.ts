@@ -133,6 +133,23 @@ serve(async (req) => {
       .filter(([_, depth]) => depth !== 'off')
       .map(([cat, depth]) => `${cat}:${depth}`);
 
+    // Pre-flight check: ensure there's at least one content source enabled
+    const hasNewsCategories = activeCategories.length > 0;
+    const hasWeather = labPrefs?.include_weather && (labPrefs?.location_lat || labPrefs?.location_lng);
+    const hasCalendar = labPrefs?.include_calendar;
+    const hasShortScout = labPrefs?.include_short_scout;
+    const hasIntention = labPrefs?.include_intention;
+
+    if (!hasNewsCategories && !hasWeather && !hasCalendar && !hasShortScout && !hasIntention) {
+      console.error('No content sources enabled for briefing');
+      return new Response(JSON.stringify({ 
+        error: 'No content sources configured. Please enable at least one news category, weather, calendar, or other content source in your Briefing Lab settings before generating.' 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     const { data: episode, error: episodeError } = await supabase
       .from('briefing_lab_episodes')
       .insert({
@@ -391,7 +408,7 @@ serve(async (req) => {
     };
 
     const searchInstructions = buildSearchInstructions();
-    const hasNewsCategories = Object.entries(depthMap).some(([_, depth]) => depth !== 'off');
+    // hasNewsCategories already defined above in pre-flight check
     
     // Calculate target word count based on max duration (approx 150 words per minute)
     const targetWordCount = maxDuration * 150;

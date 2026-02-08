@@ -1,3 +1,5 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -9,8 +11,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
-    
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -62,6 +62,14 @@ Deno.serve(async (req) => {
     const authToken = Deno.env.get("TWILIO_AUTH_TOKEN");
     const fromNumber = Deno.env.get("TWILIO_PHONE_NUMBER");
 
+    console.log("[send-briefing-sms] Checking Twilio config:", {
+      hasAccountSid: !!accountSid,
+      accountSidLength: accountSid?.length,
+      hasAuthToken: !!authToken,
+      authTokenLength: authToken?.length,
+      hasFromNumber: !!fromNumber,
+    });
+
     if (!accountSid || !authToken || !fromNumber) {
       return new Response(
         JSON.stringify({ success: false, error: "SMS not configured" }),
@@ -72,6 +80,8 @@ Deno.serve(async (req) => {
     // Send SMS
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
     const credentials = btoa(`${accountSid}:${authToken}`);
+
+    console.log("[send-briefing-sms] Sending to:", profile.phone_us);
 
     const response = await fetch(twilioUrl, {
       method: "POST",
@@ -89,19 +99,21 @@ Deno.serve(async (req) => {
     const result = await response.json();
 
     if (!response.ok) {
-      console.error("Twilio error:", result);
+      console.error("[send-briefing-sms] Twilio error:", result);
       return new Response(
         JSON.stringify({ success: false, error: result.message || "Failed to send" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    console.log("[send-briefing-sms] SMS sent successfully:", result.sid);
+
     return new Response(
       JSON.stringify({ success: true, messageSid: result.sid }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Error:", error);
+    console.error("[send-briefing-sms] Error:", error);
     return new Response(
       JSON.stringify({ success: false, error: String(error) }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

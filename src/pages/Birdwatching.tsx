@@ -4,7 +4,8 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Bird, List, Heart, Calendar, BarChart3, Map, Info, Camera } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Bird, List, Heart, Calendar, BarChart3, Map, Info, Camera, Share2, Copy, Check, ExternalLink } from 'lucide-react';
 import { useBirdwatching } from '@/hooks/useBirdwatching';
 import { LogSightingForm } from '@/components/birdwatching/LogSightingForm';
 import { LifeList } from '@/components/birdwatching/LifeList';
@@ -15,11 +16,31 @@ import { BirdStats } from '@/components/birdwatching/BirdStats';
 import { BirdMap } from '@/components/birdwatching/BirdMap';
 import { SpeciesDetail } from '@/components/birdwatching/SpeciesDetail';
 import { BirdGallery } from '@/components/birdwatching/BirdGallery';
+import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function Birdwatching() {
   const [activeTab, setActiveTab] = useState('log');
   const [selectedSpecies, setSelectedSpecies] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const { sightings, lifeList, wishlist, stats, seasonalData, sightingsLoading } = useBirdwatching();
+  const { user } = useAuth();
+
+  // For now, only Rob has a public gallery - would need to add username to profiles for others
+  const isRob = user?.id === 'a0bff1ab-02c1-4d2a-ad68-2b48cf4bdd9a';
+  const shareUrl = isRob ? 'https://groovyplanning.ai/birds/rob/gallery' : null;
+
+  const handleCopyLink = async () => {
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      toast.success('Gallery link copied!');
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      toast.error('Failed to copy link');
+    }
+  };
 
   if (selectedSpecies) {
     return (
@@ -44,8 +65,51 @@ export default function Birdwatching() {
           </div>
         </div>
 
+        {/* Share Gallery Card - Prominent placement */}
+        {shareUrl && (
+          <Card className="bg-primary/5 border-primary/20">
+            <CardContent className="py-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Share2 className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-foreground">Share Your Bird Gallery</h3>
+                    <p className="text-sm text-muted-foreground">Let others see your amazing bird photos</p>
+                  </div>
+                </div>
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <Button 
+                    onClick={handleCopyLink}
+                    variant="default"
+                    className="gap-2 flex-1 sm:flex-initial"
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="h-4 w-4" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-4 w-4" />
+                        Copy Link
+                      </>
+                    )}
+                  </Button>
+                  <Button variant="outline" asChild>
+                    <a href={shareUrl} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Friendly Note */}
-        <Alert className="bg-primary/5 border-primary/20">
+        <Alert className="bg-muted/50 border-muted">
           <Info className="h-4 w-4" />
           <AlertDescription>
             This feature is mostly for{' '}

@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ImageLightbox } from '@/components/ui/image-lightbox';
-import { Bird, ArrowLeft, Calendar, Camera, List } from 'lucide-react';
+import { Bird, ArrowLeft, Calendar, Camera, List, Share2, Copy, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-
+import { toast } from 'sonner';
 interface GalleryPhoto {
   id: string;
   photo_url: string;
@@ -25,6 +26,26 @@ export default function PublicBirdGallery() {
   const [photos, setPhotos] = useState<GalleryPhoto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const shareUrl = `https://groovyplanning.ai/birds/${username}/gallery`;
+  const displayName = username?.toLowerCase() === 'rob' ? "Rob's" : `${username}'s`;
+  
+  // Use first photo as OG image, or fallback
+  const ogImage = photos.length > 0 
+    ? photos[0].photo_url 
+    : 'https://groovyplanning.ai/og-image.jpeg';
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      toast.success('Link copied to clipboard!');
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      toast.error('Failed to copy link');
+    }
+  };
 
   useEffect(() => {
     async function fetchGallery() {
@@ -128,36 +149,73 @@ export default function PublicBirdGallery() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-8">
-      <div className="max-w-6xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
-              <Camera className="h-7 w-7 text-primary" />
+    <>
+      <Helmet>
+        <title>{displayName} Bird Gallery | GroovyPlanning</title>
+        <meta name="description" content={`${displayName} bird photography gallery - ${photos.length} photos of ${uniqueSpeciesCount} species`} />
+        
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={shareUrl} />
+        <meta property="og:title" content={`${displayName} Bird Gallery`} />
+        <meta property="og:description" content={`Check out ${displayName} bird photos! ${photos.length} photos of ${uniqueSpeciesCount} different species.`} />
+        <meta property="og:image" content={ogImage} />
+        
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:url" content={shareUrl} />
+        <meta name="twitter:title" content={`${displayName} Bird Gallery`} />
+        <meta name="twitter:description" content={`Check out ${displayName} bird photos! ${photos.length} photos of ${uniqueSpeciesCount} different species.`} />
+        <meta name="twitter:image" content={ogImage} />
+      </Helmet>
+      
+      <div className="min-h-screen bg-background p-4 md:p-8">
+        <div className="max-w-6xl mx-auto space-y-6">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
+                <Camera className="h-7 w-7 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold">{displayName} Bird Photos</h1>
+                <p className="text-muted-foreground">
+                  {photos.length} photos · {uniqueSpeciesCount} species
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold">Rob's Bird Photos</h1>
-              <p className="text-muted-foreground">
-                {photos.length} photos · {uniqueSpeciesCount} species
-              </p>
+            <div className="flex gap-2 flex-wrap">
+              <Button 
+                variant="outline" 
+                onClick={handleCopyLink}
+                className="gap-2"
+              >
+                {copied ? (
+                  <>
+                    <Check className="h-4 w-4 text-green-500" />
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <Share2 className="h-4 w-4" />
+                    Share Gallery
+                  </>
+                )}
+              </Button>
+              <Button variant="outline" asChild>
+                <Link to={`/birds/${username}`}>
+                  <List className="h-4 w-4 mr-2" />
+                  Life List
+                </Link>
+              </Button>
+              <Button variant="ghost" asChild>
+                <Link to="/">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Home
+                </Link>
+              </Button>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" asChild>
-              <Link to={`/birds/${username}`}>
-                <List className="h-4 w-4 mr-2" />
-                Life List
-              </Link>
-            </Button>
-            <Button variant="ghost" asChild>
-              <Link to="/">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Home
-              </Link>
-            </Button>
-          </div>
-        </div>
 
         {/* Stats */}
         <Card>
@@ -255,26 +313,27 @@ export default function PublicBirdGallery() {
           </>
         )}
 
-        {/* Footer */}
-        <div className="text-center text-sm text-muted-foreground py-4">
-          <p>
-            Tracked with{' '}
-            <Link to="/" className="text-primary hover:underline">
-              GroovyPlanning
-            </Link>
-          </p>
+          {/* Footer */}
+          <div className="text-center text-sm text-muted-foreground py-4">
+            <p>
+              Tracked with{' '}
+              <Link to="/" className="text-primary hover:underline">
+                GroovyPlanning
+              </Link>
+            </p>
+          </div>
         </div>
-      </div>
 
-      {/* Lightbox with navigation */}
-      <ImageLightbox
-        imageUrl={selectedPhoto?.photo_url || null}
-        alt={selectedPhoto?.species_name || 'Bird photo'}
-        onClose={() => setSelectedPhotoIndex(null)}
-        images={lightboxImages}
-        currentIndex={selectedPhotoIndex ?? 0}
-        onNavigate={setSelectedPhotoIndex}
-      />
-    </div>
+        {/* Lightbox with navigation */}
+        <ImageLightbox
+          imageUrl={selectedPhoto?.photo_url || null}
+          alt={selectedPhoto?.species_name || 'Bird photo'}
+          onClose={() => setSelectedPhotoIndex(null)}
+          images={lightboxImages}
+          currentIndex={selectedPhotoIndex ?? 0}
+          onNavigate={setSelectedPhotoIndex}
+        />
+      </div>
+    </>
   );
 }

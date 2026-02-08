@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ImageLightbox } from '@/components/ui/image-lightbox';
-import { Bird, ArrowLeft, Calendar, Camera, List, Share2, Copy, Check } from 'lucide-react';
+import { Bird, ArrowLeft, Calendar, Camera, List, Share2, Check, MapPin } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -136,13 +136,15 @@ export default function PublicBirdGallery() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-8">
-        <div className="max-w-6xl mx-auto space-y-6">
+        <div className="max-w-lg mx-auto space-y-6">
           <Skeleton className="h-10 w-64" />
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map(i => (
-              <Skeleton key={i} className="aspect-square" />
-            ))}
-          </div>
+          {[1, 2, 3].map(i => (
+            <div key={i} className="space-y-3">
+              <Skeleton className="aspect-[4/3] w-full rounded-lg" />
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-4 w-32" />
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -169,149 +171,110 @@ export default function PublicBirdGallery() {
         <meta name="twitter:image" content={ogImage} />
       </Helmet>
       
-      <div className="min-h-screen bg-background p-4 md:p-8">
-        <div className="max-w-6xl mx-auto space-y-6">
+      <div className="min-h-screen bg-muted/30 py-4 md:py-8">
+        <div className="max-w-lg mx-auto px-4 space-y-6">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
-                <Camera className="h-7 w-7 text-primary" />
+          <Card className="border-0 shadow-sm">
+            <CardContent className="py-4">
+              <div className="flex items-center gap-4">
+                <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <Camera className="h-7 w-7 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-xl font-bold truncate">{displayName} Bird Photos</h1>
+                  <p className="text-sm text-muted-foreground">
+                    {photos.length} photos · {uniqueSpeciesCount} species
+                  </p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-2xl font-bold">{displayName} Bird Photos</h1>
-                <p className="text-muted-foreground">
-                  {photos.length} photos · {uniqueSpeciesCount} species
-                </p>
+              
+              {/* Action buttons */}
+              <div className="flex gap-2 mt-4 flex-wrap">
+                <Button 
+                  variant="default" 
+                  onClick={handleCopyLink}
+                  className="gap-2 flex-1"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="h-4 w-4" />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Share2 className="h-4 w-4" />
+                      Share
+                    </>
+                  )}
+                </Button>
+                <Button variant="outline" asChild className="flex-1">
+                  <Link to={`/birds/${username}`}>
+                    <List className="h-4 w-4 mr-2" />
+                    Life List
+                  </Link>
+                </Button>
               </div>
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              <Button 
-                variant="outline" 
-                onClick={handleCopyLink}
-                className="gap-2"
-              >
-                {copied ? (
-                  <>
-                    <Check className="h-4 w-4 text-green-500" />
-                    Copied!
-                  </>
-                ) : (
-                  <>
-                    <Share2 className="h-4 w-4" />
-                    Share Gallery
-                  </>
-                )}
-              </Button>
-              <Button variant="outline" asChild>
-                <Link to={`/birds/${username}`}>
-                  <List className="h-4 w-4 mr-2" />
-                  Life List
-                </Link>
-              </Button>
-              <Button variant="ghost" asChild>
-                <Link to="/">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Home
-                </Link>
-              </Button>
-            </div>
-          </div>
-
-        {/* Stats */}
-        <Card>
-          <CardContent className="py-4">
-            <div className="flex items-center justify-center gap-8 text-center">
-              <div>
-                <p className="text-2xl font-bold text-foreground">{photos.length}</p>
-                <p className="text-sm text-muted-foreground">Total Photos</p>
-              </div>
-              <div className="h-8 w-px bg-border" />
-              <div>
-                <p className="text-2xl font-bold text-foreground">{uniqueSpeciesCount}</p>
-                <p className="text-sm text-muted-foreground">Species Photographed</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {photos.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-              <Camera className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium text-foreground mb-2">No Photos Yet</h3>
-              <p className="text-muted-foreground">
-                No bird photos have been uploaded yet.
-              </p>
             </CardContent>
           </Card>
-        ) : (
-          <>
-            {/* Photo Grid */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Camera className="h-5 w-5" />
-                  Photo Gallery
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                  {photos.map((photo, index) => (
-                    <div
-                      key={photo.id}
-                      className="group relative aspect-square rounded-lg overflow-hidden cursor-pointer bg-muted"
-                      onClick={() => setSelectedPhotoIndex(index)}
-                    >
-                      <img
-                        src={photo.photo_url}
-                        alt={photo.species_name}
-                        className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
-                        loading="lazy"
-                      />
-                      {/* Overlay with species name */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        <div className="absolute bottom-0 left-0 right-0 p-2">
-                          <p className="text-white text-sm font-medium truncate">
-                            {photo.species_name}
-                          </p>
-                          {photo.sighting_date && (
-                            <p className="text-white/70 text-xs flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {format(new Date(photo.sighting_date), 'MMM d, yyyy')}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
 
-            {/* Species Breakdown */}
+          {photos.length === 0 ? (
             <Card>
-              <CardHeader>
-                <CardTitle>By Species</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  {Object.entries(speciesGroups)
-                    .sort((a, b) => b[1].length - a[1].length)
-                    .map(([species, speciesPhotos]) => (
-                      <Link key={species} to={`/birds/${username}`}>
-                        <Badge 
-                          variant="secondary" 
-                          className="cursor-pointer hover:bg-secondary/80 transition-colors"
-                        >
-                          {species} ({speciesPhotos.length})
-                        </Badge>
-                      </Link>
-                    ))}
-                </div>
+              <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                <Camera className="h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-2">No Photos Yet</h3>
+                <p className="text-muted-foreground">
+                  No bird photos have been uploaded yet.
+                </p>
               </CardContent>
             </Card>
-          </>
-        )}
+          ) : (
+            /* Feed-style Photo Cards */
+            <div className="space-y-4">
+              {photos.map((photo, index) => (
+                <Card 
+                  key={photo.id} 
+                  className="overflow-hidden border-0 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => setSelectedPhotoIndex(index)}
+                >
+                  {/* Photo */}
+                  <div className="relative aspect-[4/3] bg-muted">
+                    <img
+                      src={photo.photo_url}
+                      alt={photo.species_name}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                  
+                  {/* Caption */}
+                  <CardContent className="py-3 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-foreground">{photo.species_name}</h3>
+                      <Badge variant="secondary" className="text-xs">
+                        <Bird className="h-3 w-3 mr-1" />
+                        Spotted
+                      </Badge>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                      {photo.sighting_date && (
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3.5 w-3.5" />
+                          {format(new Date(photo.sighting_date), 'MMMM d, yyyy')}
+                        </span>
+                      )}
+                      {photo.location_name && (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-3.5 w-3.5" />
+                          {photo.location_name}
+                        </span>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
 
           {/* Footer */}
           <div className="text-center text-sm text-muted-foreground py-4">

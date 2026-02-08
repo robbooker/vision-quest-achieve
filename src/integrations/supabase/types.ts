@@ -2994,6 +2994,77 @@ export type Database = {
         }
         Relationships: []
       }
+      trip_logistics: {
+        Row: {
+          confirmation_code: string | null
+          contact_phone: string | null
+          created_at: string
+          end_datetime: string | null
+          end_location: string | null
+          flight_number: string | null
+          id: string
+          logistics_type: string
+          metadata: Json | null
+          notes: string | null
+          provider_name: string | null
+          seat_assignment: string | null
+          start_datetime: string | null
+          start_location: string | null
+          trip_id: string
+          updated_at: string
+          user_id: string
+          vehicle_type: string | null
+        }
+        Insert: {
+          confirmation_code?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          end_datetime?: string | null
+          end_location?: string | null
+          flight_number?: string | null
+          id?: string
+          logistics_type: string
+          metadata?: Json | null
+          notes?: string | null
+          provider_name?: string | null
+          seat_assignment?: string | null
+          start_datetime?: string | null
+          start_location?: string | null
+          trip_id: string
+          updated_at?: string
+          user_id: string
+          vehicle_type?: string | null
+        }
+        Update: {
+          confirmation_code?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          end_datetime?: string | null
+          end_location?: string | null
+          flight_number?: string | null
+          id?: string
+          logistics_type?: string
+          metadata?: Json | null
+          notes?: string | null
+          provider_name?: string | null
+          seat_assignment?: string | null
+          start_datetime?: string | null
+          start_location?: string | null
+          trip_id?: string
+          updated_at?: string
+          user_id?: string
+          vehicle_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_logistics_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trip_packing_list: {
         Row: {
           bag_type: string | null

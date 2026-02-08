@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Trip, usePackingList, useTrips, PackingListItem } from '@/hooks/useTrips';
+import { TripLogisticsSection } from './TripLogisticsSection';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -342,6 +343,9 @@ export function PackingListView({ trip, onBack }: PackingListViewProps) {
           </p>
         </div>
       </div>
+
+      {/* Logistics Section */}
+      <TripLogisticsSection trip={trip} />
 
       {/* Progress Card */}
       <Card className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-primary/20">

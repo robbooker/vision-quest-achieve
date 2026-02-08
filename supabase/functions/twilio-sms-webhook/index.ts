@@ -349,6 +349,22 @@ const smsTools = [
       description: "Get status of today's or tomorrow's morning briefing. Use when they ask 'is my briefing ready', 'what time is my briefing', 'briefing status', etc.",
       parameters: { type: "object", properties: {}, additionalProperties: false }
     }
+  },
+  // === TRIP LOGISTICS TOOLS ===
+  {
+    type: "function" as const,
+    function: {
+      name: "get_trip_logistics",
+      description: "Get trip logistics info like flights, hotels, car rentals, confirmations. Use when they ask 'what is my flight number', 'hotel confirmation', 'where am I staying', 'rental car info', 'flight to Atlanta', etc.",
+      parameters: {
+        type: "object",
+        properties: {
+          destination: { type: "string", description: "Trip destination to search for (optional)" },
+          logistics_type: { type: "string", enum: ["flight", "stay", "car_rental", "transportation", "activity"], description: "Type of logistics to look for (optional)" }
+        },
+        additionalProperties: false
+      }
+    }
   }
 ];
 
@@ -1223,6 +1239,123 @@ async function executeTool(
       }
       
       return response.trim();
+    }
+    
+    case 'get_trip_logistics': {
+      const { destination, logistics_type } = args as { destination?: string; logistics_type?: string };
+      
+      // Get trips - filter by destination if provided
+      let tripsQuery = supabase
+        .from('trips')
+        .select('id, destination, start_date, end_date')
+        .eq('user_id', userId)
+        .order('start_date', { ascending: false });
+      
+      if (destination) {
+        tripsQuery = tripsQuery.ilike('destination', `%${destination}%`);
+      }
+      
+      const { data: trips } = await tripsQuery.limit(5);
+      
+      if (!trips?.length) {
+        return destination 
+          ? `❌ No trips found matching "${destination}"`
+          : `❌ No trips found. Add a trip in the app first.`;
+      }
+      
+      // Get logistics for matching trips
+      let logisticsQuery = supabase
+        .from('trip_logistics')
+        .select('*')
+        .eq('user_id', userId)
+        .in('trip_id', trips.map((t: any) => t.id))
+        .order('start_datetime', { ascending: true });
+      
+      if (logistics_type) {
+        logisticsQuery = logisticsQuery.eq('logistics_type', logistics_type);
+      }
+      
+      const { data: logistics } = await logisticsQuery;
+      
+      if (!logistics?.length) {
+        return destination
+          ? `📍 Found trip to ${trips[0].destination} but no logistics saved yet. Add flights, hotels, etc. in the app.`
+          : `📍 No logistics saved for recent trips. Add flights, hotels, etc. in the app.`;
+      }
+      
+      // Build response grouped by trip
+      const tripMap = new Map(trips.map((t: any) => [t.id, t]));
+      const response: string[] = [];
+      
+      for (const item of logistics.slice(0, 5)) {
+        const trip = tripMap.get(item.trip_id);
+        const tripLabel = trip?.destination || 'Unknown';
+        
+        switch (item.logistics_type) {
+          case 'flight': {
+            let line = `✈️ ${tripLabel}:`;
+            if (item.provider_name) line += ` ${item.provider_name}`;
+            if (item.flight_number) line += ` ${item.flight_number}`;
+            if (item.start_location && item.start_datetime) {
+              const depTime = new Date(item.start_datetime).toLocaleString('en-US', {
+                month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+              });
+              line += ` | ${item.start_location} @ ${depTime}`;
+            }
+            if (item.end_location) line += ` → ${item.end_location}`;
+            if (item.confirmation_code) line += ` | Conf: ${item.confirmation_code}`;
+            if (item.seat_assignment) line += ` | Seat ${item.seat_assignment}`;
+            response.push(line);
+            break;
+          }
+          case 'stay': {
+            let line = `🏨 ${tripLabel}:`;
+            if (item.provider_name) line += ` ${item.provider_name}`;
+            if (item.start_location) line += ` @ ${item.start_location}`;
+            if (item.confirmation_code) line += ` | Conf: ${item.confirmation_code}`;
+            if (item.contact_phone) line += ` | ${item.contact_phone}`;
+            response.push(line);
+            break;
+          }
+          case 'car_rental': {
+            let line = `🚗 ${tripLabel}:`;
+            if (item.provider_name) line += ` ${item.provider_name}`;
+            if (item.vehicle_type) line += ` (${item.vehicle_type})`;
+            if (item.confirmation_code) line += ` | Conf: ${item.confirmation_code}`;
+            if (item.start_location && item.start_datetime) {
+              const pickupTime = new Date(item.start_datetime).toLocaleString('en-US', {
+                month: 'short', day: 'numeric'
+              });
+              line += ` | Pickup: ${item.start_location} ${pickupTime}`;
+            }
+            response.push(line);
+            break;
+          }
+          case 'transportation': {
+            let line = `🚌 ${tripLabel}:`;
+            if (item.provider_name) line += ` ${item.provider_name}`;
+            if (item.start_location && item.end_location) line += ` ${item.start_location} → ${item.end_location}`;
+            if (item.confirmation_code) line += ` | Conf: ${item.confirmation_code}`;
+            response.push(line);
+            break;
+          }
+          case 'activity': {
+            let line = `🎟️ ${tripLabel}:`;
+            if (item.provider_name) line += ` ${item.provider_name}`;
+            if (item.start_datetime) {
+              const time = new Date(item.start_datetime).toLocaleString('en-US', {
+                month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+              });
+              line += ` @ ${time}`;
+            }
+            if (item.confirmation_code) line += ` | Conf: ${item.confirmation_code}`;
+            response.push(line);
+            break;
+          }
+        }
+      }
+      
+      return response.join('\n');
     }
     
     default:

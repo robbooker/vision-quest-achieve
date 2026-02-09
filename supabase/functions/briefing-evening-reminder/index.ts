@@ -240,13 +240,11 @@ async function sendEveningReminderSMS(
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
     const credentials = btoa(`${accountSid}:${authToken}`);
 
-    // Friendly evening reminder message
+    // Evening reminder - ask for tomorrow's wake-up time
     const name = displayName || 'there';
-    const smsBody = `🌙 Hey ${name}! Quick evening check-in from Toasty:
+    const smsBody = `🌙 Hey ${name}! Toasty here — what time do you want to wake up tomorrow?
 
-How was your day? What's one win you had today? 
-
-Reply with anything on your mind - I'm here to listen. You can also set tomorrow's intention or ask me anything! 💬`;
+Reply with a time (e.g. "6:30" or "7am") and I'll have your morning briefing ready to play. 🎙️`;
 
     const response = await fetch(twilioUrl, {
       method: 'POST',

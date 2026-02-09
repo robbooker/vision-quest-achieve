@@ -298,11 +298,12 @@ const smsTools = [
     type: "function" as const,
     function: {
       name: "get_nutrition_summary",
-      description: "Get nutrition summary: calories, protein, macros. Use when they ask 'how are my macros', 'calorie intake', 'protein today', 'nutrition stats', etc.",
+      description: "Get nutrition summary with meal details. Use when they ask 'how are my macros', 'calorie intake', 'protein today', 'what did I eat yesterday', 'what did I have for lunch', 'nutrition stats', etc. Set 'date' to query a specific day like 'yesterday' or 'today'.",
       parameters: {
         type: "object",
         properties: {
-          days: { type: "number", description: "Number of days to analyze. Default 7." }
+          days: { type: "number", description: "Number of days to analyze. Default 7. Ignored if 'date' is set." },
+          date: { type: "string", description: "Specific date to query in YYYY-MM-DD format. Use for 'what did I eat yesterday' type questions. If set, returns detailed meals for that day only." }
         },
         additionalProperties: false
       }
@@ -1081,8 +1082,34 @@ async function executeTool(
     }
     
     case 'get_nutrition_summary': {
-      const { days = 7 } = args as { days?: number };
+      const { days = 7, date } = args as { days?: number; date?: string };
       
+      // If a specific date is requested, return detailed meals for that day
+      if (date) {
+        const { data: dayMeals } = await supabase
+          .from('daily_nutrition')
+          .select('meal_description, meal_type, calories, protein_g, carbs_g, fats_g, water_ml')
+          .eq('user_id', userId)
+          .eq('entry_date', date)
+          .order('created_at', { ascending: true });
+        
+        if (!dayMeals?.length) return `🍽️ No meals logged for ${date}`;
+        
+        const foodMeals = dayMeals.filter((m: any) => m.calories || m.protein_g);
+        const totalCal = dayMeals.reduce((s: number, m: any) => s + (m.calories || 0), 0);
+        const totalProtein = dayMeals.reduce((s: number, m: any) => s + (m.protein_g || 0), 0);
+        const totalWater = dayMeals.reduce((s: number, m: any) => s + (m.water_ml || 0), 0);
+        
+        const mealLines = foodMeals.map((m: any) => {
+          const type = m.meal_type ? `[${m.meal_type}] ` : '';
+          return `• ${type}${m.meal_description} (${m.calories || 0} cal, ${m.protein_g || 0}g protein)`;
+        });
+        
+        const waterOz = Math.round(totalWater / 29.5735);
+        return `🍽️ ${date}:\n${mealLines.join('\n')}\n\nTotal: ${totalCal} cal, ${totalProtein}g protein${totalWater > 0 ? `, ${waterOz}oz water` : ''}`;
+      }
+      
+      // Default: summary for last N days
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
       
@@ -1098,7 +1125,20 @@ async function executeTool(
       const todayCal = todayMeals.reduce((sum: number, m: any) => sum + (m.calories || 0), 0);
       const todayProtein = todayMeals.reduce((sum: number, m: any) => sum + (m.protein_g || 0), 0);
       
-      return `🍽️ Today: ${todayCal} cal, ${todayProtein}g protein`;
+      // Also compute averages
+      const byDate = new Map<string, { cal: number; protein: number }>();
+      for (const m of meals as any[]) {
+        const existing = byDate.get(m.entry_date) || { cal: 0, protein: 0 };
+        byDate.set(m.entry_date, {
+          cal: existing.cal + (m.calories || 0),
+          protein: existing.protein + (m.protein_g || 0),
+        });
+      }
+      const daysLogged = byDate.size;
+      const avgCal = daysLogged > 0 ? Math.round([...byDate.values()].reduce((s, d) => s + d.cal, 0) / daysLogged) : 0;
+      const avgProtein = daysLogged > 0 ? Math.round([...byDate.values()].reduce((s, d) => s + d.protein, 0) / daysLogged) : 0;
+      
+      return `🍽️ Today: ${todayCal} cal, ${todayProtein}g protein\n📊 ${days}d avg: ${avgCal} cal, ${avgProtein}g protein (${daysLogged} days logged)`;
     }
     
     case 'search_history': {

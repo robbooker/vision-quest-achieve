@@ -17,6 +17,7 @@ import { PhysicalActivitySection } from '@/components/primed/PhysicalActivitySec
 import { PhysicalHeartRateSection } from '@/components/primed/PhysicalHeartRateSection';
 import { PhysicalBiometricsSection } from '@/components/primed/PhysicalBiometricsSection';
 import { PhysicalHydrationSection } from '@/components/primed/PhysicalHydrationSection';
+import { SectionCaptureWrapper } from '@/components/primed/SectionCaptureWrapper';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function PhysicalPillar() {
@@ -146,108 +147,124 @@ export default function PhysicalPillar() {
         {/* Analytics Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Sleep Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Moon className="h-5 w-5" />
-                Sleep & Recovery
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <PhysicalSleepSection />
-            </CardContent>
-          </Card>
+          <SectionCaptureWrapper title="Sleep & Recovery">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Moon className="h-5 w-5" />
+                  Sleep & Recovery
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <PhysicalSleepSection />
+              </CardContent>
+            </Card>
+          </SectionCaptureWrapper>
 
           {/* Heart Rate & Biometrics Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Heart className="h-5 w-5" />
-                Heart Rate & Biometrics
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <PhysicalHeartRateSection />
-            </CardContent>
-          </Card>
+          <SectionCaptureWrapper title="Heart Rate & Biometrics">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Heart className="h-5 w-5" />
+                  Heart Rate & Biometrics
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <PhysicalHeartRateSection />
+              </CardContent>
+            </Card>
+          </SectionCaptureWrapper>
 
           {/* Nutrition Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Utensils className="h-5 w-5" />
-                Nutrition
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <PhysicalNutritionSection />
-            </CardContent>
-          </Card>
+          <SectionCaptureWrapper title="Nutrition">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Utensils className="h-5 w-5" />
+                  Nutrition
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <PhysicalNutritionSection />
+              </CardContent>
+            </Card>
+          </SectionCaptureWrapper>
 
           {/* Activity Section (from Oura) */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Footprints className="h-5 w-5" />
-                Activity & Steps
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <PhysicalActivitySection />
-            </CardContent>
-          </Card>
+          <SectionCaptureWrapper title="Activity & Steps">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Footprints className="h-5 w-5" />
+                  Activity & Steps
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <PhysicalActivitySection />
+              </CardContent>
+            </Card>
+          </SectionCaptureWrapper>
 
           {/* Movement Section (Reset audit rules) */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Activity className="h-5 w-5" />
-                Daily Rules
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <PhysicalMovementSection />
-            </CardContent>
-          </Card>
+          <SectionCaptureWrapper title="Daily Rules">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Activity className="h-5 w-5" />
+                  Daily Rules
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <PhysicalMovementSection />
+              </CardContent>
+            </Card>
+          </SectionCaptureWrapper>
 
           {/* Weight & Blood Pressure Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Scale className="h-5 w-5" />
-                Weight & Blood Pressure
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <PhysicalBiometricsSection />
-            </CardContent>
-          </Card>
+          <SectionCaptureWrapper title="Weight & Blood Pressure">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Scale className="h-5 w-5" />
+                  Weight & Blood Pressure
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <PhysicalBiometricsSection />
+              </CardContent>
+            </Card>
+          </SectionCaptureWrapper>
 
           {/* Hydration Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Droplets className="h-5 w-5" />
-                Hydration
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <PhysicalHydrationSection />
-            </CardContent>
-          </Card>
+          <SectionCaptureWrapper title="Hydration">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Droplets className="h-5 w-5" />
+                  Hydration
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <PhysicalHydrationSection />
+              </CardContent>
+            </Card>
+          </SectionCaptureWrapper>
 
           {/* Bloodwork Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <FlaskConical className="h-5 w-5" />
-                Bloodwork
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <PhysicalBloodworkSection />
-            </CardContent>
-          </Card>
+          <SectionCaptureWrapper title="Bloodwork">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <FlaskConical className="h-5 w-5" />
+                  Bloodwork
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <PhysicalBloodworkSection />
+              </CardContent>
+            </Card>
+          </SectionCaptureWrapper>
         </div>
       </div>
     </DashboardLayout>

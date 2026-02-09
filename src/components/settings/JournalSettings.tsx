@@ -177,10 +177,10 @@ export const JournalSettings = () => {
         <div className="pt-4 border-t">
           <Label className="flex items-center gap-2 mb-2">
             <Database className="w-4 h-4" />
-            Reflection Assistant Data
-          </Label>
-          <p className="text-xs text-muted-foreground mb-3">
-            Generate searchable embeddings for your historical activities so the Reflection Assistant can find patterns across your journal entries, tasks, habits, and focus sessions.
+             Toasty Data
+           </Label>
+           <p className="text-xs text-muted-foreground mb-3">
+             Generate searchable embeddings for your historical activities so Toasty can find patterns across your journal entries, tasks, habits, and focus sessions.
           </p>
           <Button 
             variant="outline"

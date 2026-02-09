@@ -231,7 +231,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
       <Footer />
       
-      {/* Global Reflection Assistant */}
+      {/* Global Toasty Chat */}
       <JournalChat />
       
       {/* Universal Search */}

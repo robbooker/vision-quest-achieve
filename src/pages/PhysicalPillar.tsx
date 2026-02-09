@@ -11,7 +11,7 @@ import { useOuraMetrics } from '@/hooks/useOuraMetrics';
 import { PILLARS, LEVEL_NAMES, getBehaviorsForPillarAndLevel, LEVEL_DESCRIPTIONS, PillarLevel } from '@/data/primedBehaviors';
 import { PhysicalSleepSection } from '@/components/primed/PhysicalSleepSection';
 import { PhysicalNutritionSection } from '@/components/primed/PhysicalNutritionSection';
-import { PhysicalMovementSection } from '@/components/primed/PhysicalMovementSection';
+import { PhysicalDailyVitalsSection } from '@/components/primed/PhysicalDailyVitalsSection';
 import { PhysicalBloodworkSection } from '@/components/primed/PhysicalBloodworkSection';
 import { PhysicalActivitySection } from '@/components/primed/PhysicalActivitySection';
 import { PhysicalHeartRateSection } from '@/components/primed/PhysicalHeartRateSection';
@@ -206,17 +206,17 @@ export default function PhysicalPillar() {
             </Card>
           </SectionCaptureWrapper>
 
-          {/* Movement Section (Reset audit rules) */}
-          <SectionCaptureWrapper title="Daily Rules">
+          {/* Daily Vitals (auto-derived from Oura + nutrition) */}
+          <SectionCaptureWrapper title="Daily Vitals">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <Activity className="h-5 w-5" />
-                  Daily Rules
+                  Daily Vitals
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <PhysicalMovementSection />
+                <PhysicalDailyVitalsSection />
               </CardContent>
             </Card>
           </SectionCaptureWrapper>

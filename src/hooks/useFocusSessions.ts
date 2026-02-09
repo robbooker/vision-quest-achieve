@@ -51,6 +51,16 @@ type UpdateSessionInput = {
   pillar?: string | null;
 };
 
+type LogPastSessionInput = {
+  objective: string;
+  duration_minutes: number;
+  started_at: string;
+  pillar?: string;
+  linked_goal_id?: string;
+  rating?: 'bad' | 'good' | 'great';
+  notes?: string;
+};
+
 export const useFocusSessions = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -230,6 +240,47 @@ export const useFocusSessions = () => {
     },
   });
 
+  // Log a past session that was already completed
+  const logPastSession = useMutation({
+    mutationFn: async (input: LogPastSessionInput) => {
+      if (!user?.id) throw new Error('Not authenticated');
+      const startDate = new Date(input.started_at);
+      const completedAt = new Date(startDate.getTime() + input.duration_minutes * 60 * 1000);
+
+      const { data, error } = await supabase
+        .from('focus_sessions')
+        .insert({
+          user_id: user.id,
+          objective: input.objective,
+          planned_duration_minutes: input.duration_minutes,
+          actual_duration_minutes: input.duration_minutes,
+          started_at: startDate.toISOString(),
+          completed_at: completedAt.toISOString(),
+          status: 'completed',
+          pillar: input.pillar || null,
+          linked_goal_id: input.linked_goal_id || null,
+          rating: input.rating || null,
+          notes: input.notes || null,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Generate embedding for the logged session
+      embedFocusSession(data as FocusSession).catch(err =>
+        console.log('Embedding generation failed (non-blocking):', err)
+      );
+
+      return data as FocusSession;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['focus-sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['focus-sessions-today'] });
+      queryClient.invalidateQueries({ queryKey: ['focus-session-active'] });
+    },
+  });
+
   // Calculate stats
   const todayMinutes = todaySessions
     .filter(s => s.status === 'completed')
@@ -323,6 +374,7 @@ export const useFocusSessions = () => {
     completeSession,
     abandonSession,
     updateSession,
+    logPastSession,
     todayMinutes,
     todayCompletedCount,
     streak: calculateStreak(),

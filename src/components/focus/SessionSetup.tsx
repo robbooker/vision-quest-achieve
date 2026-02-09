@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Play, Target, Link2, Clock, Timer, Flame, CheckCircle, Pencil, Hexagon, History } from 'lucide-react';
+import { LogPastSessionDialog } from './LogPastSessionDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -63,6 +64,16 @@ interface SessionSetupProps {
     data: { status: 'completed' | 'abandoned'; rating: 'bad' | 'good' | 'great' | null; notes: string | null; pillar?: string | null }
   ) => void;
   onResumeSession?: () => void;
+  onLogPastSession?: (data: {
+    objective: string;
+    duration_minutes: number;
+    started_at: string;
+    pillar?: string;
+    linked_goal_id?: string;
+    rating?: 'bad' | 'good' | 'great';
+    notes?: string;
+  }) => Promise<unknown>;
+  isLoggingPast?: boolean;
 }
 
 export function SessionSetup({ 
@@ -74,6 +85,8 @@ export function SessionSetup({
   streak = 0,
   onUpdateSession,
   onResumeSession,
+  onLogPastSession,
+  isLoggingPast = false,
 }: SessionSetupProps) {
   console.log('[SessionSetup] Rendering with sessions:', sessions?.length);
   const [selectedFocus, setSelectedFocus] = useState('');
@@ -343,6 +356,12 @@ export function SessionSetup({
                   <Play className="h-5 w-5" />
                   Start Focus Session
                 </Button>
+
+                {onLogPastSession && (
+                  <div className="flex justify-center">
+                    <LogPastSessionDialog onLog={onLogPastSession} isLogging={isLoggingPast} />
+                  </div>
+                )}
               </TabsContent>
 
               <TabsContent value="today" className="mt-0">

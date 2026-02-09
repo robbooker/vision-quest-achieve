@@ -252,6 +252,28 @@ async function sendBriefingSMS(
   podcastUrl: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // Check if SMS already sent today for this user
+    const now = new Date();
+    const userPrefsRes = await supabase
+      .from('briefing_lab_preferences')
+      .select('timezone')
+      .eq('user_id', userId)
+      .single();
+    const tz = userPrefsRes.data?.timezone || 'America/Chicago';
+    const localDateStr = now.toLocaleDateString('en-CA', { timeZone: tz }); // YYYY-MM-DD
+
+    const { data: alreadySent } = await supabase
+      .from('briefing_sms_sent')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('sent_date', localDateStr)
+      .maybeSingle();
+
+    if (alreadySent) {
+      console.log(`[briefing-lab-auto-generate] SMS already sent today for user ${userId}`);
+      return { success: true }; // Already sent, treat as success
+    }
+
     // Get user's phone number
     const { data: profile } = await supabase
       .from('profiles')
@@ -304,6 +326,12 @@ Topics: your interests`;
     }
 
     console.log(`[briefing-lab-auto-generate] SMS sent to user ${userId}`);
+
+    // Record that SMS was sent today
+    await supabase
+      .from('briefing_sms_sent')
+      .insert({ user_id: userId, sent_date: localDateStr });
+
     return { success: true };
   } catch (error) {
     console.error('[briefing-lab-auto-generate] SMS error:', error);

@@ -1,42 +1,57 @@
 
 
-## Replace "Daily Rules" with a "Daily Vitals Summary" Card
+## Dedicated Nutrition Tab on Physical Pillar Page
 
-The current "Daily Rules" section on the Physical Pillar page pulls from the Reset audit system, which you don't use. Instead of tracking WAKE/MOVE/FUEL/RESET as manual checkboxes, we can build a **"Daily Vitals Summary"** that automatically derives the same insights from data you're already logging:
+### Overview
 
-### What Changes
+Add a tabbed layout to the Physical Pillar page with a dedicated "Nutrition" tab that provides deep nutrition analytics. Also enhance Toasty's nutrition tool so it can answer "What did I eat yesterday?"
 
-**Remove**: The `PhysicalMovementSection` component and its card from the Physical Pillar page.
+### Part 1: Enhance Toasty's Nutrition Knowledge
 
-**Add**: A new `PhysicalDailyVitalsSection` component that aggregates signals you already track:
+Currently, Toasty's `get_nutrition_summary` tool only returns today's calorie/protein totals. It does NOT return meal descriptions or support querying specific past dates.
 
-| Signal | Source | "Pass" Criteria |
-|--------|--------|-----------------|
-| Sleep | Oura / manual sleep entries | Sleep score >= 70 OR total sleep >= 7h |
-| Move | Oura activity data | Steps >= 7,500 OR activity score >= 70 |
-| Fuel | Nutrition logs | At least 1 meal logged that day |
-| Hydrate | Nutrition/hydration logs | Water intake >= 2,500ml |
+**Changes to `supabase/functions/twilio-sms-webhook/index.ts`**:
+- Update the `get_nutrition_summary` tool to accept an optional `date` parameter (e.g., "yesterday", "today", "2025-02-07")
+- Return actual meal descriptions alongside macro totals
+- Example response: "Yesterday you had: Eggs and toast (350 cal), Chicken salad (480 cal), Steak with rice (720 cal) -- Total: 1,550 cal, 112g protein"
 
-### What It Looks Like
+### Part 2: Nutrition Tab on Physical Page
 
-- **Summary row**: 4 stat cards showing 7-day compliance rate for each signal (same grid layout as before)
-- **Average + "Perfect Days"** count (days where all 4 signals passed)
-- **7-day heatmap grid**: Same visual style as the current one -- 7 columns (days), 4 rows (signals), green check / gray X -- but now auto-populated from real data instead of manual checkboxes
+**New file: `src/components/primed/NutritionTab.tsx`**
+
+A full nutrition analytics view with these sections:
+
+1. **Calorie Trend Chart** -- Daily calories over 30 days as a bar chart, with a line overlay for 7-day rolling average. Weight trend overlaid on secondary Y-axis (from `health_measurements` table) so you can see the relationship between intake and weight changes.
+
+2. **Calendar Day View** -- A calendar where each day is color-coded by calorie level (green = on target, amber = high, gray = no data). Clicking a day shows the full meal log for that date with descriptions, macros per meal, and daily totals.
+
+3. **Macro Breakdown** -- Pie/donut chart showing average macro split (protein/carbs/fats) over selected period (7d, 14d, 30d).
+
+4. **Food Group Heatmap** -- Using the existing `useFoodFrequency` data, render a grid heatmap showing food keyword frequency by week. Rows = top food keywords, columns = weeks. Cell intensity = frequency. This shows dietary variety and patterns over time.
+
+5. **Meal Timing Pattern** -- A scatter/strip chart showing when meals are logged by time of day (from `created_at`), helping visualize eating window and intermittent fasting patterns.
+
+6. **Nutrition Scorecard** -- Summary stats: logging streak, average daily calories, protein hit rate (days meeting protein goal), hydration compliance, and days in caloric deficit/surplus.
+
+**Modified file: `src/pages/PhysicalPillar.tsx`**
+- Add a `Tabs` component at the top of the analytics grid with two tabs: "Dashboard" (current cards) and "Nutrition" (new tab)
+- The existing card grid becomes the Dashboard tab content
+- The Nutrition tab renders the new `NutritionTab` component
 
 ### Technical Details
 
-1. **New file**: `src/components/primed/PhysicalDailyVitalsSection.tsx`
-   - Uses existing `useOuraMetrics()` for sleep and activity data
-   - Uses existing `useNutritionStats(7)` for meal and hydration data
-   - Computes pass/fail for each signal per day
-   - Renders the same heatmap UI pattern
+**New files:**
+- `src/components/primed/NutritionTab.tsx` -- Main nutrition tab with all sections
+- `src/hooks/useNutritionHistory.ts` -- Hook to fetch 30-90 days of nutrition data with meal descriptions, plus weight data for overlay
 
-2. **Modified file**: `src/pages/PhysicalPillar.tsx`
-   - Replace `PhysicalMovementSection` import with `PhysicalDailyVitalsSection`
-   - Rename the card title from "Daily Rules" to "Daily Vitals"
-   - No other changes needed
+**Modified files:**
+- `src/pages/PhysicalPillar.tsx` -- Add Tabs wrapper
+- `supabase/functions/twilio-sms-webhook/index.ts` -- Enhance `get_nutrition_summary` tool
 
-3. **No database changes** -- everything is derived from existing tables (`oura_daily_metrics`, `nutrition_daily_entries`)
+**Data sources (all existing, no new tables needed):**
+- `daily_nutrition` -- meal logs with descriptions, calories, macros, timestamps
+- `health_measurements` (weight entries) -- for calorie vs. weight overlay
+- `useFoodFrequency` hook -- for food group heatmap
+- `useNutritionSettings` hook -- for goal targets
 
-The Reset page and its audit system remain untouched for other users.
-
+**No database changes required** -- all data already exists in `daily_nutrition` and `health_measurements` tables.

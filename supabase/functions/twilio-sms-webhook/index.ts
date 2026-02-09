@@ -1496,7 +1496,7 @@ serve(async (req) => {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const sevenDaysAgoStr = sevenDaysAgo.toISOString();
-    const todayStr = new Date().toISOString().split('T')[0];
+    // Timezone-aware date will be calculated after fetching user timezone below
 
     const [tasksResult, habitsResult, goalsResult, cycleResult] = await Promise.all([
       supabase.from('quick_tasks').select('title, category, due_date').eq('user_id', userId).eq('completed', false).order('position').limit(5),
@@ -1518,6 +1518,13 @@ serve(async (req) => {
       .maybeSingle();
     
     const userTimezone = briefingPrefs?.timezone || 'America/Chicago';
+
+    // Calculate timezone-aware today and yesterday
+    const nowInTz = new Date(new Date().toLocaleString('en-US', { timeZone: userTimezone }));
+    const todayStr = `${nowInTz.getFullYear()}-${String(nowInTz.getMonth() + 1).padStart(2, '0')}-${String(nowInTz.getDate()).padStart(2, '0')}`;
+    const yesterdayInTz = new Date(nowInTz);
+    yesterdayInTz.setDate(yesterdayInTz.getDate() - 1);
+    const yesterdayStr = `${yesterdayInTz.getFullYear()}-${String(yesterdayInTz.getMonth() + 1).padStart(2, '0')}-${String(yesterdayInTz.getDate()).padStart(2, '0')}`;
 
     let cycleContext = '';
     if (cycle) {
@@ -1553,6 +1560,10 @@ CRITICAL TOOL RULES:
 
 For cumulative questions like "how many pushups this month", use get_cumulative_habit_progress.
 For historical questions like "when did I journal about stress", use search_history.
+
+TODAY'S DATE: ${todayStr} (${userTimezone}).
+When the user says "yesterday", that means ${yesterdayStr}. When they say "today", that means ${todayStr}.
+Always use YYYY-MM-DD format for dates in tool calls.
 
 USER CONTEXT:
 ${cycleContext}

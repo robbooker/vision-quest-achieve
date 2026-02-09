@@ -1040,6 +1040,27 @@ export type Database = {
         }
         Relationships: []
       }
+      evening_reminders_sent: {
+        Row: {
+          created_at: string
+          id: string
+          sent_date: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          sent_date: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          sent_date?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       feedback: {
         Row: {
           added_to_tasks: boolean

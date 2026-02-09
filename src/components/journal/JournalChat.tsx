@@ -61,7 +61,7 @@ export const JournalChat = () => {
         onClick={() => setIsOpen(true)}
         className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50"
         size="icon"
-        title="Reflection Assistant (⌘K)"
+        title="Toasty (⌘K)"
       >
         <MessageCircle className="h-6 w-6" />
       </Button>
@@ -74,7 +74,7 @@ export const JournalChat = () => {
       <div className="flex items-center justify-between p-3 border-b">
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-primary" />
-          <span className="font-semibold">Reflection Assistant</span>
+          <span className="font-semibold">Toasty</span>
         </div>
         <div className="flex items-center gap-1">
           {messages.length > 0 && (

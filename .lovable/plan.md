@@ -1,38 +1,37 @@
 
-# Add "Log Past Session" to Focus Page
 
-## Overview
-Add a button on the Focus setup screen that lets you manually log a completed focus session you forgot to track in the app. This opens a dialog where you fill in the details (objective, duration, when it happened, optional notes/rating), and it gets saved as a completed session.
+# Fix: Toasty "Yesterday" Date Bug
 
-## What You'll See
-- A new "Log Past Session" button on the Focus setup screen (next to the start button area)
-- Clicking it opens a dialog with fields for:
-  - Objective (same dropdown/input as starting a session)
-  - Duration in minutes
-  - Date and approximate start time
-  - Optional: linked goal, pillar, rating, notes
-- Submitting saves it as a completed session immediately
+## Problem
+When you text Toasty "What did I eat yesterday?", it returns 2025-05-14 instead of the actual yesterday. The root cause: **the system prompt never tells the AI model what today's date is**, so it guesses from training data.
+
+## Solution
+Add the current date (in the user's timezone) to the system prompt so the AI can correctly resolve relative dates like "yesterday," "last week," etc.
 
 ## Technical Details
 
-### 1. New Component: `src/components/focus/LogPastSessionDialog.tsx`
-- Dialog with form fields: objective, duration (minutes), date, start time, pillar, linked goal, rating, notes
-- Reuses the same PRIMED_PILLARS and FOCUS_OPTIONS from SessionSetup
-- On submit, calls a new `logPastSession` mutation from the hook
+### File: `supabase/functions/twilio-sms-webhook/index.ts`
 
-### 2. Update Hook: `src/hooks/useFocusSessions.ts`
-- Add a `logPastSession` mutation that inserts a row directly with:
-  - `status: 'completed'`
-  - `started_at`: constructed from the user-provided date/time
-  - `completed_at`: `started_at + duration`
-  - `actual_duration_minutes`: the entered duration
-  - `planned_duration_minutes`: same as actual
-- Triggers embedding generation like normal completed sessions
-- Invalidates all focus session queries
+**1. Fix the context `todayStr` (line 1499) to use the user's timezone instead of UTC:**
 
-### 3. Update `src/components/focus/SessionSetup.tsx`
-- Import and render `LogPastSessionDialog`
-- Add a "Log Past Session" button (e.g., outline/ghost style with a History or Clock icon) in the setup header area
+Replace:
+```typescript
+const todayStr = new Date().toISOString().split('T')[0];
+```
+With timezone-aware calculation using `Intl.DateTimeFormat` (same pattern already used inside `executeTool` at line 452-458).
 
-### 4. Update `src/pages/Focus.tsx`
-- No changes needed -- SessionSetup already receives all needed props
+**2. Add today's date to the system prompt (around line 1557):**
+
+Add a line like:
+```
+Today's date is ${todayStr} (${userTimezone}).
+When the user says 'yesterday', that means ${yesterdayStr}. Always use YYYY-MM-DD format for dates in tool calls.
+```
+
+This ensures the AI passes the correct date string to the `get_nutrition_summary` tool's `date` parameter.
+
+### Scope
+- One file changed: `supabase/functions/twilio-sms-webhook/index.ts`
+- Two small edits: timezone-safe date calculation + system prompt addition
+- Edge function will be redeployed automatically
+

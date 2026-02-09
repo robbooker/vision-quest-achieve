@@ -34,6 +34,7 @@ export default function Focus() {
     completeSession,
     abandonSession,
     updateSession,
+    logPastSession,
     isLoading,
     isLoadingActive,
   } = useFocusSessions();
@@ -205,6 +206,8 @@ export default function Focus() {
                 streak={streak}
                 onUpdateSession={handleUpdateSession}
                 onResumeSession={() => setViewState('active')}
+                onLogPastSession={logPastSession.mutateAsync}
+                isLoggingPast={logPastSession.isPending}
               />
               
               {/* Ambient Sounds - available anytime */}
@@ -284,6 +287,8 @@ export default function Focus() {
                 streak={streak}
                 onUpdateSession={handleUpdateSession}
                 onResumeSession={() => setViewState('active')}
+                onLogPastSession={logPastSession.mutateAsync}
+                isLoggingPast={logPastSession.isPending}
               />
             </>
           )}

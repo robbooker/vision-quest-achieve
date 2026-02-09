@@ -822,6 +822,27 @@ export type Database = {
         }
         Relationships: []
       }
+      briefing_sms_sent: {
+        Row: {
+          created_at: string
+          id: string
+          sent_date: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          sent_date: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          sent_date?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       briefing_sources: {
         Row: {
           briefing_id: string | null

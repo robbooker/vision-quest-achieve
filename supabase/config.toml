@@ -141,6 +141,9 @@ verify_jwt = false
 [functions.briefing-auto-generate]
 verify_jwt = false
 
+[functions.briefing-lab-auto-generate]
+verify_jwt = false
+
 [functions.scrape-briefing-news]
 verify_jwt = false
 

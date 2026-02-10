@@ -15,45 +15,74 @@ function isValidWakeTime(wakeTime: string): boolean {
 }
 
 /**
- * Parse a locale string date safely using date components
- * Avoids issues with new Date(localeString) parsing differently across environments
+ * Get local date/time components for a timezone using stable Intl.DateTimeFormat parts.
+ * This avoids regex-parsing toLocaleString which can vary across Deno runtime versions.
  */
-function parseLocaleDateTime(localeStr: string): Date {
-  // Format: "1/15/2025, 7:30:00 AM" or "1/15/2025, 19:30:00"
-  const match = localeStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s+(\d{1,2}):(\d{2}):?(\d{2})?\s*(AM|PM)?/i);
-  if (!match) {
-    console.error('[parseLocaleDateTime] Failed to parse:', localeStr);
-    return new Date(); // Fallback to now
+function getLocalDateTime(timezone: string): { date: string; hours: number; minutes: number; dayOfWeek: number } {
+  const now = new Date();
+  
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    weekday: 'short',
+  });
+
+  const partsArr = formatter.formatToParts(now);
+  const parts: Record<string, string> = {};
+  for (const p of partsArr) {
+    parts[p.type] = p.value;
   }
-  
-  const [, month, day, year, hourStr, minute, second = '0', ampm] = match;
-  let hour = parseInt(hourStr, 10);
-  
-  // Handle 12-hour format
-  if (ampm) {
-    if (ampm.toUpperCase() === 'PM' && hour !== 12) hour += 12;
-    if (ampm.toUpperCase() === 'AM' && hour === 12) hour = 0;
-  }
-  
-  return new Date(
-    parseInt(year, 10),
-    parseInt(month, 10) - 1, // Month is 0-indexed
-    parseInt(day, 10),
-    hour,
-    parseInt(minute, 10),
-    parseInt(second, 10)
-  );
+
+  // Map weekday short name to day number (0=Sun, 6=Sat)
+  const weekdayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  const dayOfWeek = weekdayMap[parts.weekday] ?? new Date().getDay();
+
+  // Handle hour "24" edge case (midnight) — Intl can return "24" for hour12:false
+  let hours = parseInt(parts.hour, 10);
+  if (hours === 24) hours = 0;
+
+  return {
+    date: `${parts.year}-${parts.month}-${parts.day}`,
+    hours,
+    minutes: parseInt(parts.minute, 10),
+    dayOfWeek,
+  };
 }
 
 /**
- * Format date as YYYY-MM-DD using local components (NOT UTC)
- * This prevents timezone shift issues with toISOString()
+ * Calculate the UTC timestamp for the start of a user's local "today".
+ * E.g., for America/Chicago (UTC-6), local midnight 2026-02-10 = 2026-02-10T06:00:00Z.
  */
-function formatLocalDate(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+function getLocalMidnightAsUTC(timezone: string): string {
+  const now = new Date();
+  
+  // Get the user's local date components
+  const local = getLocalDateTime(timezone);
+  
+  // Build a "fake" date object representing the user's local midnight using their date parts
+  // We parse the local date as UTC, then adjust by the offset
+  const localDateUtcFake = new Date(`${local.date}T00:00:00Z`);
+  
+  // Calculate the offset: difference between UTC now and what the local clock shows
+  // local time = UTC + offset, so offset = local - UTC
+  const localMinutesInDay = local.hours * 60 + local.minutes;
+  const utcMinutesInDay = now.getUTCHours() * 60 + now.getUTCMinutes();
+  
+  // Handle day boundary: if local is "tomorrow" relative to UTC, offset wraps
+  let offsetMinutes = localMinutesInDay - utcMinutesInDay;
+  // Normalize to [-720, +720] range
+  if (offsetMinutes > 720) offsetMinutes -= 1440;
+  if (offsetMinutes < -720) offsetMinutes += 1440;
+  
+  // Local midnight in UTC = local midnight date - offset
+  const midnightUTC = new Date(localDateUtcFake.getTime() - offsetMinutes * 60 * 1000);
+  
+  return midnightUTC.toISOString();
 }
 
 /**
@@ -63,7 +92,7 @@ function formatLocalDate(date: Date): string {
  * It checks briefing_lab_preferences for users who:
  * 1. Have enabled = true
  * 2. Have sms_delivery_enabled = true  
- * 3. Are within 30 minutes of their default_wake_time
+ * 3. Are within 35 minutes before or 60 minutes after their default_wake_time
  * 4. Haven't already received a briefing today
  */
 serve(async (req) => {
@@ -105,6 +134,7 @@ serve(async (req) => {
     const generated: string[] = [];
     const smsSent: string[] = [];
     const skipped: string[] = [];
+    const now = new Date();
 
     for (const userPrefs of labUsers) {
       try {
@@ -118,19 +148,11 @@ serve(async (req) => {
           continue;
         }
 
-        // Get current time in user's timezone using locale string
-        const now = new Date();
-        const userTimeStr = now.toLocaleString('en-US', { timeZone: timezone });
-        
-        // Parse locale string safely (avoids new Date(localeString) issues)
-        const userNow = parseLocaleDateTime(userTimeStr);
-        
-        // Use local date components to avoid UTC shift
-        const userTodayStr = formatLocalDate(userNow);
+        // Get current time in user's timezone using stable Intl.DateTimeFormat
+        const localTime = getLocalDateTime(timezone);
 
         // Check if weekend and weekend is disabled
-        const dayOfWeek = userNow.getDay();
-        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+        const isWeekend = localTime.dayOfWeek === 0 || localTime.dayOfWeek === 6;
         if (isWeekend && !userPrefs.weekend_enabled) {
           skipped.push(`${userPrefs.user_id}: weekend disabled`);
           continue;
@@ -141,25 +163,28 @@ serve(async (req) => {
         const wakeHour = parseInt(wakeTimeParts[0], 10);
         const wakeMinute = parseInt(wakeTimeParts[1], 10);
 
-        // Create wake time date object using the user's local "now" as base
-        const wakeDateTime = new Date(userNow);
-        wakeDateTime.setHours(wakeHour, wakeMinute, 0, 0);
+        // Calculate minutes until wake time using local time components
+        const localMinutesNow = localTime.hours * 60 + localTime.minutes;
+        const wakeMinutesInDay = wakeHour * 60 + wakeMinute;
+        const minutesUntilWake = wakeMinutesInDay - localMinutesNow;
 
-        // Calculate minutes until wake time
-        const minutesUntilWake = (wakeDateTime.getTime() - userNow.getTime()) / (1000 * 60);
-
-        console.log(`[briefing-lab-auto-generate] User ${userPrefs.user_id}: ${minutesUntilWake.toFixed(1)} min until wake (${wakeTime} in ${timezone}), local date: ${userTodayStr}`);
+        console.log(`[briefing-lab-auto-generate] User ${userPrefs.user_id}: ${minutesUntilWake.toFixed(1)} min until wake (${wakeTime} in ${timezone}), local date: ${localTime.date}, local time: ${localTime.hours}:${String(localTime.minutes).padStart(2, '0')}`);
 
         // Generate if within 35 minutes BEFORE wake time or up to 60 min AFTER
         // Wide post-wake window ensures retries succeed even if early attempts fail/timeout
         if (minutesUntilWake <= 35 && minutesUntilWake >= -60) {
+          // Calculate proper UTC boundary for the user's local "today"
+          // This correctly handles timezone offsets (e.g., CST midnight = 06:00 UTC)
+          const todayStartUTC = getLocalMidnightAsUTC(timezone);
+
+          console.log(`[briefing-lab-auto-generate] User ${userPrefs.user_id}: querying episodes since ${todayStartUTC}`);
+
           // Check if we already generated a Lab briefing today for this user
-          // Use the user's local date, not UTC
           const { data: existingBriefing } = await supabase
             .from('briefing_lab_episodes')
-            .select('id, podcast_url, status')
+            .select('id, podcast_url, status, created_at')
             .eq('user_id', userPrefs.user_id)
-            .gte('created_at', `${userTodayStr}T00:00:00Z`)
+            .gte('created_at', todayStartUTC)
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle();
@@ -178,9 +203,33 @@ serve(async (req) => {
             continue;
           }
 
+          // BUG FIX: Recover stuck "generating" records older than 10 minutes
           if (existingBriefing?.status === 'generating') {
-            skipped.push(`${userPrefs.user_id}: already generating`);
-            continue;
+            const createdAt = new Date(existingBriefing.created_at);
+            const ageMinutes = (now.getTime() - createdAt.getTime()) / 60000;
+            if (ageMinutes > 10) {
+              console.log(`[briefing-lab-auto-generate] User ${userPrefs.user_id}: stuck "generating" for ${ageMinutes.toFixed(0)} min, marking as failed`);
+              await supabase
+                .from('briefing_lab_episodes')
+                .update({ status: 'failed', error_message: 'Timed out after 10 minutes' })
+                .eq('id', existingBriefing.id);
+              // Fall through to retry generation below
+            } else {
+              skipped.push(`${userPrefs.user_id}: already generating (${ageMinutes.toFixed(0)} min ago)`);
+              continue;
+            }
+          }
+
+          // Also skip if there's a failed record and it was retried recently (within 5 min)
+          if (existingBriefing?.status === 'failed') {
+            const failedAt = new Date(existingBriefing.created_at);
+            const failedAgeMin = (now.getTime() - failedAt.getTime()) / 60000;
+            if (failedAgeMin < 5) {
+              skipped.push(`${userPrefs.user_id}: recently failed, waiting before retry`);
+              continue;
+            }
+            // Otherwise fall through to retry
+            console.log(`[briefing-lab-auto-generate] User ${userPrefs.user_id}: retrying after previous failure`);
           }
 
           console.log(`[briefing-lab-auto-generate] Triggering Lab generation for ${userPrefs.user_id}`);

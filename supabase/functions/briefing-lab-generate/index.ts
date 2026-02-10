@@ -478,6 +478,13 @@ Today is ${dayOfWeek}, ${fullDate}. The current time is ${currentTimeStr} (${tim
 
 You have access to a web search tool. USE IT to research REAL, CURRENT news for each enabled category below.
 
+CRITICAL INSTRUCTIONS - READ CAREFULLY:
+- You MUST ALWAYS produce a complete briefing script. NEVER apologize, refuse, or ask follow-up questions.
+- If a web search fails or returns no results for a category, SKIP that category silently and move on to the next one.
+- Use the structured data (weather, calendar, Short Scout, intention) as your GUARANTEED foundation -- these never fail.
+- Your output must be ONLY the spoken script text. No meta-commentary, no explanations, no apologies.
+- Even if ALL web searches fail, you MUST still produce a complete briefing from the structured data provided below.
+
 **YOUR TASK:**
 1. Search for current news using the search instructions below
 2. Synthesize the search results into a natural, conversational podcast script
@@ -512,89 +519,257 @@ ${intentionWord ? `- End with a 30-60 second reflection on the word "${intention
 
 Write the complete briefing script now:`;
 
-    // Step 6: Generate script with Claude Sonnet 4.5 + Web Search
+    // === HELPER: Detect refusal patterns in generated script ===
+    const detectRefusal = (text: string): boolean => {
+      const refusalPatterns = [
+        'i apologize',
+        'i was unable to',
+        'i cannot create',
+        'unable to complete',
+        'would you like me to',
+        'try again when',
+        'i\'m unable to',
+        'i couldn\'t complete',
+        'wasn\'t able to gather',
+        'encountered some technical issues',
+        'without being able to verify',
+        'don\'t want to produce a briefing',
+        'search functionality is fully available',
+      ];
+      const lower = text.toLowerCase();
+      return refusalPatterns.some(p => lower.includes(p));
+    };
+
+    // === HELPER: Generate script with OpenAI GPT-5.2 fallback ===
+    const generateWithOpenAI = async (): Promise<string | null> => {
+      const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+      if (!LOVABLE_API_KEY) {
+        console.error('LOVABLE_API_KEY not available for GPT-5.2 fallback');
+        return null;
+      }
+
+      const fallbackPrompt = `You are creating a personalized briefing podcast for ${userName}. 
+Today is ${dayOfWeek}, ${fullDate}. The current time is ${currentTimeStr} (${timePeriod}).
+
+CRITICAL: You MUST produce a complete briefing script. No apologies, no refusals, no meta-commentary.
+
+You do NOT have web search. Use your general knowledge for any news topics -- prioritize being helpful and engaging over being perfectly current. If you're unsure about very recent events, speak in general terms about ongoing trends and stories.
+
+**STRUCTURED DATA (use this as your foundation):**
+
+**WEATHER:**
+${weatherData}
+
+**CALENDAR TODAY:**
+${calendarEvents}
+${shortScoutSection}
+${intentionSection}
+
+${hasNewsCategories ? `**NEWS CATEGORIES TO COVER (use your general knowledge):**\n${searchInstructions}` : ''}
+
+**SCRIPT REQUIREMENTS:**
+- Target approximately ${wordCountRange} words for a ${maxDuration}-minute briefing
+- Write for the EAR - short sentences, conversational, natural rhythm
+- No bullet points, headers, or formatting - this will be spoken aloud
+- Start with "${timeOfDayGreeting}, ${userName}!" and then mention the weather
+- If it's afternoon/evening, you can reference how the day has gone so far
+- Mention calendar events early
+- Cover news categories using your knowledge of recent trends and stories
+${intentionWord ? `- End with a 30-60 second reflection on the word "${intentionWord}"` : '- End with a brief energizing close'}
+
+Write the complete briefing script now:`;
+
+      try {
+        console.log('Attempting GPT-5.2 fallback via Lovable AI Gateway...');
+        const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'openai/gpt-5.2',
+            messages: [{ role: 'user', content: fallbackPrompt }],
+            max_tokens: 16000,
+          }),
+        });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          console.error('GPT-5.2 fallback error:', response.status, errText);
+          return null;
+        }
+
+        const data = await response.json();
+        const content = data.choices?.[0]?.message?.content;
+        if (content && content.trim().length > 0) {
+          console.log(`GPT-5.2 generated script: ${content.length} characters`);
+          return content;
+        }
+        return null;
+      } catch (e) {
+        console.error('GPT-5.2 fallback exception:', e);
+        return null;
+      }
+    };
+
+    // === HELPER: Build programmatic fallback script from structured data ===
+    const buildFallbackScript = (): string => {
+      const parts: string[] = [];
+      
+      parts.push(`${timeOfDayGreeting}, ${userName}! It's ${dayOfWeek}, ${fullDate}.`);
+      
+      if (weatherData && weatherData !== 'Weather data unavailable') {
+        parts.push(weatherData);
+      }
+      
+      if (calendarEvents && calendarEvents !== 'No scheduled events') {
+        parts.push(`Looking at your schedule today, you've got: ${calendarEvents}.`);
+      } else {
+        parts.push(`Your calendar is clear today -- a good day to focus on what matters most.`);
+      }
+      
+      if (shortScoutData) {
+        const topSearched = shortScoutData.tickers?.top_searched?.slice(0, 3)
+          .map(t => formatTickerForTTS(t.ticker)).join(', ');
+        if (topSearched) {
+          parts.push(`Over on Short Scout, traders are watching ${topSearched} closely right now.`);
+        }
+      }
+      
+      if (intentionWord) {
+        parts.push(`And remember, your word for this month is "${intentionWord}." ${intentionDescription ? intentionDescription : 'Keep that front and center as you move through your day.'}`);
+      }
+      
+      parts.push(`That's your quick update. Have a great ${timePeriod}, ${userName}!`);
+      
+      return parts.join(' ');
+    };
+
+    // Step 6: Generate script -- Claude first, then GPT-5.2 fallback, then programmatic
     console.log('Generating script with Claude Sonnet 4.5 + Web Search...');
     
-    if (!ANTHROPIC_API_KEY) {
-      throw new Error('ANTHROPIC_API_KEY not configured');
-    }
+    let script = '';
+    let generationSource = 'claude-web-search';
+    let citations: Array<{ url: string; title: string; cited_text: string }> = [];
+    let sourcesFailed: string[] = [];
 
-    // Determine location for web search context
-    const locationName = labPrefs?.location_name || 'Chicago';
-    
-    const aiResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-5-20250929',
-        max_tokens: 16000,
-        messages: [{ role: 'user', content: prompt }],
-        tools: [{
-          type: 'web_search_20250305',
-          name: 'web_search',
-          max_uses: 20,
-          user_location: {
-            type: 'approximate',
-            city: locationName,
-            region: 'Illinois',
-            country: 'US',
-            timezone: timezone
-          }
-        }]
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('Claude API error:', aiResponse.status, errorText);
-      
-      if (aiResponse.status === 429) {
-        throw new Error('Rate limit exceeded. Please try again in a moment.');
+    // --- Attempt 1: Claude ---
+    const claudeSucceeded = await (async (): Promise<boolean> => {
+      if (!ANTHROPIC_API_KEY) {
+        console.warn('ANTHROPIC_API_KEY not configured, skipping Claude');
+        sourcesFailed.push('claude-no-api-key');
+        return false;
       }
-      if (aiResponse.status === 402 || aiResponse.status === 400) {
-        throw new Error('Claude API error. Please check your API key and credits.');
-      }
-      throw new Error(`Claude generation failed: ${aiResponse.status}`);
-    }
 
-    const aiData = await aiResponse.json();
-    console.log('Claude response received, stop_reason:', aiData.stop_reason);
-    
-    // Extract the final text content from Claude's response
-    // With web search, the response contains multiple content blocks:
-    // - server_tool_use blocks (searches performed)
-    // - web_search_tool_result blocks (search results)
-    // - text blocks (the final script with citations)
-    const textBlocks = aiData.content?.filter((block: any) => block.type === 'text') || [];
-    const script = textBlocks.map((b: any) => b.text).join('\n\n');
-
-    if (!script || script.trim().length === 0) {
-      console.error('No script in response. Full response:', JSON.stringify(aiData));
-      throw new Error('No script generated from Claude');
-    }
-
-    // Extract citations for logging
-    const citations: Array<{ url: string; title: string; cited_text: string }> = [];
-    textBlocks.forEach((block: any) => {
-      if (block.citations && Array.isArray(block.citations)) {
-        block.citations.forEach((c: any) => {
-          citations.push({
-            url: c.url || '',
-            title: c.title || '',
-            cited_text: c.cited_text || ''
-          });
+      try {
+        const locationName = labPrefs?.location_name || 'Chicago';
+        
+        const aiResponse = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'x-api-key': ANTHROPIC_API_KEY,
+            'anthropic-version': '2023-06-01',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-5-20250929',
+            max_tokens: 16000,
+            messages: [{ role: 'user', content: prompt }],
+            tools: [{
+              type: 'web_search_20250305',
+              name: 'web_search',
+              max_uses: 20,
+              user_location: {
+                type: 'approximate',
+                city: locationName,
+                region: 'Illinois',
+                country: 'US',
+                timezone: timezone
+              }
+            }]
+          }),
         });
-      }
-    });
-    
-    console.log(`Generated script: ${script.length} characters, ${citations.length} citations`);
-    console.log('Citations:', JSON.stringify(citations.slice(0, 5)));
 
-    // Step 7: Generate audio with ElevenLabs TTS (jingle removed - MP3 concatenation doesn't work reliably)
+        if (!aiResponse.ok) {
+          const errorText = await aiResponse.text();
+          console.error('Claude API error:', aiResponse.status, errorText);
+          sourcesFailed.push(`claude-api-${aiResponse.status}`);
+          return false;
+        }
+
+        const aiData = await aiResponse.json();
+        console.log('Claude response received, stop_reason:', aiData.stop_reason);
+        
+        const textBlocks = aiData.content?.filter((block: any) => block.type === 'text') || [];
+        const claudeScript = textBlocks.map((b: any) => b.text).join('\n\n');
+
+        if (!claudeScript || claudeScript.trim().length === 0) {
+          console.warn('Claude returned empty script');
+          sourcesFailed.push('claude-empty');
+          return false;
+        }
+
+        // Check for refusal
+        if (detectRefusal(claudeScript)) {
+          console.warn('Claude returned a REFUSAL. Script starts with:', claudeScript.substring(0, 200));
+          sourcesFailed.push('claude-refusal');
+          return false;
+        }
+
+        // Success! Extract citations
+        script = claudeScript;
+        textBlocks.forEach((block: any) => {
+          if (block.citations && Array.isArray(block.citations)) {
+            block.citations.forEach((c: any) => {
+              citations.push({
+                url: c.url || '',
+                title: c.title || '',
+                cited_text: c.cited_text || ''
+              });
+            });
+          }
+        });
+        
+        console.log(`Claude script accepted: ${script.length} chars, ${citations.length} citations`);
+        return true;
+      } catch (e) {
+        console.error('Claude exception:', e);
+        sourcesFailed.push('claude-exception');
+        return false;
+      }
+    })();
+
+    // --- Attempt 2: OpenAI GPT-5.2 via Lovable AI Gateway ---
+    if (!claudeSucceeded) {
+      console.log('Claude failed or refused, trying GPT-5.2 fallback...');
+      generationSource = 'openai-gpt5.2-fallback';
+      
+      const gptScript = await generateWithOpenAI();
+      
+      if (gptScript && !detectRefusal(gptScript)) {
+        script = gptScript;
+        console.log(`GPT-5.2 script accepted: ${script.length} chars`);
+      } else {
+        if (gptScript) {
+          console.warn('GPT-5.2 also returned a refusal');
+          sourcesFailed.push('gpt5.2-refusal');
+        } else {
+          sourcesFailed.push('gpt5.2-failed');
+        }
+        
+        // --- Attempt 3: Programmatic fallback ---
+        console.log('GPT-5.2 also failed, using programmatic fallback...');
+        generationSource = 'programmatic-fallback';
+        script = buildFallbackScript();
+        console.log(`Programmatic fallback script: ${script.length} chars`);
+      }
+    }
+
+    console.log(`Final generation source: ${generationSource}`);
+    console.log(`Generated script: ${script.length} characters`);
+
+    // Step 7: Generate audio with ElevenLabs TTS
     console.log('Generating audio...');
     const ttsResponse = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
@@ -626,13 +801,10 @@ Write the complete briefing script now:`;
     const finalAudioBuffer = await ttsResponse.arrayBuffer();
     console.log(`Generated audio: ${finalAudioBuffer.byteLength} bytes`);
 
-    // Calculate actual duration from MP3 file size
-    // ElevenLabs uses 128kbps bitrate for mp3_44100_128 format
-    // Duration = file size in bits / bitrate
     const fileSizeInBits = finalAudioBuffer.byteLength * 8;
-    const bitrateInBps = 128000; // 128 kbps
+    const bitrateInBps = 128000;
     const actualDuration = Math.round(fileSizeInBits / bitrateInBps);
-    console.log(`Calculated duration: ${actualDuration} seconds (from ${finalAudioBuffer.byteLength} bytes)`);
+    console.log(`Calculated duration: ${actualDuration} seconds`);
 
     // Upload to storage
     const fileName = `lab/${userId}/${episode.id}.mp3`;
@@ -656,23 +828,23 @@ Write the complete briefing script now:`;
     await supabase
       .from('briefing_lab_episodes')
       .update({
-      status: 'ready',
-      podcast_url: publicUrl,
-      script,
-      duration_seconds: actualDuration,
-      generated_at: new Date().toISOString()
-    })
-    .eq('id', episode.id);
+        status: 'ready',
+        podcast_url: publicUrl,
+        script,
+        duration_seconds: actualDuration,
+        generated_at: new Date().toISOString()
+      })
+      .eq('id', episode.id);
 
     return new Response(JSON.stringify({
       success: true,
       episode_id: episode.id,
       podcast_url: publicUrl,
-    script,
-    duration_seconds: actualDuration,
+      script,
+      duration_seconds: actualDuration,
       citations: citations.slice(0, 10),
-      sources_succeeded: ['claude-web-search'],
-      sources_failed: []
+      sources_succeeded: [generationSource],
+      sources_failed: sourcesFailed
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });

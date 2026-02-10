@@ -1,80 +1,56 @@
 
 
-## Harden Briefing Generation: Anti-Refusal + OpenAI GPT-5.2 Fallback
+## Add Markdown Support to Notes
 
-### Problem
-Claude's web search occasionally fails for some categories. When it does, Claude generates a polite refusal message instead of a podcast script. That refusal passes validation, gets converted to audio by ElevenLabs, and gets delivered as the briefing.
+### What Changes
+Notes will support Markdown formatting with full dark mode support. When viewing a note, content will render with proper Markdown styling (headings, bold, italic, lists, code blocks, links, etc.) that adapts to light, dark, and terminal themes. When editing, you'll type raw Markdown in the same textarea as today.
 
-### Solution: Four layers of defense
+### How It Works
+- **View mode**: Note content renders through a Markdown renderer instead of plain text
+- **Edit mode**: No change -- you type/paste raw Markdown in the textarea as usual
+- **Toggle hint**: A hoverable tooltip near the input shows a quick Markdown cheat sheet
+- **Theme-aware**: All Markdown elements adapt to light, dark, and terminal themes automatically
 
-```text
-Layer 1: Prompt Hardening
-   |
-   v
-Layer 2: Refusal Detection
-   |  (refusal detected?)
-   v
-Layer 3: OpenAI GPT-5.2 Fallback (via Lovable AI Gateway)
-   |  (also fails or refuses?)
-   v
-Layer 4: Programmatic Minimal Script from Structured Data
-```
+### Technical Details
 
----
+**File: `src/components/lists/ListDetail.tsx`**
 
-### Layer 1: Prompt Hardening
-Update the system prompt (around line 476) to add explicit anti-refusal instructions:
-- "You MUST ALWAYS produce a complete briefing script. NEVER apologize, refuse, or ask follow-up questions."
-- "If a web search fails or returns no results for a category, SKIP that category silently and move on."
-- "Use the structured data (weather, calendar, Short Scout, intention) as your guaranteed foundation."
-- "Your output must be ONLY the spoken script text. No meta-commentary."
+1. Import `ReactMarkdown` from `react-markdown` and `rehypeSanitize` from `rehype-sanitize`
+2. In the `NoteEntry` component, replace the plain `<p>` tag with a `<ReactMarkdown>` component configured with:
+   - `skipHtml={true}` to block raw HTML injection
+   - `rehypePlugins={[rehypeSanitize]}` for defense-in-depth sanitization (notes can be shared publicly)
+   - A custom `a` component that adds `target="_blank"` and `rel="noopener noreferrer"` so Markdown links open in a new tab instead of navigating away from the app
+3. Wrap in a `markdown-content` CSS class for typography styling
+4. Add a "Markdown supported" tooltip (using the existing Tooltip component) near the new-note input area, showing a quick cheat sheet: `**bold**`, `*italic*`, `# Heading`, `- list`, `` `code` ``, `[link](url)`
 
-### Layer 2: Refusal Detection
-After extracting the script (line 573), add validation:
-- Check for refusal patterns: "I apologize", "I was unable to", "I cannot create", "unable to complete", "Would you like me to", "try again when"
-- If detected, log a warning and proceed to Layer 3
+**File: `src/components/lists/ListItem.tsx`**
 
-### Layer 3: OpenAI GPT-5.2 Fallback (NEW)
-If Claude's output is a refusal OR if the Claude API call itself fails (rate limit, timeout, etc.):
-- Call OpenAI GPT-5.2 via the Lovable AI Gateway (`https://ai.gateway.lovable.dev/v1/chat/completions`) using the existing `LOVABLE_API_KEY` -- no new API key needed
-- Send the same prompt but without web search (GPT-5.2 doesn't have Claude's web search tool, but it has strong training data knowledge)
-- The prompt will be adjusted to say "Use your general knowledge for news topics -- prioritize being helpful over being perfectly current"
-- Validate the GPT-5.2 output for refusals as well
+1. Same ReactMarkdown swap as above -- replace the plain `<p>` tag with `<ReactMarkdown>` using `skipHtml={true}`, `rehypeSanitize`, and the custom link component
+2. **Card truncation**: Truncate to the first ~300 characters of raw content, and apply `max-h-24 overflow-hidden` with a fade-out gradient overlay at the bottom so cards stay compact. The fade gradient itself uses theme-aware colors (white in light mode, card background in dark/terminal).
 
-### Layer 4: Programmatic Fallback
-If GPT-5.2 also fails or refuses:
-- Build a minimal script programmatically from the structured data that was already fetched (weather, calendar events, Short Scout, intention word)
-- This guarantees the user always receives *something* useful
+**File: `src/index.css`**
 
----
+Add typography styles scoped to `.markdown-content` with explicit dark mode variants using the project's existing `.dark` class selector:
 
-### Technical Changes
+- **Headings (h1-h4)**: `color: hsl(var(--foreground))` -- inherits from theme automatically
+- **Inline code**: Light mode: `bg-muted text-foreground`; Dark mode (`.dark .markdown-content code`): slightly lighter background pulled from `--muted` so it remains visible against dark card surfaces
+- **Code blocks (`pre`)**: Light mode: `bg-muted/50` with subtle border; Dark mode: `bg-muted` with `border-border` -- avoids pure black-on-black
+- **Blockquotes**: Light mode: `border-l-2 border-muted-foreground/30 text-muted-foreground`; Dark mode: `border-muted-foreground/50` (slightly brighter border for visibility)
+- **Links**: Use `text-primary` which already adapts across themes; underline on hover
+- **Tables**: `border-border` for cell borders -- this CSS variable already flips between themes
+- **Horizontal rules**: `border-border`
+- **Lists (ul/ol)**: Use `text-foreground` with `marker:text-muted-foreground` for bullet/number color
+- **Card truncation fade**: Light mode gradient from `transparent` to `white`; Dark mode (`.dark .markdown-card-fade`): gradient from `transparent` to `hsl(var(--card))` so the fade blends into the card background seamlessly
 
-**File: `supabase/functions/briefing-lab-generate/index.ts`**
+All colors reference the existing CSS custom properties (`--foreground`, `--muted`, `--border`, `--card`, `--primary`) defined in `src/index.css`, which already have light, dark, and terminal variants. This means terminal theme support comes for free.
 
-1. **Add anti-refusal lines to the prompt** (~4 lines added around line 476)
+**New dependency: `rehype-sanitize`**
 
-2. **Extract a helper function** `detectRefusal(script: string): boolean` that checks for known refusal patterns
+Install `rehype-sanitize` for HTML sanitization in rendered Markdown.
 
-3. **Extract the Claude call into a helper** `generateWithClaude(prompt, ...)` to keep the code clean
-
-4. **Add `generateWithOpenAI(prompt, ...)`** -- calls Lovable AI Gateway at `https://ai.gateway.lovable.dev/v1/chat/completions` with model `openai/gpt-5.2`, using `LOVABLE_API_KEY` (already available as a secret). The prompt will be slightly modified to remove web-search references and instead say "use your knowledge."
-
-5. **Add `buildFallbackScript(weatherData, calendarEvents, shortScoutData, intentionWord, userName)`** -- programmatically assembles a minimal spoken script from structured data
-
-6. **Update the main flow** (around lines 515-578) to:
-   - Try Claude first (existing behavior)
-   - If Claude API fails OR script is a refusal --> try OpenAI GPT-5.2
-   - If OpenAI also fails OR script is a refusal --> use programmatic fallback
-   - Log which path was taken (`sources_succeeded` in the response already supports this)
-
-### What the user experience looks like after this change
-
-| Scenario | Before | After |
-|----------|--------|-------|
-| All Claude searches work | Normal briefing | Normal briefing (no change) |
-| Some Claude searches fail | Refusal audio delivered | Prompt tells Claude to skip failed categories silently |
-| Claude refuses entirely | Refusal audio delivered | GPT-5.2 generates briefing from same data |
-| Claude API down | Error, episode marked failed | GPT-5.2 generates briefing instead |
-| Both Claude and GPT-5.2 fail | N/A | Minimal briefing from weather + calendar + Short Scout |
+### What stays the same
+- The editing experience (textarea with raw text) does not change
+- Link preview detection continues to work
+- Shared notes render Markdown for all viewers (with sanitization)
+- No database changes needed -- content is already stored as text
 

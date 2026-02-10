@@ -43,6 +43,15 @@ serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
   let userId: string | undefined;
 
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+  const token = authHeader.replace('Bearer ', '');
+
   try {
     const ELEVENLABS_API_KEY = Deno.env.get('ELEVENLABS_API_KEY')!;
     const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');

@@ -135,8 +135,6 @@ verify_jwt = false
 [functions.briefing-evening-reminder]
 verify_jwt = false
 
-[functions.briefing-evening-scheduler]
-verify_jwt = false
 
 [functions.briefing-auto-generate]
 verify_jwt = false

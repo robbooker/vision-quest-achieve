@@ -37,15 +37,15 @@ import { format } from 'date-fns';
 
 // Voice options with descriptions
 const VOICE_OPTIONS = [
-  { id: 'nPczCjzI2devNBz1zQrb', name: 'Brian', description: 'British male, warm and conversational with a slightly sardonic wit' },
-  { id: 'JBFqnCBsd6RMkjVDRZzb', name: 'George', description: 'British male, deep and authoritative news anchor style' },
-  { id: 'TX3LPaxmHKxFdv7VOQHJ', name: 'Liam', description: 'American male, friendly and energetic morning host vibe' },
-  { id: 'onwK4e9ZLuTAKqWW03F9', name: 'Daniel', description: 'British male, calm and measured documentary narrator' },
-  { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah', description: 'American female, warm and professional news presenter' },
-  { id: 'FGY2WhTYpPnrIDTdsKH5', name: 'Laura', description: 'American female, bright and upbeat morning show host' },
-  { id: 'XrExE9yKIg1WjnnlVkGX', name: 'Matilda', description: 'British female, sophisticated and articulate' },
-  { id: 'pFZP5JQG7iQjIQuC4Bku', name: 'Lily', description: 'British female, soft and soothing with clear diction' },
-  { id: 'QMJTqaMXmGnG8TCm8WQG', name: 'Clyde', description: 'American male, confident and charismatic with a smooth delivery' },
+  { id: 'nPczCjzI2devNBz1zQrb', name: 'Brian', description: 'British male — warm and conversational with sardonic wit. Think: your clever friend over coffee.' },
+  { id: 'JBFqnCBsd6RMkjVDRZzb', name: 'George', description: 'British male — deep, authoritative BBC anchor. Commands attention.' },
+  { id: 'TX3LPaxmHKxFdv7VOQHJ', name: 'Liam', description: 'American male — friendly and energetic. Born to host a morning show.' },
+  { id: 'onwK4e9ZLuTAKqWW03F9', name: 'Daniel', description: 'British male — calm, measured documentary narrator. Smooth and reassuring.' },
+  { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah', description: 'American female — warm and professional. Network news polished.' },
+  { id: 'FGY2WhTYpPnrIDTdsKH5', name: 'Laura', description: 'American female — bright and upbeat. Pure morning sunshine energy.' },
+  { id: 'XrExE9yKIg1WjnnlVkGX', name: 'Matilda', description: 'British female — sophisticated and articulate. Effortlessly elegant.' },
+  { id: 'pFZP5JQG7iQjIQuC4Bku', name: 'Lily', description: 'British female — soft and soothing with crystal-clear diction. Like a bedtime story, but for news.' },
+  { id: 'QMJTqaMXmGnG8TCm8WQG', name: 'Clyde', description: 'American male — confident and charismatic. Smooth baritone with natural swagger.' },
 ];
 
 const TIMEZONE_OPTIONS = [
@@ -93,8 +93,6 @@ const TOGGLE_CATEGORIES: ToggleCategoryConfig[] = [
   { key: 'include_calendar', label: 'Calendar', icon: Calendar, description: 'Today\'s events' },
   { key: 'include_intention', label: 'Word of Month', icon: Target, description: 'Monthly intention reflection' },
 ];
-
-// SchedulingPreferences is now part of BriefingLabPreferences - no separate interface needed
 
 export default function MorningBriefingLab() {
   const { user } = useAuth();
@@ -527,420 +525,428 @@ export default function MorningBriefingLab() {
           </Card>
         )}
 
-        {/* Scheduling Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Schedule & Delivery
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Wake Time & Evening Reminder */}
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  Default Wake Time
-                </Label>
-                <Input
-                  type="time"
-                  value={localPrefs?.default_wake_time || '07:00'}
-                  onChange={(e) => handleSchedulingChange('default_wake_time', e.target.value)}
-                />
+        {/* Settings Accordion */}
+        <Accordion type="multiple" defaultValue={['schedule']} className="space-y-2">
+          {/* Schedule & Delivery */}
+          <AccordionItem value="schedule" className="border rounded-lg px-4">
+            <AccordionTrigger className="hover:no-underline">
+              <span className="flex items-center gap-2 font-semibold">
+                <Clock className="h-4 w-4" />
+                Schedule & Delivery
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    Default Wake Time
+                  </Label>
+                  <Input
+                    type="time"
+                    value={localPrefs?.default_wake_time || '07:00'}
+                    onChange={(e) => handleSchedulingChange('default_wake_time', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Evening Reminder Time</Label>
+                  <Input
+                    type="time"
+                    value={localPrefs?.evening_reminder_time || '19:00'}
+                    onChange={(e) => handleSchedulingChange('evening_reminder_time', e.target.value)}
+                  />
+                </div>
               </div>
-              
-              <div className="space-y-2">
-                <Label>Evening Reminder Time</Label>
-                <Input
-                  type="time"
-                  value={localPrefs?.evening_reminder_time || '19:00'}
-                  onChange={(e) => handleSchedulingChange('evening_reminder_time', e.target.value)}
-                />
-              </div>
-            </div>
 
-            {/* Timezone */}
-            <div className="space-y-2">
-              <Label>Timezone</Label>
-              <Select
-                value={localPrefs?.timezone || 'America/Chicago'}
-                onValueChange={(value) => handleSchedulingChange('timezone', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {TIMEZONE_OPTIONS.map(tz => (
-                    <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>
+              <div className="space-y-2">
+                <Label>Timezone</Label>
+                <Select
+                  value={localPrefs?.timezone || 'America/Chicago'}
+                  onValueChange={(value) => handleSchedulingChange('timezone', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIMEZONE_OPTIONS.map(tz => (
+                      <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Reminder Method</Label>
+                <div className="flex gap-2">
+                  {(['sms', 'call', 'both'] as const).map(channel => (
+                    <Button
+                      key={channel}
+                      variant={localPrefs?.preferred_channel === channel ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => handleSchedulingChange('preferred_channel', channel)}
+                      className="flex items-center gap-1"
+                    >
+                      {channel === 'sms' && <MessageSquare className="h-4 w-4" />}
+                      {channel === 'call' && <Phone className="h-4 w-4" />}
+                      {channel === 'both' && <>📱</>}
+                      {channel.charAt(0).toUpperCase() + channel.slice(1)}
+                    </Button>
                   ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Reminder Method */}
-            <div className="space-y-2">
-              <Label>Reminder Method</Label>
-              <div className="flex gap-2">
-                {(['sms', 'call', 'both'] as const).map(channel => (
-                  <Button
-                    key={channel}
-                    variant={localPrefs?.preferred_channel === channel ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => handleSchedulingChange('preferred_channel', channel)}
-                    className="flex items-center gap-1"
-                  >
-                    {channel === 'sms' && <MessageSquare className="h-4 w-4" />}
-                    {channel === 'call' && <Phone className="h-4 w-4" />}
-                    {channel === 'both' && <>📱</>}
-                    {channel.charAt(0).toUpperCase() + channel.slice(1)}
-                  </Button>
-                ))}
+                </div>
               </div>
-            </div>
 
-            {/* Weekend Briefings */}
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Weekend Briefings</Label>
-                <p className="text-sm text-muted-foreground">Send reminders on Saturday and Sunday</p>
-              </div>
-              <Switch
-                checked={localPrefs?.weekend_enabled ?? false}
-                onCheckedChange={(checked) => handleSchedulingChange('weekend_enabled', checked)}
-              />
-            </div>
-
-            {/* SMS Delivery */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Send className="h-4 w-4" />
-                SMS Delivery
-              </Label>
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-sm">Send me an SMS when my briefing is ready</span>
-                  <p className="text-xs text-muted-foreground">
-                    Delivers a link to your podcast via text message
-                  </p>
+                  <Label>Weekend Briefings</Label>
+                  <p className="text-sm text-muted-foreground">Send reminders on Saturday and Sunday</p>
                 </div>
                 <Switch
-                  checked={localPrefs?.sms_delivery_enabled ?? false}
-                  onCheckedChange={(checked) => {
-                    if (checked && !userProfile?.phone_us) {
-                      toast.error('Please add your US phone number in Profile Settings first');
-                      return;
-                    }
-                    handleSchedulingChange('sms_delivery_enabled', checked);
-                  }}
+                  checked={localPrefs?.weekend_enabled ?? false}
+                  onCheckedChange={(checked) => handleSchedulingChange('weekend_enabled', checked)}
                 />
               </div>
-              
-              {localPrefs?.sms_delivery_enabled && !userProfile?.phone_us && (
-                <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                  <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-                  <div className="text-sm">
-                    <p className="font-medium text-amber-600 dark:text-amber-400">
-                      No phone number on file
-                    </p>
-                    <p className="text-muted-foreground">
-                      Add your US phone number in{' '}
-                      <Link to="/settings" className="text-primary hover:underline">Settings → Profile</Link>
-                      {' '}to receive SMS delivery.
+
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Send className="h-4 w-4" />
+                  SMS Delivery
+                </Label>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-sm">Send me an SMS when my briefing is ready</span>
+                    <p className="text-xs text-muted-foreground">
+                      Delivers a link to your podcast via text message
                     </p>
                   </div>
+                  <Switch
+                    checked={localPrefs?.sms_delivery_enabled ?? false}
+                    onCheckedChange={(checked) => {
+                      if (checked && !userProfile?.phone_us) {
+                        toast.error('Please add your US phone number in Profile Settings first');
+                        return;
+                      }
+                      handleSchedulingChange('sms_delivery_enabled', checked);
+                    }}
+                  />
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Location Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MapPin className="h-5 w-5" />
-              Weather Location
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {localPrefs.location_name ? (
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
-                <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-medium">{localPrefs.location_name}</p>
-                  {localPrefs.location_lat && localPrefs.location_lng && (
-                    <p className="text-xs text-muted-foreground">
-                      {localPrefs.location_lat.toFixed(4)}, {localPrefs.location_lng.toFixed(4)}
-                    </p>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground italic">No location set</p>
-            )}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Enter 5-digit zip code"
-                  value={zipCode}
-                  onChange={(e) => setZipCode(e.target.value)}
-                  maxLength={5}
-                  className="w-40"
-                />
-                <Button variant="outline" onClick={handleSetLocation}>Set</Button>
-              </div>
-              <span className="text-muted-foreground self-center">or</span>
-              <Button variant="outline" onClick={handleUseCurrentLocation}>
-                <MapPin className="h-4 w-4 mr-2" />
-                Use Current Location
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Voice Selection */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Mic className="h-5 w-5" />
-              Voice
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Select
-              value={localPrefs.voice_id || 'nPczCjzI2devNBz1zQrb'}
-              onValueChange={(value) => {
-                setLocalPrefs(prev => ({ ...prev, voice_id: value }));
-                if (!initialLoadRef.current) setHasUnsavedChanges(true);
-              }}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select a voice" />
-              </SelectTrigger>
-              <SelectContent>
-                {VOICE_OPTIONS.map((voice) => (
-                  <SelectItem key={voice.id} value={voice.id}>
-                    <span className="font-medium">{voice.name}</span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-sm text-muted-foreground">
-              {VOICE_OPTIONS.find(v => v.id === (localPrefs.voice_id || 'nPczCjzI2devNBz1zQrb'))?.description}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Personality Selector */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5" />
-              Personality
-            </CardTitle>
-            <CardDescription>
-              Choose the tone and style of your briefing host
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <RadioGroup
-              value={localPrefs.briefing_personality || 'default'}
-              onValueChange={(value) => {
-                setLocalPrefs(prev => ({ ...prev, briefing_personality: value }));
-                if (!initialLoadRef.current) setHasUnsavedChanges(true);
-              }}
-              className="grid grid-cols-1 md:grid-cols-2 gap-3"
-            >
-              {[
-                { value: 'default', label: 'Classic', description: 'Neutral podcast host — current default' },
-                { value: 'rude', label: 'Brutally Honest', description: 'Sarcastic, blunt, roasts you with dark humor' },
-                { value: 'loving', label: 'Your Biggest Fan', description: 'Hyper-encouraging, celebrates every win' },
-                { value: 'facts', label: 'Just the Facts', description: 'Dry, concise, zero fluff — data only' },
-                { value: 'announcer', label: 'Sports Announcer', description: 'High-energy play-by-play, everything is dramatic' },
-                { value: 'mentor', label: 'Wise Mentor', description: 'Calm, philosophical, like advice from a wise friend' },
-              ].map((p) => (
-                <div key={p.value} className="flex items-start space-x-3">
-                  <RadioGroupItem value={p.value} id={`personality-${p.value}`} className="mt-1" />
-                  <Label htmlFor={`personality-${p.value}`} className="cursor-pointer space-y-0.5">
-                    <span className="font-medium text-sm">{p.label}</span>
-                    <p className="text-xs text-muted-foreground">{p.description}</p>
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
-          </CardContent>
-        </Card>
-
-        {/* Duration Control */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Max Duration
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center gap-4">
-              <Slider
-                value={[localPrefs.max_duration_minutes || 5]}
-                onValueChange={([value]) => {
-                  setLocalPrefs(prev => ({ ...prev, max_duration_minutes: value }));
-                  if (!initialLoadRef.current) setHasUnsavedChanges(true);
-                }}
-                min={2}
-                max={10}
-                step={1}
-                className="flex-1"
-              />
-              <span className="text-lg font-medium w-16 text-right">{localPrefs.max_duration_minutes || 5} min</span>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Target length for your briefing. Actual duration may vary slightly.
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* News Categories with Depth */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Newspaper className="h-5 w-5" />
-              News Categories
-            </CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              Choose depth: <span className="font-medium">Off</span> = skip, <span className="font-medium">Brief</span> = quick mention, <span className="font-medium">Full</span> = deep dive
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {DEPTH_CATEGORIES.map((cat) => {
-                const Icon = cat.icon;
-                const depth = (localPrefs[cat.depthKey] as DepthLevel) || 'off';
-                const isActive = depth !== 'off';
                 
-                return (
-                  <div 
-                    key={cat.depthKey}
-                    className={`border rounded-lg p-4 space-y-3 transition-colors ${
-                      isActive ? 'border-primary bg-primary/5' : 'border-border'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Icon className="h-4 w-4" />
-                        <span className="font-medium">{cat.label}</span>
-                      </div>
-                      <RadioGroup
-                        value={depth}
-                        onValueChange={(v) => {
-                          setLocalPrefs(prev => ({ ...prev, [cat.depthKey]: v as DepthLevel }));
-                          if (!initialLoadRef.current) setHasUnsavedChanges(true);
-                        }}
-                        className="flex gap-0"
-                      >
-                        {(['off', 'brief', 'full'] as DepthLevel[]).map((level, idx) => (
-                          <div key={level} className="flex items-center">
-                            <RadioGroupItem value={level} id={`${cat.depthKey}-${level}`} className="sr-only peer" />
-                            <Label
-                              htmlFor={`${cat.depthKey}-${level}`}
-                              className={`px-2 py-1 text-xs border cursor-pointer transition-colors
-                                ${idx === 0 ? 'rounded-l-md border-r-0' : ''}
-                                ${idx === 2 ? 'rounded-r-md border-l-0' : ''}
-                                ${depth === level 
-                                  ? level === 'off' 
-                                    ? 'bg-muted text-foreground border-border' 
-                                    : level === 'brief'
-                                      ? 'bg-primary/10 text-foreground border-primary'
-                                      : 'bg-primary/20 text-foreground border-primary font-medium'
-                                  : 'text-muted-foreground hover:text-foreground'
-                                }`}
-                            >
-                              {level.charAt(0).toUpperCase() + level.slice(1)}
-                            </Label>
-                          </div>
-                        ))}
-                      </RadioGroup>
+                {localPrefs?.sms_delivery_enabled && !userProfile?.phone_us && (
+                  <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                    <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                    <div className="text-sm">
+                      <p className="font-medium text-amber-600 dark:text-amber-400">
+                        No phone number on file
+                      </p>
+                      <p className="text-muted-foreground">
+                        Add your US phone number in{' '}
+                        <Link to="/settings" className="text-primary hover:underline">Settings → Profile</Link>
+                        {' '}to receive SMS delivery.
+                      </p>
                     </div>
-                    
-                    {isActive && (
+                  </div>
+                )}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* Weather Location */}
+          <AccordionItem value="location" className="border rounded-lg px-4">
+            <AccordionTrigger className="hover:no-underline">
+              <span className="flex items-center gap-2 font-semibold">
+                <MapPin className="h-4 w-4" />
+                Weather Location
+                {localPrefs.location_name && (
+                  <span className="font-normal text-sm text-muted-foreground ml-1">
+                    — {localPrefs.location_name}
+                  </span>
+                )}
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className="space-y-4">
+              {localPrefs.location_name ? (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                  <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium">{localPrefs.location_name}</p>
+                    {localPrefs.location_lat && localPrefs.location_lng && (
                       <p className="text-xs text-muted-foreground">
-                        {cat.description[depth as 'brief' | 'full']}
+                        {localPrefs.location_lat.toFixed(4)}, {localPrefs.location_lng.toFixed(4)}
                       </p>
                     )}
-                    
-                    {cat.topicsKey && isActive && (
-                      <Input
-                        placeholder={cat.topicsPlaceholder}
-                        value={(localPrefs[cat.topicsKey] as string) || ''}
-                        onChange={(e) => handleTopicChange(cat.topicsKey!, e.target.value)}
-                        className="text-sm"
-                      />
-                    )}
                   </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">No location set</p>
+              )}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Enter 5-digit zip code"
+                    value={zipCode}
+                    onChange={(e) => setZipCode(e.target.value)}
+                    maxLength={5}
+                    className="w-40"
+                  />
+                  <Button variant="outline" onClick={handleSetLocation}>Set</Button>
+                </div>
+                <span className="text-muted-foreground self-center">or</span>
+                <Button variant="outline" onClick={handleUseCurrentLocation}>
+                  <MapPin className="h-4 w-4 mr-2" />
+                  Use Current Location
+                </Button>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
 
-        {/* Extras (Toggle Categories) */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Extras</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {TOGGLE_CATEGORIES.map((cat) => {
-                const Icon = cat.icon;
-                const isChecked = !!localPrefs[cat.key];
-                
-                return (
-                  <div 
-                    key={cat.key}
-                    className={`border rounded-lg p-3 space-y-2 transition-colors cursor-pointer ${
-                      isChecked ? 'border-primary bg-primary/5' : 'border-border'
-                    }`}
-                    onClick={() => handleToggle(cat.key)}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id={cat.key}
-                        checked={isChecked}
-                        onCheckedChange={() => handleToggle(cat.key)}
-                      />
-                      <Label 
-                        htmlFor={cat.key} 
-                        className="flex items-center gap-2 cursor-pointer font-medium text-sm"
-                      >
-                        <Icon className="h-4 w-4" />
-                        {cat.label}
-                      </Label>
+          {/* Voice */}
+          <AccordionItem value="voice" className="border rounded-lg px-4">
+            <AccordionTrigger className="hover:no-underline">
+              <span className="flex items-center gap-2 font-semibold">
+                <Mic className="h-4 w-4" />
+                Voice
+                <span className="font-normal text-sm text-muted-foreground ml-1">
+                  — {VOICE_OPTIONS.find(v => v.id === (localPrefs.voice_id || 'nPczCjzI2devNBz1zQrb'))?.name}
+                </span>
+              </span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <RadioGroup
+                value={localPrefs.voice_id || 'nPczCjzI2devNBz1zQrb'}
+                onValueChange={(value) => {
+                  setLocalPrefs(prev => ({ ...prev, voice_id: value }));
+                  if (!initialLoadRef.current) setHasUnsavedChanges(true);
+                }}
+                className="grid grid-cols-1 md:grid-cols-2 gap-3"
+              >
+                {VOICE_OPTIONS.map((voice) => (
+                  <div key={voice.id} className="flex items-start space-x-3">
+                    <RadioGroupItem value={voice.id} id={`voice-${voice.id}`} className="mt-1" />
+                    <Label htmlFor={`voice-${voice.id}`} className="cursor-pointer space-y-0.5">
+                      <span className="font-medium text-sm">{voice.name}</span>
+                      <p className="text-xs text-muted-foreground">{voice.description}</p>
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* Personality */}
+          <AccordionItem value="personality" className="border rounded-lg px-4">
+            <AccordionTrigger className="hover:no-underline">
+              <span className="flex items-center gap-2 font-semibold">
+                <Sparkles className="h-4 w-4" />
+                Personality
+              </span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <RadioGroup
+                value={localPrefs.briefing_personality || 'default'}
+                onValueChange={(value) => {
+                  setLocalPrefs(prev => ({ ...prev, briefing_personality: value }));
+                  if (!initialLoadRef.current) setHasUnsavedChanges(true);
+                }}
+                className="grid grid-cols-1 md:grid-cols-2 gap-3"
+              >
+                {[
+                  { value: 'default', label: 'Classic', description: 'Neutral podcast host — current default' },
+                  { value: 'rude', label: 'Brutally Honest', description: 'Sarcastic, blunt, roasts you with dark humor' },
+                  { value: 'loving', label: 'Your Biggest Fan', description: 'Hyper-encouraging, celebrates every win' },
+                  { value: 'facts', label: 'Just the Facts', description: 'Dry, concise, zero fluff — data only' },
+                  { value: 'announcer', label: 'Sports Announcer', description: 'High-energy play-by-play, everything is dramatic' },
+                  { value: 'mentor', label: 'Wise Mentor', description: 'Calm, philosophical, like advice from a wise friend' },
+                ].map((p) => (
+                  <div key={p.value} className="flex items-start space-x-3">
+                    <RadioGroupItem value={p.value} id={`personality-${p.value}`} className="mt-1" />
+                    <Label htmlFor={`personality-${p.value}`} className="cursor-pointer space-y-0.5">
+                      <span className="font-medium text-sm">{p.label}</span>
+                      <p className="text-xs text-muted-foreground">{p.description}</p>
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* Max Duration */}
+          <AccordionItem value="duration" className="border rounded-lg px-4">
+            <AccordionTrigger className="hover:no-underline">
+              <span className="flex items-center gap-2 font-semibold">
+                <Clock className="h-4 w-4" />
+                Max Duration
+                <span className="font-normal text-sm text-muted-foreground ml-1">
+                  — {localPrefs.max_duration_minutes || 5} min
+                </span>
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className="space-y-4">
+              <div className="flex items-center gap-4">
+                <Slider
+                  value={[localPrefs.max_duration_minutes || 5]}
+                  onValueChange={([value]) => {
+                    setLocalPrefs(prev => ({ ...prev, max_duration_minutes: value }));
+                    if (!initialLoadRef.current) setHasUnsavedChanges(true);
+                  }}
+                  min={2}
+                  max={10}
+                  step={1}
+                  className="flex-1"
+                />
+                <span className="text-lg font-medium w-16 text-right">{localPrefs.max_duration_minutes || 5} min</span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Target length for your briefing. Actual duration may vary slightly.
+              </p>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* News Categories */}
+          <AccordionItem value="news" className="border rounded-lg px-4">
+            <AccordionTrigger className="hover:no-underline">
+              <span className="flex items-center gap-2 font-semibold">
+                <Newspaper className="h-4 w-4" />
+                News Categories
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Choose depth: <span className="font-medium">Off</span> = skip, <span className="font-medium">Brief</span> = quick mention, <span className="font-medium">Full</span> = deep dive
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {DEPTH_CATEGORIES.map((cat) => {
+                  const Icon = cat.icon;
+                  const depth = (localPrefs[cat.depthKey] as DepthLevel) || 'off';
+                  const isActive = depth !== 'off';
+                  
+                  return (
+                    <div 
+                      key={cat.depthKey}
+                      className={`border rounded-lg p-4 space-y-3 transition-colors ${
+                        isActive ? 'border-primary bg-primary/5' : 'border-border'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Icon className="h-4 w-4" />
+                          <span className="font-medium">{cat.label}</span>
+                        </div>
+                        <RadioGroup
+                          value={depth}
+                          onValueChange={(v) => {
+                            setLocalPrefs(prev => ({ ...prev, [cat.depthKey]: v as DepthLevel }));
+                            if (!initialLoadRef.current) setHasUnsavedChanges(true);
+                          }}
+                          className="flex gap-0"
+                        >
+                          {(['off', 'brief', 'full'] as DepthLevel[]).map((level, idx) => (
+                            <div key={level} className="flex items-center">
+                              <RadioGroupItem value={level} id={`${cat.depthKey}-${level}`} className="sr-only peer" />
+                              <Label
+                                htmlFor={`${cat.depthKey}-${level}`}
+                                className={`px-2 py-1 text-xs border cursor-pointer transition-colors
+                                  ${idx === 0 ? 'rounded-l-md border-r-0' : ''}
+                                  ${idx === 2 ? 'rounded-r-md border-l-0' : ''}
+                                  ${depth === level 
+                                    ? level === 'off' 
+                                      ? 'bg-muted text-foreground border-border' 
+                                      : level === 'brief'
+                                        ? 'bg-primary/10 text-foreground border-primary'
+                                        : 'bg-primary/20 text-foreground border-primary font-medium'
+                                    : 'text-muted-foreground hover:text-foreground'
+                                  }`}
+                              >
+                                {level.charAt(0).toUpperCase() + level.slice(1)}
+                              </Label>
+                            </div>
+                          ))}
+                        </RadioGroup>
+                      </div>
+                      
+                      {isActive && (
+                        <p className="text-xs text-muted-foreground">
+                          {cat.description[depth as 'brief' | 'full']}
+                        </p>
+                      )}
+                      
+                      {cat.topicsKey && isActive && (
+                        <Input
+                          placeholder={cat.topicsPlaceholder}
+                          value={(localPrefs[cat.topicsKey] as string) || ''}
+                          onChange={(e) => handleTopicChange(cat.topicsKey!, e.target.value)}
+                          className="text-sm"
+                        />
+                      )}
                     </div>
-                    {isChecked && (
-                      <p className="text-xs text-muted-foreground">{cat.description}</p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
+                  );
+                })}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
 
-        {/* Custom Topics */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Anything else you'd like to know about?</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Textarea
-              placeholder="I want to know about upcoming SpaceX launches and any news about the new ChatGPT features..."
-              value={localPrefs.custom_topics || ''}
-              onChange={(e) => handleTopicChange('custom_topics', e.target.value)}
-              rows={3}
-            />
-          </CardContent>
-        </Card>
+          {/* Extras */}
+          <AccordionItem value="extras" className="border rounded-lg px-4">
+            <AccordionTrigger className="hover:no-underline">
+              <span className="flex items-center gap-2 font-semibold">
+                <Target className="h-4 w-4" />
+                Extras
+              </span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {TOGGLE_CATEGORIES.map((cat) => {
+                  const Icon = cat.icon;
+                  const isChecked = !!localPrefs[cat.key];
+                  
+                  return (
+                    <div 
+                      key={cat.key}
+                      className={`border rounded-lg p-3 space-y-2 transition-colors cursor-pointer ${
+                        isChecked ? 'border-primary bg-primary/5' : 'border-border'
+                      }`}
+                      onClick={() => handleToggle(cat.key)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id={cat.key}
+                          checked={isChecked}
+                          onCheckedChange={() => handleToggle(cat.key)}
+                        />
+                        <Label 
+                          htmlFor={cat.key} 
+                          className="flex items-center gap-2 cursor-pointer font-medium text-sm"
+                        >
+                          <Icon className="h-4 w-4" />
+                          {cat.label}
+                        </Label>
+                      </div>
+                      {isChecked && (
+                        <p className="text-xs text-muted-foreground">{cat.description}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* Custom Topics */}
+          <AccordionItem value="custom" className="border rounded-lg px-4">
+            <AccordionTrigger className="hover:no-underline">
+              <span className="flex items-center gap-2 font-semibold">
+                <Newspaper className="h-4 w-4" />
+                Custom Topics
+              </span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <Textarea
+                placeholder="I want to know about upcoming SpaceX launches and any news about the new ChatGPT features..."
+                value={localPrefs.custom_topics || ''}
+                onChange={(e) => handleTopicChange('custom_topics', e.target.value)}
+                rows={3}
+              />
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
 
         {/* Actions */}
         <div className="flex items-center justify-end gap-2">
@@ -1190,7 +1196,7 @@ export default function MorningBriefingLab() {
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  POST with <code className="bg-muted px-1 rounded">{"{ \"wake_time\": \"07:00\" }"}</code> and Authorization header
+                  POST with <code className="bg-muted px-1 rounded">{`{ \"wake_time\": \"07:00\" }`}</code> and Authorization header
                 </p>
               </div>
 

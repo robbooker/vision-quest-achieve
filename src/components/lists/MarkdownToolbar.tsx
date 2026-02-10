@@ -32,7 +32,59 @@ const formats: FormatConfig[] = [
 
 export function MarkdownToolbar({ textareaRef, onChange, visible = true, onExpand }: MarkdownToolbarProps) {
   const applyFormat = (format: FormatConfig) => {
-    // ... keep existing code
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const value = textarea.value;
+    const selected = value.substring(start, end);
+
+    let newValue: string;
+    let newCursorStart: number;
+    let newCursorEnd: number;
+
+    if (format.type === "wrap") {
+      const text = selected || format.placeholder;
+      newValue =
+        value.substring(0, start) +
+        format.prefix +
+        text +
+        format.suffix +
+        value.substring(end);
+      newCursorStart = start + format.prefix.length;
+      newCursorEnd = newCursorStart + text.length;
+    } else {
+      // Line prefix: find the start of the current line
+      const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+      const beforeLine = value.substring(0, lineStart);
+      const afterCursor = value.substring(lineStart);
+
+      // If multiple lines are selected, prefix each line
+      const lines = value.substring(lineStart, end || value.indexOf("\n", start)).split("\n");
+      if (selected && selected.includes("\n")) {
+        const selectedLines = selected.split("\n");
+        const prefixed = selectedLines.map((line, i) => {
+          const prefix = format.prefix === "1. " ? `${i + 1}. ` : format.prefix;
+          return prefix + line;
+        }).join("\n");
+        newValue = value.substring(0, start) + prefixed + value.substring(end);
+        newCursorStart = start;
+        newCursorEnd = start + prefixed.length;
+      } else {
+        newValue = beforeLine + format.prefix + afterCursor;
+        newCursorStart = start + format.prefix.length;
+        newCursorEnd = newCursorStart;
+      }
+    }
+
+    onChange(newValue);
+
+    // Restore cursor position after React re-render
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(newCursorStart, newCursorEnd);
+    });
   };
 
   return (

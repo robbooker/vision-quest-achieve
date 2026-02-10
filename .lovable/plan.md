@@ -1,139 +1,65 @@
 
 
-# Code Review: Morning Briefing Auto-Generate and SMS Delivery
+# Fix: Auto-Generate Auth Bypass for Cron-Triggered Briefings
 
-## Summary of Issues Found
+## Problem
+`briefing-lab-auto-generate` calls `briefing-lab-generate` using the service role key as a Bearer token. But `briefing-lab-generate` validates that token with `supabase.auth.getUser()`, which only accepts user JWTs. The service role key fails this check, returning 401 every time. The briefing never generates from the cron job.
 
-There are **4 bugs** in the current code that collectively explain why your briefing fails to auto-generate and text you. Here they are ranked by severity:
+## Solution
+Modify `briefing-lab-generate` to support **two auth paths**:
+1. **User JWT** (existing) -- used when a user manually generates from the UI
+2. **Service role key + body user_id** (new) -- used when called from the cron auto-generate function
 
----
+## Technical Details
 
-### BUG 1 (Critical): UTC Date Mismatch in "Already Generated?" Query
+### File: `supabase/functions/briefing-lab-generate/index.ts` (lines 48-68)
 
-**File:** `supabase/functions/briefing-lab-auto-generate/index.ts`, line 162
-
-**The code:**
-```typescript
-.gte('created_at', `${userTodayStr}T00:00:00Z`)
-```
-
-`userTodayStr` is your **local** date (e.g., `2026-02-10`), but it appends `T00:00:00Z` (midnight **UTC**). For you in Central Time (UTC-6), midnight UTC is actually 6 PM the previous evening. This means:
-
-- The query looks for briefings created after 6 PM CT **yesterday**
-- If a briefing was generated yesterday evening, it would be incorrectly treated as "today's" briefing
-- The function would then skip generation, thinking one already exists
-
-**Fix:** Convert the user's local day boundaries to proper UTC timestamps. For `America/Chicago`, "today" starts at `2026-02-10T06:00:00Z`, not `2026-02-10T00:00:00Z`.
-
----
-
-### BUG 2 (Critical): No Stuck-Record Recovery
-
-**File:** `supabase/functions/briefing-lab-auto-generate/index.ts`, lines 181-184
-
-If `briefing-lab-generate` times out (edge functions have a ~60s limit), the episode row is left with `status = 'generating'` forever. Every subsequent cron run sees this and skips with "already generating." The briefing never gets created.
-
-Looking at your history, this has happened before (Feb 7 and Feb 8 both show stuck "generating" records).
-
-**Fix:** If a record has been in "generating" status for more than 10 minutes, treat it as failed -- either delete it or mark it as failed, then allow a retry.
-
----
-
-### BUG 3 (Moderate): Duplicate Cron Jobs
-
-There are **two** cron jobs calling the same function:
-- Job 3: every 5 minutes
-- Job 4: every 15 minutes
-
-If both fire at the same moment, two instances of the function run simultaneously. Both see "no briefing exists" and both call `briefing-lab-generate`, potentially creating duplicate episodes or race conditions.
-
-**Fix:** Remove the duplicate cron job (keep just one -- every 5 minutes is fine).
-
----
-
-### BUG 4 (Minor): Fragile Date Parsing
-
-The `parseLocaleDateTime` function parses the output of `toLocaleString('en-US', { timeZone })`. This output format is not guaranteed to be stable across Deno runtime versions. A format change would silently break all timezone math, causing the function to fall back to `new Date()` (UTC).
-
-**Fix:** Use `Intl.DateTimeFormat` with explicit `{ year, month, day, hour, minute }` parts instead of regex-parsing a locale string.
-
----
-
-## Proposed Changes
-
-### 1. Fix the UTC date query (Bug 1)
-
-Replace the naive date filter with proper UTC boundaries for the user's local day:
+Replace the current rigid auth block with dual-path logic:
 
 ```typescript
-// Calculate UTC boundaries for the user's local "today"
-const startOfDayLocal = new Date(userNow);
-startOfDayLocal.setHours(0, 0, 0, 0);
-// Convert back: local midnight in UTC
-const localMidnightUTC = new Date(now.getTime() - (userNow.getTime() - startOfDayLocal.getTime()));
-const todayStartUTC = localMidnightUTC.toISOString();
-
-// Then use in query:
-.gte('created_at', todayStartUTC)
-```
-
-### 2. Add stuck-record recovery (Bug 2)
-
-Before the "already generating" skip, check how old the record is:
-
-```typescript
-if (existingBriefing?.status === 'generating') {
-  const createdAt = new Date(existingBriefing.created_at);
-  const ageMinutes = (now.getTime() - createdAt.getTime()) / 60000;
-  if (ageMinutes > 10) {
-    // Stuck -- mark as failed and allow retry
-    await supabase
-      .from('briefing_lab_episodes')
-      .update({ status: 'failed' })
-      .eq('id', existingBriefing.id);
-    // Fall through to generation below
-  } else {
-    skipped.push(`${userPrefs.user_id}: already generating`);
-    continue;
-  }
-}
-```
-
-### 3. Remove duplicate cron job (Bug 3)
-
-Run SQL to drop the redundant job:
-
-```sql
-SELECT cron.unschedule(4);
-```
-
-### 4. Use stable date parsing (Bug 4)
-
-Replace `parseLocaleDateTime` with `Intl.DateTimeFormat` parts:
-
-```typescript
-function getLocalDateTime(timezone: string): { date: string; hours: number; minutes: number } {
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone,
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', hour12: false
+const authHeader = req.headers.get('Authorization');
+if (!authHeader) {
+  return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+    status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });
-  const parts = Object.fromEntries(
-    formatter.formatToParts(new Date()).map(p => [p.type, p.value])
-  );
-  return {
-    date: `${parts.year}-${parts.month}-${parts.day}`,
-    hours: parseInt(parts.hour, 10),
-    minutes: parseInt(parts.minute, 10)
-  };
+}
+
+const token = authHeader.replace('Bearer ', '');
+let userId: string;
+
+// Try user JWT first
+const { data: userData, error: authError } = await supabase.auth.getUser(token);
+
+if (!authError && userData?.user) {
+  // Path 1: Valid user JWT (manual generation from UI)
+  userId = userData.user.id;
+} else {
+  // Path 2: Service role call from auto-generate cron
+  // Verify this is actually the service role key
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const body = await req.json();
+
+  if (token !== serviceRoleKey || !body.user_id) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
+  userId = body.user_id;
 }
 ```
 
----
+This ensures:
+- UI calls continue to work exactly as before (user JWT path)
+- Cron calls succeed by verifying the service role key directly and reading user_id from the body
+- Random tokens are still rejected (neither valid JWT nor service role key)
+
+Note: The body parsing needs adjustment since `req.json()` can only be called once. The existing code parses the body later, so we will need to parse it once at the top and reuse it.
+
+### No changes needed to `briefing-lab-auto-generate/index.ts`
+The existing call on line 238 already passes `{ user_id: userPrefs.user_id }` in the body, which is exactly what the new path reads.
 
 ## Scope
-
-- **1 edge function modified:** `supabase/functions/briefing-lab-auto-generate/index.ts`
-- **1 SQL command:** remove duplicate cron job
-- Function will be redeployed automatically
-
+- 1 file modified: `supabase/functions/briefing-lab-generate/index.ts`
+- Auth logic updated (lines ~48-68)
+- Edge function redeployed automatically

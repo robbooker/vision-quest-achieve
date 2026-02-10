@@ -4,7 +4,7 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
 
-const APP_VERSION = "1.20.0";
+const APP_VERSION = "1.21.0";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({

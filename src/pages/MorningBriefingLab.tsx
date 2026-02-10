@@ -45,6 +45,7 @@ const VOICE_OPTIONS = [
   { id: 'FGY2WhTYpPnrIDTdsKH5', name: 'Laura', description: 'American female, bright and upbeat morning show host' },
   { id: 'XrExE9yKIg1WjnnlVkGX', name: 'Matilda', description: 'British female, sophisticated and articulate' },
   { id: 'pFZP5JQG7iQjIQuC4Bku', name: 'Lily', description: 'British female, soft and soothing with clear diction' },
+  { id: 'QMJTqaMXmGnG8TCm8WQG', name: 'Clyde', description: 'American male, confident and charismatic with a smooth delivery' },
 ];
 
 const TIMEZONE_OPTIONS = [

@@ -7,10 +7,13 @@ import { useListItems, ListItem } from "@/hooks/useListItems";
 import { ShareListDialog } from "./ShareListDialog";
 import { LinkPreviewCard } from "./LinkPreviewCard";
 import { extractUrls, useLinkMetadata } from "@/hooks/useLinkMetadata";
-import { ArrowLeft, Share2, Trash2, Pencil, Check, X, User } from "lucide-react";
+import { ArrowLeft, Share2, Trash2, Pencil, Check, X, User, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import ReactMarkdown from "react-markdown";
+import rehypeSanitize from "rehype-sanitize";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -141,9 +144,19 @@ function NoteEntry({
       onClick={() => setIsEditing(true)}
     >
       {/* Content */}
-      <p className="text-base leading-relaxed whitespace-pre-wrap min-h-[28px]">
-        {item.content}
-      </p>
+      <div className="markdown-content text-base leading-relaxed min-h-[28px]">
+        <ReactMarkdown
+          skipHtml={true}
+          rehypePlugins={[rehypeSanitize]}
+          components={{
+            a: ({ node, ...props }) => (
+              <a {...props} target="_blank" rel="noopener noreferrer" />
+            ),
+          }}
+        >
+          {item.content}
+        </ReactMarkdown>
+      </div>
 
       {/* Contributor badge */}
       {item.contributor_name && (
@@ -304,9 +317,29 @@ export function ListDetail({ list, onBack, onDelete, onUpdateTitle }: ListDetail
               className="w-full border-none bg-transparent shadow-none resize-none focus-visible:ring-0 text-base leading-relaxed p-0 min-h-[28px] placeholder:text-muted-foreground/50"
               disabled={addItem.isPending}
             />
-            <p className="text-xs text-muted-foreground mt-2">
-              Press Enter to add • Shift+Enter for new line
-            </p>
+            <div className="flex items-center gap-2 mt-2">
+              <p className="text-xs text-muted-foreground">
+                Press Enter to add • Shift+Enter for new line
+              </p>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground cursor-help">
+                      <Info className="h-3 w-3" />
+                      Markdown
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-xs font-mono space-y-0.5 max-w-[200px]">
+                    <p>**bold** → <strong>bold</strong></p>
+                    <p>*italic* → <em>italic</em></p>
+                    <p># Heading</p>
+                    <p>- list item</p>
+                    <p>`code`</p>
+                    <p>[link](url)</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           </div>
         </div>
       </div>

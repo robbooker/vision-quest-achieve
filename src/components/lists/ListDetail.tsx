@@ -189,7 +189,7 @@ function NoteEntry({
       )}
 
       {/* Action buttons on hover */}
-      <div className="absolute -right-8 top-0 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="note-action-buttons absolute -right-8 top-0 flex flex-col gap-1 transition-opacity">
         <Button
           variant="ghost"
           size="icon"

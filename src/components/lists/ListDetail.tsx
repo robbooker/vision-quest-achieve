@@ -8,6 +8,7 @@ import { ShareListDialog } from "./ShareListDialog";
 import { LinkPreviewCard } from "./LinkPreviewCard";
 import { extractUrls, useLinkMetadata } from "@/hooks/useLinkMetadata";
 import { ArrowLeft, Share2, Trash2, Pencil, Check, X, User, Info } from "lucide-react";
+import { MarkdownToolbar } from "./MarkdownToolbar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -124,14 +125,19 @@ function NoteEntry({
 
   if (isEditing) {
     return (
-      <div className="group relative">
+      <div className="group relative" onBlur={(e) => {
+        // Only save if focus leaves the entire container (not just moving between toolbar and textarea)
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+          handleSave();
+        }
+      }}>
+        <MarkdownToolbar textareaRef={textareaRef} onChange={setEditContent} />
         <Textarea
           ref={textareaRef}
           value={editContent}
           onChange={(e) => setEditContent(e.target.value)}
           onKeyDown={handleKeyDown}
-          onBlur={handleSave}
-          className="w-full border-none bg-transparent shadow-none resize-none focus-visible:ring-0 text-base leading-relaxed p-0 min-h-[28px]"
+          className="w-full border-none bg-transparent shadow-none resize-none focus-visible:ring-0 text-base leading-relaxed p-0 min-h-[28px] rounded-t-none"
           placeholder="Write something..."
         />
       </div>
@@ -202,7 +208,9 @@ export function ListDetail({ list, onBack, onDelete, onUpdateTitle }: ListDetail
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitle, setEditTitle] = useState(list.title);
   const [newNote, setNewNote] = useState("");
+  const [newNoteFocused, setNewNoteFocused] = useState(false);
   const newNoteRef = useRef<HTMLTextAreaElement>(null);
+  const newNoteBlurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Auto-resize new note textarea
   useEffect(() => {
@@ -305,16 +313,27 @@ export function ListDetail({ list, onBack, onDelete, onUpdateTitle }: ListDetail
 
           {/* New note input - always visible */}
           <div className={cn("mt-4", items.length > 0 && "pt-4 border-t border-dashed")}>
+            <MarkdownToolbar textareaRef={newNoteRef} onChange={setNewNote} visible={newNoteFocused} />
             <Textarea
               ref={newNoteRef}
               value={newNote}
               onChange={(e) => setNewNote(e.target.value)}
               onKeyDown={handleNewNoteKeyDown}
+              onFocus={() => {
+                if (newNoteBlurTimer.current) clearTimeout(newNoteBlurTimer.current);
+                setNewNoteFocused(true);
+              }}
               onBlur={() => {
-                if (newNote.trim()) handleAddNote();
+                newNoteBlurTimer.current = setTimeout(() => {
+                  setNewNoteFocused(false);
+                  if (newNote.trim()) handleAddNote();
+                }, 200);
               }}
               placeholder={items.length === 0 ? "Start writing..." : "Add more..."}
-              className="w-full border-none bg-transparent shadow-none resize-none focus-visible:ring-0 text-base leading-relaxed p-0 min-h-[28px] placeholder:text-muted-foreground/50"
+              className={cn(
+                "w-full border-none bg-transparent shadow-none resize-none focus-visible:ring-0 text-base leading-relaxed p-0 min-h-[28px] placeholder:text-muted-foreground/50",
+                newNoteFocused && "rounded-t-none"
+              )}
               disabled={addItem.isPending}
             />
             <div className="flex items-center gap-2 mt-2">

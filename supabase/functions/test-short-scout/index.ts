@@ -113,24 +113,23 @@ serve(async (req) => {
 
     console.log('Testing Short Scout API with URL:', shortScoutUrl);
 
-    // Test all three sections in parallel
-    const [tickers, engagement, trends] = await Promise.all([
-      fetchShortScoutSection(shortScoutUrl!, shortScoutPlatformKey!, 'tickers'),
-      fetchShortScoutSection(shortScoutUrl!, shortScoutPlatformKey!, 'engagement'),
-      fetchShortScoutSection(shortScoutUrl!, shortScoutPlatformKey!, 'trends'),
-    ]);
+    // Test all sections in parallel
+    const sections = ['tickers', 'engagement', 'trends', 'activity', 'chat', 'leaderboard', 'patterns', 'scout'];
+    const results = await Promise.all(
+      sections.map(s => fetchShortScoutSection(shortScoutUrl!, shortScoutPlatformKey!, s))
+    );
 
-    console.log('Tickers response:', JSON.stringify(tickers, null, 2));
-    console.log('Engagement response:', JSON.stringify(engagement, null, 2));
-    console.log('Trends response:', JSON.stringify(trends, null, 2));
+    const sectionResults: Record<string, ShortScoutResponse> = {};
+    sections.forEach((s, i) => {
+      sectionResults[s] = results[i];
+      console.log(`${s} response:`, JSON.stringify(results[i], null, 2));
+    });
 
     return new Response(
       JSON.stringify({
         secrets_configured: true,
         short_scout_url: shortScoutUrl,
-        tickers,
-        engagement,
-        trends,
+        ...sectionResults,
         tested_at: new Date().toISOString(),
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

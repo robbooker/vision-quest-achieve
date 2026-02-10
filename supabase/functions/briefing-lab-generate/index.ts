@@ -183,41 +183,24 @@ serve(async (req) => {
     }
 
     // Step 1: Fetch Short Scout data if enabled (private API, not web-searchable)
-    let shortScoutData: {
-      tickers?: {
-        top_searched?: Array<{ ticker: string; count: number; last_seen: string }>;
-        most_traded?: Array<{ ticker: string; checkins: number; last_seen: string }>;
-      };
-      engagement?: {
-        total_users?: number;
-        total_analyses?: number;
-      };
-    } | null = null;
+    // Fetches all available sections: tickers, engagement, trends, activity, chat, leaderboard, patterns, scout
+    let shortScoutData: Record<string, any> | null = null;
     
     const SHORT_SCOUT_PLATFORM_KEY = Deno.env.get('SHORT_SCOUT_PLATFORM_KEY');
     if (labPrefs?.include_short_scout && SHORT_SCOUT_URL && SHORT_SCOUT_PLATFORM_KEY) {
       try {
-        console.log('Fetching Short Scout data...');
+        console.log('Fetching Short Scout data (all sections)...');
         
-        // Fetch tickers and engagement in parallel
-        const [tickersResponse, engagementResponse] = await Promise.all([
-          fetch(`${SHORT_SCOUT_URL}/functions/v1/platform-stats?section=tickers&days=30`, {
-            headers: { 'x-api-key': SHORT_SCOUT_PLATFORM_KEY }
-          }),
-          fetch(`${SHORT_SCOUT_URL}/functions/v1/platform-stats?section=engagement&days=30`, {
-            headers: { 'x-api-key': SHORT_SCOUT_PLATFORM_KEY }
-          })
-        ]);
+        // Fetch all sections at once (omitting section param returns everything)
+        const response = await fetch(`${SHORT_SCOUT_URL}/functions/v1/platform-stats?period=month`, {
+          headers: { 'x-api-key': SHORT_SCOUT_PLATFORM_KEY }
+        });
         
-        if (tickersResponse.ok && engagementResponse.ok) {
-          const tickersData = await tickersResponse.json();
-          const engagementData = await engagementResponse.json();
-          
-          shortScoutData = {
-            tickers: tickersData.tickers,
-            engagement: engagementData.engagement
-          };
-          console.log('Short Scout data fetched successfully');
+        if (response.ok) {
+          shortScoutData = await response.json();
+          console.log('Short Scout data fetched successfully:', Object.keys(shortScoutData || {}));
+        } else {
+          console.error('Short Scout fetch failed:', response.status);
         }
       } catch (e) {
         console.error('Short Scout fetch error:', e);
@@ -447,27 +430,81 @@ Include a 30-60 second reflection on this word at the end of the briefing.` : ''
     const buildShortScoutSection = () => {
       if (!shortScoutData) return '';
       
-      const topSearched = shortScoutData.tickers?.top_searched?.slice(0, 5)
-        .map(t => formatTickerForTTS(t.ticker)).join(', ') || 'None';
-      const mostTraded = shortScoutData.tickers?.most_traded?.slice(0, 5)
-        .map(t => formatTickerForTTS(t.ticker)).join(', ') || 'None';
-      const totalUsers = shortScoutData.engagement?.total_users || 0;
-      const totalAnalyses = shortScoutData.engagement?.total_analyses || 0;
+      const lines: string[] = [];
+      lines.push('\n**SHORT SCOUT TRADING COMMUNITY DATA (include this in your briefing):**');
+      lines.push('Short Scout is a trading research platform for small-cap stock traders.');
+      lines.push('IMPORTANT: Stock ticker symbols are formatted with hyphens (like "N-V-D-A") so they are read letter-by-letter. Keep this format when speaking them.\n');
       
-      const exampleTicker = shortScoutData.tickers?.top_searched?.[0]?.ticker 
-        ? formatTickerForTTS(shortScoutData.tickers.top_searched[0].ticker)
+      // Engagement overview
+      const eng = shortScoutData.engagement;
+      if (eng) {
+        lines.push(`Platform stats: ${(eng.total_users || 0).toLocaleString()} traders, ${(eng.total_analyses || 0).toLocaleString()} analyses, ${(eng.total_messages || 0).toLocaleString()} chat messages, ${(eng.total_patterns || 0).toLocaleString()} chart patterns logged, and ${(eng.total_journal_entries || 0).toLocaleString()} journal entries.`);
+      }
+      
+      // Activity
+      const act = shortScoutData.activity;
+      if (act) {
+        lines.push(`Active users this month: ${act.total_active_users || 0} total (${act.active_searchers || 0} researching, ${act.active_journalers || 0} journaling trades, ${act.active_chatters || 0} chatting).`);
+      }
+      
+      // Tickers — top searched, scout ahead, traded, journal traded
+      const tickers = shortScoutData.tickers;
+      if (tickers) {
+        if (tickers.top_searched?.length) {
+          lines.push(`Top Searched Tickers: ${tickers.top_searched.slice(0, 5).map((t: any) => formatTickerForTTS(t.ticker)).join(', ')}`);
+        }
+        if (tickers.top_scout_ahead?.length) {
+          lines.push(`Most Scouted Ahead (forecast reports): ${tickers.top_scout_ahead.slice(0, 5).map((t: any) => formatTickerForTTS(t.ticker)).join(', ')}`);
+        }
+        if (tickers.most_traded_checkins?.length) {
+          lines.push(`Most Traded (check-ins): ${tickers.most_traded_checkins.slice(0, 5).map((t: any) => formatTickerForTTS(t.ticker)).join(', ')}`);
+        }
+        if (tickers.top_journal_traded?.length) {
+          lines.push(`Top Journal-Traded: ${tickers.top_journal_traded.slice(0, 5).map((t: any) => formatTickerForTTS(t.ticker)).join(', ')}`);
+        }
+      }
+      
+      // Chat highlights
+      const chat = shortScoutData.chat;
+      if (chat) {
+        if (chat.ticker_mentions?.length) {
+          lines.push(`Tickers buzzing in chat: ${chat.ticker_mentions.slice(0, 5).map((t: any) => formatTickerForTTS(t.ticker)).join(', ')}`);
+        }
+        lines.push(`Chat volume this month: ${chat.total_messages || 0} messages.`);
+      }
+      
+      // Leaderboard
+      const lb = shortScoutData.leaderboard;
+      if (lb?.top_traders?.length) {
+        const top3 = lb.top_traders.slice(0, 3);
+        const leaderboardStr = top3.map((t: any, i: number) => 
+          `${i + 1}. ${t.display_name} (${t.trades} trades, ${t.win_rate}% win rate)`
+        ).join('; ');
+        lines.push(`Top traders: ${leaderboardStr}`);
+      }
+      
+      // Patterns
+      const pat = shortScoutData.patterns;
+      if (pat) {
+        lines.push(`Chart patterns logged: ${pat.total || 0} this month.`);
+        if (pat.top_tags?.length) {
+          lines.push(`Popular pattern tags: ${pat.top_tags.slice(0, 5).map((t: any) => t.tag).join(', ')}`);
+        }
+      }
+      
+      // Scout Ahead reports
+      const scout = shortScoutData.scout;
+      if (scout) {
+        lines.push(`Scout Ahead reports: ${scout.total_reports || 0} generated, averaging ${scout.avg_scenarios_per_report || 0} scenarios per report.`);
+      }
+      
+      // Natural speaking instruction
+      const exampleTicker = tickers?.top_searched?.[0]?.ticker 
+        ? formatTickerForTTS(tickers.top_searched[0].ticker)
         : 'small caps';
+      lines.push(`\nMention this data naturally and conversationally, e.g., "Over on Short Scout, traders are buzzing about ${exampleTicker}..."`);
       
-      return `
-**SHORT SCOUT TRADING COMMUNITY DATA (include this in your briefing):**
-Short Scout is a trading research platform where ${totalUsers.toLocaleString()} traders have run ${totalAnalyses.toLocaleString()} stock analyses this month.
-
-Top Searched Tickers (small caps traders are researching): ${topSearched}
-Most Traded Tickers (stocks with actual trade check-ins): ${mostTraded}
-
-IMPORTANT: Stock ticker symbols are formatted with hyphens (like "N-V-D-A") so they are read letter-by-letter. Keep this format when speaking them.
-
-Mention this data naturally, e.g., "Over on Short Scout, traders are buzzing about ${exampleTicker}..."`;
+      return lines.join('\n');
     };
     
     const shortScoutSection = buildShortScoutSection();

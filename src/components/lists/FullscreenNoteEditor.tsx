@@ -114,7 +114,7 @@ export function FullscreenNoteEditor({
 
   const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
   const charCount = content.length;
-  const isWide = !isMobile && typeof window !== "undefined" && window.innerWidth >= 1024;
+  const isWide = false; // Split view disabled — always single-pane
 
   const handleSaveAndClose = () => {
     flushSave();

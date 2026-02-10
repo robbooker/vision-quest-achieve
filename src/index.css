@@ -1148,3 +1148,18 @@ html.text-size-large {
 .fullscreen-mode-btn-active:hover {
   background: hsl(var(--primary) / 0.9);
 }
+
+/* Note action buttons - visible on touch, hover-reveal on pointer devices */
+.note-action-buttons {
+  opacity: 0.4;
+}
+
+.group:hover .note-action-buttons {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .note-action-buttons {
+    opacity: 0.6;
+  }
+}

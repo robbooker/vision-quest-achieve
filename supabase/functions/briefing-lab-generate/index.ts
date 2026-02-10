@@ -38,26 +38,15 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+  const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  let userId: string | undefined;
+
   try {
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const ELEVENLABS_API_KEY = Deno.env.get('ELEVENLABS_API_KEY')!;
     const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
     const SHORT_SCOUT_URL = Deno.env.get('SHORT_SCOUT_URL');
-
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-    // Dual-path auth: supports user JWT (UI) and service role key (cron)
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-    let userId: string;
 
     // Path 1: Try user JWT first (manual generation from UI)
     const { data: userData, error: authError } = await supabase.auth.getUser(token);
@@ -687,10 +676,11 @@ Write the complete briefing script now:`;
     // Note: episode is defined in the try block, so we need to check if it was created
     try {
       // Try to get the episode from the error context or find the generating one
+      if (!userId) throw new Error('No userId available for recovery');
       const { data: generatingEpisode } = await supabase
         .from('briefing_lab_episodes')
         .select('id')
-        .eq('user_id', userData?.user?.id)
+        .eq('user_id', userId)
         .eq('status', 'generating')
         .order('created_at', { ascending: false })
         .limit(1)

@@ -1,62 +1,50 @@
 
 
-## Morning Briefing Upgrades v1.20.0
+## Accordion Layout + Enhanced Voice Descriptions
 
-### 1. Database Migration
+### 1. Wrap Settings Sections in Accordion
 
-Add `briefing_personality` column:
+Replace the current stack of separate `<Card>` components with a single `<Accordion>` that contains each settings section as an `<AccordionItem>`. The Header card (with the enable toggle) and the Latest Briefing card stay outside the accordion since they're always-visible.
 
-```sql
-ALTER TABLE briefing_lab_preferences
-ADD COLUMN IF NOT EXISTS briefing_personality TEXT DEFAULT 'default';
-```
+**Accordion items (in order):**
 
-### 2. Briefing Personalities (6 options)
+| Item Value | Trigger Label | Icon | Contents |
+|---|---|---|---|
+| `schedule` | Schedule & Delivery | Clock | Wake time, timezone, reminder method, weekend, SMS |
+| `location` | Weather Location | MapPin | Zip code input, current location, saved coords |
+| `voice` | Voice | Mic | Voice selector with enhanced descriptions |
+| `personality` | Personality | Sparkles | RadioGroup with 6 options |
+| `duration` | Max Duration | Clock | Slider 2-10 min |
+| `news` | News Categories | Newspaper | Depth selectors grid |
+| `extras` | Extras | Target | Toggle categories (Short Scout, Weather, Calendar, Intention) |
+| `custom` | Custom Topics | Newspaper | Free-text textarea |
 
-Add `getPersonalityPrompt(personality)` function to `supabase/functions/briefing-lab-generate/index.ts` that returns a prepend block for each personality:
+Admin-only cards (Short Scout Test, iOS Shortcut) remain as standalone cards below the accordion since they're conditional.
 
-| Value | Label | Tone |
-|-------|-------|------|
-| `default` | Classic | No-op -- current behavior unchanged |
-| `rude` | Brutally Honest | Sarcastic, roasts the listener, hard truths with dark humor |
-| `loving` | Your Biggest Fan | Hyper-encouraging, warm, celebrates everything |
-| `facts` | Just the Facts | Dry, concise, zero fluff, data only |
-| `announcer` | Sports Announcer | High-energy play-by-play, everything is exciting |
-| `mentor` | Wise Mentor | Calm, thoughtful, philosophical |
+The Generate Briefing button + Save bar stays below the accordion, outside it.
 
-Personality block is prepended to the system prompt in both Claude and GPT-5.2 fallback paths. `default` injects nothing.
+### 2. Enhanced Voice Descriptions
 
-### 3. Streamline Short Scout Section
+Update `VOICE_OPTIONS` with richer descriptions and show them inline in the selector:
 
-Rewrite the Short Scout data fetching and section builder in `briefing-lab-generate/index.ts`:
+| Name | Updated Description |
+|---|---|
+| Brian | British male -- warm and conversational with sardonic wit. Think: your clever friend over coffee. |
+| George | British male -- deep, authoritative BBC anchor. Commands attention. |
+| Liam | American male -- friendly and energetic. Born to host a morning show. |
+| Daniel | British male -- calm, measured documentary narrator. Smooth and reassuring. |
+| Sarah | American female -- warm and professional. Network news polished. |
+| Laura | American female -- bright and upbeat. Pure morning sunshine energy. |
+| Matilda | British female -- sophisticated and articulate. Effortlessly elegant. |
+| Lily | British female -- soft and soothing with crystal-clear diction. Like a bedtime story, but for news. |
+| Clyde | American male -- confident and charismatic. Smooth baritone with natural swagger. |
 
-- **Fetch**: 3 parallel calls via `Promise.all` for `tickers` (days=0), `activity`, and `leaderboard`
-- **Build**: New `buildShortScoutSection()` outputs only:
-  - Top searched tickers (from stock reports)
-  - Top journal-traded tickers (today, no check-in data)
-  - Active users breakdown (searchers, journalers, chatters)
-  - Monthly leaderboard (top traders by count, win rate, P&L)
-- **Removed**: engagement totals, chat highlights, patterns, scout ahead, check-in tickers
+The voice selector will change from a `<Select>` dropdown to a `<RadioGroup>` (matching the personality selector pattern) so users can see all voices + descriptions at a glance without clicking a dropdown.
 
-### 4. UI -- Personality Selector
-
-Add a personality selector card with `RadioGroup` to `src/pages/MorningBriefingLab.tsx`, placed near the voice selector. Shows label + short description for each option.
-
-### 5. Hook Update
-
-Add `briefing_personality: string` to `BriefingLabPreferences` interface in `src/hooks/useBriefingLab.ts`.
-
-### 6. Version Bump
-
-Update `APP_VERSION` in `vite.config.ts` from 1.19.0 to 1.20.0.
-
-### Files Modified
+### 3. Files Modified
 
 | File | Change |
-|------|--------|
-| Database migration | Add `briefing_personality` column |
-| `supabase/functions/briefing-lab-generate/index.ts` | `getPersonalityPrompt()`, prompt injection, Short Scout rewrite |
-| `src/pages/MorningBriefingLab.tsx` | Personality selector card |
-| `src/hooks/useBriefingLab.ts` | Add `briefing_personality` to interface |
-| `vite.config.ts` | Version bump to 1.20.0 |
+|---|---|
+| `src/pages/MorningBriefingLab.tsx` | Wrap sections in Accordion, update VOICE_OPTIONS descriptions, convert voice selector to RadioGroup |
 
+No database changes, no edge function changes, no version bump needed.

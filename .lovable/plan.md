@@ -1,30 +1,21 @@
 
 
-# Fix: Restore missing `token` and `authHeader` declarations
+## Clean Up Stuck "Generating" Records
 
-## Problem
-The previous refactor (moving variables out of the `try` block) accidentally removed the `authHeader` and `token` declarations while keeping the reference to `token` on line 52. This causes a `ReferenceError` on every invocation, completely breaking briefing generation.
+**What**: Mark 4 orphaned `briefing_lab_episodes` records from Feb 6-8 as `'failed'` so they no longer clutter the episodes table.
 
-## Fix
-Re-add the auth header extraction and token parsing between the `supabase` client creation and the `try` block, along with the early-return guard for missing auth headers.
+**Why**: These records were created before the stuck-record recovery fix was deployed. Since the recovery logic only targets same-day records, these old ones will never be auto-cleaned.
 
-## Changes: `supabase/functions/briefing-lab-generate/index.ts`
+### Technical Details
 
-After the `let userId` declaration (line 44) and before `try` (line 46), insert:
+Update the following 4 records in `briefing_lab_episodes` where `status = 'generating'` and `created_at` is before today:
 
-```typescript
-const authHeader = req.headers.get('Authorization');
-if (!authHeader) {
-  return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-    status: 401,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-  });
-}
-const token = authHeader.replace('Bearer ', '');
+```sql
+UPDATE briefing_lab_episodes
+SET status = 'failed'
+WHERE status = 'generating'
+  AND created_at < now() - interval '24 hours';
 ```
 
-This restores the exact logic that was accidentally removed, keeping it outside the `try` block so `token` is available where needed.
-
-## Scope
-- 1 file modified: `supabase/functions/briefing-lab-generate/index.ts`
+This is a data-only change (no schema modifications). The update will use the Supabase insert/update tool, not a migration.
 

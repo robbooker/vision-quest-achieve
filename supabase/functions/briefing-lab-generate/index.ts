@@ -47,7 +47,7 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Get auth header and extract user
+    // Dual-path auth: supports user JWT (UI) and service role key (cron)
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -57,15 +57,34 @@ serve(async (req) => {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const { data: userData, error: authError } = await supabase.auth.getUser(token);
-    if (authError || !userData?.user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
+    let userId: string;
 
-    const userId = userData.user.id;
+    // Path 1: Try user JWT first (manual generation from UI)
+    const { data: userData, error: authError } = await supabase.auth.getUser(token);
+
+    if (!authError && userData?.user) {
+      userId = userData.user.id;
+    } else {
+      // Path 2: Service role key from cron auto-generate
+      if (token !== SUPABASE_SERVICE_ROLE_KEY) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // Clone request to read body without consuming it
+      const body = await req.clone().json();
+      if (!body?.user_id) {
+        return new Response(JSON.stringify({ error: 'Unauthorized: user_id required for service role calls' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      userId = body.user_id;
+      console.log(`Service role auth: generating briefing for user ${userId}`);
+    }
 
     // Get user's lab preferences
     const { data: labPrefs } = await supabase

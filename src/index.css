@@ -979,3 +979,66 @@ html.text-size-large {
 .markdown-card-fade {
   background: linear-gradient(to bottom, transparent, hsl(var(--card)));
 }
+
+/* Markdown Formatting Toolbar */
+.markdown-toolbar {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 2px;
+  padding: 4px 6px;
+  background: hsl(var(--muted) / 0.5);
+  border: 1px solid hsl(var(--border));
+  border-bottom: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+  overflow-x: auto;
+  transition: opacity 0.15s ease, max-height 0.15s ease;
+}
+
+.markdown-toolbar-visible {
+  opacity: 1;
+  max-height: 48px;
+}
+
+.markdown-toolbar-hidden {
+  opacity: 0;
+  max-height: 0;
+  padding: 0 6px;
+  border: none;
+  overflow: hidden;
+}
+
+.markdown-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 4px 8px;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: all 0.1s ease;
+  flex-shrink: 0;
+}
+
+.markdown-toolbar-btn:hover {
+  background: hsl(var(--secondary));
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--border));
+}
+
+.markdown-toolbar-btn:active {
+  transform: translateY(1px);
+  background: hsl(var(--muted));
+}
+
+.dark .markdown-toolbar {
+  background: hsl(var(--muted) / 0.8);
+}
+
+.terminal .markdown-toolbar {
+  background: hsl(var(--muted));
+  border-color: hsl(var(--border));
+}

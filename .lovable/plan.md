@@ -1,65 +1,19 @@
 
 
-# Fix: Auto-Generate Auth Bypass for Cron-Triggered Briefings
+# Fix: Add briefing-lab-auto-generate to config.toml
 
 ## Problem
-`briefing-lab-auto-generate` calls `briefing-lab-generate` using the service role key as a Bearer token. But `briefing-lab-generate` validates that token with `supabase.auth.getUser()`, which only accepts user JWTs. The service role key fails this check, returning 401 every time. The briefing never generates from the cron job.
+`briefing-lab-auto-generate` is missing from `supabase/config.toml`. The old `briefing-auto-generate` entry exists, but the current cron-triggered function uses the `briefing-lab-auto-generate` name. Without `verify_jwt = false`, the gateway rejects the cron's HTTP request before the function code executes.
 
-## Solution
-Modify `briefing-lab-generate` to support **two auth paths**:
-1. **User JWT** (existing) -- used when a user manually generates from the UI
-2. **Service role key + body user_id** (new) -- used when called from the cron auto-generate function
+## Fix
+Add the following entry to `supabase/config.toml`:
 
-## Technical Details
-
-### File: `supabase/functions/briefing-lab-generate/index.ts` (lines 48-68)
-
-Replace the current rigid auth block with dual-path logic:
-
-```typescript
-const authHeader = req.headers.get('Authorization');
-if (!authHeader) {
-  return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-    status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-  });
-}
-
-const token = authHeader.replace('Bearer ', '');
-let userId: string;
-
-// Try user JWT first
-const { data: userData, error: authError } = await supabase.auth.getUser(token);
-
-if (!authError && userData?.user) {
-  // Path 1: Valid user JWT (manual generation from UI)
-  userId = userData.user.id;
-} else {
-  // Path 2: Service role call from auto-generate cron
-  // Verify this is actually the service role key
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  const body = await req.json();
-
-  if (token !== serviceRoleKey || !body.user_id) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-  }
-
-  userId = body.user_id;
-}
+```toml
+[functions.briefing-lab-auto-generate]
+verify_jwt = false
 ```
 
-This ensures:
-- UI calls continue to work exactly as before (user JWT path)
-- Cron calls succeed by verifying the service role key directly and reading user_id from the body
-- Random tokens are still rejected (neither valid JWT nor service role key)
-
-Note: The body parsing needs adjustment since `req.json()` can only be called once. The existing code parses the body later, so we will need to parse it once at the top and reuse it.
-
-### No changes needed to `briefing-lab-auto-generate/index.ts`
-The existing call on line 238 already passes `{ user_id: userPrefs.user_id }` in the body, which is exactly what the new path reads.
-
 ## Scope
-- 1 file modified: `supabase/functions/briefing-lab-generate/index.ts`
-- Auth logic updated (lines ~48-68)
-- Edge function redeployed automatically
+- 1 file modified: `supabase/config.toml`
+- No code changes needed -- just the config entry so the gateway allows the cron's anon-key request through
+

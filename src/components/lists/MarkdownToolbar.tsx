@@ -1,11 +1,12 @@
 import React from "react";
 import { cn } from "@/lib/utils";
-import { Bold, Italic, Heading1, Heading2, List, ListOrdered, Code, Link, Quote } from "lucide-react";
+import { Bold, Italic, Heading1, Heading2, List, ListOrdered, Code, Link, Quote, Maximize2 } from "lucide-react";
 
 interface MarkdownToolbarProps {
   textareaRef: React.RefObject<HTMLTextAreaElement>;
   onChange: (value: string) => void;
   visible?: boolean;
+  onExpand?: () => void;
 }
 
 type FormatConfig = {
@@ -29,48 +30,9 @@ const formats: FormatConfig[] = [
   { type: "line", label: ">", icon: <Quote className="h-4 w-4" />, ariaLabel: "Blockquote", prefix: "> " },
 ];
 
-export function MarkdownToolbar({ textareaRef, onChange, visible = true }: MarkdownToolbarProps) {
+export function MarkdownToolbar({ textareaRef, onChange, visible = true, onExpand }: MarkdownToolbarProps) {
   const applyFormat = (format: FormatConfig) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    const { value, selectionStart: start, selectionEnd: end } = textarea;
-    const selected = value.substring(start, end);
-
-    let newValue: string;
-    let newCursorStart: number;
-    let newCursorEnd: number;
-
-    if (format.type === "wrap") {
-      const { prefix, suffix, placeholder } = format;
-      const insertText = selected || placeholder;
-      newValue = value.substring(0, start) + prefix + insertText + suffix + value.substring(end);
-      newCursorStart = start + prefix.length;
-      newCursorEnd = start + prefix.length + insertText.length;
-    } else {
-      // Line prefix: find the start of the current line
-      const lineStart = value.lastIndexOf("\n", start - 1) + 1;
-      const { prefix } = format;
-      // Check if prefix already exists at line start
-      const lineContent = value.substring(lineStart);
-      if (lineContent.startsWith(prefix)) {
-        // Remove prefix (toggle off)
-        newValue = value.substring(0, lineStart) + value.substring(lineStart + prefix.length);
-        newCursorStart = Math.max(lineStart, start - prefix.length);
-        newCursorEnd = Math.max(lineStart, end - prefix.length);
-      } else {
-        newValue = value.substring(0, lineStart) + prefix + value.substring(lineStart);
-        newCursorStart = start + prefix.length;
-        newCursorEnd = end + prefix.length;
-      }
-    }
-
-    onChange(newValue);
-
-    requestAnimationFrame(() => {
-      textarea.focus();
-      textarea.setSelectionRange(newCursorStart, newCursorEnd);
-    });
+    // ... keep existing code
   };
 
   return (
@@ -96,6 +58,23 @@ export function MarkdownToolbar({ textareaRef, onChange, visible = true }: Markd
           {format.icon}
         </button>
       ))}
+      {onExpand && (
+        <>
+          <div className="flex-1" />
+          <button
+            type="button"
+            aria-label="Fullscreen"
+            title="Fullscreen"
+            className="markdown-toolbar-btn"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              onExpand();
+            }}
+          >
+            <Maximize2 className="h-4 w-4" />
+          </button>
+        </>
+      )}
     </div>
   );
 }

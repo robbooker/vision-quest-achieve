@@ -7,6 +7,8 @@ import { LinkPreviewCard } from "./LinkPreviewCard";
 import { Trash2, GripVertical, Check, X, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { extractUrls, useLinkMetadata } from "@/hooks/useLinkMetadata";
+import ReactMarkdown from "react-markdown";
+import rehypeSanitize from "rehype-sanitize";
 
 interface ListItemProps {
   item: ListItemType;
@@ -156,13 +158,28 @@ export function ListItemComponent({
             )}
             onClick={() => !readOnly && setIsEditing(true)}
           >
-            {/* Content with preserved line breaks */}
-            <p className={cn(
-              "text-sm whitespace-pre-wrap leading-relaxed",
+            {/* Content with Markdown rendering and truncation */}
+            <div className={cn(
+              "relative max-h-24 overflow-hidden",
               item.is_completed && "line-through text-muted-foreground"
             )}>
-              {item.content}
-            </p>
+              <div className="markdown-content text-sm leading-relaxed">
+                <ReactMarkdown
+                  skipHtml={true}
+                  rehypePlugins={[rehypeSanitize]}
+                  components={{
+                    a: ({ node, ...props }) => (
+                      <a {...props} target="_blank" rel="noopener noreferrer" />
+                    ),
+                  }}
+                >
+                  {item.content.length > 300 ? item.content.slice(0, 300) + '…' : item.content}
+                </ReactMarkdown>
+              </div>
+              {item.content.length > 300 && (
+                <div className="markdown-card-fade absolute bottom-0 left-0 right-0 h-8" />
+              )}
+            </div>
 
             {/* Contributor badge */}
             {item.contributor_name && (

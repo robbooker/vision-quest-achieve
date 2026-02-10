@@ -150,9 +150,9 @@ serve(async (req) => {
 
         console.log(`[briefing-lab-auto-generate] User ${userPrefs.user_id}: ${minutesUntilWake.toFixed(1)} min until wake (${wakeTime} in ${timezone}), local date: ${userTodayStr}`);
 
-        // Generate if within 35 minutes of wake time (but not past it by more than 10 min)
-        // Slightly wider window to handle DST edge cases and cron timing variance
-        if (minutesUntilWake <= 35 && minutesUntilWake >= -10) {
+        // Generate if within 35 minutes BEFORE wake time or up to 60 min AFTER
+        // Wide post-wake window ensures retries succeed even if early attempts fail/timeout
+        if (minutesUntilWake <= 35 && minutesUntilWake >= -60) {
           // Check if we already generated a Lab briefing today for this user
           // Use the user's local date, not UTC
           const { data: existingBriefing } = await supabase
@@ -205,7 +205,7 @@ serve(async (req) => {
               }
             }
           }
-        } else if (minutesUntilWake > 30) {
+        } else if (minutesUntilWake > 35) {
           skipped.push(`${userPrefs.user_id}: too early (${minutesUntilWake.toFixed(0)} min until wake)`);
         } else {
           skipped.push(`${userPrefs.user_id}: too late (${Math.abs(minutesUntilWake).toFixed(0)} min past wake)`);

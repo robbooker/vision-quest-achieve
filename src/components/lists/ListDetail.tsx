@@ -7,8 +7,9 @@ import { useListItems, ListItem } from "@/hooks/useListItems";
 import { ShareListDialog } from "./ShareListDialog";
 import { LinkPreviewCard } from "./LinkPreviewCard";
 import { extractUrls, useLinkMetadata } from "@/hooks/useLinkMetadata";
-import { ArrowLeft, Share2, Trash2, Pencil, Check, X, User, Info } from "lucide-react";
+import { ArrowLeft, Share2, Trash2, Pencil, Check, X, User, Info, Maximize2 } from "lucide-react";
 import { MarkdownToolbar } from "./MarkdownToolbar";
+import { FullscreenNoteEditor } from "./FullscreenNoteEditor";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -37,6 +38,7 @@ function NoteEntry({
   item, 
   onDelete, 
   onUpdate,
+  onExpand,
   isLast,
 }: {
   item: ListItem;
@@ -47,6 +49,7 @@ function NoteEntry({
     link_description: string | null;
     link_image: string | null;
   }) => void;
+  onExpand: (id: string, mode: "edit" | "preview") => void;
   isLast: boolean;
 }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -131,7 +134,7 @@ function NoteEntry({
           handleSave();
         }
       }}>
-        <MarkdownToolbar textareaRef={textareaRef} onChange={setEditContent} />
+        <MarkdownToolbar textareaRef={textareaRef} onChange={setEditContent} onExpand={() => onExpand(item.id, "edit")} />
         <Textarea
           ref={textareaRef}
           value={editContent}
@@ -185,18 +188,31 @@ function NoteEntry({
         </div>
       )}
 
-      {/* Delete button on hover */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="absolute -right-8 top-0 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete(item.id);
-        }}
-      >
-        <Trash2 className="h-3 w-3" />
-      </Button>
+      {/* Action buttons on hover */}
+      <div className="absolute -right-8 top-0 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 text-muted-foreground hover:text-foreground"
+          onClick={(e) => {
+            e.stopPropagation();
+            onExpand(item.id, "preview");
+          }}
+        >
+          <Maximize2 className="h-3 w-3" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 text-muted-foreground hover:text-destructive"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(item.id);
+          }}
+        >
+          <Trash2 className="h-3 w-3" />
+        </Button>
+      </div>
     </div>
   );
 }
@@ -209,8 +225,19 @@ export function ListDetail({ list, onBack, onDelete, onUpdateTitle }: ListDetail
   const [editTitle, setEditTitle] = useState(list.title);
   const [newNote, setNewNote] = useState("");
   const [newNoteFocused, setNewNoteFocused] = useState(false);
+  const [fullscreenNoteId, setFullscreenNoteId] = useState<string | null>(null);
+  const [fullscreenMode, setFullscreenMode] = useState<"edit" | "preview">("preview");
   const newNoteRef = useRef<HTMLTextAreaElement>(null);
   const newNoteBlurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleOpenFullscreen = (id: string, mode: "edit" | "preview") => {
+    setFullscreenNoteId(id);
+    setFullscreenMode(mode);
+  };
+
+  const handleFullscreenSave = (id: string, content: string) => {
+    updateItem.mutate({ id, content });
+  };
 
   // Auto-resize new note textarea
   useEffect(() => {
@@ -306,6 +333,7 @@ export function ListDetail({ list, onBack, onDelete, onUpdateTitle }: ListDetail
                 item={item}
                 onDelete={(id) => deleteItem.mutate(id)}
                 onUpdate={(id, content, linkMetadata) => updateItem.mutate({ id, content, ...linkMetadata })}
+                onExpand={handleOpenFullscreen}
                 isLast={index === items.length - 1}
               />
             ))}
@@ -387,6 +415,20 @@ export function ListDetail({ list, onBack, onDelete, onUpdateTitle }: ListDetail
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Fullscreen note editor */}
+      {fullscreenNoteId && (() => {
+        const note = items.find((i) => i.id === fullscreenNoteId);
+        if (!note) return null;
+        return (
+          <FullscreenNoteEditor
+            note={{ id: note.id, content: note.content }}
+            onSave={handleFullscreenSave}
+            onClose={() => setFullscreenNoteId(null)}
+            initialMode={fullscreenMode}
+          />
+        );
+      })()}
     </div>
   );
 }

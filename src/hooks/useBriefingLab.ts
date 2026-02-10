@@ -41,6 +41,7 @@ export interface BriefingLabPreferences {
   science_topics: string | null;
   health_topics: string | null;
   custom_topics: string | null;
+  briefing_personality: string;
   // Scheduling fields (consolidated from briefing_preferences)
   enabled: boolean;
   default_wake_time: string;

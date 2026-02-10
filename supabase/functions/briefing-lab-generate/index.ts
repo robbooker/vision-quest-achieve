@@ -16,6 +16,23 @@ function formatSimpleTime(dateTimeStr: string, timezone: string): string {
   return timeStr.replace(':00', '').toLowerCase();
 }
 
+function getPersonalityPrompt(personality: string): string {
+  switch (personality) {
+    case 'rude':
+      return `PERSONALITY: You are BRUTALLY HONEST. You're sarcastic, blunt, and you roast the listener with dark humor. Deliver hard truths. If the market is down, say "well that's a dumpster fire." If someone has too many meetings, mock them for it. Be entertaining but still informative. Think: a comedian who reads the news.\n\n`;
+    case 'loving':
+      return `PERSONALITY: You are the listener's BIGGEST FAN. You are hyper-encouraging, warm, and you celebrate EVERYTHING. Every piece of news is an opportunity. A rainy day? "Perfect cozy productivity weather!" A packed calendar? "Look at you, absolute MACHINE!" Radiate genuine positivity and make the listener feel like they can conquer the world.\n\n`;
+    case 'facts':
+      return `PERSONALITY: JUST THE FACTS. You are dry, concise, and zero-fluff. Data and information only. No editorializing, no opinions, no "isn't that exciting?" Just state what happened, the numbers, and move on. Think: a Reuters wire feed read aloud. Minimal transitions. Maximum density.\n\n`;
+    case 'announcer':
+      return `PERSONALITY: You are a SPORTS ANNOUNCER delivering the news. EVERYTHING is exciting and dramatic. Market up 2%? "AND THE S&P IS UP TWO PERCENT — WHAT A PLAY!" Weather is 72 degrees? "PERFECT CONDITIONS ON THE FIELD TODAY, FOLKS!" Use play-by-play energy, dramatic pauses, and hype. The listener's day is the biggest game of the season.\n\n`;
+    case 'mentor':
+      return `PERSONALITY: You are a WISE MENTOR. Calm, thoughtful, philosophical. You connect the news to bigger life lessons. You speak like a trusted advisor who's seen it all. "Markets fluctuate, but your consistency compounds." Offer gentle wisdom woven through the facts. Think: Marcus Aurelius meets morning radio.\n\n`;
+    default:
+      return ''; // 'default' / 'Classic' — no personality injection
+  }
+}
+
 function getTimeOfDayGreeting(hour: number): { greeting: string; period: string } {
   if (hour >= 5 && hour < 12) {
     return { greeting: 'Good morning', period: 'morning' };
@@ -182,26 +199,33 @@ serve(async (req) => {
       throw new Error('Failed to create episode record');
     }
 
-    // Step 1: Fetch Short Scout data if enabled (private API, not web-searchable)
-    // Fetches all available sections: tickers, engagement, trends, activity, chat, leaderboard, patterns, scout
+    // Step 1: Fetch Short Scout data if enabled (3 parallel calls)
     let shortScoutData: Record<string, any> | null = null;
     
     const SHORT_SCOUT_PLATFORM_KEY = Deno.env.get('SHORT_SCOUT_PLATFORM_KEY');
     if (labPrefs?.include_short_scout && SHORT_SCOUT_URL && SHORT_SCOUT_PLATFORM_KEY) {
       try {
-        console.log('Fetching Short Scout data (all sections)...');
+        console.log('Fetching Short Scout data (3 parallel sections)...');
         
-        // Fetch all sections at once (omitting section param returns everything)
-        const response = await fetch(`${SHORT_SCOUT_URL}/functions/v1/platform-stats?period=month`, {
-          headers: { 'x-api-key': SHORT_SCOUT_PLATFORM_KEY }
-        });
-        
-        if (response.ok) {
-          shortScoutData = await response.json();
-          console.log('Short Scout data fetched successfully:', Object.keys(shortScoutData || {}));
-        } else {
-          console.error('Short Scout fetch failed:', response.status);
-        }
+        const fetchSection = async (section: string, params = '') => {
+          const url = `${SHORT_SCOUT_URL}/functions/v1/platform-stats?section=${section}${params}`;
+          const resp = await fetch(url, { headers: { 'x-api-key': SHORT_SCOUT_PLATFORM_KEY } });
+          if (!resp.ok) throw new Error(`${section}: ${resp.status}`);
+          return resp.json();
+        };
+
+        const [tickersData, activityData, leaderboardData] = await Promise.all([
+          fetchSection('tickers', '&days=0').catch(e => { console.error('Short Scout tickers error:', e); return null; }),
+          fetchSection('activity').catch(e => { console.error('Short Scout activity error:', e); return null; }),
+          fetchSection('leaderboard').catch(e => { console.error('Short Scout leaderboard error:', e); return null; }),
+        ]);
+
+        shortScoutData = {
+          tickers: tickersData?.tickers || tickersData,
+          activity: activityData?.activity || activityData,
+          leaderboard: leaderboardData?.leaderboard || leaderboardData,
+        };
+        console.log('Short Scout data fetched successfully:', Object.keys(shortScoutData));
       } catch (e) {
         console.error('Short Scout fetch error:', e);
       }
@@ -435,10 +459,15 @@ Include a 30-60 second reflection on this word at the end of the briefing.` : ''
       lines.push('Short Scout is a trading research platform for small-cap stock traders.');
       lines.push('IMPORTANT: Stock ticker symbols are formatted with hyphens (like "N-V-D-A") so they are read letter-by-letter. Keep this format when speaking them.\n');
       
-      // Engagement overview
-      const eng = shortScoutData.engagement;
-      if (eng) {
-        lines.push(`Platform stats: ${(eng.total_users || 0).toLocaleString()} traders, ${(eng.total_analyses || 0).toLocaleString()} analyses, ${(eng.total_messages || 0).toLocaleString()} chat messages, ${(eng.total_patterns || 0).toLocaleString()} chart patterns logged, and ${(eng.total_journal_entries || 0).toLocaleString()} journal entries.`);
+      // Tickers — top searched and journal traded only
+      const tickers = shortScoutData.tickers;
+      if (tickers) {
+        if (tickers.top_searched?.length) {
+          lines.push(`Top Searched Tickers: ${tickers.top_searched.slice(0, 5).map((t: any) => formatTickerForTTS(t.ticker)).join(', ')}`);
+        }
+        if (tickers.top_journal_traded?.length) {
+          lines.push(`Top Journal-Traded: ${tickers.top_journal_traded.slice(0, 5).map((t: any) => formatTickerForTTS(t.ticker)).join(', ')}`);
+        }
       }
       
       // Activity
@@ -447,70 +476,26 @@ Include a 30-60 second reflection on this word at the end of the briefing.` : ''
         lines.push(`Active users this month: ${act.total_active_users || 0} total (${act.active_searchers || 0} researching, ${act.active_journalers || 0} journaling trades, ${act.active_chatters || 0} chatting).`);
       }
       
-      // Tickers — top searched, scout ahead, traded, journal traded
-      const tickers = shortScoutData.tickers;
-      if (tickers) {
-        if (tickers.top_searched?.length) {
-          lines.push(`Top Searched Tickers: ${tickers.top_searched.slice(0, 5).map((t: any) => formatTickerForTTS(t.ticker)).join(', ')}`);
-        }
-        if (tickers.top_scout_ahead?.length) {
-          lines.push(`Most Scouted Ahead (forecast reports): ${tickers.top_scout_ahead.slice(0, 5).map((t: any) => formatTickerForTTS(t.ticker)).join(', ')}`);
-        }
-        if (tickers.most_traded_checkins?.length) {
-          lines.push(`Most Traded (check-ins): ${tickers.most_traded_checkins.slice(0, 5).map((t: any) => formatTickerForTTS(t.ticker)).join(', ')}`);
-        }
-        if (tickers.top_journal_traded?.length) {
-          lines.push(`Top Journal-Traded: ${tickers.top_journal_traded.slice(0, 5).map((t: any) => formatTickerForTTS(t.ticker)).join(', ')}`);
-        }
-      }
-      
-      // Chat highlights
-      const chat = shortScoutData.chat;
-      if (chat) {
-        if (chat.ticker_mentions?.length) {
-          lines.push(`Tickers buzzing in chat: ${chat.ticker_mentions.slice(0, 5).map((t: any) => formatTickerForTTS(t.ticker)).join(', ')}`);
-        }
-        lines.push(`Chat volume this month: ${chat.total_messages || 0} messages.`);
-      }
-      
-      // Leaderboard
+      // Leaderboard — top 3
       const lb = shortScoutData.leaderboard;
       if (lb?.top_traders?.length) {
         const top3 = lb.top_traders.slice(0, 3);
         const leaderboardStr = top3.map((t: any, i: number) => 
-          `${i + 1}. ${t.display_name} (${t.trades} trades, ${t.win_rate}% win rate)`
+          `${i + 1}. ${t.display_name} (${t.trades} trades, ${t.win_rate}% win rate${t.total_pnl != null ? `, $${t.total_pnl.toLocaleString()} P&L` : ''})`
         ).join('; ');
-        lines.push(`Top traders: ${leaderboardStr}`);
+        lines.push(`Top traders this month: ${leaderboardStr}`);
       }
-      
-      // Patterns
-      const pat = shortScoutData.patterns;
-      if (pat) {
-        lines.push(`Chart patterns logged: ${pat.total || 0} this month.`);
-        if (pat.top_tags?.length) {
-          lines.push(`Popular pattern tags: ${pat.top_tags.slice(0, 5).map((t: any) => t.tag).join(', ')}`);
-        }
-      }
-      
-      // Scout Ahead reports
-      const scout = shortScoutData.scout;
-      if (scout) {
-        lines.push(`Scout Ahead reports: ${scout.total_reports || 0} generated, averaging ${scout.avg_scenarios_per_report || 0} scenarios per report.`);
-      }
-      
-      // Natural speaking instruction
-      const exampleTicker = tickers?.top_searched?.[0]?.ticker 
-        ? formatTickerForTTS(tickers.top_searched[0].ticker)
-        : 'small caps';
-      lines.push(`\nMention this data naturally and conversationally, e.g., "Over on Short Scout, traders are buzzing about ${exampleTicker}..."`);
       
       return lines.join('\n');
     };
     
     const shortScoutSection = buildShortScoutSection();
 
+    // Get personality prompt
+    const personalityPrompt = getPersonalityPrompt(labPrefs?.briefing_personality || 'default');
+
     // Build the prompt for Claude with web search
-    const prompt = `You are creating a personalized briefing podcast for ${userName}. 
+    const prompt = `${personalityPrompt}You are creating a personalized briefing podcast for ${userName}. 
 Today is ${dayOfWeek}, ${fullDate}. The current time is ${currentTimeStr} (${timePeriod}).
 
 You have access to a web search tool. USE IT to research REAL, CURRENT news for each enabled category below.
@@ -585,7 +570,7 @@ Write the complete briefing script now:`;
         return null;
       }
 
-      const fallbackPrompt = `You are creating a personalized briefing podcast for ${userName}. 
+      const fallbackPrompt = `${personalityPrompt}You are creating a personalized briefing podcast for ${userName}. 
 Today is ${dayOfWeek}, ${fullDate}. The current time is ${currentTimeStr} (${timePeriod}).
 
 CRITICAL: You MUST produce a complete briefing script. No apologies, no refusals, no meta-commentary.

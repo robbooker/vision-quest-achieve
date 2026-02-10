@@ -562,6 +562,7 @@ export type Database = {
         Row: {
           books_depth: string | null
           books_topics: string | null
+          briefing_personality: string | null
           business_depth: string | null
           business_topics: string | null
           created_at: string | null
@@ -616,6 +617,7 @@ export type Database = {
         Insert: {
           books_depth?: string | null
           books_topics?: string | null
+          briefing_personality?: string | null
           business_depth?: string | null
           business_topics?: string | null
           created_at?: string | null
@@ -670,6 +672,7 @@ export type Database = {
         Update: {
           books_depth?: string | null
           books_topics?: string | null
+          briefing_personality?: string | null
           business_depth?: string | null
           business_topics?: string | null
           created_at?: string | null

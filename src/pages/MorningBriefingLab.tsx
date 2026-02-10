@@ -731,6 +731,46 @@ export default function MorningBriefingLab() {
           </CardContent>
         </Card>
 
+        {/* Personality Selector */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5" />
+              Personality
+            </CardTitle>
+            <CardDescription>
+              Choose the tone and style of your briefing host
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <RadioGroup
+              value={localPrefs.briefing_personality || 'default'}
+              onValueChange={(value) => {
+                setLocalPrefs(prev => ({ ...prev, briefing_personality: value }));
+                if (!initialLoadRef.current) setHasUnsavedChanges(true);
+              }}
+              className="grid grid-cols-1 md:grid-cols-2 gap-3"
+            >
+              {[
+                { value: 'default', label: 'Classic', description: 'Neutral podcast host — current default' },
+                { value: 'rude', label: 'Brutally Honest', description: 'Sarcastic, blunt, roasts you with dark humor' },
+                { value: 'loving', label: 'Your Biggest Fan', description: 'Hyper-encouraging, celebrates every win' },
+                { value: 'facts', label: 'Just the Facts', description: 'Dry, concise, zero fluff — data only' },
+                { value: 'announcer', label: 'Sports Announcer', description: 'High-energy play-by-play, everything is dramatic' },
+                { value: 'mentor', label: 'Wise Mentor', description: 'Calm, philosophical, like advice from a wise friend' },
+              ].map((p) => (
+                <div key={p.value} className="flex items-start space-x-3">
+                  <RadioGroupItem value={p.value} id={`personality-${p.value}`} className="mt-1" />
+                  <Label htmlFor={`personality-${p.value}`} className="cursor-pointer space-y-0.5">
+                    <span className="font-medium text-sm">{p.label}</span>
+                    <p className="text-xs text-muted-foreground">{p.description}</p>
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
+          </CardContent>
+        </Card>
+
         {/* Duration Control */}
         <Card>
           <CardHeader>

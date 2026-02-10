@@ -1,65 +1,73 @@
 
 
-## Add Markdown Formatting Toolbar to Notes
+## Add Fullscreen Mode to Notes
 
 ### What It Does
-A formatting toolbar appears above the textarea when editing a note. Tapping a button wraps selected text with Markdown syntax, or inserts a placeholder template if nothing is selected. This teaches users Markdown by doing -- they see what each button inserts.
+A fullscreen overlay transforms any note into a focused writing/reading space. The note takes over the entire viewport with a larger textarea, persistent Markdown toolbar, edit/preview toggle, and auto-save -- turning Notes from a quick-jot feature into a real writing environment.
 
-### How It Works
-- **With text selected**: Tapping a button wraps the selection (e.g., selecting "hello" and tapping Bold produces `**hello**`)
-- **Without selection**: Inserts a placeholder template with the inner text pre-selected so you can immediately type over it (e.g., Bold inserts `**bold text**` with "bold text" selected)
-- **Line-level formats** (headings, lists, quotes): Insert the prefix at the start of the current line
+### Entry Points
+1. **Note header**: A `Maximize2` icon button appears on hover of each NoteEntry (next to the existing delete button), opening fullscreen in the note's current mode (view or edit).
+2. **Markdown toolbar**: An optional `Maximize2` button at the far-right end of the toolbar row, separated by a spacer. Only rendered when an `onExpand` prop is provided.
 
-### Toolbar Buttons
+### Exit Points (user never feels trapped)
+- **X button** in the top-right corner
+- **Escape key** on desktop
+- **Cmd/Ctrl+Enter** shortcut (save and exit)
+- **"Save and Close" button** in edit mode header
+- All exits auto-save any pending changes before closing
 
-| Button | Label | Inserts | Type |
-|--------|-------|---------|------|
-| **B** | Bold | `**text**` | Wrap |
-| *I* | Italic | `*text*` | Wrap |
-| H1 | Heading 1 | `# ` at line start | Line prefix |
-| H2 | Heading 2 | `## ` at line start | Line prefix |
-| Bullet icon | Bullet List | `- ` at line start | Line prefix |
-| 1. | Numbered List | `1. ` at line start | Line prefix |
-| `<>` | Inline Code | backtick wrap | Wrap |
-| Link icon | Link | `[text](url)` | Wrap with placeholder URL |
-| > | Blockquote | `> ` at line start | Line prefix |
+### The Fullscreen Layout (top to bottom)
+1. **Header**: Note title (editable in edit mode), Edit/Preview segmented toggle, Save and Close button (edit mode only), X close button
+2. **Markdown toolbar**: Reuses existing `MarkdownToolbar`, always visible in edit mode (no focus show/hide). No expand button rendered inside fullscreen.
+3. **Main content**: Fills remaining viewport height
+   - Edit mode: Full-height textarea with 18px font and 1.5rem padding
+   - Preview mode: Scrollable ReactMarkdown with `markdown-content` class
+   - Wide screens (above 1024px) in edit mode: Side-by-side split view -- textarea left, live preview right, 50/50
+4. **Footer**: Word/character count on left, auto-save status on right ("Saved", "Saving...", or blank)
 
-### Technical Details
+### Auto-Save Behavior
+- 2-second debounce after typing stops
+- Reuses the existing `onUpdate` save handler -- no new persistence logic
+- On any exit action, flushes pending save immediately before closing
+- Footer shows save status: idle = "Saved", in-progress = "Saving..."
 
-**New File: `src/components/lists/MarkdownToolbar.tsx`**
+### Files Changed
 
-1. Accepts a `textareaRef` (React ref to the textarea) and an `onChange` callback
-2. Each button calls a shared `applyFormat` function that:
-   - Reads `selectionStart` / `selectionEnd` from the textarea
-   - For **wrap** types: wraps selection or inserts placeholder, then sets selection to highlight inner text
-   - For **line prefix** types: finds line start, inserts prefix
-   - Calls `onChange` with new text
-   - Uses `requestAnimationFrame` to restore focus and cursor position after React re-renders
-3. Buttons are `<button type="button">` with `aria-label` and `title`
-4. Minimum 36px tap targets for iPad usability
-5. Horizontal flex row with subtle muted background, top border-radius connecting to textarea
-6. Smooth fade-in/fade-out via CSS transition when shown/hidden
+**New: `src/components/lists/FullscreenNoteEditor.tsx`**
+- React portal via `createPortal` to `document.body` (sits above all app UI)
+- Props: `note` (ListItem object), `onSave` callback, `onClose` callback, `initialMode` ('edit' or 'preview')
+- Internal state: `mode`, `content`, `isSaving`, `lastSaved`
+- Auto-save via `useEffect` watching content with 2s debounce timer
+- Keyboard listeners (`Escape`, `Cmd/Ctrl+Enter`) via `useEffect` on `window`
+- Cursor/scroll preservation when toggling edit/preview (stored in ref)
+- Split view via CSS media query at 1024px breakpoint
 
-**File: `src/components/lists/ListDetail.tsx`**
+**Modified: `src/components/lists/MarkdownToolbar.tsx`**
+- Add optional `onExpand?: () => void` prop
+- When provided, render a `Maximize2` icon button at far-right, separated by a `flex-grow` spacer
+- When not provided, no expand button renders
 
-Two places get the toolbar:
+**Modified: `src/components/lists/ListDetail.tsx`**
+- Add `fullscreenNoteId` state and `fullscreenMode` state
+- NoteEntry: Add `Maximize2` icon button in the hover actions area (alongside delete)
+- NoteEntry: Pass `onExpand` to the edit-mode `MarkdownToolbar`
+- Conditionally render `FullscreenNoteEditor` when `fullscreenNoteId` is set
+- Pass the existing `updateItem` handler as the save callback
 
-1. **NoteEntry edit mode** (line 126-138): Render `<MarkdownToolbar>` above the existing textarea. The `textareaRef` already exists on line 54. Remove the `onBlur={handleSave}` on the textarea so clicking toolbar buttons doesn't trigger save. Instead, save happens on Ctrl+Enter or clicking outside the entire edit area (wrap both toolbar + textarea in a container with the blur handler).
-
-2. **New note input** (line 308-319): Render `<MarkdownToolbar>` above the new-note textarea when it is focused. Add focus/blur state tracking with a **200ms delay on blur** so toolbar button clicks register before the toolbar hides -- short enough to feel instant, long enough to work reliably on slower touch devices. Pass `newNoteRef` and the `setNewNote` handler.
-
-The existing Markdown tooltip cheat sheet (lines 324-341) stays in place as a secondary reference.
-
-**File: `src/index.css`**
-
-Add toolbar styling:
-- `.markdown-toolbar` container: flex row, gap, muted background (`hsl(var(--muted))`), rounded top corners, `opacity` / `max-height` transition for fade-in/out
-- Button hover/active states matching existing design system
-- Dark mode variant: `.dark .markdown-toolbar` with adjusted background
-- Touch-friendly padding, horizontal overflow-x-auto as fallback for very narrow screens
+**Modified: `src/index.css`**
+- `.fullscreen-note-overlay`: fixed inset-0, z-50, flex column, `hsl(var(--background))`
+- `.fullscreen-note-header`: flex row, padding, border-bottom
+- `.fullscreen-note-body`: flex-1, overflow hidden, min-height-0
+- `.fullscreen-note-textarea`: full width/height, 18px font, 1.5rem padding, no border, resize-none
+- `.fullscreen-note-footer`: flex row, muted text, small font, border-top
+- `.fullscreen-split-view`: flex row, 50/50 with vertical divider
+- Edit/preview segmented control styling
+- Dark mode and terminal mode variants
 
 ### What Stays the Same
-- The textarea remains plain raw Markdown -- not a rich text editor
-- All existing note functionality (save, share, link preview, Markdown rendering) is unaffected
-- The existing Markdown tooltip cheat sheet remains
+- Regular non-fullscreen note viewing and editing is unchanged
+- Reuses existing `MarkdownToolbar` and `ReactMarkdown` -- no duplication
+- Same save handler and data flow
+- No database changes needed
+- Shared note rendering is unaffected
 

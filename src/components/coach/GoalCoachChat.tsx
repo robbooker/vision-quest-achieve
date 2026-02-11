@@ -1,4 +1,5 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { MessageCircle, X, Send, Trash2, Sparkles, Mic, Plus, History, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -139,11 +140,12 @@ export function GoalCoachChat({ cycleId }: GoalCoachChatProps) {
     let assistantContent = '';
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const response = await fetch(CHAT_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session?.access_token}`,
         },
         body: JSON.stringify({
           messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })),

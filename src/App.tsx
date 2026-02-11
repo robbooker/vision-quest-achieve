@@ -31,6 +31,7 @@ import BigTen from "./pages/BigTen";
 import Admin from "./pages/Admin";
 import AdminUsers from "./pages/AdminUsers";
 import AdminBroadcasts from "./pages/AdminBroadcasts";
+import AdminChangelog from "./pages/AdminChangelog";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import Blog from "./pages/Blog";
@@ -147,6 +148,7 @@ const App = () => (
                     <Route path="/admin/broadcasts" element={<AdminRoute><AdminBroadcasts /></AdminRoute>} />
                     <Route path="/admin/feedback" element={<AdminRoute><AdminFeedback /></AdminRoute>} />
                     <Route path="/admin/arena" element={<AdminRoute><AIArena /></AdminRoute>} />
+                    <Route path="/admin/changelog" element={<AdminRoute><AdminChangelog /></AdminRoute>} />
                     <Route path="/privacy" element={<PrivacyPolicy />} />
                     <Route path="/terms" element={<TermsOfService />} />
                     <Route path="/secret" element={<Secret />} />

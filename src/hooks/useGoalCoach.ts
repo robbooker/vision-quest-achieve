@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { useGoals } from './useGoals';
 import { useCycles } from './useCycles';
 import { useVision } from './useVision';
@@ -36,11 +37,12 @@ export function useGoalCoach(cycleId?: string) {
     let assistantContent = '';
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const response = await fetch(CHAT_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session?.access_token}`,
         },
         body: JSON.stringify({
           messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })),

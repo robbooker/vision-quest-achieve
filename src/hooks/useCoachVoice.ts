@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface UseCoachVoiceReturn {
   isSpeaking: boolean;
@@ -30,6 +31,7 @@ export function useCoachVoice(): UseCoachVoiceReturn {
     setError(null);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
         {
@@ -37,7 +39,7 @@ export function useCoachVoice(): UseCoachVoiceReturn {
           headers: {
             'Content-Type': 'application/json',
             'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            'Authorization': `Bearer ${session?.access_token}`,
           },
           body: JSON.stringify({ text }),
         }

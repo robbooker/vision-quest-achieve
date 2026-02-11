@@ -9,6 +9,7 @@ import { BloodworkTrendsChart } from '@/components/bloodwork/BloodworkTrendsChar
 import { format, parseISO } from 'date-fns';
 import { FileText, TrendingUp, ChevronRight, AlertCircle, RefreshCw, Sparkles } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import rehypeSanitize from 'rehype-sanitize';
 
 export function PhysicalBloodworkSection() {
   const { reports, isLoading, reanalyzeReport, isReanalyzing } = useBloodwork();
@@ -84,7 +85,7 @@ export function PhysicalBloodworkSection() {
                 <span className="text-xs font-medium">AI Insights</span>
               </div>
               <div className="text-xs text-muted-foreground line-clamp-3 prose prose-sm dark:prose-invert max-w-none">
-                <ReactMarkdown>{latestReport.ai_insights.split('\n').slice(0, 2).join('\n')}</ReactMarkdown>
+                <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{latestReport.ai_insights.split('\n').slice(0, 2).join('\n')}</ReactMarkdown>
               </div>
               <Button 
                 variant="link" 

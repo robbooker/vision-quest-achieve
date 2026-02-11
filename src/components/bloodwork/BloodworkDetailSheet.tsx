@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Trash2, FileText, Calendar, Building2, Sparkles, RefreshCw, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import ReactMarkdown from "react-markdown";
+import rehypeSanitize from "rehype-sanitize";
 import { useBloodwork, Biomarker, BloodworkReport } from "@/hooks/useBloodwork";
 import { BloodworkUploadDialog } from "./BloodworkUploadDialog";
 import { BloodworkTrendsChart } from "./BloodworkTrendsChart";
@@ -193,7 +194,7 @@ export function BloodworkDetailSheet({ open, onOpenChange }: BloodworkDetailShee
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="prose prose-sm dark:prose-invert max-w-none">
-                      <ReactMarkdown>{latestReport.ai_insights}</ReactMarkdown>
+                      <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{latestReport.ai_insights}</ReactMarkdown>
                     </CardContent>
                   </Card>
                 )}

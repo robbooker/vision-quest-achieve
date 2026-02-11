@@ -39,6 +39,7 @@ import { useBirdwatching, BirdSighting } from '@/hooks/useBirdwatching';
 import { useAIBirdResearch } from '@/hooks/useAIBirdResearch';
 import { format } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
+import rehypeSanitize from 'rehype-sanitize';
 import { EditSightingDialog } from './EditSightingDialog';
 
 interface SpeciesDetailProps {
@@ -403,7 +404,7 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
                     /* Code blocks if any */
                     prose-code:text-sm prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded
                   ">
-                    <ReactMarkdown>{research}</ReactMarkdown>
+                    <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{research}</ReactMarkdown>
                   </div>
                   
                   {/* Article footer */}

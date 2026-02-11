@@ -6,6 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useJournalChat } from '@/hooks/useJournalChat';
 import { useGlobalChat } from '@/hooks/useGlobalChat';
 import ReactMarkdown from 'react-markdown';
+import rehypeSanitize from 'rehype-sanitize';
 
 const PRESET_QUESTIONS = [
   { label: "Add a task", prompt: "Add a task to my list" },
@@ -126,7 +127,7 @@ export const JournalChat = () => {
                 >
                   {msg.role === 'assistant' ? (
                     <div className="prose prose-sm dark:prose-invert max-w-none">
-                      <ReactMarkdown>{msg.content || '...'}</ReactMarkdown>
+                      <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{msg.content || '...'}</ReactMarkdown>
                     </div>
                   ) : (
                     <p className="text-sm">{msg.content}</p>

@@ -325,6 +325,23 @@ const smsTools = [
       }
     }
   },
+  {
+    type: "function" as const,
+    function: {
+      name: "search_tasks",
+      description: "Search tasks by keyword, including completed ones. Use when they ask 'did I complete...', 'is there a task for...', 'have I done...', 'pick up prescription', 'any task about...', etc. Searches both pending and completed tasks.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Keyword to search task titles for" },
+          status: { type: "string", enum: ["all", "completed", "pending"], description: "Filter by status. Default 'all'." },
+          days: { type: "number", description: "How many days back to search. Default 14." }
+        },
+        required: ["query"],
+        additionalProperties: false
+      }
+    }
+  },
   // === MORNING BRIEFING TOOLS ===
   {
     type: "function" as const,
@@ -504,6 +521,35 @@ async function executeTool(
       return `📋 Your tasks:\n${taskList}`;
     }
     
+    case 'search_tasks': {
+      const { query, status = 'all', days = 14 } = args as { query: string; status?: string; days?: number };
+      const since = new Date(now.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
+      
+      let q = supabase
+        .from('quick_tasks')
+        .select('title, completed, completed_at, created_at, category')
+        .eq('user_id', userId)
+        .ilike('title', `%${query}%`)
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      
+      if (status === 'completed') q = q.eq('completed', true);
+      if (status === 'pending') q = q.eq('completed', false);
+      
+      const { data: tasks } = await q;
+      
+      if (!tasks?.length) return `🔍 No tasks matching "${query}" found in the last ${days} days.`;
+      
+      const taskList = tasks.map((t: any, i: number) => {
+        const statusIcon = t.completed ? '✅' : '⏳';
+        const dateStr = t.completed ? `completed ${t.completed_at?.split('T')[0]}` : `created ${t.created_at?.split('T')[0]}`;
+        return `${i + 1}. ${statusIcon} ${t.title} (${dateStr})`;
+      }).join('\n');
+      
+      return `🔍 Tasks matching "${query}":\n${taskList}`;
+    }
+
     case 'log_habit': {
       const { habit_name, count = 1 } = args as { habit_name: string; count?: number };
       

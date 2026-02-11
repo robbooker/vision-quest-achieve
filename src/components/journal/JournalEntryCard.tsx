@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { format, parseISO } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
+import rehypeSanitize from 'rehype-sanitize';
 import { 
   ImageIcon, 
   RefreshCw, 
@@ -336,7 +337,7 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
             </div>
           ) : entry.ai_daily_insight ? (
             <div className="prose prose-sm dark:prose-invert max-w-none text-sm text-muted-foreground [&>p]:mb-3 [&>p:last-child]:mb-0 [&>strong]:text-foreground [&>strong]:font-semibold">
-              <ReactMarkdown>{entry.ai_daily_insight}</ReactMarkdown>
+              <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{entry.ai_daily_insight}</ReactMarkdown>
             </div>
           ) : totalAccomplishments > 0 ? (
             <Button

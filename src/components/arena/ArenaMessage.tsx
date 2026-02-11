@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
+import rehypeSanitize from 'rehype-sanitize';
 import type { ArenaRole } from '@/hooks/useAIArena';
 
 interface ArenaMessageProps {
@@ -65,7 +66,7 @@ export function ArenaMessage({ role, content, isStreaming }: ArenaMessageProps) 
           {config.name}
         </div>
         <div className="prose prose-sm dark:prose-invert max-w-none">
-          <ReactMarkdown>{content}</ReactMarkdown>
+          <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{content}</ReactMarkdown>
         </div>
         {isStreaming && (
           <motion.span

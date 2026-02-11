@@ -19,7 +19,8 @@ import { useCycles } from '@/hooks/useCycles';
 import { useGlobalChat } from '@/hooks/useGlobalChat';
 import { useGoals, Goal } from '@/hooks/useGoals';
 import { useTaskInstances } from '@/hooks/useTaskInstances';
-import { differenceInWeeks } from 'date-fns';
+import { useWeeklyHabitStats } from '@/hooks/useGoalProgress';
+import { differenceInWeeks, startOfWeek, endOfWeek } from 'date-fns';
 import { useWeekReviews } from '@/hooks/useWeekReviews';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -73,7 +74,10 @@ export default function Dashboard() {
   
   const { goals, isLoading: goalsLoading, deleteGoal } = useGoals(activeCycle?.id);
   const { tasks, getWeekStats } = useTaskInstances(activeCycle?.id);
-  const weekStats = activeCycle ? getWeekStats(tasks, currentWeek) : { completed: 0, total: 0, percentage: 0 };
+  const goalIds = goals.map(g => g.id);
+  const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+  const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
+  const { data: weekStats = { completed: 0, total: 0, percentage: 0 } } = useWeeklyHabitStats(goalIds, weekStart, weekEnd);
   const { toast } = useToast();
 
   // Check if active cycle is a legacy 12-week cycle

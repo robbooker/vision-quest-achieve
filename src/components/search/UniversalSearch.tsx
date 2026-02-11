@@ -27,7 +27,8 @@ import {
   Plane,
   Library,
   Search,
-  Sparkles
+  Sparkles,
+  UtensilsCrossed,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -35,7 +36,7 @@ interface SearchResult {
   id: string;
   title: string;
   subtitle?: string;
-  type: 'task' | 'goal' | 'note' | 'journal' | 'focus' | 'bird' | 'navigation';
+  type: 'task' | 'goal' | 'note' | 'journal' | 'focus' | 'bird' | 'nutrition' | 'navigation';
   href?: string;
   icon: React.ElementType;
 }
@@ -178,6 +179,24 @@ export function UniversalSearch({ open, onOpenChange }: UniversalSearchProps) {
         icon: Bird,
       }));
 
+      // Search nutrition logs
+      const { data: nutrition } = await supabase
+        .from('daily_nutrition')
+        .select('id, meal_description, meal_type, entry_date, calories, protein_g')
+        .eq('user_id', user.id)
+        .ilike('meal_description', searchTerm)
+        .order('entry_date', { ascending: false })
+        .limit(5);
+
+      nutrition?.forEach(n => results.push({
+        id: `nutrition-${n.id}`,
+        title: n.meal_description,
+        subtitle: `${n.meal_type || 'Meal'} • ${format(new Date(n.entry_date), 'MMM d')}${n.calories ? ` • ${n.calories} cal` : ''}`,
+        type: 'nutrition',
+        href: '/primed',
+        icon: UtensilsCrossed,
+      }));
+
       return results;
     },
     enabled: !!user?.id && query.length >= 2,
@@ -215,7 +234,7 @@ export function UniversalSearch({ open, onOpenChange }: UniversalSearchProps) {
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
       <CommandInput 
-        placeholder="Search tasks, goals, notes, journals, birds..." 
+        placeholder="Search tasks, goals, notes, journals, nutrition..." 
         value={query}
         onValueChange={setQuery}
       />

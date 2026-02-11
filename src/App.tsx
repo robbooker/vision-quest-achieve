@@ -66,7 +66,13 @@ import MonthInReviewBlog from "./pages/MonthInReviewBlog";
 import MorningBriefingBlog from "./pages/MorningBriefingBlog";
 import AIArena from "./pages/AIArena";
 import MorningBriefingLab from "./pages/MorningBriefingLab";
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30 * 1000, // 30 seconds
+    },
+  },
+});
 
 // Apply saved text size on app load
 function TextSizeInitializer() {

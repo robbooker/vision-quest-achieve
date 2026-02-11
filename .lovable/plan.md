@@ -1,50 +1,49 @@
 
 
-## Accordion Layout + Enhanced Voice Descriptions
+## Admin Changelog with Full Version History
 
-### 1. Wrap Settings Sections in Accordion
+### 1. Bump Version
+Update `APP_VERSION` in `vite.config.ts` from `"1.21.0"` to `"1.22.0"`.
 
-Replace the current stack of separate `<Card>` components with a single `<Accordion>` that contains each settings section as an `<AccordionItem>`. The Header card (with the enable toggle) and the Latest Briefing card stay outside the accordion since they're always-visible.
+### 2. Create Changelog Data File
+**New file:** `src/data/changelog.ts`
 
-**Accordion items (in order):**
+Typed array of all 7 version entries (v1.16.0 through v1.22.0) with the exact data you specified. Every version will have its full `changes` array populated -- no placeholders. Includes `ChangeItem` and `VersionEntry` interfaces with the category union type and optional `internal` flag.
 
-| Item Value | Trigger Label | Icon | Contents |
-|---|---|---|---|
-| `schedule` | Schedule & Delivery | Clock | Wake time, timezone, reminder method, weekend, SMS |
-| `location` | Weather Location | MapPin | Zip code input, current location, saved coords |
-| `voice` | Voice | Mic | Voice selector with enhanced descriptions |
-| `personality` | Personality | Sparkles | RadioGroup with 6 options |
-| `duration` | Max Duration | Clock | Slider 2-10 min |
-| `news` | News Categories | Newspaper | Depth selectors grid |
-| `extras` | Extras | Target | Toggle categories (Short Scout, Weather, Calendar, Intention) |
-| `custom` | Custom Topics | Newspaper | Free-text textarea |
+All 7 entries with their complete change arrays:
+- **v1.22.0** (5 changes) -- Briefing Accordion, Voice Descriptions, Nutrition Search, Execution Score Fix (internal), Admin Changelog (internal)
+- **v1.21.0** (1 change) -- Version System
+- **v1.20.0** (3 changes) -- AI Morning Briefing, Dual-Source News, Calendar Token Refresh (internal)
+- **v1.19.0** (4 changes) -- Daily Weight & BP, Calorie Balance Chart, Trading P&L Upgrade, Month in Review
+- **v1.18.0** (2 changes) -- Sleep Timezone Fix (internal), Food Frequency Cleanup
+- **v1.17.0** (5 changes) -- AI Journal Commentary, Hydration in Ounces, Birdwatching Log-Another, Universal Voice Recorder, Text Toasty SMS
+- **v1.16.0** (2 changes) -- Trading Journal Dashboard, Physical Pillar Deep Dive
 
-Admin-only cards (Short Scout Test, iOS Shortcut) remain as standalone cards below the accordion since they're conditional.
+### 3. Create Admin Changelog Page
+**New file:** `src/pages/AdminChangelog.tsx`
 
-The Generate Briefing button + Save bar stays below the accordion, outside it.
+- Imports from `src/data/changelog.ts`
+- Card-based layout: one card per version with version badge (pill), muted date, highlights summary
+- Each change: bold label, description text, color-coded category badge, amber "Internal" badge where applicable
+- Category filter row at top (toggle on/off, default all shown)
+- Includes `AdminTabs` at top for consistency
+- Matches existing admin styling and dark theme
 
-### 2. Enhanced Voice Descriptions
+### 4. Add Admin Tab
+Update `src/components/admin/AdminTabs.tsx`: add "Changelog" tab with `ScrollText` icon linking to `/admin/changelog`.
 
-Update `VOICE_OPTIONS` with richer descriptions and show them inline in the selector:
+### 5. Add Route
+Update `src/App.tsx`: import `AdminChangelog`, add route at `/admin/changelog` wrapped in `AdminRoute` (alongside existing admin routes at lines 145-149).
 
-| Name | Updated Description |
-|---|---|
-| Brian | British male -- warm and conversational with sardonic wit. Think: your clever friend over coffee. |
-| George | British male -- deep, authoritative BBC anchor. Commands attention. |
-| Liam | American male -- friendly and energetic. Born to host a morning show. |
-| Daniel | British male -- calm, measured documentary narrator. Smooth and reassuring. |
-| Sarah | American female -- warm and professional. Network news polished. |
-| Laura | American female -- bright and upbeat. Pure morning sunshine energy. |
-| Matilda | British female -- sophisticated and articulate. Effortlessly elegant. |
-| Lily | British female -- soft and soothing with crystal-clear diction. Like a bedtime story, but for news. |
-| Clyde | American male -- confident and charismatic. Smooth baritone with natural swagger. |
-
-The voice selector will change from a `<Select>` dropdown to a `<RadioGroup>` (matching the personality selector pattern) so users can see all voices + descriptions at a glance without clicking a dropdown.
-
-### 3. Files Modified
+### Files Summary
 
 | File | Change |
 |---|---|
-| `src/pages/MorningBriefingLab.tsx` | Wrap sections in Accordion, update VOICE_OPTIONS descriptions, convert voice selector to RadioGroup |
+| `vite.config.ts` | Bump version to `1.22.0` |
+| `src/data/changelog.ts` | New -- typed changelog data with all 7 version entries fully populated |
+| `src/pages/AdminChangelog.tsx` | New -- admin changelog page with category filtering and internal badges |
+| `src/components/admin/AdminTabs.tsx` | Add Changelog tab with ScrollText icon |
+| `src/App.tsx` | Add `/admin/changelog` route in AdminRoute |
 
-No database changes, no edge function changes, no version bump needed.
+No database or edge function changes needed.
+

@@ -79,11 +79,11 @@ export const JournalChat = () => {
         </div>
         <div className="flex items-center gap-1">
           {messages.length > 0 && (
-            <Button variant="ghost" size="icon" onClick={clearChat} className="h-8 w-8">
+            <Button variant="ghost" size="icon" onClick={clearChat} className="h-8 w-8" aria-label="Clear chat">
               <Trash2 className="h-4 w-4" />
             </Button>
           )}
-          <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="h-8 w-8">
+          <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="h-8 w-8" aria-label="Close chat">
             <X className="h-4 w-4" />
           </Button>
         </div>

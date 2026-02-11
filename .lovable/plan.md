@@ -1,49 +1,48 @@
 
 
-## Admin Changelog with Full Version History
+# Fix: Replace Anon Key with Session Token in Edge Function Calls
 
-### 1. Bump Version
-Update `APP_VERSION` in `vite.config.ts` from `"1.21.0"` to `"1.22.0"`.
+## Problem
+Six files pass the Supabase anon key as the `Authorization: Bearer` token when calling edge functions. While the anon key is "publishable" and visible in bundled JS by design, using it as the Bearer token means edge functions cannot identify the authenticated user. The user's actual JWT session token should be used instead.
 
-### 2. Create Changelog Data File
-**New file:** `src/data/changelog.ts`
+## Files to Fix
 
-Typed array of all 7 version entries (v1.16.0 through v1.22.0) with the exact data you specified. Every version will have its full `changes` array populated -- no placeholders. Includes `ChangeItem` and `VersionEntry` interfaces with the category union type and optional `internal` flag.
+### 1. `src/hooks/useGoalCoach.ts`
+- Get session via `supabase.auth.getSession()` before the fetch call
+- Replace `Authorization: Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` with `Bearer ${session?.access_token}`
 
-All 7 entries with their complete change arrays:
-- **v1.22.0** (5 changes) -- Briefing Accordion, Voice Descriptions, Nutrition Search, Execution Score Fix (internal), Admin Changelog (internal)
-- **v1.21.0** (1 change) -- Version System
-- **v1.20.0** (3 changes) -- AI Morning Briefing, Dual-Source News, Calendar Token Refresh (internal)
-- **v1.19.0** (4 changes) -- Daily Weight & BP, Calorie Balance Chart, Trading P&L Upgrade, Month in Review
-- **v1.18.0** (2 changes) -- Sleep Timezone Fix (internal), Food Frequency Cleanup
-- **v1.17.0** (5 changes) -- AI Journal Commentary, Hydration in Ounces, Birdwatching Log-Another, Universal Voice Recorder, Text Toasty SMS
-- **v1.16.0** (2 changes) -- Trading Journal Dashboard, Physical Pillar Deep Dive
+### 2. `src/components/coach/GoalCoachChat.tsx`
+- Same pattern: get session, use access_token in Authorization header
 
-### 3. Create Admin Changelog Page
-**New file:** `src/pages/AdminChangelog.tsx`
+### 3. `src/hooks/useCoachVoice.ts`
+- Get session, replace Bearer token with access_token
+- Keep `apikey` header as-is (that's standard for Supabase routing)
 
-- Imports from `src/data/changelog.ts`
-- Card-based layout: one card per version with version badge (pill), muted date, highlights summary
-- Each change: bold label, description text, color-coded category badge, amber "Internal" badge where applicable
-- Category filter row at top (toggle on/off, default all shown)
-- Includes `AdminTabs` at top for consistency
-- Matches existing admin styling and dark theme
+### 4. `src/hooks/useWoopInterview.ts`
+- Three fetch calls (lines ~251, ~303, ~351) all use `SUPABASE_KEY` as Bearer
+- Get session once at the start of each function, use access_token for all three
 
-### 4. Add Admin Tab
-Update `src/components/admin/AdminTabs.tsx`: add "Changelog" tab with `ScrollText` icon linking to `/admin/changelog`.
+### 5. `src/hooks/useGoalInterview.ts`
+- Three fetch calls (lines ~269, ~324, ~376) same pattern as above
+- Get session, replace all three Authorization headers
 
-### 5. Add Route
-Update `src/App.tsx`: import `AdminChangelog`, add route at `/admin/changelog` wrapped in `AdminRoute` (alongside existing admin routes at lines 145-149).
+### 6. `src/hooks/useJournalChat.ts`
+- Line 265 has a fallback: `session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY`
+- Remove the fallback -- if there's no session, the request should fail (user must be authenticated)
 
-### Files Summary
+## Technical Details
 
-| File | Change |
-|---|---|
-| `vite.config.ts` | Bump version to `1.22.0` |
-| `src/data/changelog.ts` | New -- typed changelog data with all 7 version entries fully populated |
-| `src/pages/AdminChangelog.tsx` | New -- admin changelog page with category filtering and internal badges |
-| `src/components/admin/AdminTabs.tsx` | Add Changelog tab with ScrollText icon |
-| `src/App.tsx` | Add `/admin/changelog` route in AdminRoute |
+Each fix follows this pattern:
 
-No database or edge function changes needed.
+```typescript
+import { supabase } from "@/integrations/supabase/client";
+
+// Before fetch:
+const { data: { session } } = await supabase.auth.getSession();
+
+// In headers:
+Authorization: `Bearer ${session?.access_token}`
+```
+
+No database or edge function changes needed -- this is purely a client-side fix.
 

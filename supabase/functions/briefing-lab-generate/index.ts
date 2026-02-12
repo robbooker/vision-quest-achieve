@@ -498,7 +498,7 @@ Include a 30-60 second reflection on this word at the end of the briefing.` : ''
     const shortScoutSection = buildShortScoutSection();
 
     // Fetch last 2 episode scripts for dedup
-    const { data: recentEpisodes } = await supabaseAdmin
+    const { data: recentEpisodes } = await supabase
       .from('briefing_lab_episodes')
       .select('script')
       .eq('user_id', userId)

@@ -497,6 +497,35 @@ Include a 30-60 second reflection on this word at the end of the briefing.` : ''
     
     const shortScoutSection = buildShortScoutSection();
 
+    // Fetch last 2 episode scripts for dedup
+    const { data: recentEpisodes } = await supabaseAdmin
+      .from('briefing_lab_episodes')
+      .select('script')
+      .eq('user_id', userId)
+      .eq('status', 'ready')
+      .order('generated_at', { ascending: false })
+      .limit(2);
+
+    const truncateAtSentence = (text: string, maxLen: number): string => {
+      if (!text || text.length <= maxLen) return text || '';
+      const slice = text.slice(0, maxLen);
+      const lastBoundary = Math.max(
+        slice.lastIndexOf('. '),
+        slice.lastIndexOf('! '),
+        slice.lastIndexOf('? ')
+      );
+      return lastBoundary > maxLen * 0.5
+        ? slice.slice(0, lastBoundary + 1)
+        : slice;
+    };
+
+    let previousCoverage = '';
+    if (recentEpisodes?.length) {
+      previousCoverage = recentEpisodes
+        .map((ep, i) => `[Briefing ${i + 1} ago]:\n${truncateAtSentence(ep.script, 800)}`)
+        .join('\n\n');
+    }
+
     // Get personality prompt
     const personalityPrompt = getPersonalityPrompt(labPrefs?.briefing_personality || 'default');
 
@@ -520,7 +549,14 @@ CRITICAL INSTRUCTIONS - READ CAREFULLY:
 4. Cite your sources naturally (e.g., "According to ESPN..." or "The New York Times is reporting...")
 5. For calendar events marked "(already passed)", acknowledge they've already happened if relevant
 
-**SEARCH INSTRUCTIONS:**
+${previousCoverage ? `**PREVIOUSLY COVERED (DO NOT REPEAT):**
+The following stories were covered in recent briefings. Do NOT repeat the same stories, quotes, or talking points unless there is a genuinely new development. Even when covering ongoing stories with new developments, use different sources and voices than previous briefings when possible. Find FRESH angles and NEW stories.
+
+${previousCoverage}
+
+---
+
+` : ''}**SEARCH INSTRUCTIONS:**
 ${hasNewsCategories ? searchInstructions : 'No news categories are enabled - focus on weather, calendar, and any other enabled sections.'}
 
 **STRUCTURED DATA (already provided - no search needed):**

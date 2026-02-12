@@ -248,8 +248,8 @@ serve(async (req) => {
           const userDateStr = now.toLocaleString('en-US', { timeZone: timezone });
           const userDateFaked = new Date(userDateStr);
           const offsetMs = userDateFaked.getTime() - now.getTime();
-          const todayStart = new Date(now);
-          todayStart.setUTCHours(0, 0, 0, 0);
+          const todayStart = new Date(userDateFaked);
+          todayStart.setHours(0, 0, 0, 0);
           todayStart.setTime(todayStart.getTime() - offsetMs);
           const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
 

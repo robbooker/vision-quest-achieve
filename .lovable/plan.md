@@ -1,28 +1,23 @@
 
 
-# Set Global QueryClient staleTime Default
+# Fix Calendar Query Window in briefing-lab-generate
 
-A one-line change in `src/App.tsx` to configure the `QueryClient` with a global default `staleTime` of 30 seconds.
+## Problem
+Line 251 of `briefing-lab-generate/index.ts` uses `new Date(now)` (actual UTC time) to build the calendar query window. After 6 PM CST, UTC has rolled to the next day, so `setUTCHours(0,0,0,0)` zeros to tomorrow's midnight UTC -- fetching tomorrow's events instead of today's.
 
-## What Changes
-
-In `src/App.tsx`, the current QueryClient initialization:
-
-```typescript
-const queryClient = new QueryClient();
-```
-
-Will be updated to:
+## Fix
+One-word change on line 251:
 
 ```typescript
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 30 * 1000, // 30 seconds
-    },
-  },
-});
+// Before (broken):
+const todayStart = new Date(now);
+todayStart.setUTCHours(0, 0, 0, 0);
+
+// After (fixed):
+const todayStart = new Date(userDateFaked);
+todayStart.setHours(0, 0, 0, 0);
 ```
 
-This prevents unnecessary background refetches when components remount within 30 seconds of the last fetch, reducing network traffic without risking stale data. All existing `useQuery` hooks inherit this default automatically unless they specify their own `staleTime`.
+This matches the pattern already working correctly in `briefing-wake-check.ts`. Starting from `userDateFaked` (whose UTC internals represent the user's local date), then `setHours(0,0,0,0)` zeros to midnight of the correct local date. The subsequent `offsetMs` subtraction then converts it to the correct actual UTC timestamp.
 
+No other files need changes.

@@ -54,15 +54,20 @@ serve(async (req) => {
     // Get current time in user's timezone
     const now = new Date();
     const userTime = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
-    const todayStr = userTime.toISOString().split('T')[0];
     const currentTimeStr = userTime.toTimeString().slice(0, 5); // HH:MM
+
+    // Calculate user's local midnight as actual UTC
+    const offsetMs = userTime.getTime() - now.getTime();
+    const localMidnightUtc = new Date(userTime);
+    localMidnightUtc.setHours(0, 0, 0, 0);
+    localMidnightUtc.setTime(localMidnightUtc.getTime() - offsetMs);
 
     // Get today's briefing from the NEW Lab episodes table
     const { data: briefing, error: briefingError } = await supabase
       .from('briefing_lab_episodes')
       .select('*')
       .eq('user_id', userId)
-      .gte('created_at', `${todayStr}T00:00:00Z`)
+      .gte('created_at', localMidnightUtc.toISOString())
       .eq('status', 'ready')
       .order('created_at', { ascending: false })
       .limit(1)

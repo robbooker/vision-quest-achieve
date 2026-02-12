@@ -45,9 +45,9 @@ function getTimeOfDayGreeting(hour: number): { greeting: string; period: string 
   }
 }
 
-function isEventPast(eventStart: string, nowInTimezone: Date): boolean {
+function isEventPast(eventStart: string, now: Date): boolean {
   const eventDate = new Date(eventStart);
-  return eventDate < nowInTimezone;
+  return eventDate < now;
 }
 
 serve(async (req) => {
@@ -119,24 +119,26 @@ serve(async (req) => {
     const timezone = labPrefs?.timezone || 'America/Chicago';
     const voiceId = labPrefs?.voice_id || 'JBFqnCBsd6RMkjVDRZzb';
 
-    // Get today's date info and time of day
+    // Get today's date info and time of day using Intl.DateTimeFormat to avoid double timezone conversion
     const now = new Date();
-    const userDateStr = now.toLocaleString('en-US', { timeZone: timezone });
-    const userDate = new Date(userDateStr);
-    const userHour = userDate.getHours();
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      year: 'numeric', month: 'long', day: 'numeric',
+      weekday: 'long', hour: 'numeric', minute: '2-digit',
+      hour12: true,
+    });
+    const parts: Record<string, string> = {};
+    for (const p of formatter.formatToParts(now)) {
+      parts[p.type] = p.value;
+    }
+    let userHour = parseInt(parts.hour, 10);
+    if (parts.dayPeriod === 'PM' && userHour !== 12) userHour += 12;
+    if (parts.dayPeriod === 'AM' && userHour === 12) userHour = 0;
+
     const { greeting: timeOfDayGreeting, period: timePeriod } = getTimeOfDayGreeting(userHour);
-    const dayOfWeek = userDate.toLocaleDateString('en-US', { weekday: 'long', timeZone: timezone });
-    const fullDate = userDate.toLocaleDateString('en-US', { 
-      month: 'long', 
-      day: 'numeric', 
-      year: 'numeric',
-      timeZone: timezone 
-    });
-    const currentTimeStr = userDate.toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
-      minute: '2-digit',
-      timeZone: timezone 
-    });
+    const dayOfWeek = parts.weekday;
+    const fullDate = `${parts.month} ${parts.day}, ${parts.year}`;
+    const currentTimeStr = `${parts.hour}:${parts.minute} ${parts.dayPeriod}`;
 
     // Get depth settings and max duration
     const maxDuration = labPrefs?.max_duration_minutes || 5;
@@ -242,10 +244,14 @@ serve(async (req) => {
 
       if (calendarTokens?.access_token) {
         try {
-          const todayStart = new Date(userDate);
-          todayStart.setHours(0, 0, 0, 0);
-          const todayEnd = new Date(userDate);
-          todayEnd.setHours(23, 59, 59, 999);
+          // Calculate user's local midnight in actual UTC using timezone offset
+          const userDateStr = now.toLocaleString('en-US', { timeZone: timezone });
+          const userDateFaked = new Date(userDateStr);
+          const offsetMs = userDateFaked.getTime() - now.getTime();
+          const todayStart = new Date(now);
+          todayStart.setUTCHours(0, 0, 0, 0);
+          todayStart.setTime(todayStart.getTime() - offsetMs);
+          const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
 
           const calendarResponse = await fetch(
             `https://www.googleapis.com/calendar/v3/calendars/primary/events?` +
@@ -264,7 +270,7 @@ serve(async (req) => {
               calendarEvents = events.map((e: any) => {
                 if (e.start?.dateTime) {
                   const simpleTime = formatSimpleTime(e.start.dateTime, timezone);
-                  const isPast = isEventPast(e.start.dateTime, userDate);
+                  const isPast = isEventPast(e.start.dateTime, now);
                   const status = isPast ? ' (already passed)' : '';
                   return `${e.summary || 'Untitled'} at ${simpleTime}${status}`;
                 }

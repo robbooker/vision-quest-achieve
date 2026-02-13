@@ -9,6 +9,7 @@ import { JournalSettings } from '@/components/settings/JournalSettings';
 import { VoiceCallHistory } from '@/components/settings/VoiceCallHistory';
 import { OuraSettings } from '@/components/settings/OuraSettings';
 import { BriefingSettings } from '@/components/settings/BriefingSettings';
+import { ApiKeySettings } from '@/components/settings/ApiKeySettings';
 import { SubscriptionSettings } from '@/components/subscription/SubscriptionSettings';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -109,6 +110,10 @@ export default function Settings() {
 
         <div data-tour="settings-voice-calls">
           <VoiceCallHistory />
+        </div>
+
+        <div data-tour="settings-api-keys">
+          <ApiKeySettings />
         </div>
 
         <div className="pt-4 border-t flex justify-center">

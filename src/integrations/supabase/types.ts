@@ -116,6 +116,39 @@ export type Database = {
         }
         Relationships: []
       }
+      api_keys: {
+        Row: {
+          created_at: string
+          id: string
+          key_hash: string
+          key_prefix: string
+          label: string | null
+          last_used_at: string | null
+          revoked: boolean
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key_hash: string
+          key_prefix: string
+          label?: string | null
+          last_used_at?: string | null
+          revoked?: boolean
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key_hash?: string
+          key_prefix?: string
+          label?: string | null
+          last_used_at?: string | null
+          revoked?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
       big_ten_projects: {
         Row: {
           category: string | null
@@ -3566,6 +3599,7 @@ export type Database = {
           source_type: string
         }[]
       }
+      validate_api_key: { Args: { p_key_hash: string }; Returns: string }
     }
     Enums: {
       app_role: "admin" | "user"

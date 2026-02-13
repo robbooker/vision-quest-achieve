@@ -183,3 +183,6 @@ verify_jwt = false
 
 [functions.export-blood-pressure]
 verify_jwt = false
+
+[functions.manage-api-key]
+verify_jwt = false

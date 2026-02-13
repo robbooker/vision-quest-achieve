@@ -1,60 +1,57 @@
 
 
-# Blood Pressure Export API
+# Personal API Key System for Blood Pressure Export
 
 ## Overview
-Create an authenticated Edge Function that exports blood pressure data as JSON, with optional date-range filtering.
+Build a permanent API key system so you can store a key in another app and call GroovyPlanning's export endpoint anytime without tokens expiring.
 
-## Data Shape
-Each record from `health_measurements` (where `measurement_type = 'blood_pressure'`) contains:
-- `primary_value` = systolic (e.g. 131)
-- `secondary_value` = diastolic (e.g. 96)
-- `unit` = "mmHg"
-- `notes` = optional context (e.g. "Resting")
-- `measured_at` = timestamp
+## How It Works
 
-## API Design
-
-**Endpoint:** `GET /export-blood-pressure`
-
-**Auth:** Bearer token (user's JWT) -- required, scoped to the authenticated user's data only.
-
-**Query params (all optional):**
-- `from` -- ISO date string (e.g. `2026-01-01`), inclusive start
-- `to` -- ISO date string (e.g. `2026-02-13`), inclusive end
-- `format` -- `json` (default) or `csv`
-
-**Response (JSON):**
-```json
-{
-  "count": 12,
-  "from": "2026-01-01",
-  "to": "2026-02-13",
-  "data": [
-    {
-      "date": "2026-02-02T20:14:56Z",
-      "systolic": 131,
-      "diastolic": 96,
-      "notes": "Resting and an easy quiet day."
-    }
-  ]
-}
-```
-
-**Response (CSV):** downloadable file with headers: `date,systolic,diastolic,notes`
+1. You go to Settings and click "Generate API Key"
+2. You get a permanent key like `gp_a1b2c3d4e5f6...`
+3. You paste that key into your other app
+4. That app calls the export endpoint with the key -- works forever (until you revoke it)
 
 ## Changes
 
-### 1. New file: `supabase/functions/export-blood-pressure/index.ts`
-- CORS headers for web access
-- JWT auth via `getClaims()` to get user ID
-- Query `health_measurements` filtered by `user_id` and `measurement_type = 'blood_pressure'`
-- Apply optional `from`/`to` date filters using `.gte()` / `.lte()` on `measured_at`
-- Order by `measured_at` ascending
-- Return clean JSON (renamed fields: systolic/diastolic) or CSV based on `format` param
+### 1. New database table: `api_keys`
+- `id` (uuid, primary key)
+- `user_id` (uuid, references profiles)
+- `key_hash` (text) -- stores a hashed version of the key for security
+- `key_prefix` (text) -- stores `gp_xxxx` for display purposes (so you can identify it without seeing the full key)
+- `label` (text, optional) -- e.g. "My Health App"
+- `created_at`, `last_used_at`
+- `revoked` (boolean, default false)
+- RLS policies so only the key owner can see/manage their keys
 
-### 2. Update: `supabase/config.toml`
-- Add `[functions.export-blood-pressure]` with `verify_jwt = false` (auth handled in code)
+### 2. New Edge Function: `manage-api-key`
+- `POST` -- generates a new API key, hashes it, stores it, returns the full key **once** (it can never be retrieved again after this)
+- `DELETE` -- revokes an existing key
 
-No UI changes -- this is a pure API endpoint to start.
+### 3. Update Edge Function: `export-blood-pressure`
+- Accept both JWT auth (existing) and API key auth
+- If the `Authorization` header contains `Bearer gp_...`, look up the key hash in the `api_keys` table instead of validating a JWT
+- Resolve the `user_id` from the key record and scope the query accordingly
+- Update `last_used_at` on each successful use
+
+### 4. New UI: API Key section in Settings page
+- "Generate API Key" button
+- Shows the key exactly once after generation with a copy button
+- Lists existing keys (prefix + label + created date + last used)
+- "Revoke" button per key
+
+## Security Details
+- The full key is only shown once at creation time -- only the hash is stored in the database
+- Keys are validated by hashing the incoming key and comparing against stored hashes
+- Revoked keys are immediately rejected
+- Each key is permanently tied to exactly one user
+- The `api_keys` table uses RLS so users can only see their own keys
+
+## Usage from another app
+```
+GET https://gogzkyjylruuziseprfw.supabase.co/functions/v1/export-blood-pressure
+Headers:
+  Authorization: Bearer gp_a1b2c3d4e5f6...
+  apikey: <anon key>
+```
 

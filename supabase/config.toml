@@ -180,3 +180,6 @@ verify_jwt = false
 
 [functions.generate-jingle]
 verify_jwt = false
+
+[functions.export-blood-pressure]
+verify_jwt = false

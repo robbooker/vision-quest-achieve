@@ -1,61 +1,60 @@
 
 
-# Deduplication Fix for Morning Briefing
+# Blood Pressure Export API
 
-## What This Fixes
-The morning briefing sometimes repeats the same stories, quotes, and talking points day after day. This fix fetches the last 2 briefing scripts and includes them as context in the AI prompt, instructing it to avoid repetition.
+## Overview
+Create an authenticated Edge Function that exports blood pressure data as JSON, with optional date-range filtering.
 
-## Changes (1 file)
+## Data Shape
+Each record from `health_measurements` (where `measurement_type = 'blood_pressure'`) contains:
+- `primary_value` = systolic (e.g. 131)
+- `secondary_value` = diastolic (e.g. 96)
+- `unit` = "mmHg"
+- `notes` = optional context (e.g. "Resting")
+- `measured_at` = timestamp
 
-**File: `supabase/functions/briefing-lab-generate/index.ts`**
+## API Design
 
-### 1. Fetch previous episodes (after line 498, before personality prompt)
-Insert a query to `briefing_lab_episodes` to get the last 2 completed scripts for this user, then truncate each to ~800 characters at the nearest sentence boundary.
+**Endpoint:** `GET /export-blood-pressure`
 
-```typescript
-// Fetch last 2 episode scripts for dedup
-const { data: recentEpisodes } = await supabaseAdmin
-  .from('briefing_lab_episodes')
-  .select('script')
-  .eq('user_id', userId)
-  .eq('status', 'ready')
-  .order('generated_at', { ascending: false })
-  .limit(2);
+**Auth:** Bearer token (user's JWT) -- required, scoped to the authenticated user's data only.
 
-const truncateAtSentence = (text: string, maxLen: number): string => {
-  if (!text || text.length <= maxLen) return text || '';
-  const slice = text.slice(0, maxLen);
-  const lastBoundary = Math.max(
-    slice.lastIndexOf('. '),
-    slice.lastIndexOf('! '),
-    slice.lastIndexOf('? ')
-  );
-  return lastBoundary > maxLen * 0.5
-    ? slice.slice(0, lastBoundary + 1)
-    : slice;
-};
+**Query params (all optional):**
+- `from` -- ISO date string (e.g. `2026-01-01`), inclusive start
+- `to` -- ISO date string (e.g. `2026-02-13`), inclusive end
+- `format` -- `json` (default) or `csv`
 
-let previousCoverage = '';
-if (recentEpisodes?.length) {
-  previousCoverage = recentEpisodes
-    .map((ep, i) => `[Briefing ${i + 1} ago]:\n${truncateAtSentence(ep.script, 800)}`)
-    .join('\n\n');
+**Response (JSON):**
+```json
+{
+  "count": 12,
+  "from": "2026-01-01",
+  "to": "2026-02-13",
+  "data": [
+    {
+      "date": "2026-02-02T20:14:56Z",
+      "systolic": 131,
+      "diastolic": 96,
+      "notes": "Resting and an easy quiet day."
+    }
+  ]
 }
 ```
 
-### 2. Insert PREVIOUSLY COVERED section in prompt (before line 523's SEARCH INSTRUCTIONS)
-Only included when there is previous coverage to reference:
+**Response (CSV):** downloadable file with headers: `date,systolic,diastolic,notes`
 
-```text
-**PREVIOUSLY COVERED (DO NOT REPEAT):**
-The following stories were covered in recent briefings. Do NOT repeat the same stories, quotes, or talking points unless there is a genuinely new development. Even when covering ongoing stories with new developments, use different sources and voices than previous briefings when possible. Find FRESH angles and NEW stories.
+## Changes
 
-${previousCoverage}
+### 1. New file: `supabase/functions/export-blood-pressure/index.ts`
+- CORS headers for web access
+- JWT auth via `getClaims()` to get user ID
+- Query `health_measurements` filtered by `user_id` and `measurement_type = 'blood_pressure'`
+- Apply optional `from`/`to` date filters using `.gte()` / `.lte()` on `measured_at`
+- Order by `measured_at` ascending
+- Return clean JSON (renamed fields: systolic/diastolic) or CSV based on `format` param
 
----
-```
+### 2. Update: `supabase/config.toml`
+- Add `[functions.export-blood-pressure]` with `verify_jwt = false` (auth handled in code)
 
-### 3. Summary of line changes
-- **After line 498**: ~20 new lines for DB query + truncation helper + building `previousCoverage`
-- **Before line 523** (SEARCH INSTRUCTIONS): ~8 new lines for the conditional dedup prompt section
-- No existing lines are removed or modified -- purely additive
+No UI changes -- this is a pure API endpoint to start.
+

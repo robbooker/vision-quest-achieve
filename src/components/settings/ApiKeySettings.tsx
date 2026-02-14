@@ -195,19 +195,47 @@ export function ApiKeySettings() {
           <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
             How to use your API key
           </summary>
-          <div className="mt-2 rounded-lg bg-muted p-3 space-y-2">
-            <p className="text-muted-foreground text-xs">Make a GET request to:</p>
-            <code className="block text-xs font-mono break-all">
-              {import.meta.env.VITE_SUPABASE_URL}/functions/v1/export-blood-pressure
-            </code>
-            <p className="text-muted-foreground text-xs">With headers:</p>
-            <code className="block text-xs font-mono">
-              Authorization: Bearer gp_your_key_here
-            </code>
-            <code className="block text-xs font-mono">
-              apikey: {import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}
-            </code>
-            <p className="text-muted-foreground text-xs">Optional query params: <code>?from=2025-01-01&to=2025-12-31&format=csv</code></p>
+          <div className="mt-2 rounded-lg bg-muted p-3 space-y-3">
+            <div>
+              <p className="text-muted-foreground text-xs font-medium mb-1">Base endpoint:</p>
+              <code className="block text-xs font-mono break-all">
+                {import.meta.env.VITE_SUPABASE_URL}/functions/v1/export-data?resource=RESOURCE_NAME
+              </code>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-xs font-medium mb-1">Headers:</p>
+              <code className="block text-xs font-mono">
+                Authorization: Bearer gp_your_key_here
+              </code>
+              <code className="block text-xs font-mono">
+                apikey: {import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}
+              </code>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-xs font-medium mb-1">Optional query params:</p>
+              <code className="block text-xs font-mono">?from=2025-01-01&to=2025-12-31&format=csv</code>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-xs font-medium mb-1">Available resources:</p>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {[
+                  'blood_pressure', 'weight', 'sleep', 'nutrition', 'focus_sessions',
+                  'tasks', 'journal', 'goals', 'habits', 'books', 'bird_sightings',
+                  'bloodwork', 'trading'
+                ].map(r => (
+                  <Badge key={r} variant="outline" className="text-xs font-mono">{r}</Badge>
+                ))}
+              </div>
+            </div>
+            <div className="border-t pt-2 mt-2">
+              <p className="text-muted-foreground text-xs font-medium mb-1">Example:</p>
+              <code className="block text-xs font-mono break-all text-muted-foreground">
+                GET ...export-data?resource=sleep&from=2025-01-01&format=csv
+              </code>
+            </div>
+            <p className="text-xs text-muted-foreground italic">
+              The legacy <code className="font-mono">export-blood-pressure</code> endpoint still works too.
+            </p>
           </div>
         </details>
       </CardContent>

@@ -284,7 +284,28 @@ serve(async (req) => {
       }
     }
 
-    // Step 3: Fetch weather if enabled (structured API data)
+    // Step 2b: Fetch reminders for today
+    let remindersSection = '';
+    {
+      // Calculate the user's local date for reminder lookup
+      const userDateStr = now.toLocaleString('en-US', { timeZone: timezone });
+      const userLocalDate = new Date(userDateStr);
+      const reminderDateStr = `${userLocalDate.getFullYear()}-${String(userLocalDate.getMonth() + 1).padStart(2, '0')}-${String(userLocalDate.getDate()).padStart(2, '0')}`;
+      
+      const { data: todayReminders } = await supabase
+        .from('reminders')
+        .select('reminder_text')
+        .eq('user_id', userId)
+        .eq('reminder_date', reminderDateStr)
+        .eq('completed', false);
+      
+      if (todayReminders && todayReminders.length > 0) {
+        const reminderLines = todayReminders.map((r: any) => `- "${r.reminder_text}"`).join('\n');
+        remindersSection = `\n**REMINDERS FOR TODAY:**\n${reminderLines}\n`;
+        console.log(`Found ${todayReminders.length} reminders for ${reminderDateStr}`);
+      }
+    }
+
     let weatherData = 'Weather data unavailable';
     if (labPrefs?.include_weather) {
       try {
@@ -560,7 +581,7 @@ ${previousCoverage}
 ${hasNewsCategories ? searchInstructions : 'No news categories are enabled - focus on weather, calendar, and any other enabled sections.'}
 
 **STRUCTURED DATA (already provided - no search needed):**
-
+${remindersSection}
 **WEATHER:**
 ${weatherData}
 
@@ -575,7 +596,7 @@ ${intentionSection}
 - Target approximately ${wordCountRange} words for a ${maxDuration}-minute briefing
 - Write for the EAR - short sentences, conversational, natural rhythm
 - No bullet points, headers, or formatting - this will be spoken aloud
-- Start with "${timeOfDayGreeting}, ${userName}!" and then mention the weather
+${remindersSection ? `- Start with "${timeOfDayGreeting}, ${userName}!" then mention any reminders for today, then weather` : `- Start with "${timeOfDayGreeting}, ${userName}!" and then mention the weather`}
 - If it's afternoon/evening, you can reference how the day has gone so far
 - Mention calendar events early (acknowledge any that have passed if in afternoon/evening)
 - Cover news categories in order of depth (full coverage first, brief mentions after)

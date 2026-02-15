@@ -2710,6 +2710,36 @@ export type Database = {
           },
         ]
       }
+      reminders: {
+        Row: {
+          completed: boolean
+          created_at: string
+          id: string
+          reminder_date: string
+          reminder_text: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean
+          created_at?: string
+          id?: string
+          reminder_date: string
+          reminder_text: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean
+          created_at?: string
+          id?: string
+          reminder_date?: string
+          reminder_text?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       reset_audits: {
         Row: {
           audit_date: string

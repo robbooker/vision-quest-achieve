@@ -17,6 +17,8 @@ import { CompactResetCard } from '@/components/reset/CompactResetCard';
 import { DailyFuelCard } from '@/components/nutrition/DailyFuelCard';
 import { CalendarStrip, CalendarEventData } from '@/components/dashboard/CalendarStrip';
 import { TodayFocusWidget } from '@/components/dashboard/TodayFocusWidget';
+import { RemindersList } from '@/components/dashboard/RemindersList';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PerformanceAuditCard } from '@/components/dashboard/PerformanceAuditCard';
 import { TodayPnLWidget } from '@/components/dashboard/TodayPnLWidget';
 
@@ -434,20 +436,33 @@ export default function Today() {
             )}
           </div>
 
-          {/* Calendar Strip - now in right column of row 1 */}
+          {/* Calendar Strip + Reminders - tabbed */}
           <Card className="h-full">
-            <CardContent className="p-0">
-              <CalendarStrip
-                events={calendarEvents}
-                isLoading={eventsLoading || calendarConnecting}
-                isConnected={isConnected}
-                onConnect={connect}
-                onAddEvent={isConnected ? () => setAddCalendarEventOpen(true) : undefined}
-                showTomorrow={showTomorrow}
-                onToggleDay={() => setShowTomorrow(!showTomorrow)}
-                onEventClick={handleEditEvent}
-              />
-            </CardContent>
+            <Tabs defaultValue="schedule" className="h-full">
+              <div className="px-4 pt-3">
+                <TabsList className="w-full">
+                  <TabsTrigger value="schedule" className="flex-1">Schedule</TabsTrigger>
+                  <TabsTrigger value="reminders" className="flex-1">Reminders</TabsTrigger>
+                </TabsList>
+              </div>
+              <TabsContent value="schedule" className="mt-0">
+                <CardContent className="p-0">
+                  <CalendarStrip
+                    events={calendarEvents}
+                    isLoading={eventsLoading || calendarConnecting}
+                    isConnected={isConnected}
+                    onConnect={connect}
+                    onAddEvent={isConnected ? () => setAddCalendarEventOpen(true) : undefined}
+                    showTomorrow={showTomorrow}
+                    onToggleDay={() => setShowTomorrow(!showTomorrow)}
+                    onEventClick={handleEditEvent}
+                  />
+                </CardContent>
+              </TabsContent>
+              <TabsContent value="reminders" className="mt-0">
+                <RemindersList selectedDate={selectedDate} />
+              </TabsContent>
+            </Tabs>
           </Card>
         </div>
 

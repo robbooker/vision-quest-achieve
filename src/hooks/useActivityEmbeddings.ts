@@ -17,7 +17,8 @@ type SourceType =
   | "audio_journal"
   | "audio_journal_chunk"
   | "monthly_intention"
-  | "chat_conversation";
+  | "chat_conversation"
+  | "reminder";
 
 interface EmbeddingData {
   sourceType: SourceType;
@@ -633,6 +634,23 @@ export function useActivityEmbeddings() {
     });
   }, [generateEmbedding]);
 
+  // Helper to format reminder for embedding
+  const embedReminder = useCallback(async (reminder: {
+    id: string;
+    reminder_text: string;
+    reminder_date: string;
+  }) => {
+    const contentText = `Reminder for ${reminder.reminder_date}: "${reminder.reminder_text}"`;
+
+    return generateEmbedding({
+      sourceType: "reminder",
+      sourceId: reminder.id,
+      contentText,
+      activityDate: reminder.reminder_date,
+      metadata: {},
+    });
+  }, [generateEmbedding]);
+
   return {
     generateEmbedding,
     embedJournalEntry,
@@ -649,5 +667,6 @@ export function useActivityEmbeddings() {
     embedAudioJournal,
     embedMonthlyIntention,
     embedChatConversation,
+    embedReminder,
   };
 }

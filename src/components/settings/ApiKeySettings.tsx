@@ -221,7 +221,7 @@ export function ApiKeySettings() {
                 {[
                   'blood_pressure', 'weight', 'sleep', 'nutrition', 'focus_sessions',
                   'tasks', 'journal', 'goals', 'habits', 'books', 'bird_sightings',
-                  'bloodwork', 'trading', 'calendar'
+                  'bloodwork', 'trading', 'calendar', 'trips'
                 ].map(r => (
                   <Badge key={r} variant="outline" className="text-xs font-mono">{r}</Badge>
                 ))}

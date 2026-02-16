@@ -370,6 +370,66 @@ const RESOURCE_HANDLERS: Record<string, (supabase: any, userId: string, from: st
       rows: events,
     };
   },
+
+  trips: async (supabase, userId, from, to) => {
+    // Fetch trips
+    let tripQuery = supabase.from("trips")
+      .select("id, destination, start_date, end_date, purpose, attendees, planned_activities, has_flight")
+      .eq("user_id", userId)
+      .order("start_date", { ascending: true });
+    if (from) tripQuery = tripQuery.gte("start_date", from);
+    if (to) tripQuery = tripQuery.lte("start_date", to);
+    const { data: trips, error: tripError } = await tripQuery;
+    if (tripError) throw tripError;
+
+    if (!trips?.length) {
+      return { columns: ["destination", "start_date", "end_date", "purpose", "logistics"], rows: [] };
+    }
+
+    // Fetch all logistics for these trips
+    const tripIds = trips.map((t: any) => t.id);
+    const { data: logistics, error: logError } = await supabase
+      .from("trip_logistics")
+      .select("trip_id, logistics_type, provider_name, confirmation_code, start_datetime, end_datetime, start_location, end_location, flight_number, seat_assignment, vehicle_type, contact_phone, notes")
+      .in("trip_id", tripIds)
+      .order("start_datetime", { ascending: true });
+    if (logError) throw logError;
+
+    // Group logistics by trip
+    const logByTrip: Record<string, any[]> = {};
+    for (const l of (logistics || [])) {
+      if (!logByTrip[l.trip_id]) logByTrip[l.trip_id] = [];
+      logByTrip[l.trip_id].push(l);
+    }
+
+    const rows = trips.map((t: any) => ({
+      destination: t.destination,
+      start_date: t.start_date,
+      end_date: t.end_date,
+      purpose: t.purpose || "",
+      attendees: (t.attendees || []).join(", "),
+      planned_activities: t.planned_activities || "",
+      logistics: JSON.stringify((logByTrip[t.id] || []).map((l: any) => ({
+        type: l.logistics_type,
+        provider: l.provider_name || "",
+        confirmation_code: l.confirmation_code || "",
+        flight_number: l.flight_number || "",
+        seat: l.seat_assignment || "",
+        vehicle_type: l.vehicle_type || "",
+        start_datetime: l.start_datetime || "",
+        end_datetime: l.end_datetime || "",
+        start_location: l.start_location || "",
+        end_location: l.end_location || "",
+        contact_phone: l.contact_phone || "",
+        notes: l.notes || "",
+      }))),
+    }));
+
+    return {
+      columns: ["destination", "start_date", "end_date", "purpose", "attendees", "planned_activities", "logistics"],
+      rows,
+    };
+  },
 };
 
 const AVAILABLE_RESOURCES = Object.keys(RESOURCE_HANDLERS);

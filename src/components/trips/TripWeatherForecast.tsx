@@ -61,19 +61,44 @@ export function TripWeatherForecast({ destination, startDate, endDate }: TripWea
         setLoading(true);
         setError(null);
 
-        // Geocode the destination using Nominatim (more reliable for city/state formats)
-        const geoRes = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(destination)}&format=json&limit=1`,
-          { headers: { 'User-Agent': 'GoalPilot/1.0' } }
-        );
-        const geoData = await geoRes.json();
+        // Try geocoding with multiple strategies
+        let latitude: number | null = null;
+        let longitude: number | null = null;
 
-        if (!geoData?.length) {
-          throw new Error('Location not found');
+        // Strategy 1: Open-Meteo geocoding - try city name only (before comma)
+        const cityName = destination.split(',')[0].trim();
+        
+        for (const query of [destination.trim(), cityName]) {
+          if (latitude !== null) break;
+          try {
+            const geoRes = await fetch(
+              `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=en`
+            );
+            const geoData = await geoRes.json();
+            if (geoData.results?.length) {
+              latitude = geoData.results[0].latitude;
+              longitude = geoData.results[0].longitude;
+            }
+          } catch { /* try next */ }
         }
 
-        const latitude = parseFloat(geoData[0].lat);
-        const longitude = parseFloat(geoData[0].lon);
+        // Strategy 2: Nominatim fallback (no custom headers to avoid CORS)
+        if (latitude === null) {
+          try {
+            const geoRes = await fetch(
+              `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(destination)}&format=json&limit=1`
+            );
+            const geoData = await geoRes.json();
+            if (geoData?.length) {
+              latitude = parseFloat(geoData[0].lat);
+              longitude = parseFloat(geoData[0].lon);
+            }
+          } catch { /* continue */ }
+        }
+
+        if (latitude === null || longitude === null) {
+          throw new Error('Location not found');
+        }
 
         // Open-Meteo forecast API supports up to 16 days ahead
         const weatherRes = await fetch(

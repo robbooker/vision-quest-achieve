@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Trip, usePackingList, useTrips, PackingListItem } from '@/hooks/useTrips';
 import { TripLogisticsSection } from './TripLogisticsSection';
+import { TripWeatherForecast } from './TripWeatherForecast';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -343,6 +344,13 @@ export function PackingListView({ trip, onBack }: PackingListViewProps) {
           </p>
         </div>
       </div>
+
+      {/* Weather Forecast */}
+      <TripWeatherForecast
+        destination={trip.destination}
+        startDate={trip.start_date}
+        endDate={trip.end_date}
+      />
 
       {/* Logistics Section */}
       <TripLogisticsSection trip={trip} />

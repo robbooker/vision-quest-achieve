@@ -61,17 +61,19 @@ export function TripWeatherForecast({ destination, startDate, endDate }: TripWea
         setLoading(true);
         setError(null);
 
-        // Geocode the destination
+        // Geocode the destination using Nominatim (more reliable for city/state formats)
         const geoRes = await fetch(
-          `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(destination)}&count=1&language=en`
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(destination)}&format=json&limit=1`,
+          { headers: { 'User-Agent': 'GoalPilot/1.0' } }
         );
         const geoData = await geoRes.json();
 
-        if (!geoData.results?.length) {
+        if (!geoData?.length) {
           throw new Error('Location not found');
         }
 
-        const { latitude, longitude } = geoData.results[0];
+        const latitude = parseFloat(geoData[0].lat);
+        const longitude = parseFloat(geoData[0].lon);
 
         // Open-Meteo forecast API supports up to 16 days ahead
         const weatherRes = await fetch(

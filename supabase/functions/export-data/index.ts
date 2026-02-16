@@ -274,6 +274,102 @@ const RESOURCE_HANDLERS: Record<string, (supabase: any, userId: string, from: st
       })),
     };
   },
+
+  calendar: async (supabase, userId, from, to) => {
+    // Get the user's Google Calendar tokens
+    const { data: tokenData, error: tokenError } = await supabase
+      .from("user_calendar_tokens")
+      .select("*")
+      .eq("user_id", userId)
+      .single();
+
+    if (tokenError || !tokenData) {
+      return {
+        columns: ["error"],
+        rows: [{ error: "Google Calendar not connected. Connect it in Settings first." }],
+      };
+    }
+
+    let accessToken = tokenData.access_token;
+
+    // Refresh token if expired
+    const tokenExpiresAt = new Date(tokenData.token_expires_at);
+    if (tokenExpiresAt <= new Date()) {
+      const clientId = Deno.env.get("GOOGLE_CALENDAR_CLIENT_ID")!;
+      const clientSecret = Deno.env.get("GOOGLE_CALENDAR_CLIENT_SECRET")!;
+
+      const refreshRes = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: clientId,
+          client_secret: clientSecret,
+          refresh_token: tokenData.refresh_token,
+          grant_type: "refresh_token",
+        }),
+      });
+
+      if (!refreshRes.ok) {
+        return {
+          columns: ["error"],
+          rows: [{ error: "Calendar token expired and refresh failed. Please reconnect in Settings." }],
+        };
+      }
+
+      const refreshData = await refreshRes.json();
+      accessToken = refreshData.access_token;
+
+      // Update stored token
+      await supabase
+        .from("user_calendar_tokens")
+        .update({
+          access_token: accessToken,
+          token_expires_at: new Date(Date.now() + refreshData.expires_in * 1000).toISOString(),
+        })
+        .eq("user_id", userId);
+    }
+
+    // Default to today + 7 days if no range specified
+    const now = new Date();
+    const timeMin = from ? `${from}T00:00:00Z` : now.toISOString();
+    const defaultMax = new Date(now);
+    defaultMax.setDate(defaultMax.getDate() + 7);
+    const timeMax = to ? `${to}T23:59:59Z` : defaultMax.toISOString();
+
+    const calendarId = tokenData.calendar_id || "primary";
+    const eventsUrl = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`);
+    eventsUrl.searchParams.set("timeMin", timeMin);
+    eventsUrl.searchParams.set("timeMax", timeMax);
+    eventsUrl.searchParams.set("singleEvents", "true");
+    eventsUrl.searchParams.set("orderBy", "startTime");
+
+    const eventsRes = await fetch(eventsUrl.toString(), {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    if (!eventsRes.ok) {
+      const errText = await eventsRes.text();
+      console.error("Calendar API error:", errText);
+      return {
+        columns: ["error"],
+        rows: [{ error: "Failed to fetch calendar events from Google." }],
+      };
+    }
+
+    const eventsData = await eventsRes.json();
+    const events = (eventsData.items || []).map((event: any) => ({
+      title: event.summary || "Busy",
+      start: event.start?.dateTime || event.start?.date || "",
+      end: event.end?.dateTime || event.end?.date || "",
+      all_day: !event.start?.dateTime,
+      status: event.status || "",
+    }));
+
+    return {
+      columns: ["title", "start", "end", "all_day", "status"],
+      rows: events,
+    };
+  },
 };
 
 const AVAILABLE_RESOURCES = Object.keys(RESOURCE_HANDLERS);

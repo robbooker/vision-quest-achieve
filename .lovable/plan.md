@@ -1,84 +1,54 @@
 
 
-# Reminders Feature
+## Fix: Google Calendar Token Refresh in Morning Briefing
 
-## What You Get
-- A "Reminders" tab on the Calendar card on the Today page
-- Add reminders with text + a target date
-- Reminders for today automatically appear at the start of your Morning Briefing
-- If no reminders exist for that day, the briefing is unchanged
-- Reminders are embedded into the vector database for semantic search recall
+### Problem
+The morning briefing generator fetches Google Calendar events using the stored OAuth access token directly, but **never checks if the token has expired and never refreshes it**. Google access tokens expire after ~1 hour.
 
-## Changes
+The `google-calendar-events` Edge Function (used by the UI) correctly handles token refresh, but the briefing generator does not share that logic. When the token is stale (which it almost always will be at 7 AM if you last used the app the day before), the Google API returns a 401, the error is silently caught, and the briefing defaults to "No scheduled events."
 
-### 1. New Database Table: `reminders`
-- `id` (uuid, primary key)
-- `user_id` (uuid, references profiles)
-- `reminder_text` (text, required)
-- `reminder_date` (date, required)
-- `completed` (boolean, default false)
-- `created_at`, `updated_at`
-- RLS policies: users can only CRUD their own reminders
+### Solution
+Add the same token refresh logic to the briefing generator's calendar fetch section:
 
-### 2. New Hook: `src/hooks/useReminders.ts`
-- Fetch reminders (filterable by date)
-- Create, update (mark complete), and delete reminders
-- On create, generate an embedding via `useActivityEmbeddings` with source type `reminder`
+1. Check `token_expires_at` from the `user_calendar_tokens` table
+2. If expired, use the `refresh_token` to get a new access token from Google's OAuth endpoint (using existing `GOOGLE_CALENDAR_CLIENT_ID` and `GOOGLE_CALENDAR_CLIENT_SECRET` secrets)
+3. Update the stored token in the database
+4. Use the fresh token for the calendar API call
+5. Add logging so calendar failures are visible in logs
 
-### 3. Update `src/hooks/useActivityEmbeddings.ts`
-- Add `"reminder"` to the `SourceType` union
-- Add `embedReminder` helper that formats reminder text + date for the vector
+### Technical Details
 
-### 4. New Component: `src/components/dashboard/RemindersList.tsx`
-- List of reminders for the selected day (today/tomorrow, matching the calendar toggle)
-- Form to add a new reminder (text + date picker, defaulting to selected day)
-- Toggle complete / delete actions per reminder
+**File: `supabase/functions/briefing-lab-generate/index.ts`**
 
-### 5. Update Calendar Card on Today Page
-- Convert the existing `CalendarStrip` card into a tabbed card with two tabs: **Schedule** and **Reminders**
-- Schedule tab shows the existing `CalendarStrip` component unchanged
-- Reminders tab shows the new `RemindersList` component
-- The today/tomorrow toggle applies to both tabs
+Current code (lines 239-284) fetches tokens and uses `access_token` directly without checking expiry:
 
-### 6. Update Morning Briefing: `supabase/functions/briefing-lab-generate/index.ts`
-- After fetching calendar events, query the `reminders` table for the user's reminders due on the briefing date (where `completed = false`)
-- If reminders exist, inject a `**REMINDERS FOR TODAY:**` section into the structured data block, listed before weather/calendar
-- Update the script requirements to say "Start with reminders if any are provided, then greeting and weather"
-- If no reminders, nothing changes
+```typescript
+// Current: no refresh, silent failure
+const { data: calendarTokens } = await supabase
+  .from('user_calendar_tokens')
+  .select('access_token, refresh_token, token_expires_at')
+  .eq('user_id', userId)
+  .single();
 
-### 7. Update `supabase/functions/generate-embedding/index.ts`
-- Add `"reminder"` to the allowed source types (if it validates them)
+if (calendarTokens?.access_token) {
+  // Uses potentially expired token...
+}
+```
 
-## Technical Details
-
-### Tab Implementation
-Uses the existing `Tabs` component from `@radix-ui/react-tabs` (already in the project). The card wrapping the CalendarStrip becomes:
+Updated code will:
 
 ```text
-+----------------------------------+
-| [Schedule] [Reminders]   [+] [>]|
-|----------------------------------|
-|  (tab content here)              |
-+----------------------------------+
+1. Fetch token row (already does this)
+2. Compare token_expires_at to now()
+3. If expired, call https://oauth2.googleapis.com/token with refresh_token
+4. Update user_calendar_tokens with new access_token + expiry
+5. Use the refreshed token for the calendar API call
+6. Log success/failure explicitly (e.g., "Calendar: refreshed token", "Calendar: 0 events" or "Calendar: fetch failed: 401")
 ```
 
-### Briefing Injection Point
-Reminders are inserted as structured data in the prompt, before weather, so the AI leads with them:
+No new secrets needed -- `GOOGLE_CALENDAR_CLIENT_ID` and `GOOGLE_CALENDAR_CLIENT_SECRET` are already configured.
 
-```
-**REMINDERS FOR TODAY:**
-- "Call dentist to reschedule"
-- "Submit expense report"
+No database changes required.
 
-**WEATHER:**
-...
-```
-
-Script requirements updated to: "If reminders are provided, mention them right after the greeting before weather."
-
-### Embedding Format
-```
-Reminder for 2026-02-20: "Call dentist to reschedule"
-```
-Source type: `reminder`, activity date: the reminder_date.
+Only one file changes: `supabase/functions/briefing-lab-generate/index.ts`
 

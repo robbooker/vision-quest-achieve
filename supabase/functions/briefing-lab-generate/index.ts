@@ -244,6 +244,46 @@ serve(async (req) => {
 
       if (calendarTokens?.access_token) {
         try {
+          let accessToken = calendarTokens.access_token;
+
+          // Check if token is expired and refresh if needed
+          if (calendarTokens.token_expires_at && new Date(calendarTokens.token_expires_at) <= now) {
+            console.log('Calendar: token expired, refreshing...');
+            const clientId = Deno.env.get("GOOGLE_CALENDAR_CLIENT_ID");
+            const clientSecret = Deno.env.get("GOOGLE_CALENDAR_CLIENT_SECRET");
+
+            if (clientId && clientSecret && calendarTokens.refresh_token) {
+              const refreshResponse = await fetch("https://oauth2.googleapis.com/token", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: new URLSearchParams({
+                  client_id: clientId,
+                  client_secret: clientSecret,
+                  refresh_token: calendarTokens.refresh_token,
+                  grant_type: "refresh_token",
+                }),
+              });
+
+              if (refreshResponse.ok) {
+                const refreshData = await refreshResponse.json();
+                accessToken = refreshData.access_token;
+                const newExpiresAt = new Date(Date.now() + refreshData.expires_in * 1000).toISOString();
+
+                await supabase
+                  .from('user_calendar_tokens')
+                  .update({ access_token: accessToken, token_expires_at: newExpiresAt })
+                  .eq('user_id', userId);
+
+                console.log('Calendar: token refreshed successfully');
+              } else {
+                const errText = await refreshResponse.text();
+                console.error('Calendar: token refresh failed:', errText);
+              }
+            } else {
+              console.error('Calendar: missing refresh_token or Google OAuth credentials');
+            }
+          }
+
           // Calculate user's local midnight in actual UTC using timezone offset
           const userDateStr = now.toLocaleString('en-US', { timeZone: timezone });
           const userDateFaked = new Date(userDateStr);
@@ -259,13 +299,14 @@ serve(async (req) => {
             `timeMax=${todayEnd.toISOString()}&` +
             `singleEvents=true&orderBy=startTime`,
             {
-              headers: { 'Authorization': `Bearer ${calendarTokens.access_token}` }
+              headers: { 'Authorization': `Bearer ${accessToken}` }
             }
           );
 
           if (calendarResponse.ok) {
             const calendarData = await calendarResponse.json();
             const events = calendarData.items || [];
+            console.log(`Calendar: fetched ${events.length} events`);
             if (events.length > 0) {
               calendarEvents = events.map((e: any) => {
                 if (e.start?.dateTime) {
@@ -277,6 +318,9 @@ serve(async (req) => {
                 return `${e.summary || 'Untitled'} (all day)`;
               }).join(', ');
             }
+          } else {
+            const errText = await calendarResponse.text();
+            console.error(`Calendar: fetch failed with status ${calendarResponse.status}:`, errText);
           }
         } catch (e) {
           console.error('Calendar fetch error:', e);

@@ -220,8 +220,21 @@ serve(async (req) => {
             }
           }
 
-          // Also skip if there's a failed record and it was retried recently (within 5 min)
+          // Skip if too many failures today — cap retries at 3 to prevent runaway credit burn
           if (existingBriefing?.status === 'failed') {
+            const { count: failureCount } = await supabase
+              .from('briefing_lab_episodes')
+              .select('id', { count: 'exact', head: true })
+              .eq('user_id', userPrefs.user_id)
+              .eq('status', 'failed')
+              .gte('created_at', todayStartUTC);
+
+            if ((failureCount ?? 0) >= 3) {
+              skipped.push(`${userPrefs.user_id}: max retries reached (${failureCount} failures today)`);
+              console.log(`[briefing-lab-auto-generate] User ${userPrefs.user_id}: skipping, ${failureCount} failures today`);
+              continue;
+            }
+
             const failedAt = new Date(existingBriefing.created_at);
             const failedAgeMin = (now.getTime() - failedAt.getTime()) / 60000;
             if (failedAgeMin < 5) {
@@ -229,7 +242,7 @@ serve(async (req) => {
               continue;
             }
             // Otherwise fall through to retry
-            console.log(`[briefing-lab-auto-generate] User ${userPrefs.user_id}: retrying after previous failure`);
+            console.log(`[briefing-lab-auto-generate] User ${userPrefs.user_id}: retrying after previous failure (attempt ${(failureCount ?? 0) + 1}/3)`);
           }
 
           console.log(`[briefing-lab-auto-generate] Triggering Lab generation for ${userPrefs.user_id}`);

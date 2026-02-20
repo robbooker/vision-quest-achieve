@@ -42,7 +42,7 @@ async function resolveUserId(req: Request): Promise<{ userId: string | null; err
 }
 
 // Resource handlers - each returns { columns: string[], rows: any[] }
-const RESOURCE_HANDLERS: Record<string, (supabase: any, userId: string, from: string | null, to: string | null) => Promise<{ columns: string[]; rows: any[] }>> = {
+const RESOURCE_HANDLERS: Record<string, (supabase: any, userId: string, from: string | null, to: string | null, params?: URLSearchParams) => Promise<{ columns: string[]; rows: any[] }>> = {
   
   blood_pressure: async (supabase, userId, from, to) => {
     let query = supabase.from("health_measurements")
@@ -132,20 +132,30 @@ const RESOURCE_HANDLERS: Record<string, (supabase: any, userId: string, from: st
     };
   },
 
-  tasks: async (supabase, userId, from, to) => {
+  tasks: async (supabase, userId, from, to, params) => {
+    const today = new Date().toISOString().split("T")[0];
+    const effectiveTo = to || today;
     let query = supabase.from("quick_tasks")
-      .select("title, completed, completed_at, due_date, priority, position, created_at")
+      .select("title, category, pillar, completed, completed_at, due_date, created_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: true });
     if (from) query = query.gte("created_at", from);
-    if (to) query = query.lte("created_at", `${to}T23:59:59.999Z`);
+    query = query.lte("created_at", `${effectiveTo}T23:59:59.999Z`);
+    // status filter
+    const status = params?.get("status");
+    if (status === "open") query = query.eq("completed", false);
+    else if (status === "completed") query = query.eq("completed", true);
+    // category filter
+    const category = params?.get("category");
+    if (category === "personal" || category === "business") query = query.eq("category", category);
     const { data, error } = await query;
     if (error) throw error;
     return {
-      columns: ["title", "completed", "completed_at", "due_date", "priority", "created_at"],
+      columns: ["title", "category", "pillar", "completed", "completed_at", "due_date", "created_at"],
       rows: (data || []).map((r: any) => ({
-        title: r.title, completed: r.completed, completed_at: r.completed_at || "",
-        due_date: r.due_date || "", priority: r.priority || "", created_at: r.created_at,
+        title: r.title, category: r.category || "", pillar: r.pillar || "",
+        completed: r.completed, completed_at: r.completed_at || "",
+        due_date: r.due_date || "", created_at: r.created_at,
       })),
     };
   },
@@ -474,7 +484,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const { columns, rows } = await RESOURCE_HANDLERS[resource](supabase, userId, from, to);
+    const { columns, rows } = await RESOURCE_HANDLERS[resource](supabase, userId, from, to, url.searchParams);
 
     if (format === "csv") {
       const header = columns.join(",");

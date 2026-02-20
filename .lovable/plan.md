@@ -1,54 +1,66 @@
 
+## Fix the Tasks Export API
 
-## Fix: Google Calendar Token Refresh in Morning Briefing
+### What's Wrong Today
 
-### Problem
-The morning briefing generator fetches Google Calendar events using the stored OAuth access token directly, but **never checks if the token has expired and never refreshes it**. Google access tokens expire after ~1 hour.
+The `tasks` resource in the export-data function has two problems:
 
-The `google-calendar-events` Edge Function (used by the UI) correctly handles token refresh, but the briefing generator does not share that logic. When the token is stale (which it almost always will be at 7 AM if you last used the app the day before), the Google API returns a 401, the error is silently caught, and the briefing defaults to "No scheduled events."
+1. **Both `from` and `to` are required** — the query filters by `created_at`, and without `to`, the query has no upper bound but the caller still gets an error if they omit it (the developer confirmed this).
+2. **No `category` field returned** — the `quick_tasks` table has `personal` and `business` categories, but the export handler doesn't select or return that field.
+3. **No `status` filter** — there's no way to request only open or only completed tasks server-side.
+4. **No `pillar` field returned** — also present in the table but missing from the export.
 
-### Solution
-Add the same token refresh logic to the briefing generator's calendar fetch section:
+### Changes to Make
 
-1. Check `token_expires_at` from the `user_calendar_tokens` table
-2. If expired, use the `refresh_token` to get a new access token from Google's OAuth endpoint (using existing `GOOGLE_CALENDAR_CLIENT_ID` and `GOOGLE_CALENDAR_CLIENT_SECRET` secrets)
-3. Update the stored token in the database
-4. Use the fresh token for the calendar API call
-5. Add logging so calendar failures are visible in logs
+**File: `supabase/functions/export-data/index.ts`** — update only the `tasks` handler (lines 135–151):
 
-### Technical Details
+1. **Add `category` and `pillar` to the SELECT and output columns** so callers can see whether a task is personal or business.
+2. **Make `to` optional** — default to today's date (`new Date().toISOString().split("T")[0]`) if not provided. This removes the error when only `from` is passed.
+3. **Add a `status` query parameter** — if `?status=open` is passed, filter `completed = false`; if `?status=completed`, filter `completed = true`; if omitted, return all tasks. The handler signature will need to accept an extra `params` object (or we can read from the URL in a different way). The cleanest approach given the existing architecture is to pass the raw URL params through as an extra argument to handlers that need it.
 
-**File: `supabase/functions/briefing-lab-generate/index.ts`**
+### Updated API Docs (for GROOVYPLANNING.md)
 
-Current code (lines 239-284) fetches tokens and uses `access_token` directly without checking expiry:
+```
+GET /functions/v1/export-data?resource=tasks
 
+Parameters:
+  resource=tasks        (required)
+  from=YYYY-MM-DD       (optional) — filter by created_at start date
+  to=YYYY-MM-DD         (optional) — defaults to today if omitted
+  status=open|completed (optional) — filter by task status; omit for all tasks
+  format=json|csv       (optional) — defaults to json
+
+Response fields:
+  title         — task title
+  category      — "personal" or "business"
+  pillar        — associated pillar (or empty string)
+  completed     — true / false
+  completed_at  — ISO timestamp, or empty string
+  due_date      — YYYY-MM-DD, or empty string
+  created_at    — ISO timestamp
+
+Examples:
+  # All open tasks (no date filter needed)
+  GET ?resource=tasks&status=open
+
+  # Personal tasks completed this week
+  GET ?resource=tasks&category=personal&status=completed&from=2026-02-14&to=2026-02-20
+
+  # All tasks created in January as CSV
+  GET ?resource=tasks&from=2026-01-01&to=2026-01-31&format=csv
+```
+
+### Technical Implementation Detail
+
+The existing handler signature is:
 ```typescript
-// Current: no refresh, silent failure
-const { data: calendarTokens } = await supabase
-  .from('user_calendar_tokens')
-  .select('access_token, refresh_token, token_expires_at')
-  .eq('user_id', userId)
-  .single();
-
-if (calendarTokens?.access_token) {
-  // Uses potentially expired token...
-}
+(supabase, userId, from, to) => Promise<{columns, rows}>
 ```
 
-Updated code will:
+To support `status` filtering cleanly without rewriting every handler, the tasks handler will be updated to also accept an optional `extraParams` object. The main `serve` function will pass `url.searchParams` down to the handler. Since only the tasks handler uses it, the change is isolated.
 
-```text
-1. Fetch token row (already does this)
-2. Compare token_expires_at to now()
-3. If expired, call https://oauth2.googleapis.com/token with refresh_token
-4. Update user_calendar_tokens with new access_token + expiry
-5. Use the refreshed token for the calendar API call
-6. Log success/failure explicitly (e.g., "Calendar: refreshed token", "Calendar: 0 events" or "Calendar: fetch failed: 401")
-```
+Alternatively (simpler, no signature change needed): read the `status` param at the top of the `serve` function alongside `from` and `to`, then pass it as a 5th argument. The existing handlers all ignore extra arguments in JavaScript, so this is fully backward-compatible.
 
-No new secrets needed -- `GOOGLE_CALENDAR_CLIENT_ID` and `GOOGLE_CALENDAR_CLIENT_SECRET` are already configured.
+### Deployment
 
-No database changes required.
-
-Only one file changes: `supabase/functions/briefing-lab-generate/index.ts`
-
+The edge function will be redeployed automatically after the code change. No database migration needed — this is purely a query-layer fix.

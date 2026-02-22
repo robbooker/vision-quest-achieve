@@ -1,66 +1,64 @@
 
-## Fix the Tasks Export API
 
-### What's Wrong Today
+## Fix Morning Briefing Repetition — 6 Changes
 
-The `tasks` resource in the export-data function has two problems:
+### Overview
+The briefing is repeating stories because the deduplication context sent to the LLM is too small (800 chars from only 2 episodes). This plan implements 6 fixes, all primarily in `supabase/functions/briefing-lab-generate/index.ts`, plus a small type update and a database migration.
 
-1. **Both `from` and `to` are required** — the query filters by `created_at`, and without `to`, the query has no upper bound but the caller still gets an error if they omit it (the developer confirmed this).
-2. **No `category` field returned** — the `quick_tasks` table has `personal` and `business` categories, but the export handler doesn't select or return that field.
-3. **No `status` filter** — there's no way to request only open or only completed tasks server-side.
-4. **No `pillar` field returned** — also present in the table but missing from the export.
+---
 
-### Changes to Make
+### Fix 1: Increase script truncation from 800 to 3,000 characters
+**File:** `supabase/functions/briefing-lab-generate/index.ts` (line 590)
+Change `truncateAtSentence(ep.script, 800)` to `truncateAtSentence(ep.script, 3000)` so the LLM sees ~75% of each previous script instead of ~20%.
 
-**File: `supabase/functions/export-data/index.ts`** — update only the `tasks` handler (lines 135–151):
+### Fix 2: Increase episode lookback from 2 to 5
+**File:** Same file (line 572)
+Change `.limit(2)` to `.limit(5)` to cover a full business week of previous briefings.
 
-1. **Add `category` and `pillar` to the SELECT and output columns** so callers can see whether a task is personal or business.
-2. **Make `to` optional** — default to today's date (`new Date().toISOString().split("T")[0]`) if not provided. This removes the error when only `from` is passed.
-3. **Add a `status` query parameter** — if `?status=open` is passed, filter `completed = false`; if `?status=completed`, filter `completed = true`; if omitted, return all tasks. The handler signature will need to accept an extra `params` object (or we can read from the URL in a different way). The cleanest approach given the existing architecture is to pass the raw URL params through as an extra argument to handlers that need it.
-
-### Updated API Docs (for GROOVYPLANNING.md)
+### Fix 3: Add structured topic extraction to the dedup block
+**File:** Same file (lines 587-592)
+After fetching recent episodes, extract key topics from each script by splitting on transition phrases ("In ", "Meanwhile", "Over in", "On the", "Turning to", "In other news", "Looking at") and taking the first ~15 words of each chunk. Build a bullet list prepended before the raw script excerpts:
 
 ```
-GET /functions/v1/export-data?resource=tasks
-
-Parameters:
-  resource=tasks        (required)
-  from=YYYY-MM-DD       (optional) — filter by created_at start date
-  to=YYYY-MM-DD         (optional) — defaults to today if omitted
-  status=open|completed (optional) — filter by task status; omit for all tasks
-  format=json|csv       (optional) — defaults to json
-
-Response fields:
-  title         — task title
-  category      — "personal" or "business"
-  pillar        — associated pillar (or empty string)
-  completed     — true / false
-  completed_at  — ISO timestamp, or empty string
-  due_date      — YYYY-MM-DD, or empty string
-  created_at    — ISO timestamp
-
-Examples:
-  # All open tasks (no date filter needed)
-  GET ?resource=tasks&status=open
-
-  # Personal tasks completed this week
-  GET ?resource=tasks&category=personal&status=completed&from=2026-02-14&to=2026-02-20
-
-  # All tasks created in January as CSV
-  GET ?resource=tasks&from=2026-01-01&to=2026-01-31&format=csv
+KEY STORIES ALREADY COVERED (do not repeat unless there is a major new development):
+- OpenAI announces new model pricing [Feb 21]
+- Bulls complete blockbuster trade [Feb 21]
 ```
 
-### Technical Implementation Detail
+If a newer episode has `topics_covered` stored (from Fix 6), use that array directly instead of the regex extraction.
 
-The existing handler signature is:
-```typescript
-(supabase, userId, from, to) => Promise<{columns, rows}>
-```
+### Fix 4: Add dedup context to GPT-5.2 fallback prompt
+**File:** Same file (lines 680-709)
+The `generateWithOpenAI` fallback prompt currently has zero awareness of previous stories. Insert the same `previousCoverage` block before the **STRUCTURED DATA** section so the fallback also avoids repetition.
 
-To support `status` filtering cleanly without rewriting every handler, the tasks handler will be updated to also accept an optional `extraParams` object. The main `serve` function will pass `url.searchParams` down to the handler. Since only the tasks handler uses it, the change is isolated.
+### Fix 5: Add freshness hints to search queries
+**File:** Same file, `buildSearchInstructions` function (lines 398-503)
+Two changes:
+1. Add a freshness instruction at the top of search instructions: "IMPORTANT: Prioritize stories from the last 23 hours..."
+2. Append "latest new developments" to each category's search query string (sports, tech, business, politics, science, health, books, film/tv, music, gaming, custom topics).
 
-Alternatively (simpler, no signature change needed): read the `status` param at the top of the `serve` function alongside `from` and `to`, then pass it as a 5th argument. The existing handlers all ignore extra arguments in JavaScript, so this is fully backward-compatible.
+### Fix 6: Store topics_covered on each episode
 
-### Deployment
+**Database migration:** Add a nullable `jsonb` column `topics_covered` (default `null`) to `briefing_lab_episodes`.
 
-The edge function will be redeployed automatically after the code change. No database migration needed — this is purely a query-layer fix.
+**Edge function changes:**
+- Update the dedup query (line 568) to also select `topics_covered, generated_at`
+- After script generation (around line 898), extract 5-10 topic summaries from the script using the same transition-phrase splitting logic and store as a JSON array of strings
+- Include `topics_covered` in the episode update (line 957-966)
+
+**Type update:** Add `topics_covered: string[] | null` to the `BriefingLabEpisode` interface in `src/hooks/useBriefingLab.ts`.
+
+---
+
+### Files Modified
+| File | Changes |
+|------|---------|
+| `supabase/functions/briefing-lab-generate/index.ts` | Fixes 1-6: dedup logic, fallback prompt, search queries, topic extraction and storage |
+| `src/hooks/useBriefingLab.ts` | Fix 6: add `topics_covered` to type |
+| Database migration | Fix 6: add `topics_covered jsonb` column |
+
+### Risk Assessment
+- Larger dedup context increases Claude token usage slightly but stays well within limits
+- The topic extraction is a simple regex-based approach -- no external API calls needed
+- Backward compatible: older episodes without `topics_covered` fall back to regex extraction
+

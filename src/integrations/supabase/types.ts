@@ -553,6 +553,7 @@ export type Database = {
           scraped_data_id: string | null
           script: string | null
           status: string | null
+          topics_covered: Json | null
           user_id: string
         }
         Insert: {
@@ -566,6 +567,7 @@ export type Database = {
           scraped_data_id?: string | null
           script?: string | null
           status?: string | null
+          topics_covered?: Json | null
           user_id: string
         }
         Update: {
@@ -579,6 +581,7 @@ export type Database = {
           scraped_data_id?: string | null
           script?: string | null
           status?: string | null
+          topics_covered?: Json | null
           user_id?: string
         }
         Relationships: [

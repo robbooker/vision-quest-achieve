@@ -64,6 +64,7 @@ export interface BriefingLabEpisode {
   categories_used: string[];
   status: 'generating' | 'ready' | 'failed';
   error_message: string | null;
+  topics_covered: string[] | null;
   created_at: string;
 }
 

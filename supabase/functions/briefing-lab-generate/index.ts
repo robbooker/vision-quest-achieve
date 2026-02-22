@@ -397,6 +397,7 @@ serve(async (req) => {
     // Step 5: Build search instructions for Claude based on enabled categories
     const buildSearchInstructions = () => {
       const instructions: string[] = [];
+      instructions.push('IMPORTANT: Prioritize stories from the last 23 hours. Skip stories that were major headlines yesterday unless there is a significant new development today.\n');
       
       // Sports
       if (depthMap.sports !== 'off') {
@@ -404,10 +405,10 @@ serve(async (req) => {
         if (teams) {
           const teamList = teams.split(',').map((t: string) => t.trim()).filter(Boolean);
           teamList.forEach((team: string) => {
-            instructions.push(`- Search "${team} latest news today ${fullDate}" for recent games, scores, and news`);
+            instructions.push(`- Search "${team} latest new developments news today ${fullDate}" for recent games, scores, and news`);
           });
         } else {
-          instructions.push(`- Search "top sports news today ${fullDate}" for major sports headlines`);
+          instructions.push(`- Search "top sports latest new developments today ${fullDate}" for major sports headlines`);
         }
         if (depthMap.sports === 'full') {
           instructions.push(`  → Provide full coverage with context and analysis for each team/story`);
@@ -419,7 +420,7 @@ serve(async (req) => {
       // Tech/AI
       if (depthMap.tech !== 'off') {
         const topics = labPrefs?.tech_topics || 'AI, technology';
-        instructions.push(`- Search "${topics} news today ${fullDate}" for latest tech developments`);
+        instructions.push(`- Search "${topics} latest new developments today ${fullDate}" for latest tech developments`);
         if (depthMap.tech === 'full') {
           instructions.push(`  → Provide detailed coverage with implications and context`);
         } else {
@@ -430,7 +431,7 @@ serve(async (req) => {
       // Business
       if (depthMap.business !== 'off') {
         const topics = labPrefs?.business_topics || 'stock market, business';
-        instructions.push(`- Search "${topics} news today ${fullDate}" for market and business news`);
+        instructions.push(`- Search "${topics} latest new developments today ${fullDate}" for market and business news`);
         if (depthMap.business === 'full') {
           instructions.push(`  → Include market analysis and major company news`);
         } else {
@@ -441,7 +442,7 @@ serve(async (req) => {
       // Politics
       if (depthMap.politics !== 'off') {
         const topics = labPrefs?.politics_topics || 'US politics';
-        instructions.push(`- Search "${topics} news today ${fullDate}" for political developments`);
+        instructions.push(`- Search "${topics} latest new developments today ${fullDate}" for political developments`);
         if (depthMap.politics === 'full') {
           instructions.push(`  → Provide context and analysis`);
         } else {
@@ -452,7 +453,7 @@ serve(async (req) => {
       // Science
       if (depthMap.science !== 'off') {
         const topics = labPrefs?.science_topics || 'science discoveries';
-        instructions.push(`- Search "${topics} news today ${fullDate}" for science news`);
+        instructions.push(`- Search "${topics} latest new developments today ${fullDate}" for science news`);
         if (depthMap.science === 'full') {
           instructions.push(`  → Explain significance and context`);
         } else {
@@ -463,7 +464,7 @@ serve(async (req) => {
       // Health
       if (depthMap.health !== 'off') {
         const topics = labPrefs?.health_topics || 'health, fitness, wellness';
-        instructions.push(`- Search "${topics} news today ${fullDate}" for health news`);
+        instructions.push(`- Search "${topics} latest new developments today ${fullDate}" for health news`);
         if (depthMap.health === 'full') {
           instructions.push(`  → Include research findings and practical advice`);
         } else {
@@ -474,29 +475,29 @@ serve(async (req) => {
       // Books
       if (depthMap.books !== 'off') {
         const topics = labPrefs?.books_topics || 'book releases, bestsellers';
-        instructions.push(`- Search "${topics} ${fullDate}" for literary news`);
+        instructions.push(`- Search "${topics} latest new developments ${fullDate}" for literary news`);
       }
       
       // Film/TV
       if (depthMap.film_tv !== 'off') {
-        instructions.push(`- Search "movies TV shows streaming news today ${fullDate}" for entertainment news`);
+        instructions.push(`- Search "movies TV shows streaming latest new developments today ${fullDate}" for entertainment news`);
       }
       
       // Music
       if (depthMap.music !== 'off') {
         const topics = labPrefs?.music_topics || 'music releases, concerts';
-        instructions.push(`- Search "${topics} news today ${fullDate}" for music news`);
+        instructions.push(`- Search "${topics} latest new developments today ${fullDate}" for music news`);
       }
       
       // Gaming
       if (depthMap.gaming !== 'off') {
         const topics = labPrefs?.gaming_topics || 'video games';
-        instructions.push(`- Search "${topics} news today ${fullDate}" for gaming news`);
+        instructions.push(`- Search "${topics} latest new developments today ${fullDate}" for gaming news`);
       }
       
       // Custom topics
       if (labPrefs?.custom_topics) {
-        instructions.push(`- Search "${labPrefs.custom_topics} news today ${fullDate}" for custom topic updates`);
+        instructions.push(`- Search "${labPrefs.custom_topics} latest new developments today ${fullDate}" for custom topic updates`);
       }
       
       return instructions.join('\n');
@@ -562,14 +563,14 @@ Include a 30-60 second reflection on this word at the end of the briefing.` : ''
     
     const shortScoutSection = buildShortScoutSection();
 
-    // Fetch last 2 episode scripts for dedup
+    // Fetch last 5 episode scripts for dedup
     const { data: recentEpisodes } = await supabase
       .from('briefing_lab_episodes')
-      .select('script')
+      .select('script, topics_covered, generated_at')
       .eq('user_id', userId)
       .eq('status', 'ready')
       .order('generated_at', { ascending: false })
-      .limit(2);
+      .limit(5);
 
     const truncateAtSentence = (text: string, maxLen: number): string => {
       if (!text || text.length <= maxLen) return text || '';
@@ -584,11 +585,48 @@ Include a 30-60 second reflection on this word at the end of the briefing.` : ''
         : slice;
     };
 
+    // Helper: extract topic summaries from a script using transition phrases
+    const extractTopicsFromScript = (scriptText: string): string[] => {
+      if (!scriptText) return [];
+      const transitionPattern = /(?:^|(?<=\.\s))(?:In |Meanwhile|Over in|On the|Turning to|In other news|Looking at|And in|Now,? |Speaking of|Over on|When it comes to|As for)/gi;
+      const chunks = scriptText.split(transitionPattern).filter(c => c && c.trim().length > 20);
+      return chunks.slice(0, 10).map(chunk => {
+        const words = chunk.trim().split(/\s+/).slice(0, 15).join(' ');
+        return words.replace(/[.,!?;:]+$/, '');
+      });
+    };
+
+    // Format date for display
+    const formatShortDate = (dateStr: string | null): string => {
+      if (!dateStr) return '';
+      const d = new Date(dateStr);
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+
     let previousCoverage = '';
     if (recentEpisodes?.length) {
-      previousCoverage = recentEpisodes
-        .map((ep, i) => `[Briefing ${i + 1} ago]:\n${truncateAtSentence(ep.script, 800)}`)
+      // Build structured topic list
+      const topicLines: string[] = [];
+      recentEpisodes.forEach((ep) => {
+        const dateLabel = formatShortDate(ep.generated_at);
+        // Prefer stored topics_covered, fall back to regex extraction
+        const topics = (ep.topics_covered as string[] | null)?.length
+          ? (ep.topics_covered as string[])
+          : extractTopicsFromScript(ep.script || '');
+        topics.forEach(topic => {
+          topicLines.push(`- ${topic} [${dateLabel}]`);
+        });
+      });
+
+      const structuredTopics = topicLines.length > 0
+        ? `KEY STORIES ALREADY COVERED (do not repeat unless there is a major new development):\n${topicLines.join('\n')}\n\n`
+        : '';
+
+      const scriptExcerpts = recentEpisodes
+        .map((ep, i) => `[Briefing ${i + 1} ago]:\n${truncateAtSentence(ep.script, 3000)}`)
         .join('\n\n');
+
+      previousCoverage = structuredTopics + scriptExcerpts;
     }
 
     // Get personality prompt
@@ -684,7 +722,14 @@ CRITICAL: You MUST produce a complete briefing script. No apologies, no refusals
 
 You do NOT have web search. Use your general knowledge for any news topics -- prioritize being helpful and engaging over being perfectly current. If you're unsure about very recent events, speak in general terms about ongoing trends and stories.
 
-**STRUCTURED DATA (use this as your foundation):**
+${previousCoverage ? `**PREVIOUSLY COVERED (DO NOT REPEAT):**
+The following stories were covered in recent briefings. Do NOT repeat the same stories, quotes, or talking points unless there is a genuinely new development. Find FRESH angles and NEW stories.
+
+${previousCoverage}
+
+---
+
+` : ''}**STRUCTURED DATA (use this as your foundation):**
 
 **WEATHER:**
 ${weatherData}
@@ -898,6 +943,10 @@ Write the complete briefing script now:`;
     console.log(`Final generation source: ${generationSource}`);
     console.log(`Generated script: ${script.length} characters`);
 
+    // Extract topics for future dedup
+    const topicsCovered = extractTopicsFromScript(script).slice(0, 10);
+    console.log(`Extracted ${topicsCovered.length} topics for dedup:`, topicsCovered);
+
     // Step 7: Generate audio with ElevenLabs TTS
     console.log('Generating audio...');
     const ttsResponse = await fetch(
@@ -961,7 +1010,8 @@ Write the complete briefing script now:`;
         podcast_url: publicUrl,
         script,
         duration_seconds: actualDuration,
-        generated_at: new Date().toISOString()
+        generated_at: new Date().toISOString(),
+        topics_covered: topicsCovered
       })
       .eq('id', episode.id);
 

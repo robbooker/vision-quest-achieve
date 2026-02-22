@@ -1,0 +1,1 @@
+ALTER TABLE public.briefing_lab_episodes ADD COLUMN topics_covered jsonb DEFAULT null;

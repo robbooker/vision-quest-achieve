@@ -1,78 +1,80 @@
 
 
-## Add `manage-calendar` Edge Function
+## Blood Pressure Research Tab on Physical Pillar Page
 
-### What Already Exists
-- `google-calendar-create-event/index.ts` already does create/update/delete against Google Calendar, but only accepts Supabase JWT auth (not `gp_` API keys) and uses a different request/response shape.
-- `export-data/index.ts` has the `resolveUserId()` function that handles both JWT and `gp_` API key auth, plus Google Calendar token refresh logic in its `calendar` resource handler.
+### Overview
+Add a dedicated "Blood Pressure" tab alongside the existing "Dashboard" and "Nutrition" tabs on the Physical Pillar page. This tab will be a full research tool with deep analytics, historical data browsing, search, and rich visualizations -- far beyond the small summary card currently shown in the dashboard.
 
-### What We'll Build
-A new edge function `manage-calendar` that:
-1. Reuses the same dual-auth pattern (`gp_` API key or JWT) from `export-data`
-2. Accepts the exact request/response format from the spec
-3. Talks to the Google Calendar API for create/update/delete
+### What Exists Today
+- `useHealthMeasurements(daysBack)` hook fetches BP readings from `health_measurements` table, but is limited to a `daysBack` window (currently 60 days on the dashboard card)
+- `PhysicalBiometricsSection` shows a compact BP card with a 14-reading trend chart, scatter plot, time-of-day averages, and 5 recent readings
+- The hook already computes averages, scatter data, and time-of-day stats
 
-### Request/Response Contract
+### New Tab Contents
 
-**Create:**
-```json
-POST /manage-calendar
-{
-  "action": "create",
-  "title": "Team standup",
-  "start": "2026-02-24T09:00:00-06:00",
-  "end": "2026-02-24T09:30:00-06:00",
-  "all_day": false,
-  "notes": "optional"
-}
-// Response: { "id": "google_event_id", "success": true }
-```
+**1. Summary Stats Row**
+- Latest reading with timestamp and BP category badge (Normal/Elevated/Stage 1/Stage 2)
+- 7-day average, 30-day average, 90-day average (sys/dia)
+- All-time high and all-time low readings with dates
+- Total reading count
 
-**Update:**
-```json
-POST /manage-calendar
-{
-  "action": "update",
-  "id": "event_id",
-  "title": "optional",
-  "start": "optional ISO 8601",
-  "end": "optional ISO 8601",
-  "notes": "optional"
-}
-// Response: { "id": "event_id", "success": true }
-```
+**2. Trend Chart (primary visualization)**
+- Large line chart showing systolic and diastolic over time
+- Time range selector: 7d / 30d / 90d / 6mo / 1yr / All
+- Reference lines at 120/80 (normal) and 140/90 (hypertension)
+- Color-coded zones (green for normal, yellow for elevated, red for high)
+- 7-day moving average overlay toggle
 
-**Delete:**
-```json
-POST /manage-calendar
-{ "action": "delete", "id": "event_id" }
-// Response: { "success": true }
-```
+**3. Distribution / Histogram**
+- Bar chart showing frequency of readings in each BP category (Normal, Elevated, Stage 1, Stage 2)
+- Percentage breakdown
 
-### Implementation Details
+**4. Time-of-Day Analysis (enhanced version of existing scatter)**
+- Full-width scatter plot with systolic + diastolic dots
+- Period averages (Morning/Afternoon/Evening) with reading counts
+- AI-generated insight text
 
-**New file:** `supabase/functions/manage-calendar/index.ts`
+**5. Weekly/Monthly Averages Chart**
+- Bar chart grouping readings by week or month
+- Shows how averages are trending over longer periods
 
-The function will:
+**6. Spike Detector**
+- Highlight readings that are statistical outliers (> 1.5 standard deviations from mean)
+- Show spike readings in a list with date, values, and any notes
 
-1. Handle CORS preflight
-2. Authenticate using `resolveUserId()` -- same logic as `export-data` supporting both `gp_` API keys and Supabase JWTs
-3. Parse the JSON body and validate required fields per action
-4. Fetch the user's Google Calendar tokens from `user_calendar_tokens`, refresh if expired (same pattern as `export-data` and `google-calendar-create-event`)
-5. Call the Google Calendar API:
-   - **create**: `POST /calendars/{id}/events` with `summary`, `start`, `end`, `description` fields. Supports `all_day` by using `date` instead of `dateTime` keys
-   - **update**: `PATCH /calendars/{id}/events/{eventId}` with only the provided fields (partial update)
-   - **delete**: `DELETE /calendars/{id}/events/{eventId}`
-6. Return the spec'd response format
+**7. Full Reading Log (searchable table)**
+- Paginated list of all BP readings (newest first)
+- Search/filter by date range and notes text
+- Each row shows: date/time, systolic, diastolic, category badge, notes
+- Delete button per reading
 
-**Config update:** `supabase/config.toml` -- add `[functions.manage-calendar]` with `verify_jwt = false` (auth is handled in code)
+**8. Export Button**
+- Link to the existing `export-blood-pressure` edge function for CSV download
+
+### Technical Implementation
+
+**New file: `src/components/primed/BloodPressureTab.tsx`**
+- The main tab component containing all sections above
+- Uses a modified version of `useHealthMeasurements` that fetches ALL readings (no daysBack limit) for the research view
+- Manages local state for time range selector, search query, pagination
+
+**Modified: `src/hooks/useHealthMeasurements.ts`**
+- Add a new query option to fetch all BP readings (pass `daysBack = 0` or `Infinity` to mean "all time")
+- Add computed fields: 7-day / 30-day / 90-day averages, all-time high/low, standard deviation for spike detection, weekly/monthly grouped averages
+- Add a `searchBP(query: string)` filter for notes search
+
+**Modified: `src/pages/PhysicalPillar.tsx`**
+- Add a third tab trigger: `<TabsTrigger value="blood-pressure">Blood Pressure</TabsTrigger>` with a Heart icon
+- Add corresponding `<TabsContent>` rendering `<BloodPressureTab />`
 
 ### Files to Create/Modify
+
 | File | Change |
 |------|--------|
-| `supabase/functions/manage-calendar/index.ts` | New edge function |
-| `supabase/config.toml` | Add `manage-calendar` entry |
+| `src/components/primed/BloodPressureTab.tsx` | New -- full research tab component |
+| `src/hooks/useHealthMeasurements.ts` | Extended -- add all-time query, richer computed stats, search |
+| `src/pages/PhysicalPillar.tsx` | Add "Blood Pressure" tab trigger and content |
 
 ### No Database Changes Needed
-This function only talks to the Google Calendar API using existing stored tokens. No new tables or columns required.
+All data already lives in `health_measurements` with `measurement_type = 'blood_pressure'`. We just need to remove the `daysBack` limit for the research view.
 

@@ -189,3 +189,6 @@ verify_jwt = false
 
 [functions.export-data]
 verify_jwt = false
+
+[functions.manage-calendar]
+verify_jwt = false

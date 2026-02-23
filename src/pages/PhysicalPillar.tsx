@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ArrowLeft, RefreshCw, Heart, Moon, Utensils, Activity, FlaskConical, Footprints, Scale, Droplets } from 'lucide-react';
 import { NutritionTab } from '@/components/primed/NutritionTab';
+import { BloodPressureTab } from '@/components/primed/BloodPressureTab';
 import { usePrimedAssessments } from '@/hooks/usePrimedAssessment';
 import { useOuraMetrics } from '@/hooks/useOuraMetrics';
 import { PILLARS, LEVEL_NAMES, getBehaviorsForPillarAndLevel, LEVEL_DESCRIPTIONS, PillarLevel } from '@/data/primedBehaviors';
@@ -151,6 +152,9 @@ export default function PhysicalPillar() {
           <TabsList className="w-full sm:w-auto">
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
             <TabsTrigger value="nutrition">Nutrition</TabsTrigger>
+            <TabsTrigger value="blood-pressure" className="flex items-center gap-1.5">
+              <Heart className="h-3.5 w-3.5" />Blood Pressure
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="dashboard">
@@ -280,6 +284,10 @@ export default function PhysicalPillar() {
 
           <TabsContent value="nutrition">
             <NutritionTab />
+          </TabsContent>
+
+          <TabsContent value="blood-pressure">
+            <BloodPressureTab />
           </TabsContent>
         </Tabs>
       </div>

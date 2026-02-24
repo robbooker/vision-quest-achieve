@@ -18,8 +18,6 @@ export default function Admin() {
   const [grantEmail, setGrantEmail] = useState('');
   const [grantDuration, setGrantDuration] = useState('1year');
   const [granting, setGranting] = useState(false);
-  const [dbUrl, setDbUrl] = useState<string | null>(null);
-  const [dbUrlLoading, setDbUrlLoading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -206,40 +204,7 @@ export default function Admin() {
               </CardContent>
             </Card>
 
-            {/* TEMP: DB URL Reveal */}
-            <Card className="border-destructive">
-              <CardHeader>
-                <CardTitle className="text-sm">🔑 DB Connection String (TEMP)</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  disabled={dbUrlLoading}
-                  onClick={async () => {
-                    setDbUrlLoading(true);
-                    try {
-                      const { data: { session } } = await supabase.auth.getSession();
-                      const res = await supabase.functions.invoke('get-db-url', {});
-                      if (res.error) throw res.error;
-                      setDbUrl(res.data?.db_url || 'Not set');
-                    } catch (e: any) {
-                      toast({ title: 'Error', description: e.message, variant: 'destructive' });
-                    } finally {
-                      setDbUrlLoading(false);
-                    }
-                  }}
-                >
-                  {dbUrlLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-                  Reveal DB URL
-                </Button>
-                {dbUrl && (
-                  <pre className="text-xs bg-muted p-3 rounded-md break-all whitespace-pre-wrap font-mono select-all">
-                    {dbUrl}
-                  </pre>
-                )}
-              </CardContent>
-            </Card>
+
           </div>
         </div>
       </DashboardLayout>

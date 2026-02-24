@@ -867,6 +867,123 @@ html.text-size-large {
     0 0 30px hsl(330 100% 60% / 0.6) !important;
 }
 
+/* ============================================
+   1971 Theme — Groovy Rainbow Wave Background
+   ============================================ */
+.retro-1971 {
+  /* Deep chocolate brown background */
+  --background: 25 50% 14%;
+  /* Warm cream foreground */
+  --foreground: 40 50% 88%;
+
+  /* Aged parchment card */
+  --card: 42 35% 85%;
+  --card-foreground: 20 40% 18%;
+
+  --popover: 42 35% 85%;
+  --popover-foreground: 20 40% 18%;
+
+  /* Primary: Burnt orange */
+  --primary: 25 85% 52%;
+  --primary-foreground: 42 35% 92%;
+
+  /* Secondary: Warm brown */
+  --secondary: 25 30% 25%;
+  --secondary-foreground: 40 50% 88%;
+
+  /* Muted: Dark brown */
+  --muted: 25 25% 22%;
+  --muted-foreground: 35 30% 60%;
+
+  /* Accent: Avocado green */
+  --accent: 85 45% 42%;
+  --accent-foreground: 42 35% 92%;
+
+  /* Destructive: 70s rust red */
+  --destructive: 5 65% 45%;
+  --destructive-foreground: 42 35% 92%;
+
+  /* Borders: Warm brown */
+  --border: 25 30% 35%;
+  --input: 25 25% 22%;
+  --ring: 25 85% 52%;
+
+  --radius: 10px;
+
+  /* Sidebar: Dark walnut */
+  --sidebar-background: 20 45% 10%;
+  --sidebar-foreground: 40 50% 80%;
+  --sidebar-primary: 25 85% 52%;
+  --sidebar-primary-foreground: 20 45% 10%;
+  --sidebar-accent: 20 35% 18%;
+  --sidebar-accent-foreground: 40 50% 80%;
+  --sidebar-border: 20 30% 20%;
+  --sidebar-ring: 25 85% 52%;
+
+  /* Chart colors — 70s palette */
+  --chart-1: 42 80% 55%;   /* Harvest gold */
+  --chart-2: 85 45% 42%;   /* Avocado green */
+  --chart-3: 25 85% 52%;   /* Burnt orange */
+  --chart-4: 5 65% 45%;    /* Rust red */
+  --chart-5: 40 50% 88%;   /* Cream */
+
+  /* Retro-specific tokens */
+  --index-card-bg: 42 35% 85%;
+  --index-card-lines: 35 20% 78%;
+  --index-card-margin: 5 65% 45%;
+  --nixie-bg: 20 45% 10%;
+  --nixie-glow: 42 80% 55%;
+  --nixie-glow-alt: 85 45% 50%;
+  --chiclet-light: 25 30% 30%;
+  --chiclet-dark: 25 35% 20%;
+  --chiclet-shadow: 20 40% 12%;
+}
+
+.retro-1971 body {
+  background-color: hsl(20 45% 12%) !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 900' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='bg' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0%25' stop-color='%233D2314'/%3E%3Cstop offset='100%25' stop-color='%232A1508'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill='url(%23bg)' width='1440' height='900'/%3E%3Cpath d='M-100 650 C200 600 400 500 700 520 C1000 540 1200 450 1600 480 L1600 900 L-100 900Z' fill='%235E8C3A' opacity='0.85'/%3E%3Cpath d='M-100 600 C250 550 450 460 750 470 C1050 480 1250 400 1600 430 L1600 900 L-100 900Z' fill='%23B8372A' opacity='0.85'/%3E%3Cpath d='M-100 550 C300 500 500 420 800 430 C1100 440 1300 360 1600 380 L1600 900 L-100 900Z' fill='%23D4622B' opacity='0.85'/%3E%3Cpath d='M-100 500 C350 450 550 380 850 390 C1150 400 1350 320 1600 340 L1600 900 L-100 900Z' fill='%23E8A735' opacity='0.85'/%3E%3C/svg%3E") !important;
+  background-attachment: fixed !important;
+  background-size: cover !important;
+  background-position: center bottom !important;
+}
+
+.retro-1971 .goal-card,
+.retro-1971 .retro-card {
+  background: hsl(42 35% 85% / 0.95) !important;
+  background-image: none !important;
+  border: 1px solid hsl(25 30% 60% / 0.4) !important;
+  border-left-width: 1px !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 16px hsl(20 40% 10% / 0.3) !important;
+}
+
+.retro-1971 .goal-card:hover,
+.retro-1971 .retro-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px hsl(20 40% 10% / 0.4) !important;
+}
+
+.retro-1971 h1,
+.retro-1971 h2,
+.retro-1971 h3 {
+  color: hsl(40 50% 88%);
+  text-shadow: none;
+  font-weight: 700;
+}
+
+.retro-1971 .chiclet-button {
+  background: linear-gradient(145deg, hsl(25 35% 30%), hsl(20 40% 18%)) !important;
+  color: hsl(40 50% 88%) !important;
+  border-radius: 10px !important;
+  box-shadow:
+    0 4px 0 hsl(20 40% 10%),
+    0 2px 8px hsl(20 40% 10% / 0.4) !important;
+}
+
+.retro-1971 .chiclet-button:hover {
+  background: linear-gradient(145deg, hsl(25 40% 35%), hsl(20 45% 22%)) !important;
+}
+
 /* Marquee animation for stock tickers */
 @keyframes marquee {
   from {

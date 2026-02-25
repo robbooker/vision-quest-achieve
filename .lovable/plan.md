@@ -1,74 +1,75 @@
 
 
-## Plan: Add "1971" Theme — Groovy Rainbow Wave Background
+## Mobile Responsiveness Overhaul
 
-### Concept
-A new theme called **1971** inspired by the reference image: rich chocolate-brown background with flowing rainbow wave stripes (yellow, orange, red, green) rendered as a pure CSS background. Cards remain clean (aged paper). The overall vibe is early-70s wood-paneled hi-fi equipment meets psychedelic poster art.
+### Root Causes Identified
 
-### Architecture
-Follow the exact same pattern as Miami Mode — a context provider with `localStorage` persistence, a CSS class (`retro-1971`) on `<html>`, and a toggle in the ThemeToggle dropdown.
+After auditing the layout system, CSS, and key pages, the mobile experience is broken by several compounding issues:
 
-### Files to Create
+**1. Container padding is too aggressive**
+The Tailwind config sets `container.padding: "2rem"` (32px each side) with no mobile override. On a 375px phone, that leaves only 311px for content. Combined with `DashboardLayout`'s `<main className="container py-6">`, you lose 64px of horizontal space before any content renders.
 
-**`src/hooks/useRetro1971.tsx`**
-- Context provider mirroring `useMiamiMode.tsx`
-- Stores `retro-1971` in `localStorage`
-- Toggles `.retro-1971` class on `document.documentElement`
-- Secret keyboard shortcut: `Shift+Cmd+7` / `Shift+Ctrl+7`
+**2. No responsive padding strategy**
+The container config only defines one breakpoint (`2xl: 1400px`). There are no mobile-specific padding overrides like `padding: { DEFAULT: "1rem", sm: "1.5rem", lg: "2rem" }`.
 
-### Files to Modify
+**3. Header cramming**
+The mobile nav bar (`md:hidden`) tries to fit 5 nav items (`Dashboard`, `Today`, `Focus`, `P.R.I.M.E.D.`, `Journal`) side by side using `justify-around`. On small screens, labels like "P.R.I.M.E.D." and "DASHBOARD" overflow or compress.
 
-**`src/index.css`** — Add ~120 lines after the Miami Mode block:
-- `.retro-1971` CSS custom properties:
-  - Background: deep chocolate brown `--background: 25 50% 18%`
-  - Foreground: warm cream `--foreground: 40 60% 90%`
-  - Cards: aged parchment `--card: 45 40% 88%` with dark brown text
-  - Primary: burnt orange `--primary: 25 90% 55%`
-  - Accent: avocado green `--accent: 85 50% 45%`
-  - Sidebar: dark walnut wood tones
-  - Chart palette: harvest gold, avocado, rust, burnt sienna, cream
-- `.retro-1971 body` — The hero effect: a multi-layer CSS background combining:
-  1. A fixed gradient base (dark brown)
-  2. Multiple SVG-based or CSS gradient wave stripes flowing diagonally across the page in yellow (#E8A735), orange (#D4622B), red (#B8372A), and green (#5E8C3A)
-  3. Uses `background-attachment: fixed` so waves stay as you scroll
-- `.retro-1971::before` — An additional decorative wave element using CSS clip-path or gradients in the corner (matching the reference image's corner swoosh)
-- `.retro-1971 .goal-card, .retro-1971 .retro-card` — Parchment-colored with subtle paper texture, rounded corners (more than default), soft drop shadow instead of hard retro shadow
-- `.retro-1971 h1, h2, h3` — Warm cream color, no neon glow, slightly bolder weight
-- `.retro-1971 .chiclet-button` — Wood-grain style with warm brown gradient
+**4. Fixed-size elements throughout pages**
+Cards, badges, buttons, and grid layouts use desktop-first sizing. The Today page has `flex-wrap gap-2` headers but widgets like `WeatherWidget`, `HealthMetricsWidget`, and action buttons all compete for the same row.
 
-**`src/App.tsx`**
-- Import and wrap with `Retro1971Provider` (same level as `MiamiModeProvider`)
+**5. No viewport meta concerns but real touch-target issues**
+The command bar and input targets are reasonable (16px font prevents iOS zoom), but many interactive elements (habit toggles, calendar pills, dropdown triggers) are too small for comfortable mobile tapping.
 
-**`src/components/ThemeToggle.tsx`**
-- Import `useRetro1971` hook
-- Add a `Disc3` (vinyl record) icon from lucide for the 1971 theme
-- Add "1971" menu item in the dropdown
-- Show "Exit 1971 Mode" when active (same pattern as Miami exit)
-- Update `getIcon()` to show the vinyl icon when 1971 is active
+---
 
-### CSS Wave Background Technique
-The rainbow waves will be achieved with layered CSS radial/conic gradients and `border-radius` tricks, or more likely multiple `background` layers using `repeating-linear-gradient` at angles, combined with SVG wave paths inlined as data URIs. This avoids any image file dependencies. The key colors from the reference:
-- Yellow/Gold: `#E8A735`
-- Orange: `#D4622B`  
-- Red/Rust: `#B8372A`
-- Green/Olive: `#5E8C3A`
-- Brown base: `#3D2314`
+### Plan
+
+**Phase 1: Foundation fixes (container + layout)**
+
+- Update `tailwind.config.ts` container padding to be responsive:
+  ```
+  padding: { DEFAULT: "1rem", sm: "1.5rem", lg: "2rem" }
+  ```
+- Reduce `py-6` to `py-4` on mobile in `DashboardLayout`'s main content area
+- Add `px-4 sm:px-6 lg:container` pattern or adjust container usage
+
+**Phase 2: Mobile navigation**
+
+- Shorten mobile nav labels (e.g., "PRIMED" instead of "P.R.I.M.E.D.", abbreviate or use icon-only on smallest screens)
+- Increase touch targets to minimum 44px height
+- Consider icon-only mobile nav with labels below only if space permits
+
+**Phase 3: Today page mobile layout**
+
+- Stack the date header and action buttons vertically on mobile instead of `flex justify-between`
+- Make the Daily Steps and Calendar sections full-width stacked (already `grid-cols-1` at default, but inner padding and card content need tightening)
+- Reduce card header padding and font sizes on mobile
+- Make the calendar strip horizontally scrollable without clipping
+
+**Phase 4: Component-level mobile fixes**
+
+- Audit and fix touch targets across `HabitItem`, `CalendarStrip`, `QuickTaskList`, and `CompactResetCard`
+- Ensure dialogs and sheets use `max-h-[90vh]` with scroll on mobile
+- Fix any `whitespace-nowrap` or `overflow-hidden` that truncates critical text on mobile
+- Ensure the `MobileCommandBar` doesn't overlap the bottom nav or get hidden behind iOS safe areas (add `pb-safe` or `env(safe-area-inset-bottom)`)
+
+**Phase 5: Global mobile utilities**
+
+- Add safe-area-inset support in `index.css` for notched phones
+- Add a responsive text scale: slightly smaller base font on mobile if needed
+- Test and fix any horizontal scroll caused by elements wider than viewport
+
+---
 
 ### Technical Details
 
-The wave effect uses a fixed SVG background with multiple smooth bezier curves, similar to:
-```css
-.retro-1971 body {
-  background-color: #3D2314;
-  background-image: url("data:image/svg+xml,..."); /* inline SVG with flowing wave paths */
-  background-attachment: fixed;
-  background-size: cover;
-  background-position: center;
-}
-```
+Files to modify:
+- `tailwind.config.ts` — container padding
+- `src/components/layout/DashboardLayout.tsx` — header nav, main padding
+- `src/pages/Today.tsx` — header layout, widget stacking
+- `src/index.css` — safe area insets, mobile command bar refinements
+- Various component files for touch target and spacing adjustments
 
-The SVG will contain 4-5 flowing wave bands at a diagonal, each filled with the 70s palette colors. This keeps it resolution-independent and performant.
-
-### No Database Changes Required
-This is a purely front-end cosmetic feature.
+This is a systematic fix, not a rewrite. Each phase can be done incrementally and tested on the mobile preview between steps.
 

@@ -669,6 +669,7 @@ html.text-size-large {
     border-bottom: none;
     border-left: none;
     border-right: none;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   .mobile-command-input {

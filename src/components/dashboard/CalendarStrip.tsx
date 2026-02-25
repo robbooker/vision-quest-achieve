@@ -115,7 +115,7 @@ export function CalendarStrip({
                 <button
                   key={event.id}
                   onClick={() => onEventClick?.(event)}
-                  className="w-full flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors text-left"
+                  className="w-full flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors text-left min-h-[44px]"
                 >
                   <div className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" />
                   <div className="flex-1 min-w-0">

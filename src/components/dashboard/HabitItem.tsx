@@ -39,7 +39,7 @@ export function HabitItem({ tactic, log, streak, goalTitle, onToggle }: HabitIte
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 w-7 p-0"
+            className="h-9 w-9 p-0 min-h-[36px] min-w-[36px]"
             onClick={handleDecrement}
             disabled={currentCount === 0}
           >
@@ -51,7 +51,7 @@ export function HabitItem({ tactic, log, streak, goalTitle, onToggle }: HabitIte
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 w-7 p-0"
+            className="h-9 w-9 p-0 min-h-[36px] min-w-[36px]"
             onClick={handleIncrement}
           >
             <Plus className="h-4 w-4" />
@@ -60,7 +60,7 @@ export function HabitItem({ tactic, log, streak, goalTitle, onToggle }: HabitIte
       ) : (
         <button
           onClick={handleToggle}
-          className="flex-shrink-0"
+          className="flex-shrink-0 min-h-[36px] min-w-[36px] flex items-center justify-center"
         >
           {isComplete ? (
             <CheckCircle2 className="h-5 w-5 text-green-500" />

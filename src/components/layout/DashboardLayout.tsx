@@ -199,23 +199,24 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
         {/* Mobile Navigation */}
         <div className={cn("md:hidden border-t", isTerminal && "border-[hsl(0,0%,20%)]")}>
-          <nav className="container flex items-center justify-around py-2">
+          <nav className="container flex items-center justify-around py-1">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.href;
+              const mobileLabel = item.label === 'P.R.I.M.E.D.' ? 'PRIMED' : item.label.toUpperCase();
               return (
                 <Link key={item.href} to={item.href}>
                   <Button
                     variant="ghost"
                     size="sm"
                     className={cn(
-                      'flex-col gap-1 h-auto py-2',
+                      'flex-col gap-0.5 h-auto min-h-[44px] min-w-[44px] py-1.5 px-1',
                       isActive && 'text-primary',
                       isTerminal && 'text-[hsl(216,100%,50%)]'
                     )}
                   >
                     <Icon className="h-5 w-5" />
-                    <span className="text-xs">{item.label.toUpperCase()}</span>
+                    <span className="text-[10px] leading-tight">{mobileLabel}</span>
                   </Button>
                 </Link>
               );
@@ -225,7 +226,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </header>
 
       {/* Main content */}
-      <main className={cn("container py-6 flex-1", isTerminal && "border-x border-[hsl(0,0%,20%)]")}>
+      <main className={cn("container py-4 sm:py-6 flex-1", isTerminal && "border-x border-[hsl(0,0%,20%)]")}>
         {children}
       </main>
 

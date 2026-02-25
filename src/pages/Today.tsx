@@ -279,8 +279,8 @@ export default function Today() {
     <DashboardLayout>
       <div className="space-y-4">
         {/* Date Header with Actions */}
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <p className="text-base font-semibold text-foreground">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <p className="text-sm sm:text-base font-semibold text-foreground">
             {format(new Date(), 'EEEE, MMMM d, yyyy')} • Week {currentWeek}
           </p>
           <div className="flex items-center gap-1">

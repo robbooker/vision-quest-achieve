@@ -95,25 +95,30 @@ Deno.serve(async (req) => {
 
       const validTimezones = ["CT", "ET", "PT", "MT", "HT"];
 
-      const logisticsRows = legs.map((leg: any) => ({
-        trip_id: trip.id,
-        user_id: userId,
-        logistics_type: logisticsTypeMap[leg.type] || leg.type,
-        provider_name: leg.provider || null,
-        confirmation_code: leg.confirmation_code || null,
-        flight_number: leg.flight_number || null,
-        start_location: leg.from || null,
-        end_location: leg.to || null,
-        // Store as-is — no UTC conversion
-        start_datetime: leg.departure_datetime || null,
-        end_datetime: leg.arrival_datetime || null,
-        seat_assignment: leg.seat || leg.room || null,
-        vehicle_type: leg.vehicle_type || null,
-        contact_phone: leg.contact_phone || null,
-        notes: leg.notes || null,
-        timezone: validTimezones.includes(leg.timezone) ? leg.timezone : "CT",
-        metadata: null,
-      }));
+      const logisticsRows = legs.map((leg: any) => {
+        // Accept multiple field names for type
+        const rawType = leg.type || leg.logistics_type || leg.leg_type || leg.category || "other";
+        const mappedType = logisticsTypeMap[rawType] || rawType;
+
+        return {
+          trip_id: trip.id,
+          user_id: userId,
+          logistics_type: mappedType,
+          provider_name: leg.provider || leg.provider_name || null,
+          confirmation_code: leg.confirmation_code || leg.confirmation || null,
+          flight_number: leg.flight_number || null,
+          start_location: leg.from || leg.start_location || leg.departure_location || null,
+          end_location: leg.to || leg.end_location || leg.arrival_location || null,
+          start_datetime: leg.departure_datetime || leg.start_datetime || null,
+          end_datetime: leg.arrival_datetime || leg.end_datetime || null,
+          seat_assignment: leg.seat || leg.room || leg.seat_assignment || null,
+          vehicle_type: leg.vehicle_type || null,
+          contact_phone: leg.contact_phone || null,
+          notes: leg.notes || null,
+          timezone: validTimezones.includes(leg.timezone) ? leg.timezone : "CT",
+          metadata: null,
+        };
+      });
 
       const { data: legsData, error: legsError } = await supabase
         .from("trip_logistics")

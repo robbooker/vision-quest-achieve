@@ -1,0 +1,149 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-api-key",
+};
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      status: 405,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // Authenticate via x-api-key header
+  const apiKey = req.headers.get("x-api-key");
+  if (!apiKey) {
+    return new Response(JSON.stringify({ error: "Missing x-api-key header" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+  // Validate API key using existing validate_api_key function
+  const { data: userId, error: keyError } = await supabase.rpc(
+    "validate_api_key",
+    { p_key_hash: apiKey }
+  );
+
+  if (keyError || !userId) {
+    return new Response(JSON.stringify({ error: "Invalid API key" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  try {
+    const body = await req.json();
+
+    // Validate required fields
+    const { trip_name, start_date, end_date, legs } = body;
+    if (!trip_name || !start_date || !end_date) {
+      return new Response(
+        JSON.stringify({ error: "trip_name, start_date, and end_date are required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Create the trip
+    const { data: trip, error: tripError } = await supabase
+      .from("trips")
+      .insert({
+        user_id: userId,
+        destination: trip_name,
+        start_date,
+        end_date,
+        purpose: body.purpose || "leisure",
+        attendees: body.attendees || [],
+        planned_activities: body.planned_activities || null,
+        has_flight: (legs || []).some((l: any) => l.type === "flight"),
+      })
+      .select()
+      .single();
+
+    if (tripError) throw tripError;
+
+    // Insert legs as trip_logistics
+    const insertedLegs: any[] = [];
+    if (Array.isArray(legs) && legs.length > 0) {
+      const logisticsTypeMap: Record<string, string> = {
+        flight: "flight",
+        hotel: "stay",
+        car: "car_rental",
+        car_rental: "car_rental",
+        stay: "stay",
+        transportation: "transportation",
+        activity: "activity",
+      };
+
+      const logisticsRows = legs.map((leg: any) => ({
+        trip_id: trip.id,
+        user_id: userId,
+        logistics_type: logisticsTypeMap[leg.type] || leg.type,
+        provider_name: leg.provider || null,
+        confirmation_code: leg.confirmation_code || null,
+        flight_number: leg.flight_number || null,
+        start_location: leg.from || null,
+        end_location: leg.to || null,
+        // Store as CT — no conversion
+        start_datetime: leg.departure_datetime || null,
+        end_datetime: leg.arrival_datetime || null,
+        seat_assignment: leg.seat || leg.room || null,
+        vehicle_type: leg.vehicle_type || null,
+        contact_phone: leg.contact_phone || null,
+        notes: leg.notes || null,
+        metadata: null,
+      }));
+
+      const { data: legsData, error: legsError } = await supabase
+        .from("trip_logistics")
+        .insert(logisticsRows)
+        .select();
+
+      if (legsError) throw legsError;
+      insertedLegs.push(...(legsData || []));
+    }
+
+    const tripPayload = {
+      trip,
+      legs: insertedLegs,
+    };
+
+    // Optional webhook
+    const webhookUrl = body.webhook_url || Deno.env.get("TRIPS_WEBHOOK_URL");
+    if (webhookUrl) {
+      try {
+        await fetch(webhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(tripPayload),
+        });
+      } catch (webhookErr) {
+        console.error("Webhook failed:", webhookErr);
+        // Don't fail the request if webhook fails
+      }
+    }
+
+    return new Response(JSON.stringify({ success: true, ...tripPayload }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    console.error("api-trips error:", err);
+    return new Response(
+      JSON.stringify({ error: err instanceof Error ? err.message : "Internal error" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});

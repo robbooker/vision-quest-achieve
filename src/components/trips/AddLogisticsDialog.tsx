@@ -96,12 +96,20 @@ export function AddLogisticsDialog({
   }, [editingItem, reset, open]);
 
   const onSubmit = (data: FormData) => {
+    // Store times as Central Time strings — do NOT convert to UTC
+    // Append CT offset so the value is unambiguous
+    const formatAsCT = (dt: string) => {
+      if (!dt) return null;
+      // datetime-local gives "YYYY-MM-DDTHH:MM", store with CT offset
+      return dt + ':00-06:00'; // CST offset; adjust to -05:00 for CDT if needed
+    };
+
     onSave({
       logistics_type: type,
       provider_name: data.provider_name || null,
       confirmation_code: data.confirmation_code || null,
-      start_datetime: data.start_datetime ? new Date(data.start_datetime).toISOString() : null,
-      end_datetime: data.end_datetime ? new Date(data.end_datetime).toISOString() : null,
+      start_datetime: formatAsCT(data.start_datetime),
+      end_datetime: formatAsCT(data.end_datetime),
       start_location: data.start_location || null,
       end_location: data.end_location || null,
       flight_number: data.flight_number || null,

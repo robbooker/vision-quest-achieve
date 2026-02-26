@@ -192,3 +192,6 @@ verify_jwt = false
 
 [functions.manage-calendar]
 verify_jwt = false
+
+[functions.api-trips]
+verify_jwt = false

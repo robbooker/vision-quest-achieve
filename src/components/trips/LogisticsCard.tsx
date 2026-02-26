@@ -27,14 +27,23 @@ export function LogisticsCard({ item, onEdit, onDelete }: LogisticsCardProps) {
     }
   };
 
+  // Display times as CT — parse without timezone conversion
   const formatDateTime = (datetime: string | null) => {
     if (!datetime) return null;
-    return format(new Date(datetime), "MMM d 'at' h:mm a");
+    // Extract date/time parts directly to avoid UTC conversion
+    const match = datetime.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+    if (!match) return format(new Date(datetime), "MMM d 'at' h:mm a");
+    const [, y, m, d, h, min] = match;
+    const date = new Date(+y, +m - 1, +d, +h, +min);
+    return format(date, "MMM d 'at' h:mm a") + ' CT';
   };
 
   const formatDate = (datetime: string | null) => {
     if (!datetime) return null;
-    return format(new Date(datetime), 'MMM d');
+    const match = datetime.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!match) return format(new Date(datetime), 'MMM d');
+    const [, y, m, d] = match;
+    return format(new Date(+y, +m - 1, +d), 'MMM d');
   };
 
   const renderFlightDetails = () => (

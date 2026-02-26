@@ -3121,6 +3121,7 @@ export type Database = {
           seat_assignment: string | null
           start_datetime: string | null
           start_location: string | null
+          timezone: string
           trip_id: string
           updated_at: string
           user_id: string
@@ -3141,6 +3142,7 @@ export type Database = {
           seat_assignment?: string | null
           start_datetime?: string | null
           start_location?: string | null
+          timezone?: string
           trip_id: string
           updated_at?: string
           user_id: string
@@ -3161,6 +3163,7 @@ export type Database = {
           seat_assignment?: string | null
           start_datetime?: string | null
           start_location?: string | null
+          timezone?: string
           trip_id?: string
           updated_at?: string
           user_id?: string

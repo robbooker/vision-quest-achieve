@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
 export type LogisticsType = 'stay' | 'flight' | 'car_rental' | 'transportation' | 'activity';
+export type TripTimezone = 'CT' | 'ET' | 'PT' | 'MT' | 'HT';
 
 export interface TripLogistics {
   id: string;
@@ -21,6 +22,7 @@ export interface TripLogistics {
   vehicle_type: string | null;
   contact_phone: string | null;
   notes: string | null;
+  timezone: TripTimezone;
   metadata: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;

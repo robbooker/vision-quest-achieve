@@ -47,7 +47,6 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json();
 
-    // Validate required fields
     const { trip_name, start_date, end_date, legs } = body;
     if (!trip_name || !start_date || !end_date) {
       return new Response(
@@ -87,6 +86,8 @@ Deno.serve(async (req) => {
         activity: "activity",
       };
 
+      const validTimezones = ["CT", "ET", "PT", "MT", "HT"];
+
       const logisticsRows = legs.map((leg: any) => ({
         trip_id: trip.id,
         user_id: userId,
@@ -96,13 +97,14 @@ Deno.serve(async (req) => {
         flight_number: leg.flight_number || null,
         start_location: leg.from || null,
         end_location: leg.to || null,
-        // Store as CT — no conversion
+        // Store as-is — no UTC conversion
         start_datetime: leg.departure_datetime || null,
         end_datetime: leg.arrival_datetime || null,
         seat_assignment: leg.seat || leg.room || null,
         vehicle_type: leg.vehicle_type || null,
         contact_phone: leg.contact_phone || null,
         notes: leg.notes || null,
+        timezone: validTimezones.includes(leg.timezone) ? leg.timezone : "CT",
         metadata: null,
       }));
 
@@ -120,18 +122,21 @@ Deno.serve(async (req) => {
       legs: insertedLegs,
     };
 
-    // Optional webhook
+    // Webhook: POST to configured URL with x-api-key
+    // Check user's profile or preferences for webhook URL, or use body override
     const webhookUrl = body.webhook_url || Deno.env.get("TRIPS_WEBHOOK_URL");
     if (webhookUrl) {
       try {
         await fetch(webhookUrl, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": apiKey,
+          },
           body: JSON.stringify(tripPayload),
         });
       } catch (webhookErr) {
         console.error("Webhook failed:", webhookErr);
-        // Don't fail the request if webhook fails
       }
     }
 

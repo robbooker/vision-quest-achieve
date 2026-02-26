@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { TripLogistics, LogisticsType } from '@/hooks/useTripLogistics';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { TripLogistics, LogisticsType, TripTimezone } from '@/hooks/useTripLogistics';
 
 interface AddLogisticsDialogProps {
   open: boolean;
@@ -25,6 +26,14 @@ const typeConfig: Record<LogisticsType, { label: string; icon: React.ReactNode }
   activity: { label: 'Activity/Reservation', icon: <Calendar className="h-5 w-5" /> },
 };
 
+const timezoneOptions: { value: TripTimezone; label: string }[] = [
+  { value: 'CT', label: 'Central (CT)' },
+  { value: 'ET', label: 'Eastern (ET)' },
+  { value: 'PT', label: 'Pacific (PT)' },
+  { value: 'MT', label: 'Mountain (MT)' },
+  { value: 'HT', label: 'Hawaii (HT)' },
+];
+
 interface FormData {
   provider_name: string;
   confirmation_code: string;
@@ -37,6 +46,7 @@ interface FormData {
   vehicle_type: string;
   contact_phone: string;
   notes: string;
+  timezone: TripTimezone;
 }
 
 export function AddLogisticsDialog({
@@ -47,7 +57,7 @@ export function AddLogisticsDialog({
   onSave,
   isSaving,
 }: AddLogisticsDialogProps) {
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, reset, setValue, watch } = useForm<FormData>({
     defaultValues: {
       provider_name: '',
       confirmation_code: '',
@@ -60,8 +70,11 @@ export function AddLogisticsDialog({
       vehicle_type: '',
       contact_phone: '',
       notes: '',
+      timezone: 'CT',
     },
   });
+
+  const currentTimezone = watch('timezone');
 
   useEffect(() => {
     if (editingItem) {
@@ -77,6 +90,7 @@ export function AddLogisticsDialog({
         vehicle_type: editingItem.vehicle_type || '',
         contact_phone: editingItem.contact_phone || '',
         notes: editingItem.notes || '',
+        timezone: editingItem.timezone || 'CT',
       });
     } else {
       reset({
@@ -91,25 +105,19 @@ export function AddLogisticsDialog({
         vehicle_type: '',
         contact_phone: '',
         notes: '',
+        timezone: 'CT',
       });
     }
   }, [editingItem, reset, open]);
 
   const onSubmit = (data: FormData) => {
-    // Store times as Central Time strings — do NOT convert to UTC
-    // Append CT offset so the value is unambiguous
-    const formatAsCT = (dt: string) => {
-      if (!dt) return null;
-      // datetime-local gives "YYYY-MM-DDTHH:MM", store with CT offset
-      return dt + ':00-06:00'; // CST offset; adjust to -05:00 for CDT if needed
-    };
-
     onSave({
       logistics_type: type,
       provider_name: data.provider_name || null,
       confirmation_code: data.confirmation_code || null,
-      start_datetime: formatAsCT(data.start_datetime),
-      end_datetime: formatAsCT(data.end_datetime),
+      // Store raw datetime as entered — no UTC conversion
+      start_datetime: data.start_datetime || null,
+      end_datetime: data.end_datetime || null,
       start_location: data.start_location || null,
       end_location: data.end_location || null,
       flight_number: data.flight_number || null,
@@ -117,11 +125,28 @@ export function AddLogisticsDialog({
       vehicle_type: data.vehicle_type || null,
       contact_phone: data.contact_phone || null,
       notes: data.notes || null,
+      timezone: data.timezone,
       metadata: null,
     });
   };
 
   const config = typeConfig[type];
+
+  const TimezoneSelector = () => (
+    <div className="space-y-2">
+      <Label>Timezone</Label>
+      <Select value={currentTimezone} onValueChange={(v) => setValue('timezone', v as TripTimezone)}>
+        <SelectTrigger>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {timezoneOptions.map((tz) => (
+            <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
 
   const renderFlightFields = () => (
     <>
@@ -135,6 +160,7 @@ export function AddLogisticsDialog({
           <Input id="flight_number" placeholder="e.g., DL1234" {...register('flight_number')} />
         </div>
       </div>
+      <TimezoneSelector />
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="start_location">Departure Airport</Label>
@@ -178,6 +204,7 @@ export function AddLogisticsDialog({
         <Label htmlFor="start_location">Address</Label>
         <Input id="start_location" placeholder="e.g., 123 Main St, Atlanta, GA" {...register('start_location')} />
       </div>
+      <TimezoneSelector />
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="start_datetime">Check-in</Label>
@@ -194,9 +221,13 @@ export function AddLogisticsDialog({
           <Input id="confirmation_code" placeholder="e.g., XYZ789" {...register('confirmation_code')} />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="contact_phone">Contact Phone</Label>
-          <Input id="contact_phone" type="tel" placeholder="e.g., (555) 123-4567" {...register('contact_phone')} />
+          <Label htmlFor="seat_assignment">Room Number</Label>
+          <Input id="seat_assignment" placeholder="e.g., 412" {...register('seat_assignment')} />
         </div>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="contact_phone">Contact Phone</Label>
+        <Input id="contact_phone" type="tel" placeholder="e.g., (555) 123-4567" {...register('contact_phone')} />
       </div>
     </>
   );
@@ -213,6 +244,7 @@ export function AddLogisticsDialog({
           <Input id="vehicle_type" placeholder="e.g., Midsize SUV" {...register('vehicle_type')} />
         </div>
       </div>
+      <TimezoneSelector />
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="start_location">Pickup Location</Label>
@@ -246,6 +278,7 @@ export function AddLogisticsDialog({
         <Label htmlFor="provider_name">Service/Provider</Label>
         <Input id="provider_name" placeholder="e.g., Amtrak, Uber reservation" {...register('provider_name')} />
       </div>
+      <TimezoneSelector />
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="start_location">From</Label>
@@ -279,6 +312,7 @@ export function AddLogisticsDialog({
         <Label htmlFor="start_location">Address</Label>
         <Input id="start_location" placeholder="e.g., 225 Baker St NW, Atlanta, GA" {...register('start_location')} />
       </div>
+      <TimezoneSelector />
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="start_datetime">Date & Time</Label>
@@ -298,16 +332,11 @@ export function AddLogisticsDialog({
 
   const renderFields = () => {
     switch (type) {
-      case 'flight':
-        return renderFlightFields();
-      case 'stay':
-        return renderStayFields();
-      case 'car_rental':
-        return renderCarRentalFields();
-      case 'transportation':
-        return renderTransportationFields();
-      case 'activity':
-        return renderActivityFields();
+      case 'flight': return renderFlightFields();
+      case 'stay': return renderStayFields();
+      case 'car_rental': return renderCarRentalFields();
+      case 'transportation': return renderTransportationFields();
+      case 'activity': return renderActivityFields();
     }
   };
 

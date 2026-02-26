@@ -2,7 +2,7 @@ import { format } from 'date-fns';
 import { Plane, Hotel, Car, Bus, Calendar, Copy, Pencil, Trash2, MapPin, Phone, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { TripLogistics, LogisticsType } from '@/hooks/useTripLogistics';
+import { TripLogistics, LogisticsType, TripTimezone } from '@/hooks/useTripLogistics';
 import { toast } from 'sonner';
 
 interface LogisticsCardProps {
@@ -27,15 +27,16 @@ export function LogisticsCard({ item, onEdit, onDelete }: LogisticsCardProps) {
     }
   };
 
-  // Display times as CT — parse without timezone conversion
+  const tz = item.timezone || 'CT';
+
+  // Display times as entered — parse without browser timezone conversion
   const formatDateTime = (datetime: string | null) => {
     if (!datetime) return null;
-    // Extract date/time parts directly to avoid UTC conversion
     const match = datetime.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
-    if (!match) return format(new Date(datetime), "MMM d 'at' h:mm a");
+    if (!match) return format(new Date(datetime), "MMM d 'at' h:mm a") + ` ${tz}`;
     const [, y, m, d, h, min] = match;
     const date = new Date(+y, +m - 1, +d, +h, +min);
-    return format(date, "MMM d 'at' h:mm a") + ' CT';
+    return format(date, "MMM d 'at' h:mm a") + ` ${tz}`;
   };
 
   const formatDate = (datetime: string | null) => {

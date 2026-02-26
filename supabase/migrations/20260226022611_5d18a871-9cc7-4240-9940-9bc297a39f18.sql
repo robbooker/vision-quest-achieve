@@ -1,0 +1,1 @@
+ALTER TABLE public.trip_logistics ADD COLUMN IF NOT EXISTS timezone text NOT NULL DEFAULT 'CT';

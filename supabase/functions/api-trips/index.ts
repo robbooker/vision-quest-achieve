@@ -6,6 +6,12 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-api-key",
 };
 
+async function hashKey(key: string): Promise<string> {
+  const encoded = new TextEncoder().encode(key);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", encoded);
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -32,9 +38,10 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
   // Validate API key using existing validate_api_key function
+  const keyHash = await hashKey(apiKey);
   const { data: userId, error: keyError } = await supabase.rpc(
     "validate_api_key",
-    { p_key_hash: apiKey }
+    { p_key_hash: keyHash }
   );
 
   if (keyError || !userId) {

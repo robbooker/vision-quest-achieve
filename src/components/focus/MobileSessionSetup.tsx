@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { LogPastSessionDialog } from './LogPastSessionDialog';
+import { useNavigate } from 'react-router-dom';
+import gpLogo from '@/assets/gp-logo.png';
 import { EditSessionDialog } from './EditSessionDialog';
 import { isToday, format } from 'date-fns';
 import type { FocusSession } from '@/hooks/useFocusSessions';
@@ -74,6 +76,7 @@ export function MobileSessionSetup({
   onLogPastSession,
   isLoggingPast = false,
 }: MobileSessionSetupProps) {
+  const navigate = useNavigate();
   const [selectedFocus, setSelectedFocus] = useState('');
   const [customObjective, setCustomObjective] = useState('');
   const [duration, setDuration] = useState(25);
@@ -104,6 +107,12 @@ export function MobileSessionSetup({
 
   return (
     <div className="fixed inset-0 z-[60] bg-background flex flex-col px-6 py-8 pb-safe overflow-y-auto">
+      {/* Centered logo */}
+      <div className="w-full flex justify-center mb-6">
+        <button onClick={() => navigate('/today')}>
+          <img src={gpLogo} alt="Home" className="h-8 w-auto" />
+        </button>
+      </div>
       {/* Stats strip */}
       <div className="flex justify-center gap-6 mb-8">
         <div className="text-center">

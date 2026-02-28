@@ -3,6 +3,8 @@ import { Play, Pause, CheckCircle, X, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
+import gpLogo from '@/assets/gp-logo.png';
 
 interface MobileFocusTimerProps {
   plannedMinutes: number;
@@ -14,6 +16,7 @@ interface MobileFocusTimerProps {
 }
 
 export function MobileFocusTimer({ plannedMinutes, objective, onComplete, onCancel, onExtend, startTime }: MobileFocusTimerProps) {
+  const navigate = useNavigate();
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -73,6 +76,12 @@ export function MobileFocusTimer({ plannedMinutes, objective, onComplete, onCanc
 
   return (
     <div className="fixed inset-0 z-[60] bg-background flex flex-col items-center justify-between px-6 py-10 pb-safe">
+      {/* Centered logo */}
+      <div className="w-full flex justify-center mb-4">
+        <button onClick={() => navigate('/today')}>
+          <img src={gpLogo} alt="Home" className="h-8 w-auto" />
+        </button>
+      </div>
       {/* Top: Objective */}
       <div className="text-center w-full">
         <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Focusing on</p>

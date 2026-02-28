@@ -3,6 +3,8 @@ import { Trophy, PenLine, Frown, Smile, Star, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
+import gpLogo from '@/assets/gp-logo.png';
 
 type Rating = 'bad' | 'good' | 'great';
 
@@ -27,6 +29,7 @@ export function MobileSessionComplete({
   onSave,
   onClose,
 }: MobileSessionCompleteProps) {
+  const navigate = useNavigate();
   const [notes, setNotes] = useState('');
   const [rating, setRating] = useState<Rating>('good');
 
@@ -43,6 +46,12 @@ export function MobileSessionComplete({
 
   return (
     <div className="fixed inset-0 z-[60] bg-background flex flex-col items-center justify-between px-6 py-10 pb-safe overflow-y-auto">
+      {/* Centered logo */}
+      <div className="w-full flex justify-center mb-4">
+        <button onClick={() => navigate('/today')}>
+          <img src={gpLogo} alt="Home" className="h-8 w-auto" />
+        </button>
+      </div>
       {/* Top: Celebration */}
       <div className="text-center w-full">
         <Trophy className="h-12 w-12 text-primary mx-auto mb-3" />

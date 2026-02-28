@@ -163,9 +163,9 @@ export function SessionSetup({
 
   return (
     <>
-      <Card className="mx-auto">
+      <Card className="mx-auto p-0 sm:p-0">
         {/* Tab Navigation - Small box links at top */}
-        <div className="flex gap-2 p-4 pb-0">
+        <div className="flex gap-2 p-3 sm:p-4 pb-0">
           <Tabs defaultValue="session" className="w-full">
             <TabsList className="h-auto p-1 bg-muted/50 w-auto inline-flex gap-1">
               <TabsTrigger 
@@ -198,7 +198,7 @@ export function SessionSetup({
               </TabsTrigger>
             </TabsList>
 
-            <CardContent className="pt-4">
+            <CardContent className="pt-4 px-3 sm:px-6">
               <TabsContent value="session" className="mt-0 space-y-6">
                 {/* Objective */}
                 <div className="space-y-2">

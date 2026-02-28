@@ -5,18 +5,21 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { SessionSetup } from '@/components/focus/SessionSetup';
 import { FocusTimer } from '@/components/focus/FocusTimer';
+import { MobileFocusTimer } from '@/components/focus/MobileFocusTimer';
 import { SessionComplete } from '@/components/focus/SessionComplete';
 import { AmbientSounds } from '@/components/focus/AmbientSounds';
 import { AudioErrorBoundary } from '@/components/focus/AudioErrorBoundary';
 import { BreakTimer } from '@/components/focus/BreakTimer';
 import { useFocusSessions } from '@/hooks/useFocusSessions';
 import { useToast } from '@/hooks/use-toast';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 type ViewState = 'setup' | 'active' | 'complete' | 'break';
 
 export default function Focus() {
   console.log('[Focus] Page rendering');
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [viewState, setViewState] = useState<ViewState>('setup');
   const [completedSessionData, setCompletedSessionData] = useState<{
     objective: string;
@@ -184,6 +187,25 @@ export default function Focus() {
       });
     }
   };
+
+  // Mobile active session: render full-screen overlay outside DashboardLayout
+  if (isMobile && viewState === 'active' && activeSession && !isLoading && !isLoadingActive) {
+    return (
+      <>
+        <Helmet>
+          <title>Focus | Groovy Planning</title>
+        </Helmet>
+        <MobileFocusTimer
+          plannedMinutes={activeSession.planned_duration_minutes}
+          objective={activeSession.objective}
+          startTime={new Date(activeSession.started_at)}
+          onComplete={handleCompleteSession}
+          onCancel={handleCancelSession}
+          onExtend={handleExtendSession}
+        />
+      </>
+    );
+  }
 
   return (
     <DashboardLayout>

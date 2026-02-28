@@ -52,15 +52,15 @@ export function SessionComplete({
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <Card className="max-w-lg w-full animate-in fade-in zoom-in duration-300">
+      <Card className="max-w-lg w-full animate-in fade-in zoom-in duration-300 max-h-[90vh] overflow-y-auto">
         <CardHeader className="text-center pb-2">
           <div className="flex justify-center mb-4">
             <div className="relative">
-              <Trophy className="h-16 w-16 text-primary animate-bounce" />
-              <PartyPopper className="h-8 w-8 text-chart-2 absolute -top-2 -right-2 animate-pulse" />
+              <Trophy className="h-12 w-12 sm:h-16 sm:w-16 text-primary animate-bounce" />
+              <PartyPopper className="h-6 w-6 sm:h-8 sm:w-8 text-chart-2 absolute -top-2 -right-2 animate-pulse" />
             </div>
           </div>
-          <CardTitle className="text-2xl">Session Complete!</CardTitle>
+          <CardTitle className="text-xl sm:text-2xl">Session Complete!</CardTitle>
           <p className="text-muted-foreground mt-2">{objective}</p>
         </CardHeader>
 
@@ -138,11 +138,11 @@ export function SessionComplete({
           </div>
 
           {/* Actions */}
-          <div className="flex gap-3">
-            <Button variant="outline" className="flex-1" onClick={() => { onSave('', rating); onClose(); }}>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Button variant="outline" className="flex-1 min-h-[48px]" onClick={() => { onSave('', rating); onClose(); }}>
               Skip Notes
             </Button>
-            <Button className="flex-1" onClick={handleSave}>
+            <Button className="flex-1 min-h-[48px]" onClick={handleSave}>
               Save & Close
             </Button>
           </div>

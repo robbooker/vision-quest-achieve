@@ -6,6 +6,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { SessionSetup } from '@/components/focus/SessionSetup';
 import { FocusTimer } from '@/components/focus/FocusTimer';
 import { MobileFocusTimer } from '@/components/focus/MobileFocusTimer';
+import { MobileSessionSetup } from '@/components/focus/MobileSessionSetup';
+import { MobileSessionComplete } from '@/components/focus/MobileSessionComplete';
 import { SessionComplete } from '@/components/focus/SessionComplete';
 import { AmbientSounds } from '@/components/focus/AmbientSounds';
 import { AudioErrorBoundary } from '@/components/focus/AudioErrorBoundary';
@@ -188,23 +190,61 @@ export default function Focus() {
     }
   };
 
-  // Mobile active session: render full-screen overlay outside DashboardLayout
-  if (isMobile && viewState === 'active' && activeSession && !isLoading && !isLoadingActive) {
-    return (
-      <>
-        <Helmet>
-          <title>Focus | Groovy Planning</title>
-        </Helmet>
-        <MobileFocusTimer
-          plannedMinutes={activeSession.planned_duration_minutes}
-          objective={activeSession.objective}
-          startTime={new Date(activeSession.started_at)}
-          onComplete={handleCompleteSession}
-          onCancel={handleCancelSession}
-          onExtend={handleExtendSession}
-        />
-      </>
-    );
+  // Mobile: render full-screen overlays outside DashboardLayout for all states
+  if (isMobile && !isLoading && !isLoadingActive) {
+    if (viewState === 'active' && activeSession) {
+      return (
+        <>
+          <Helmet><title>Focus | Groovy Planning</title></Helmet>
+          <MobileFocusTimer
+            plannedMinutes={activeSession.planned_duration_minutes}
+            objective={activeSession.objective}
+            startTime={new Date(activeSession.started_at)}
+            onComplete={handleCompleteSession}
+            onCancel={handleCancelSession}
+            onExtend={handleExtendSession}
+          />
+        </>
+      );
+    }
+
+    if (viewState === 'complete' && completedSessionData) {
+      return (
+        <>
+          <Helmet><title>Focus | Groovy Planning</title></Helmet>
+          <MobileSessionComplete
+            objective={completedSessionData.objective}
+            plannedMinutes={completedSessionData.plannedMinutes}
+            actualMinutes={completedSessionData.actualMinutes}
+            todayMinutes={todayMinutes + completedSessionData.actualMinutes}
+            todaySessions={todayCompletedCount + 1}
+            streak={streak}
+            onSave={handleSaveNotes}
+            onClose={handleCloseComplete}
+          />
+        </>
+      );
+    }
+
+    if (viewState === 'setup' || viewState === 'break') {
+      return (
+        <>
+          <Helmet><title>Focus | Groovy Planning</title></Helmet>
+          <MobileSessionSetup
+            onStart={handleStartSession}
+            isStarting={createSession.isPending}
+            sessions={sessions}
+            todayMinutes={todayMinutes}
+            todayCount={todayCompletedCount}
+            streak={streak}
+            onUpdateSession={handleUpdateSession}
+            onResumeSession={() => setViewState('active')}
+            onLogPastSession={logPastSession.mutateAsync}
+            isLoggingPast={logPastSession.isPending}
+          />
+        </>
+      );
+    }
   }
 
   return (

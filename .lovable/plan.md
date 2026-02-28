@@ -1,75 +1,78 @@
 
 
-## Mobile Responsiveness Overhaul
+## Mobile Focus Experience Overhaul
 
-### Root Causes Identified
+### The Problem
 
-After auditing the layout system, CSS, and key pages, the mobile experience is broken by several compounding issues:
+The active focus timer on mobile is unusable. Here's why:
 
-**1. Container padding is too aggressive**
-The Tailwind config sets `container.padding: "2rem"` (32px each side) with no mobile override. On a 375px phone, that leaves only 311px for content. Combined with `DashboardLayout`'s `<main className="container py-6">`, you lose 64px of horizontal space before any content renders.
+1. **280px SVG circle** doesn't fit well on small screens after container padding, card padding, and card borders eat into the viewport
+2. **Three control buttons** (Pause, End Session, Cancel) sit in a horizontal row that compresses or wraps awkwardly
+3. **Extend time section** with 4 preset buttons plus a custom input adds a second row of clutter below the controls
+4. **Card wrapping** adds `p-6` padding on all sides, plus the `container` class adds another 16-32px per side
+5. **Ambient Sounds** section sits below the controls, pushing the End Session button further down or off-screen entirely
+6. The **DashboardLayout header** (logo bar + mobile nav) takes ~100px of vertical space before any content even starts
 
-**2. No responsive padding strategy**
-The container config only defines one breakpoint (`2xl: 1400px`). There are no mobile-specific padding overrides like `padding: { DEFAULT: "1rem", sm: "1.5rem", lg: "2rem" }`.
+Net result: on a 375px-wide, 667px-tall phone, the End Session button lands below the fold or is squeezed into an untappable size.
 
-**3. Header cramming**
-The mobile nav bar (`md:hidden`) tries to fit 5 nav items (`Dashboard`, `Today`, `Focus`, `P.R.I.M.E.D.`, `Journal`) side by side using `justify-around`. On small screens, labels like "P.R.I.M.E.D." and "DASHBOARD" overflow or compress.
+### The Plan
 
-**4. Fixed-size elements throughout pages**
-Cards, badges, buttons, and grid layouts use desktop-first sizing. The Today page has `flex-wrap gap-2` headers but widgets like `WeatherWidget`, `HealthMetricsWidget`, and action buttons all compete for the same row.
+**Create a dedicated mobile active-session view** that replaces the entire page chrome when a focus session is running on a small screen.
 
-**5. No viewport meta concerns but real touch-target issues**
-The command bar and input targets are reasonable (16px font prevents iOS zoom), but many interactive elements (habit toggles, calendar pills, dropdown triggers) are too small for comfortable mobile tapping.
+#### 1. Mobile Focus Overlay Component (`MobileFocusTimer`)
+
+When `viewState === 'active'` and `isMobile === true`, render a **full-screen overlay** instead of the Card-wrapped FocusTimer:
+
+- **No DashboardLayout chrome** — the overlay sits on top of everything (`fixed inset-0 z-50`)
+- **Plain background** with just the essential info:
+  - Objective text (1 line, truncated)
+  - Large countdown numbers (no SVG circle — just text)
+  - A thin progress bar underneath
+  - Elapsed / planned as small text
+- **Two large buttons** stacked vertically, each full-width and minimum 56px tall:
+  - **End Session** (primary, prominent)
+  - **Pause / Resume** (outline)
+- **Cancel** as a small text link at the bottom
+- **No ambient sounds UI** on this view (sounds keep playing in background, but the controls are hidden)
+- **No extend time UI** — add a single "Add 10 min" text button if needed, nothing more
+
+This is essentially a "focus lock screen" — minimal, impossible to miss the End button.
+
+#### 2. Modify `Focus.tsx` to conditionally render
+
+- Import `useIsMobile`
+- When `viewState === 'active'` and mobile: render `<MobileFocusTimer>` **outside** the `<DashboardLayout>` wrapper (or as a portal/overlay above it)
+- When desktop or non-active states: render everything as-is
+
+#### 3. Mobile SessionSetup improvements
+
+The setup form also needs tightening but is secondary. Quick wins:
+
+- Reduce card padding on mobile (`p-3` instead of `p-6`)
+- Stack the tab triggers into a 2x2 grid if they overflow
+- Ensure the Start button is always visible without scrolling
+
+#### 4. Mobile SessionComplete improvements
+
+The completion modal already uses `fixed inset-0` which is good, but:
+
+- Reduce the trophy icon size on mobile
+- Ensure the two action buttons are stacked vertically on small screens
+- Add `max-h-[90vh] overflow-y-auto` to the card
 
 ---
 
-### Plan
+### Files to Create/Modify
 
-**Phase 1: Foundation fixes (container + layout)**
+- **Create:** `src/components/focus/MobileFocusTimer.tsx` — the full-screen mobile timer overlay
+- **Modify:** `src/pages/Focus.tsx` — conditional rendering based on `isMobile` + active state
+- **Modify:** `src/components/focus/SessionComplete.tsx` — mobile spacing fixes
+- **Modify:** `src/components/focus/SessionSetup.tsx` — tighter mobile padding
 
-- Update `tailwind.config.ts` container padding to be responsive:
-  ```
-  padding: { DEFAULT: "1rem", sm: "1.5rem", lg: "2rem" }
-  ```
-- Reduce `py-6` to `py-4` on mobile in `DashboardLayout`'s main content area
-- Add `px-4 sm:px-6 lg:container` pattern or adjust container usage
+### Technical Notes
 
-**Phase 2: Mobile navigation**
-
-- Shorten mobile nav labels (e.g., "PRIMED" instead of "P.R.I.M.E.D.", abbreviate or use icon-only on smallest screens)
-- Increase touch targets to minimum 44px height
-- Consider icon-only mobile nav with labels below only if space permits
-
-**Phase 3: Today page mobile layout**
-
-- Stack the date header and action buttons vertically on mobile instead of `flex justify-between`
-- Make the Daily Steps and Calendar sections full-width stacked (already `grid-cols-1` at default, but inner padding and card content need tightening)
-- Reduce card header padding and font sizes on mobile
-- Make the calendar strip horizontally scrollable without clipping
-
-**Phase 4: Component-level mobile fixes**
-
-- Audit and fix touch targets across `HabitItem`, `CalendarStrip`, `QuickTaskList`, and `CompactResetCard`
-- Ensure dialogs and sheets use `max-h-[90vh]` with scroll on mobile
-- Fix any `whitespace-nowrap` or `overflow-hidden` that truncates critical text on mobile
-- Ensure the `MobileCommandBar` doesn't overlap the bottom nav or get hidden behind iOS safe areas (add `pb-safe` or `env(safe-area-inset-bottom)`)
-
-**Phase 5: Global mobile utilities**
-
-- Add safe-area-inset support in `index.css` for notched phones
-- Add a responsive text scale: slightly smaller base font on mobile if needed
-- Test and fix any horizontal scroll caused by elements wider than viewport
-
----
-
-### Technical Details
-
-Files to modify:
-- `tailwind.config.ts` — container padding
-- `src/components/layout/DashboardLayout.tsx` — header nav, main padding
-- `src/pages/Today.tsx` — header layout, widget stacking
-- `src/index.css` — safe area insets, mobile command bar refinements
-- Various component files for touch target and spacing adjustments
-
-This is a systematic fix, not a rewrite. Each phase can be done incrementally and tested on the mobile preview between steps.
+- `MobileFocusTimer` receives the same props as `FocusTimer` (plannedMinutes, objective, startTime, onComplete, onCancel, onExtend)
+- It reuses the same timer logic (elapsed seconds calculation, pause state) — either extracted into a shared hook or duplicated in the component
+- The overlay uses `fixed inset-0 z-[60]` to sit above the DashboardLayout's `z-50` header
+- No SVG, no cards, no ambient sound controls — just text, a progress bar, and buttons
 

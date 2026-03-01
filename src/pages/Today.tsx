@@ -38,7 +38,8 @@ import {
   MoreHorizontal,
   Bird,
   Target,
-  Mic
+  Mic,
+  Sun
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -52,6 +53,8 @@ import { UniversalVoiceRecorder } from '@/components/dashboard/UniversalVoiceRec
 import { HealthMetricsWidget } from '@/components/dashboard/HealthMetricsWidget';
 import { MonthlyIntentionWidget } from '@/components/dashboard/MonthlyIntentionWidget';
 import { WeatherWidget } from '@/components/dashboard/WeatherWidget';
+import { RoutineSection } from '@/components/dashboard/RoutineSection';
+import { useRoutines } from '@/hooks/useRoutines';
 
 export default function Today() {
   const navigate = useNavigate();
@@ -64,6 +67,9 @@ export default function Today() {
   
   // Reset preference
   const { isResetActive } = useResetPreference();
+
+  // Routines
+  const { hasRoutines } = useRoutines();
 
   // Sick days
   const { isTodaySickDay, toggleSickDay, isLoading: sickDaysLoading } = useSickDays();
@@ -260,16 +266,21 @@ export default function Today() {
           {/* Quick Task List - available without a cycle */}
           <QuickTaskList />
 
+          {/* Routines always available */}
+          <RoutineSection />
+
           {/* Prompt to create cycle for goal tracking */}
-          <Card className="border-dashed">
-            <CardContent className="flex flex-col items-center justify-center py-8 text-center">
-              <Target className="h-10 w-10 text-muted-foreground mb-3" />
-              <h3 className="font-semibold mb-1">No Active Cycle</h3>
-              <p className="text-sm text-muted-foreground">
-                Create a cycle from the dashboard to track habits and goals.
-              </p>
-            </CardContent>
-          </Card>
+          {!hasRoutines && (
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-8 text-center">
+                <Target className="h-10 w-10 text-muted-foreground mb-3" />
+                <h3 className="font-semibold mb-1">No Active Cycle</h3>
+                <p className="text-sm text-muted-foreground">
+                  Create a cycle from the dashboard to track habits and goals.
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </DashboardLayout>
     );
@@ -346,9 +357,11 @@ export default function Today() {
 
         {/* Row 1: Daily Steps + Calendar - Side by Side */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Daily Steps */}
+          {/* Routines or Legacy Daily Steps */}
           <div data-tour="daily-steps">
-            {(allTactics.length > 0 || todaySchedules.length > 0) ? (
+            {hasRoutines ? (
+              <RoutineSection />
+            ) : (allTactics.length > 0 || todaySchedules.length > 0) ? (
               <Card className={`h-full border-primary/20 ${todayIsSick ? 'opacity-60' : ''}`}>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
@@ -428,9 +441,9 @@ export default function Today() {
             ) : (
               <Card className="h-full border-dashed">
                 <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                  <Repeat className="h-8 w-8 text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">No daily steps set up yet</p>
-                  <p className="text-xs text-muted-foreground mt-1">Add tactics to your goals to see them here</p>
+                  <Sun className="h-8 w-8 text-muted-foreground mb-2" />
+                  <p className="text-sm font-medium mb-1">Set up your routines</p>
+                  <p className="text-xs text-muted-foreground">Add morning & evening steps to build consistency</p>
                 </CardContent>
               </Card>
             )}

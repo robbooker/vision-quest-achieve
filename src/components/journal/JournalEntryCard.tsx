@@ -77,17 +77,7 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
   const isUploading = uploadPhoto.isPending;
   const isGeneratingInsight = generateInsight.isPending;
 
-  // Auto-generate insight when entry is created without one and has activities
-  useEffect(() => {
-    const totalAccomplishments = entry.completed_tasks.length + entry.completed_habits.length + (entry.completed_focus_sessions?.length || 0);
-    if (!entry.ai_daily_insight && totalAccomplishments > 0 && !isGeneratingInsight) {
-      // Delay to not overwhelm on initial load
-      const timer = setTimeout(() => {
-        generateInsight.mutate(entry.id);
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [entry.id, entry.ai_daily_insight]);
+  // No longer auto-generating AI insights for new entries
 
   const userPhotos = entry.user_photos || [];
   const canAddMorePhotos = userPhotos.length < 2;
@@ -304,57 +294,18 @@ export const JournalEntryCard = ({ entry }: JournalEntryCardProps) => {
         {/* Voice Journal Section - Now using accordion for multiple recordings */}
         <VoiceJournalAccordion entryId={entry.id} />
 
-        {/* AI Daily Insight Section */}
-        <div className="border-t pt-4">
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="text-sm font-medium flex items-center gap-2">
+        {/* AI Daily Insight Section - only show if one already exists */}
+        {entry.ai_daily_insight && (
+          <div className="border-t pt-4">
+            <h4 className="text-sm font-medium flex items-center gap-2 mb-2">
               <Lightbulb className="w-4 h-4 text-primary" />
               Daily Insight
             </h4>
-            {entry.ai_daily_insight && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => generateInsight.mutate(entry.id)}
-                disabled={isGeneratingInsight}
-                className="h-7 text-xs"
-              >
-                {isGeneratingInsight ? (
-                  <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-3 h-3 mr-1" />
-                )}
-                Regenerate
-              </Button>
-            )}
-          </div>
-          
-          {isGeneratingInsight ? (
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-5/6" />
-              <Skeleton className="h-4 w-4/6" />
-            </div>
-          ) : entry.ai_daily_insight ? (
             <div className="prose prose-sm dark:prose-invert max-w-none text-sm text-muted-foreground [&>p]:mb-3 [&>p:last-child]:mb-0 [&>strong]:text-foreground [&>strong]:font-semibold">
               <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{entry.ai_daily_insight}</ReactMarkdown>
             </div>
-          ) : totalAccomplishments > 0 ? (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => generateInsight.mutate(entry.id)}
-              disabled={isGeneratingInsight}
-            >
-              <Sparkles className="w-4 h-4 mr-2" />
-              Generate Insight
-            </Button>
-          ) : (
-            <p className="text-sm text-muted-foreground italic">
-              No activities to analyze for insights
-            </p>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Accomplishments Section */}
         <div>

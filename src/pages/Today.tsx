@@ -55,6 +55,7 @@ import { MonthlyIntentionWidget } from '@/components/dashboard/MonthlyIntentionW
 import { WeatherWidget } from '@/components/dashboard/WeatherWidget';
 import { RoutineSection } from '@/components/dashboard/RoutineSection';
 import { useRoutines } from '@/hooks/useRoutines';
+import { SprintTrackerWidget } from '@/components/dashboard/SprintTrackerWidget';
 
 export default function Today() {
   const navigate = useNavigate();
@@ -489,12 +490,15 @@ export default function Today() {
           </div>
         </div>
 
-        {/* Row 3: Focus, Sleep (Performance Audit), P&L - Three Columns */}
+        {/* Row 3: Focus, Sprint, P&L - Three Columns */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <TodayFocusWidget />
-          <PerformanceAuditCard />
+          <SprintTrackerWidget />
           <TodayPnLWidget />
         </div>
+
+        {/* Row 4: Performance Audit */}
+        <PerformanceAuditCard />
 
         {/* Row 4: Daily Score Logger */}
         <DailyScoreLogger goals={goals} />

@@ -2955,6 +2955,196 @@ export type Database = {
         }
         Relationships: []
       }
+      sprint_areas_of_focus: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+          sprint_id: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+          sprint_id: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          sprint_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sprint_areas_of_focus_sprint_id_fkey"
+            columns: ["sprint_id"]
+            isOneToOne: false
+            referencedRelation: "sprints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sprint_tasks: {
+        Row: {
+          area_of_focus_id: string
+          completed_at: string | null
+          created_at: string
+          day_range: string | null
+          description: string | null
+          id: string
+          sort_order: number
+          sprint_id: string
+          status: string
+          template_task_order: number | null
+          title: string
+          updated_at: string
+          user_id: string
+          week: number | null
+        }
+        Insert: {
+          area_of_focus_id: string
+          completed_at?: string | null
+          created_at?: string
+          day_range?: string | null
+          description?: string | null
+          id?: string
+          sort_order?: number
+          sprint_id: string
+          status?: string
+          template_task_order?: number | null
+          title: string
+          updated_at?: string
+          user_id: string
+          week?: number | null
+        }
+        Update: {
+          area_of_focus_id?: string
+          completed_at?: string | null
+          created_at?: string
+          day_range?: string | null
+          description?: string | null
+          id?: string
+          sort_order?: number
+          sprint_id?: string
+          status?: string
+          template_task_order?: number | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          week?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sprint_tasks_area_of_focus_id_fkey"
+            columns: ["area_of_focus_id"]
+            isOneToOne: false
+            referencedRelation: "sprint_areas_of_focus"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sprint_tasks_sprint_id_fkey"
+            columns: ["sprint_id"]
+            isOneToOne: false
+            referencedRelation: "sprints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sprint_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          default_tasks: Json
+          description: string | null
+          duration_weeks: number
+          id: string
+          is_system: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          default_tasks?: Json
+          description?: string | null
+          duration_weeks?: number
+          id?: string
+          is_system?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          default_tasks?: Json
+          description?: string | null
+          duration_weeks?: number
+          id?: string
+          is_system?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sprints: {
+        Row: {
+          created_at: string
+          duration_weeks: number
+          end_date: string | null
+          goal: string | null
+          id: string
+          name: string
+          start_date: string | null
+          status: string
+          template_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration_weeks?: number
+          end_date?: string | null
+          goal?: string | null
+          id?: string
+          name: string
+          start_date?: string | null
+          status?: string
+          template_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          duration_weeks?: number
+          end_date?: string | null
+          goal?: string | null
+          id?: string
+          name?: string
+          start_date?: string | null
+          status?: string
+          template_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sprints_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "sprint_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           canceled_at: string | null
@@ -3687,6 +3877,17 @@ export type Database = {
       increment_recap_view: { Args: { recap_id: string }; Returns: undefined }
       is_shared_task_owner: { Args: { task_id: string }; Returns: boolean }
       is_task_shared_with_me: { Args: { task_id: string }; Returns: boolean }
+      launch_sprint: {
+        Args: {
+          p_areas: Json
+          p_duration_weeks: number
+          p_goal: string
+          p_name: string
+          p_tasks: Json
+          p_template_id: string
+        }
+        Returns: string
+      }
       match_activity_embeddings: {
         Args: {
           filter_date_from?: string

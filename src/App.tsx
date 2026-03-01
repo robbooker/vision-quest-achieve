@@ -66,6 +66,7 @@ import WhatsNew from "./pages/WhatsNew";
 import MonthInReviewBlog from "./pages/MonthInReviewBlog";
 import MorningBriefingBlog from "./pages/MorningBriefingBlog";
 import AIArena from "./pages/AIArena";
+import Sprints from "./pages/Sprints";
 import MorningBriefingLab from "./pages/MorningBriefingLab";
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -151,6 +152,7 @@ const App = () => (
                     <Route path="/trading" element={<ProtectedRoute><TradingPnL /></ProtectedRoute>} />
                     <Route path="/notes" element={<ProtectedRoute><Notes /></ProtectedRoute>} />
                     <Route path="/lists" element={<ProtectedRoute><Notes /></ProtectedRoute>} />
+                    <Route path="/sprints" element={<ProtectedRoute><Sprints /></ProtectedRoute>} />
                     <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
                     <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
                     <Route path="/admin/broadcasts" element={<AdminRoute><AdminBroadcasts /></AdminRoute>} />

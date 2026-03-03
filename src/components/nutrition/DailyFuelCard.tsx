@@ -237,39 +237,32 @@ export function DailyFuelCard({ activeCalories = 0 }: DailyFuelCardProps) {
                   size="sm"
                   className="h-7 text-xs flex-1"
                   onClick={() => handleLogWaterOz(oz)}
-                  disabled={logWater.isPending || !isViewingToday}
+                  disabled={logWater.isPending}
                 >
                   +{oz} oz
                 </Button>
               ))}
             </div>
-            {isViewingToday && (
-              <div className="flex gap-1.5 items-center">
-                <Input
-                  type="number"
-                  placeholder="Custom oz"
-                  value={customWaterOz}
-                  onChange={(e) => setCustomWaterOz(e.target.value)}
-                  className="h-7 text-xs flex-1"
-                  min="0"
-                  step="1"
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-xs"
-                  onClick={handleCustomWaterSubmit}
-                  disabled={logWater.isPending || !customWaterOz || parseFloat(customWaterOz) <= 0}
-                >
-                  Add
-                </Button>
-              </div>
-            )}
-            {!isViewingToday && (
-              <p className="text-xs text-muted-foreground text-center">
-                Switch to today to log water
-              </p>
-            )}
+            <div className="flex gap-1.5 items-center">
+              <Input
+                type="number"
+                placeholder="Custom oz"
+                value={customWaterOz}
+                onChange={(e) => setCustomWaterOz(e.target.value)}
+                className="h-7 text-xs flex-1"
+                min="0"
+                step="1"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={handleCustomWaterSubmit}
+                disabled={logWater.isPending || !customWaterOz || parseFloat(customWaterOz) <= 0}
+              >
+                Add
+              </Button>
+            </div>
           </div>
 
           {/* Net Energy (if Oura data available) */}

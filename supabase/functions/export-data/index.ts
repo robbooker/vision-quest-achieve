@@ -76,7 +76,7 @@ const RESOURCE_HANDLERS: Record<string, (supabase: any, userId: string, from: st
 
   sleep: async (supabase, userId, from, to) => {
     let query = supabase.from("oura_daily_metrics")
-      .select("metric_date, sleep_score, sleep_duration_hours, deep_sleep_minutes, rem_sleep_minutes, resting_heart_rate, hrv_average, bedtime_start, bedtime_end")
+      .select("metric_date, sleep_score, total_sleep_seconds, deep_sleep_seconds, rem_sleep_seconds, resting_heart_rate, hrv_balance, manual_bedtime, manual_wake_time, sleep_efficiency, readiness_score, source")
       .eq("user_id", userId)
       .order("metric_date", { ascending: true });
     if (from) query = query.gte("metric_date", from);
@@ -84,12 +84,16 @@ const RESOURCE_HANDLERS: Record<string, (supabase: any, userId: string, from: st
     const { data, error } = await query;
     if (error) throw error;
     return {
-      columns: ["date", "sleep_score", "sleep_hours", "deep_sleep_min", "rem_sleep_min", "resting_hr", "hrv_avg", "bedtime_start", "bedtime_end"],
+      columns: ["date", "sleep_score", "sleep_hours", "deep_sleep_min", "rem_sleep_min", "resting_hr", "hrv", "bedtime", "wake_time", "efficiency", "readiness_score", "source"],
       rows: (data || []).map((r: any) => ({
-        date: r.metric_date, sleep_score: r.sleep_score, sleep_hours: r.sleep_duration_hours,
-        deep_sleep_min: r.deep_sleep_minutes, rem_sleep_min: r.rem_sleep_minutes,
-        resting_hr: r.resting_heart_rate, hrv_avg: r.hrv_average,
-        bedtime_start: r.bedtime_start || "", bedtime_end: r.bedtime_end || "",
+        date: r.metric_date, sleep_score: r.sleep_score,
+        sleep_hours: r.total_sleep_seconds ? +(r.total_sleep_seconds / 3600).toFixed(2) : null,
+        deep_sleep_min: r.deep_sleep_seconds ? Math.round(r.deep_sleep_seconds / 60) : null,
+        rem_sleep_min: r.rem_sleep_seconds ? Math.round(r.rem_sleep_seconds / 60) : null,
+        resting_hr: r.resting_heart_rate, hrv: r.hrv_balance,
+        bedtime: r.manual_bedtime || "", wake_time: r.manual_wake_time || "",
+        efficiency: r.sleep_efficiency, readiness_score: r.readiness_score,
+        source: r.source || "",
       })),
     };
   },

@@ -457,11 +457,123 @@ serve(async (req) => {
     const url = new URL(req.url);
     const resource = url.searchParams.get("resource");
 
+    // === WRITE OPERATIONS (POST/PATCH) for tasks ===
+    if ((req.method === "POST" || req.method === "PATCH") && resource === "tasks") {
+      const { userId, error: authError } = await resolveUserId(req);
+      if (authError || !userId) {
+        return new Response(JSON.stringify({ error: authError || "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+
+      const body = await req.json();
+
+      // POST: Create a new task
+      if (req.method === "POST") {
+        const { title, category, pillar, due_date } = body;
+        if (!title) {
+          return new Response(JSON.stringify({ error: "title is required" }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Get max position for ordering
+        const { data: maxPosData } = await supabase
+          .from("quick_tasks")
+          .select("position")
+          .eq("user_id", userId)
+          .order("position", { ascending: false })
+          .limit(1);
+        const nextPosition = (maxPosData?.[0]?.position ?? -1) + 1;
+
+        const { data, error } = await supabase
+          .from("quick_tasks")
+          .insert({
+            user_id: userId,
+            title,
+            category: category || "personal",
+            pillar: pillar || null,
+            due_date: due_date || null,
+            completed: false,
+            position: nextPosition,
+          })
+          .select("id, title, category, pillar, completed, due_date, created_at")
+          .single();
+
+        if (error) throw error;
+        return new Response(JSON.stringify({ success: true, task: data }), {
+          status: 201, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // PATCH: Update a task (complete/uncomplete, edit fields)
+      if (req.method === "PATCH") {
+        const { id, completed, title, category, pillar, due_date } = body;
+        if (!id) {
+          return new Response(JSON.stringify({ error: "id is required" }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Verify task belongs to user
+        const { data: existing, error: lookupErr } = await supabase
+          .from("quick_tasks")
+          .select("id")
+          .eq("id", id)
+          .eq("user_id", userId)
+          .single();
+
+        if (lookupErr || !existing) {
+          return new Response(JSON.stringify({ error: "Task not found" }), {
+            status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+        if (typeof completed === "boolean") {
+          updates.completed = completed;
+          updates.completed_at = completed ? new Date().toISOString() : null;
+        }
+        if (title !== undefined) updates.title = title;
+        if (category !== undefined) updates.category = category;
+        if (pillar !== undefined) updates.pillar = pillar;
+        if (due_date !== undefined) updates.due_date = due_date;
+
+        const { data, error } = await supabase
+          .from("quick_tasks")
+          .update(updates)
+          .eq("id", id)
+          .select("id, title, category, pillar, completed, completed_at, due_date, created_at")
+          .single();
+
+        if (error) throw error;
+        return new Response(JSON.stringify({ success: true, task: data }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // === Reject non-GET for other resources ===
+    if (req.method !== "GET" && !(req.method === "POST" || req.method === "PATCH")) {
+      return new Response(JSON.stringify({ error: "Method not allowed" }), {
+        status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // If no resource specified, return list of available resources
     if (!resource) {
       return new Response(JSON.stringify({
         available_resources: AVAILABLE_RESOURCES,
-        usage: "Add ?resource=<name> to export data. Optional: &from=2025-01-01&to=2025-12-31&format=csv",
+        usage: "GET ?resource=<name> to read data. POST ?resource=tasks to create. PATCH ?resource=tasks to update/complete.",
+        write_endpoints: {
+          "POST tasks": { body: "{ title, category?, pillar?, due_date? }", description: "Create a new task" },
+          "PATCH tasks": { body: "{ id, completed?, title?, category?, pillar?, due_date? }", description: "Update or complete a task" },
+        },
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 

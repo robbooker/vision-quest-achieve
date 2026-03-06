@@ -385,6 +385,24 @@ const RESOURCE_HANDLERS: Record<string, (supabase: any, userId: string, from: st
     };
   },
 
+  intention: async (supabase, userId, _from, _to) => {
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const { data, error } = await supabase.from("monthly_intentions")
+      .select("word, description, month, created_at, updated_at")
+      .eq("user_id", userId)
+      .order("month", { ascending: false });
+    if (error) throw error;
+    const current = (data || []).find((r: any) => r.month === currentMonth);
+    return {
+      columns: ["month", "word", "description", "is_current", "created_at", "updated_at"],
+      rows: (data || []).map((r: any) => ({
+        month: r.month, word: r.word, description: r.description || "",
+        is_current: r.month === currentMonth, created_at: r.created_at, updated_at: r.updated_at,
+      })),
+    };
+  },
+
   trips: async (supabase, userId, from, to) => {
     // Fetch trips
     let tripQuery = supabase.from("trips")

@@ -1,13 +1,12 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, Megaphone, MessageSquarePlus, Sparkles, ScrollText } from 'lucide-react';
+import { LayoutDashboard, Users, Megaphone, MessageSquarePlus, ScrollText } from 'lucide-react';
 
 const tabs = [
   { name: 'Overview', href: '/admin', icon: LayoutDashboard },
   { name: 'Users', href: '/admin/users', icon: Users },
   { name: 'Broadcasts', href: '/admin/broadcasts', icon: Megaphone },
   { name: 'Feedback', href: '/admin/feedback', icon: MessageSquarePlus },
-  { name: 'AI Arena', href: '/admin/arena', icon: Sparkles },
   { name: 'Changelog', href: '/admin/changelog', icon: ScrollText },
 ];
 

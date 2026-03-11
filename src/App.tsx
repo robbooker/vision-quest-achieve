@@ -65,7 +65,7 @@ import JanuaryAudit from "./pages/JanuaryAudit";
 import WhatsNew from "./pages/WhatsNew";
 import MonthInReviewBlog from "./pages/MonthInReviewBlog";
 import MorningBriefingBlog from "./pages/MorningBriefingBlog";
-import AIArena from "./pages/AIArena";
+
 import Sprints from "./pages/Sprints";
 import MorningBriefingLab from "./pages/MorningBriefingLab";
 const queryClient = new QueryClient({

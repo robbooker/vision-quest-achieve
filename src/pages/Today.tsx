@@ -338,6 +338,9 @@ export default function Today() {
         {/* Monthly Intention Widget (includes briefing player) */}
         <MonthlyIntentionWidget />
 
+        {/* The Big 3 Projects */}
+        <BigThreeWidget />
+
         {/* Sick Day Banner */}
         {todayIsSick && (
           <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 flex items-center justify-between">

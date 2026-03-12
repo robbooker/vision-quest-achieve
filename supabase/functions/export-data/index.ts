@@ -538,8 +538,8 @@ serve(async (req) => {
     const url = new URL(req.url);
     const resource = url.searchParams.get("resource");
 
-    // === WRITE OPERATIONS (POST/PATCH) for tasks ===
-    if ((req.method === "POST" || req.method === "PATCH") && resource === "tasks") {
+    // === WRITE OPERATIONS (POST/PATCH) for tasks and goal_sprint ===
+    if ((req.method === "POST" || req.method === "PATCH") && (resource === "tasks" || resource === "goal_sprint")) {
       const { userId, error: authError } = await resolveUserId(req);
       if (authError || !userId) {
         return new Response(JSON.stringify({ error: authError || "Unauthorized" }), {
@@ -554,8 +554,57 @@ serve(async (req) => {
 
       const body = await req.json();
 
-      // POST: Create a new task
-      if (req.method === "POST") {
+      // === goal_sprint POST/PATCH ===
+      if (resource === "goal_sprint") {
+        const { date, goal_key, completed, notes } = body;
+        if (!date || !goal_key) {
+          return new Response(JSON.stringify({ error: "date and goal_key are required" }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const validKeys = ['diet', 'cardio', 'reading', 'morning_routine', 'nighttime_routine', 'strength'];
+        if (!validKeys.includes(goal_key)) {
+          return new Response(JSON.stringify({ error: `goal_key must be one of: ${validKeys.join(', ')}` }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Upsert
+        const { data: existing } = await supabase
+          .from("goal_sprint_logs")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("sprint_date", date)
+          .eq("goal_key", goal_key)
+          .maybeSingle();
+
+        if (existing) {
+          const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+          if (typeof completed === "boolean") updates.completed = completed;
+          if (notes !== undefined) updates.notes = notes;
+          const { error } = await supabase.from("goal_sprint_logs").update(updates).eq("id", existing.id);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase.from("goal_sprint_logs").insert({
+            user_id: userId,
+            sprint_date: date,
+            goal_key,
+            completed: completed ?? false,
+            notes: notes || null,
+          });
+          if (error) throw error;
+        }
+
+        // Return full summary
+        const result = await RESOURCE_HANDLERS.goal_sprint(supabase, userId, null, null);
+        return new Response(JSON.stringify({
+          success: true, resource: "goal_sprint", ...result,
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      // === tasks POST ===
+      if (resource === "tasks" && req.method === "POST") {
         const { title, category, pillar, due_date } = body;
         if (!title) {
           return new Response(JSON.stringify({ error: "title is required" }), {
@@ -563,7 +612,6 @@ serve(async (req) => {
           });
         }
 
-        // Get max position for ordering
         const { data: maxPosData } = await supabase
           .from("quick_tasks")
           .select("position")
@@ -592,8 +640,8 @@ serve(async (req) => {
         });
       }
 
-      // PATCH: Update a task (complete/uncomplete, edit fields)
-      if (req.method === "PATCH") {
+      // === tasks PATCH ===
+      if (resource === "tasks" && req.method === "PATCH") {
         const { id, completed, title, category, pillar, due_date } = body;
         if (!id) {
           return new Response(JSON.stringify({ error: "id is required" }), {
@@ -601,7 +649,6 @@ serve(async (req) => {
           });
         }
 
-        // Verify task belongs to user
         const { data: existing, error: lookupErr } = await supabase
           .from("quick_tasks")
           .select("id")

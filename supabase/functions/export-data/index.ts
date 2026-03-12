@@ -784,10 +784,9 @@ serve(async (req) => {
       }
 
     }
-    }
 
     // === Reject non-GET for other resources ===
-    if (req.method !== "GET" && !(req.method === "POST" || req.method === "PATCH")) {
+    if (req.method !== "GET" && !(req.method === "POST" || req.method === "PATCH" || req.method === "DELETE")) {
       return new Response(JSON.stringify({ error: "Method not allowed" }), {
         status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

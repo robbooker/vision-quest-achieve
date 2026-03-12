@@ -724,7 +724,7 @@ serve(async (req) => {
         write_endpoints: {
           "POST tasks": { body: "{ title, category?, pillar?, due_date? }", description: "Create a new task" },
           "PATCH tasks": { body: "{ id, completed?, title?, category?, pillar?, due_date? }", description: "Update or complete a task" },
-          "POST/PATCH goal_sprint": { body: "{ date, goal_key, completed?, completed_sets?, notes? }", description: "Log or update a sprint goal. goal_key: morning_meditation|morning_diet|evening_routine_prev|strength|reading|cardio|afternoon_meditation|afternoon_diet. For strength, use completed_sets (0-5) instead of completed." },
+          "POST/PATCH goal_sprint": { body: "{ date, goal_key, completed?, completed_sets?, action?, notes? }", description: "Log or update a sprint goal. goal_key: morning_meditation|morning_diet|evening_routine_prev|strength|reading|cardio|afternoon_meditation|afternoon_diet. For strength: use action:'add_set' to increment by 1 set of 10, or completed_sets (0-5) for absolute value." },
         },
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }

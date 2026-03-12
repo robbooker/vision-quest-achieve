@@ -17,7 +17,7 @@ interface BreakTimerProps {
 export function BreakTimer({ onClose, onBreakComplete }: BreakTimerProps) {
   const [breakMinutes, setBreakMinutes] = useState<number | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState(0);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const onBreakCompleteRef = useRef(onBreakComplete);
 
   // Keep the ref updated with the latest callback

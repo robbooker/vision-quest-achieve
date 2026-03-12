@@ -1406,6 +1406,39 @@ export type Database = {
           },
         ]
       }
+      goal_sprint_logs: {
+        Row: {
+          completed: boolean
+          created_at: string
+          goal_key: string
+          id: string
+          notes: string | null
+          sprint_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean
+          created_at?: string
+          goal_key: string
+          id?: string
+          notes?: string | null
+          sprint_date: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean
+          created_at?: string
+          goal_key?: string
+          id?: string
+          notes?: string | null
+          sprint_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       goal_tactics: {
         Row: {
           created_at: string

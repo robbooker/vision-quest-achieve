@@ -403,6 +403,69 @@ const RESOURCE_HANDLERS: Record<string, (supabase: any, userId: string, from: st
     };
   },
 
+  goal_sprint: async (supabase, userId, _from, _to) => {
+    const SPRINT_START = '2026-03-12';
+    const SPRINT_END = '2026-03-26';
+    const TOTAL_DAYS = 14;
+    const GOALS_PER_DAY = 6;
+    const GOAL_KEYS = ['diet', 'cardio', 'reading', 'morning_routine', 'nighttime_routine', 'strength'];
+
+    const { data, error } = await supabase
+      .from("goal_sprint_logs")
+      .select("sprint_date, goal_key, completed, notes, created_at, updated_at")
+      .eq("user_id", userId)
+      .gte("sprint_date", SPRINT_START)
+      .lte("sprint_date", SPRINT_END)
+      .order("sprint_date", { ascending: true });
+    if (error) throw error;
+
+    const rows = (data || []).map((r: any) => ({
+      date: r.sprint_date, goal_key: r.goal_key, completed: r.completed,
+      notes: r.notes || "", created_at: r.created_at, updated_at: r.updated_at,
+    }));
+
+    // Compute summary
+    const totalCompleted = rows.filter((r: any) => r.completed).length;
+    const totalPossible = TOTAL_DAYS * GOALS_PER_DAY;
+
+    // Today stats
+    const today = new Date().toISOString().split('T')[0];
+    const todayLogs = rows.filter((r: any) => r.date === today);
+    const todayCompleted = todayLogs.filter((r: any) => r.completed).length;
+    const todayMissing = GOAL_KEYS.filter(k => !todayLogs.find((r: any) => r.goal_key === k && r.completed));
+
+    // Week stats (current week = days 1-7 or 8-14)
+    const startDate = new Date(SPRINT_START + 'T00:00:00');
+    const nowDate = new Date(today + 'T00:00:00');
+    const dayNumber = Math.floor((nowDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const currentWeek = dayNumber <= 7 ? 1 : 2;
+    const weekStart = currentWeek === 1 ? SPRINT_START : '2026-03-19';
+    const weekEnd = currentWeek === 1 ? '2026-03-18' : SPRINT_END;
+    const weekLogs = rows.filter((r: any) => r.date >= weekStart && r.date <= weekEnd);
+    const weekCompleted = weekLogs.filter((r: any) => r.completed).length;
+    const weekDays = currentWeek === 1 ? 7 : 7;
+    const weekPossible = weekDays * GOALS_PER_DAY;
+
+    // Per-day breakdown
+    const byDay: Record<string, any> = {};
+    for (const r of rows) {
+      if (!byDay[r.date]) byDay[r.date] = { date: r.date, completed: [], incomplete: [] };
+      if (r.completed) byDay[r.date].completed.push(r.goal_key);
+      else byDay[r.date].incomplete.push(r.goal_key);
+    }
+
+    return {
+      columns: ["date", "goal_key", "completed", "notes", "created_at", "updated_at"],
+      rows,
+      summary: {
+        sprint: { completed: totalCompleted, possible: totalPossible, percentage: totalPossible > 0 ? Math.round((totalCompleted / totalPossible) * 100) : 0 },
+        today: { date: today, day_number: dayNumber, completed: todayCompleted, possible: GOALS_PER_DAY, missing: todayMissing },
+        week: { week: currentWeek, completed: weekCompleted, possible: weekPossible, percentage: weekPossible > 0 ? Math.round((weekCompleted / weekPossible) * 100) : 0 },
+        by_day: Object.values(byDay),
+      },
+    };
+  },
+
   trips: async (supabase, userId, from, to) => {
     // Fetch trips
     let tripQuery = supabase.from("trips")
@@ -475,8 +538,8 @@ serve(async (req) => {
     const url = new URL(req.url);
     const resource = url.searchParams.get("resource");
 
-    // === WRITE OPERATIONS (POST/PATCH) for tasks ===
-    if ((req.method === "POST" || req.method === "PATCH") && resource === "tasks") {
+    // === WRITE OPERATIONS (POST/PATCH) for tasks and goal_sprint ===
+    if ((req.method === "POST" || req.method === "PATCH") && (resource === "tasks" || resource === "goal_sprint")) {
       const { userId, error: authError } = await resolveUserId(req);
       if (authError || !userId) {
         return new Response(JSON.stringify({ error: authError || "Unauthorized" }), {
@@ -491,8 +554,57 @@ serve(async (req) => {
 
       const body = await req.json();
 
-      // POST: Create a new task
-      if (req.method === "POST") {
+      // === goal_sprint POST/PATCH ===
+      if (resource === "goal_sprint") {
+        const { date, goal_key, completed, notes } = body;
+        if (!date || !goal_key) {
+          return new Response(JSON.stringify({ error: "date and goal_key are required" }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const validKeys = ['diet', 'cardio', 'reading', 'morning_routine', 'nighttime_routine', 'strength'];
+        if (!validKeys.includes(goal_key)) {
+          return new Response(JSON.stringify({ error: `goal_key must be one of: ${validKeys.join(', ')}` }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Upsert
+        const { data: existing } = await supabase
+          .from("goal_sprint_logs")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("sprint_date", date)
+          .eq("goal_key", goal_key)
+          .maybeSingle();
+
+        if (existing) {
+          const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+          if (typeof completed === "boolean") updates.completed = completed;
+          if (notes !== undefined) updates.notes = notes;
+          const { error } = await supabase.from("goal_sprint_logs").update(updates).eq("id", existing.id);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase.from("goal_sprint_logs").insert({
+            user_id: userId,
+            sprint_date: date,
+            goal_key,
+            completed: completed ?? false,
+            notes: notes || null,
+          });
+          if (error) throw error;
+        }
+
+        // Return full summary
+        const result = await RESOURCE_HANDLERS.goal_sprint(supabase, userId, null, null);
+        return new Response(JSON.stringify({
+          success: true, resource: "goal_sprint", ...result,
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      // === tasks POST ===
+      if (resource === "tasks" && req.method === "POST") {
         const { title, category, pillar, due_date } = body;
         if (!title) {
           return new Response(JSON.stringify({ error: "title is required" }), {
@@ -500,7 +612,6 @@ serve(async (req) => {
           });
         }
 
-        // Get max position for ordering
         const { data: maxPosData } = await supabase
           .from("quick_tasks")
           .select("position")
@@ -529,8 +640,8 @@ serve(async (req) => {
         });
       }
 
-      // PATCH: Update a task (complete/uncomplete, edit fields)
-      if (req.method === "PATCH") {
+      // === tasks PATCH ===
+      if (resource === "tasks" && req.method === "PATCH") {
         const { id, completed, title, category, pillar, due_date } = body;
         if (!id) {
           return new Response(JSON.stringify({ error: "id is required" }), {
@@ -538,7 +649,6 @@ serve(async (req) => {
           });
         }
 
-        // Verify task belongs to user
         const { data: existing, error: lookupErr } = await supabase
           .from("quick_tasks")
           .select("id")
@@ -587,10 +697,11 @@ serve(async (req) => {
     if (!resource) {
       return new Response(JSON.stringify({
         available_resources: AVAILABLE_RESOURCES,
-        usage: "GET ?resource=<name> to read data. POST ?resource=tasks to create. PATCH ?resource=tasks to update/complete.",
+        usage: "GET ?resource=<name> to read data. POST/PATCH ?resource=tasks or ?resource=goal_sprint to write.",
         write_endpoints: {
           "POST tasks": { body: "{ title, category?, pillar?, due_date? }", description: "Create a new task" },
           "PATCH tasks": { body: "{ id, completed?, title?, category?, pillar?, due_date? }", description: "Update or complete a task" },
+          "POST/PATCH goal_sprint": { body: "{ date, goal_key, completed, notes? }", description: "Log or update a sprint goal. goal_key: diet|cardio|reading|morning_routine|nighttime_routine|strength" },
         },
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
@@ -618,7 +729,8 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const { columns, rows } = await RESOURCE_HANDLERS[resource](supabase, userId, from, to, url.searchParams);
+    const result = await RESOURCE_HANDLERS[resource](supabase, userId, from, to, url.searchParams);
+    const { columns, rows } = result;
 
     if (format === "csv") {
       const header = columns.join(",");
@@ -641,9 +753,13 @@ serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({
-      resource, count: rows.length, from: from || null, to: to || null, data: rows,
-    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const response: any = { resource, count: rows.length, from: from || null, to: to || null, data: rows };
+    // Include summary for goal_sprint
+    if ((result as any).summary) {
+      response.summary = (result as any).summary;
+    }
+
+    return new Response(JSON.stringify(response), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error) {
     console.error("[export-data] Error:", error);

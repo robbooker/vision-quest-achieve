@@ -56,6 +56,8 @@ import { WeatherWidget } from '@/components/dashboard/WeatherWidget';
 import { RoutineSection } from '@/components/dashboard/RoutineSection';
 import { useRoutines } from '@/hooks/useRoutines';
 import { SprintTrackerWidget } from '@/components/dashboard/SprintTrackerWidget';
+import { GoalSprintWidget } from '@/components/dashboard/GoalSprintWidget';
+import { isSprintActive } from '@/data/goalSprint';
 
 export default function Today() {
   const navigate = useNavigate();
@@ -358,9 +360,11 @@ export default function Today() {
 
         {/* Row 1: Daily Steps + Calendar - Side by Side */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Routines or Legacy Daily Steps */}
+          {/* Goal Sprint, Routines, or Legacy Daily Steps */}
           <div data-tour="daily-steps">
-            {hasRoutines ? (
+            {isSprintActive() ? (
+              <GoalSprintWidget />
+            ) : hasRoutines ? (
               <RoutineSection />
             ) : (allTactics.length > 0 || todaySchedules.length > 0) ? (
               <Card className={`h-full border-primary/20 ${todayIsSick ? 'opacity-60' : ''}`}>

@@ -403,6 +403,69 @@ const RESOURCE_HANDLERS: Record<string, (supabase: any, userId: string, from: st
     };
   },
 
+  goal_sprint: async (supabase, userId, _from, _to) => {
+    const SPRINT_START = '2026-03-12';
+    const SPRINT_END = '2026-03-26';
+    const TOTAL_DAYS = 14;
+    const GOALS_PER_DAY = 6;
+    const GOAL_KEYS = ['diet', 'cardio', 'reading', 'morning_routine', 'nighttime_routine', 'strength'];
+
+    const { data, error } = await supabase
+      .from("goal_sprint_logs")
+      .select("sprint_date, goal_key, completed, notes, created_at, updated_at")
+      .eq("user_id", userId)
+      .gte("sprint_date", SPRINT_START)
+      .lte("sprint_date", SPRINT_END)
+      .order("sprint_date", { ascending: true });
+    if (error) throw error;
+
+    const rows = (data || []).map((r: any) => ({
+      date: r.sprint_date, goal_key: r.goal_key, completed: r.completed,
+      notes: r.notes || "", created_at: r.created_at, updated_at: r.updated_at,
+    }));
+
+    // Compute summary
+    const totalCompleted = rows.filter((r: any) => r.completed).length;
+    const totalPossible = TOTAL_DAYS * GOALS_PER_DAY;
+
+    // Today stats
+    const today = new Date().toISOString().split('T')[0];
+    const todayLogs = rows.filter((r: any) => r.date === today);
+    const todayCompleted = todayLogs.filter((r: any) => r.completed).length;
+    const todayMissing = GOAL_KEYS.filter(k => !todayLogs.find((r: any) => r.goal_key === k && r.completed));
+
+    // Week stats (current week = days 1-7 or 8-14)
+    const startDate = new Date(SPRINT_START + 'T00:00:00');
+    const nowDate = new Date(today + 'T00:00:00');
+    const dayNumber = Math.floor((nowDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const currentWeek = dayNumber <= 7 ? 1 : 2;
+    const weekStart = currentWeek === 1 ? SPRINT_START : '2026-03-19';
+    const weekEnd = currentWeek === 1 ? '2026-03-18' : SPRINT_END;
+    const weekLogs = rows.filter((r: any) => r.date >= weekStart && r.date <= weekEnd);
+    const weekCompleted = weekLogs.filter((r: any) => r.completed).length;
+    const weekDays = currentWeek === 1 ? 7 : 7;
+    const weekPossible = weekDays * GOALS_PER_DAY;
+
+    // Per-day breakdown
+    const byDay: Record<string, any> = {};
+    for (const r of rows) {
+      if (!byDay[r.date]) byDay[r.date] = { date: r.date, completed: [], incomplete: [] };
+      if (r.completed) byDay[r.date].completed.push(r.goal_key);
+      else byDay[r.date].incomplete.push(r.goal_key);
+    }
+
+    return {
+      columns: ["date", "goal_key", "completed", "notes", "created_at", "updated_at"],
+      rows,
+      summary: {
+        sprint: { completed: totalCompleted, possible: totalPossible, percentage: totalPossible > 0 ? Math.round((totalCompleted / totalPossible) * 100) : 0 },
+        today: { date: today, day_number: dayNumber, completed: todayCompleted, possible: GOALS_PER_DAY, missing: todayMissing },
+        week: { week: currentWeek, completed: weekCompleted, possible: weekPossible, percentage: weekPossible > 0 ? Math.round((weekCompleted / weekPossible) * 100) : 0 },
+        by_day: Object.values(byDay),
+      },
+    };
+  },
+
   trips: async (supabase, userId, from, to) => {
     // Fetch trips
     let tripQuery = supabase.from("trips")

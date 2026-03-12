@@ -58,6 +58,7 @@ import { useRoutines } from '@/hooks/useRoutines';
 import { SprintTrackerWidget } from '@/components/dashboard/SprintTrackerWidget';
 import { GoalSprintWidget } from '@/components/dashboard/GoalSprintWidget';
 import { isSprintActive } from '@/data/goalSprint';
+import { BigThreeWidget } from '@/components/dashboard/BigThreeWidget';
 
 export default function Today() {
   const navigate = useNavigate();

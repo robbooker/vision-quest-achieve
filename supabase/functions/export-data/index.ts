@@ -722,6 +722,8 @@ serve(async (req) => {
         return new Response(JSON.stringify({ success: true, task: data }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+      }
+
       // === big_three POST ===
       if (resource === "big_three" && req.method === "POST") {
         const { type, project_id, phase_id, title, description, position, target_date } = body;

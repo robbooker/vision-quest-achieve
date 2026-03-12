@@ -526,6 +526,22 @@ const RESOURCE_HANDLERS: Record<string, (supabase: any, userId: string, from: st
       rows,
     };
   },
+  big_three: async (supabase: any, userId: string) => {
+    const { data: projects, error: pErr } = await supabase.from("big_three_projects").select("*").eq("user_id", userId).order("position");
+    if (pErr) throw pErr;
+    const { data: phases, error: phErr } = await supabase.from("big_three_phases").select("*").eq("user_id", userId).order("position");
+    if (phErr) throw phErr;
+    const { data: tasks, error: tErr } = await supabase.from("big_three_tasks").select("*").eq("user_id", userId).order("position");
+    if (tErr) throw tErr;
+
+    const tasksByPhase: Record<string, any[]> = {};
+    for (const t of tasks || []) { if (!tasksByPhase[t.phase_id]) tasksByPhase[t.phase_id] = []; tasksByPhase[t.phase_id].push(t); }
+    const phasesByProject: Record<string, any[]> = {};
+    for (const ph of phases || []) { if (!phasesByProject[ph.project_id]) phasesByProject[ph.project_id] = []; phasesByProject[ph.project_id].push({ ...ph, tasks: tasksByPhase[ph.id] || [] }); }
+
+    const rows = (projects || []).map((p: any) => ({ ...p, phases: phasesByProject[p.id] || [] }));
+    return { columns: ["id", "title", "description", "position", "target_date", "completed", "phases"], rows };
+  },
 };
 
 const AVAILABLE_RESOURCES = Object.keys(RESOURCE_HANDLERS);
@@ -540,7 +556,7 @@ serve(async (req) => {
     const resource = url.searchParams.get("resource");
 
     // === WRITE OPERATIONS (POST/PATCH) for tasks and goal_sprint ===
-    if ((req.method === "POST" || req.method === "PATCH") && (resource === "tasks" || resource === "goal_sprint")) {
+    if ((req.method === "POST" || req.method === "PATCH" || req.method === "DELETE") && (resource === "tasks" || resource === "goal_sprint" || resource === "big_three")) {
       const { userId, error: authError } = await resolveUserId(req);
       if (authError || !userId) {
         return new Response(JSON.stringify({ error: authError || "Unauthorized" }), {
@@ -707,10 +723,72 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
+      // === big_three POST ===
+      if (resource === "big_three" && req.method === "POST") {
+        const { type, project_id, phase_id, title, description, position, target_date } = body;
+        if (!type || !title) {
+          return new Response(JSON.stringify({ error: "type and title are required" }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        let data, error;
+        if (type === "project") {
+          ({ data, error } = await supabase.from("big_three_projects").insert({
+            user_id: userId, title, description: description || null, position: position ?? 1, target_date: target_date || null,
+          }).select().single());
+        } else if (type === "phase") {
+          if (!project_id) return new Response(JSON.stringify({ error: "project_id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          ({ data, error } = await supabase.from("big_three_phases").insert({
+            user_id: userId, project_id, title, description: description || null, position: position ?? 0,
+          }).select().single());
+        } else if (type === "task") {
+          if (!phase_id) return new Response(JSON.stringify({ error: "phase_id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          ({ data, error } = await supabase.from("big_three_tasks").insert({
+            user_id: userId, phase_id, title, description: description || null, position: position ?? 0,
+          }).select().single());
+        } else {
+          return new Response(JSON.stringify({ error: "type must be project, phase, or task" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        if (error) throw error;
+        return new Response(JSON.stringify({ success: true, type, data }), { status: 201, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      // === big_three PATCH ===
+      if (resource === "big_three" && req.method === "PATCH") {
+        const { type, id, ...updates } = body;
+        if (!type || !id) return new Response(JSON.stringify({ error: "type and id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        const table = type === "project" ? "big_three_projects" : type === "phase" ? "big_three_phases" : type === "task" ? "big_three_tasks" : null;
+        if (!table) return new Response(JSON.stringify({ error: "type must be project, phase, or task" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        
+        const cleanUpdates: Record<string, any> = {};
+        for (const [k, v] of Object.entries(updates)) {
+          if (["title", "description", "completed", "position", "target_date"].includes(k)) cleanUpdates[k] = v;
+        }
+        if (typeof cleanUpdates.completed === "boolean" && type === "task") {
+          cleanUpdates.completed_at = cleanUpdates.completed ? new Date().toISOString() : null;
+        }
+        
+        const { data, error } = await supabase.from(table).update(cleanUpdates).eq("id", id).eq("user_id", userId).select().single();
+        if (error) throw error;
+        return new Response(JSON.stringify({ success: true, type, data }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      // === big_three DELETE ===
+      if (resource === "big_three" && req.method === "DELETE") {
+        const { type, id } = body;
+        if (!type || !id) return new Response(JSON.stringify({ error: "type and id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        const table = type === "project" ? "big_three_projects" : type === "phase" ? "big_three_phases" : type === "task" ? "big_three_tasks" : null;
+        if (!table) return new Response(JSON.stringify({ error: "type must be project, phase, or task" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        const { error } = await supabase.from(table).delete().eq("id", id).eq("user_id", userId);
+        if (error) throw error;
+        return new Response(JSON.stringify({ success: true, deleted: { type, id } }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
     }
 
     // === Reject non-GET for other resources ===
-    if (req.method !== "GET" && !(req.method === "POST" || req.method === "PATCH")) {
+    if (req.method !== "GET" && !(req.method === "POST" || req.method === "PATCH" || req.method === "DELETE")) {
       return new Response(JSON.stringify({ error: "Method not allowed" }), {
         status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -720,11 +798,14 @@ serve(async (req) => {
     if (!resource) {
       return new Response(JSON.stringify({
         available_resources: AVAILABLE_RESOURCES,
-        usage: "GET ?resource=<name> to read data. POST/PATCH ?resource=tasks or ?resource=goal_sprint to write.",
+        usage: "GET ?resource=<name> to read data. POST/PATCH/DELETE ?resource=tasks|goal_sprint|big_three to write.",
         write_endpoints: {
           "POST tasks": { body: "{ title, category?, pillar?, due_date? }", description: "Create a new task" },
           "PATCH tasks": { body: "{ id, completed?, title?, category?, pillar?, due_date? }", description: "Update or complete a task" },
-          "POST/PATCH goal_sprint": { body: "{ date, goal_key, completed?, completed_sets?, action?, notes? }", description: "Log or update a sprint goal. goal_key: morning_meditation|morning_diet|evening_routine_prev|strength|reading|cardio|afternoon_meditation|afternoon_diet. For strength: use action:'add_set' to increment by 1 set of 10, or completed_sets (0-5) for absolute value." },
+          "POST/PATCH goal_sprint": { body: "{ date, goal_key, completed?, completed_sets?, action?, notes? }", description: "Log or update a sprint goal." },
+          "POST big_three": { body: "{ type: 'project'|'phase'|'task', title, description?, project_id?, phase_id?, position? }", description: "Create a project, phase, or task" },
+          "PATCH big_three": { body: "{ type: 'project'|'phase'|'task', id, title?, description?, completed?, position? }", description: "Update a project, phase, or task" },
+          "DELETE big_three": { body: "{ type: 'project'|'phase'|'task', id }", description: "Delete a project, phase, or task (cascades)" },
         },
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }

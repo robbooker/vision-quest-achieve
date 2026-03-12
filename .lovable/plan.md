@@ -1,88 +1,54 @@
 
-Revised plan — incorporating your two critical points:
 
-1) template `default_tasks` instantiation with per-area assignment in Step 3  
-2) soft-deprecation of Daily Steps (hide UI, preserve data/code)
+# Goal Sprint Restructure: Split Day + Set-Based Pushups
 
-## What changes in the plan
+## New Goal Structure
 
-### A) Session 2 must include task instantiation logic (not flat copy)
+The current 6 goals become **9 goals**, organized into sections:
 
-We will treat template `default_tasks` as **draft task blueprints** in wizard state, then instantiate real `sprint_tasks` only on launch.
+**Morning Block** (check off in the AM):
+- `morning_meditation` — Morning meditation & affirmations
+- `morning_diet` — Ate clean (morning/lunch)
+- `evening_routine_prev` — Did evening routine last night (bed by 10:30, screen curfew, etc.)
 
-Implementation design for wizard flow:
+**General Block** (anytime):
+- `strength` — Pushups (even days) or Squats (odd days), logged in sets of 10 with a counter UI
+- `reading` — 1 hour reading
+- `cardio` — 45 min cardio
 
-- **Step 1**: pick template
-- **Step 2**: sprint metadata + Areas of Focus (1–3)
-- **Step 3 (updated)**: task review grid includes:
-  - title/description edits
-  - week/day range/order edits
-  - **required Area-of-Focus assignment per task** (dropdown from Step 2 areas)
-  - add/delete/reorder tasks
-- **Step 4**: launch summary + commit
+**Afternoon Block** (check off in the PM):
+- `afternoon_meditation` — Afternoon meditation
+- `afternoon_diet` — Ate clean (afternoon/dinner)
 
-Launch write order (single atomic operation):
+### Pushup/Squat Set Tracking
 
-1. create `sprints` row  
-2. create `sprint_areas_of_focus` rows  
-3. resolve wizard area selections to created area IDs  
-4. insert `sprint_tasks` rows with:
-   - `sprint_id`
-   - `area_of_focus_id` (assigned in Step 3)
-   - `week`, `day_range`, `sort_order`, etc.
-5. set sprint `status='active'`
+Instead of a single checkbox, strength gets a **counter UI** (0-5 sets of 10). Stored as `completed_sets` (integer, 0-5) in the DB. Goal is "complete" when sets = 5. The API accepts `{ goal_key: "strength", completed_sets: 3 }` — setting `completed` automatically when sets reach 5.
 
-To keep this safe/atomic, Session 2 will include a backend creation action (RPC or backend function) so we don’t risk partial inserts if any step fails.
+## Database Changes
 
-Optional schema hardening we’ll include in Session 2:
-- `sprint_tasks.area_of_focus_id` should be required for templated sprint tasks (enforced by launch validation; DB constraint optional if needed).
-- Add `template_task_order` (or similar) on `sprint_tasks` for stable replay/reporting of original sequence.
+Add a `completed_sets` column (integer, nullable, default null) to `goal_sprint_logs`. No other schema changes needed — the `goal_key` values just expand.
 
-### B) Daily Steps handling = soft-deprecate (hide, preserve)
+## File Changes
 
-We will **not delete**:
-- existing Daily Steps data (`goal_tactics`, `tactic_logs`, etc.)
-- existing components/hooks (`HabitItem`, `useDailyTactics`, `useTacticLogs`)
-- existing cycle/goal system
+| File | Change |
+|------|--------|
+| `src/data/goalSprint.ts` | Replace 6 goals with 9 goals, add `section` field (morning/general/afternoon), update GOALS_PER_DAY to 8 (strength counts as 1) |
+| `src/hooks/useGoalSprint.ts` | Add `updateSets` mutation for strength. Update stats calc for 8 goals/day. Handle `completed_sets` field |
+| `src/components/dashboard/GoalSprintWidget.tsx` | Render goals grouped by section with headers. Strength item gets +/- counter (sets of 10) instead of checkbox. Show "3/5 sets" progress |
+| `supabase/functions/export-data/index.ts` | Update GOAL_KEYS array to new 8 keys, GOALS_PER_DAY to 8. Accept `completed_sets` in POST/PATCH body. Auto-set `completed=true` when sets=5. Update help text |
+| Migration | `ALTER TABLE goal_sprint_logs ADD COLUMN completed_sets integer DEFAULT NULL` |
 
-We will **only stop rendering** Daily Steps in Today page under the new rules:
+## API Changes
 
-- If user has routine items configured (morning/evening): show routines, hide Daily Steps block.
-- If cycle window is over (no active cycle after week 8 behavior): Daily Steps remains hidden (already mostly true due to current `!activeCycle` branch; we’ll ensure routines still show).
-- If user has no routines yet and still in legacy cycle flow: keep fallback behavior configurable (default: show routine onboarding CTA, not Daily Steps card).
+**Valid `goal_key` values change to:** `morning_meditation`, `morning_diet`, `evening_routine_prev`, `strength`, `reading`, `cardio`, `afternoon_meditation`, `afternoon_diet`
 
-This keeps full backward compatibility and historical data intact while moving users to routines-first UX.
+**POST/PATCH body** now also accepts `completed_sets` (integer 0-5) for strength:
+```json
+{ "date": "2026-03-12", "goal_key": "strength", "completed_sets": 3 }
+```
+When `completed_sets` reaches 5, `completed` is auto-set to `true`.
 
-## Concrete updates to phased implementation
+All other goals remain simple `completed: true/false` toggles.
 
-### Phase 1 (Database + Routines) — adjusted
-- Add routines tables + RLS.
-- Integrate Morning/Evening routines in Today page.
-- Add conditional rendering gate for legacy Daily Steps:
-  - hidden when routines configured
-  - hidden when cycle is no longer active window
-- Keep old Daily Steps code/data untouched (soft-deprecated).
-
-### Phase 2 (Sprint Core + Wizard) — adjusted
-- Build Step 3 task editor with **per-task Area assignment**.
-- Add launch pipeline that instantiates `default_tasks` into `sprint_tasks` with mapped `area_of_focus_id`.
-- Use atomic backend write path for sprint+areas+tasks creation.
-- Validate all tasks have area assignment before enabling “Start Sprint”.
-
-### Phase 3/4 (Kanban + Today Sprint Tracker)
-- Kanban consumes already area-tagged tasks (no retro-tagging needed).
-- Today “Next Up” logic becomes straightforward: fetch highest-priority non-done task per area.
-
-## Edge cases explicitly covered
-- User edits/removes template tasks in Step 3 before launch → only edited list is instantiated.
-- User adds custom tasks in Step 3 → must also assign an Area.
-- User has legacy data but adopts routines → Daily Steps hidden, data preserved.
-- Archived sprints remain viewable; this is independent of Daily Steps deprecation.
-
-## Technical details (implementation-critical)
-- `default_tasks` remains JSON blueprint source only.
-- Wizard keeps an internal `draftTasks` array with `selectedAreaDraftId`.
-- On launch, map `selectedAreaDraftId` → persisted `sprint_areas_of_focus.id`.
-- Inserts set `user_id` explicitly for all sprint/routine records to satisfy RLS.
-- No destructive migration against legacy cycle/tactic tables/components.
+**GET** response unchanged in shape — strength rows include `completed_sets` field, summary stats use 8 goals/day.
 

@@ -557,18 +557,26 @@ serve(async (req) => {
 
       // === goal_sprint POST/PATCH ===
       if (resource === "goal_sprint") {
-        const { date, goal_key, completed, notes } = body;
+        const { date, goal_key, completed, completed_sets, notes } = body;
         if (!date || !goal_key) {
           return new Response(JSON.stringify({ error: "date and goal_key are required" }), {
             status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
 
-        const validKeys = ['diet', 'cardio', 'reading', 'morning_routine', 'nighttime_routine', 'strength'];
+        const validKeys = ['morning_meditation', 'morning_diet', 'evening_routine_prev', 'strength', 'reading', 'cardio', 'afternoon_meditation', 'afternoon_diet'];
         if (!validKeys.includes(goal_key)) {
           return new Response(JSON.stringify({ error: `goal_key must be one of: ${validKeys.join(', ')}` }), {
             status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
+        }
+
+        // For strength, handle completed_sets
+        let effectiveCompleted = completed;
+        let effectiveSets = completed_sets;
+        if (goal_key === 'strength' && typeof completed_sets === 'number') {
+          effectiveSets = Math.max(0, Math.min(completed_sets, 5));
+          effectiveCompleted = effectiveSets >= 5;
         }
 
         // Upsert
@@ -582,18 +590,21 @@ serve(async (req) => {
 
         if (existing) {
           const updates: Record<string, any> = { updated_at: new Date().toISOString() };
-          if (typeof completed === "boolean") updates.completed = completed;
+          if (typeof effectiveCompleted === "boolean") updates.completed = effectiveCompleted;
+          if (typeof effectiveSets === "number") updates.completed_sets = effectiveSets;
           if (notes !== undefined) updates.notes = notes;
           const { error } = await supabase.from("goal_sprint_logs").update(updates).eq("id", existing.id);
           if (error) throw error;
         } else {
-          const { error } = await supabase.from("goal_sprint_logs").insert({
+          const insertData: Record<string, any> = {
             user_id: userId,
             sprint_date: date,
             goal_key,
-            completed: completed ?? false,
+            completed: effectiveCompleted ?? false,
             notes: notes || null,
-          });
+          };
+          if (typeof effectiveSets === "number") insertData.completed_sets = effectiveSets;
+          const { error } = await supabase.from("goal_sprint_logs").insert(insertData);
           if (error) throw error;
         }
 

@@ -56,6 +56,8 @@ import { WeatherWidget } from '@/components/dashboard/WeatherWidget';
 import { RoutineSection } from '@/components/dashboard/RoutineSection';
 import { useRoutines } from '@/hooks/useRoutines';
 import { SprintTrackerWidget } from '@/components/dashboard/SprintTrackerWidget';
+import { GoalSprintWidget } from '@/components/dashboard/GoalSprintWidget';
+import { isSprintActive } from '@/data/goalSprint';
 
 export default function Today() {
   const navigate = useNavigate();

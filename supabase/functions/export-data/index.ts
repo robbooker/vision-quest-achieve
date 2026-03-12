@@ -526,6 +526,22 @@ const RESOURCE_HANDLERS: Record<string, (supabase: any, userId: string, from: st
       rows,
     };
   },
+  big_three: async (supabase: any, userId: string) => {
+    const { data: projects, error: pErr } = await supabase.from("big_three_projects").select("*").eq("user_id", userId).order("position");
+    if (pErr) throw pErr;
+    const { data: phases, error: phErr } = await supabase.from("big_three_phases").select("*").eq("user_id", userId).order("position");
+    if (phErr) throw phErr;
+    const { data: tasks, error: tErr } = await supabase.from("big_three_tasks").select("*").eq("user_id", userId).order("position");
+    if (tErr) throw tErr;
+
+    const tasksByPhase: Record<string, any[]> = {};
+    for (const t of tasks || []) { if (!tasksByPhase[t.phase_id]) tasksByPhase[t.phase_id] = []; tasksByPhase[t.phase_id].push(t); }
+    const phasesByProject: Record<string, any[]> = {};
+    for (const ph of phases || []) { if (!phasesByProject[ph.project_id]) phasesByProject[ph.project_id] = []; phasesByProject[ph.project_id].push({ ...ph, tasks: tasksByPhase[ph.id] || [] }); }
+
+    const rows = (projects || []).map((p: any) => ({ ...p, phases: phasesByProject[p.id] || [] }));
+    return { columns: ["id", "title", "description", "position", "target_date", "completed", "phases"], rows };
+  },
 };
 
 const AVAILABLE_RESOURCES = Object.keys(RESOURCE_HANDLERS);

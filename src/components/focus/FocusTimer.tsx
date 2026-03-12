@@ -17,7 +17,7 @@ export function FocusTimer({ plannedMinutes, objective, onComplete, onCancel, on
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [customMinutes, setCustomMinutes] = useState('');
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const completionSoundPlayedRef = useRef(false);
 

@@ -360,9 +360,11 @@ export default function Today() {
 
         {/* Row 1: Daily Steps + Calendar - Side by Side */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Routines or Legacy Daily Steps */}
+          {/* Goal Sprint, Routines, or Legacy Daily Steps */}
           <div data-tour="daily-steps">
-            {hasRoutines ? (
+            {isSprintActive() ? (
+              <GoalSprintWidget />
+            ) : hasRoutines ? (
               <RoutineSection />
             ) : (allTactics.length > 0 || todaySchedules.length > 0) ? (
               <Card className={`h-full border-primary/20 ${todayIsSick ? 'opacity-60' : ''}`}>

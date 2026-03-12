@@ -14,7 +14,7 @@ export function InstallPrompt() {
   const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     // Check if already installed
     const standalone = window.matchMedia('(display-mode: standalone)').matches;

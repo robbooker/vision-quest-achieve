@@ -729,7 +729,8 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const { columns, rows } = await RESOURCE_HANDLERS[resource](supabase, userId, from, to, url.searchParams);
+    const result = await RESOURCE_HANDLERS[resource](supabase, userId, from, to, url.searchParams);
+    const { columns, rows } = result;
 
     if (format === "csv") {
       const header = columns.join(",");
@@ -752,9 +753,13 @@ serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({
-      resource, count: rows.length, from: from || null, to: to || null, data: rows,
-    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const response: any = { resource, count: rows.length, from: from || null, to: to || null, data: rows };
+    // Include summary for goal_sprint
+    if ((result as any).summary) {
+      response.summary = (result as any).summary;
+    }
+
+    return new Response(JSON.stringify(response), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error) {
     console.error("[export-data] Error:", error);

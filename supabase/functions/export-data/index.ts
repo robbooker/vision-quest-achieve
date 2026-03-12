@@ -571,22 +571,33 @@ serve(async (req) => {
           });
         }
 
-        // For strength, handle completed_sets
+        // For strength, handle completed_sets and action:"add_set"
         let effectiveCompleted = completed;
         let effectiveSets = completed_sets;
-        if (goal_key === 'strength' && typeof completed_sets === 'number') {
-          effectiveSets = Math.max(0, Math.min(completed_sets, 5));
-          effectiveCompleted = effectiveSets >= 5;
-        }
 
         // Upsert
         const { data: existing } = await supabase
           .from("goal_sprint_logs")
-          .select("id")
+          .select("id, completed_sets")
           .eq("user_id", userId)
           .eq("sprint_date", date)
           .eq("goal_key", goal_key)
           .maybeSingle();
+
+        if (goal_key === 'strength') {
+          const currentSets: number = existing?.completed_sets ?? 0;
+
+          if (body.action === 'add_set') {
+            // Increment by 1 set (each set = 10 reps)
+            effectiveSets = Math.min(currentSets + 1, 5);
+          } else if (typeof completed_sets === 'number') {
+            effectiveSets = Math.max(0, Math.min(completed_sets, 5));
+          }
+
+          if (typeof effectiveSets === 'number') {
+            effectiveCompleted = effectiveSets >= 5;
+          }
+        }
 
         if (existing) {
           const updates: Record<string, any> = { updated_at: new Date().toISOString() };
@@ -713,7 +724,7 @@ serve(async (req) => {
         write_endpoints: {
           "POST tasks": { body: "{ title, category?, pillar?, due_date? }", description: "Create a new task" },
           "PATCH tasks": { body: "{ id, completed?, title?, category?, pillar?, due_date? }", description: "Update or complete a task" },
-          "POST/PATCH goal_sprint": { body: "{ date, goal_key, completed?, completed_sets?, notes? }", description: "Log or update a sprint goal. goal_key: morning_meditation|morning_diet|evening_routine_prev|strength|reading|cardio|afternoon_meditation|afternoon_diet. For strength, use completed_sets (0-5) instead of completed." },
+          "POST/PATCH goal_sprint": { body: "{ date, goal_key, completed?, completed_sets?, action?, notes? }", description: "Log or update a sprint goal. goal_key: morning_meditation|morning_diet|evening_routine_prev|strength|reading|cardio|afternoon_meditation|afternoon_diet. For strength: use action:'add_set' to increment by 1 set of 10, or completed_sets (0-5) for absolute value." },
         },
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }

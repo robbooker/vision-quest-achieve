@@ -796,11 +796,14 @@ serve(async (req) => {
     if (!resource) {
       return new Response(JSON.stringify({
         available_resources: AVAILABLE_RESOURCES,
-        usage: "GET ?resource=<name> to read data. POST/PATCH ?resource=tasks or ?resource=goal_sprint to write.",
+        usage: "GET ?resource=<name> to read data. POST/PATCH/DELETE ?resource=tasks|goal_sprint|big_three to write.",
         write_endpoints: {
           "POST tasks": { body: "{ title, category?, pillar?, due_date? }", description: "Create a new task" },
           "PATCH tasks": { body: "{ id, completed?, title?, category?, pillar?, due_date? }", description: "Update or complete a task" },
-          "POST/PATCH goal_sprint": { body: "{ date, goal_key, completed?, completed_sets?, action?, notes? }", description: "Log or update a sprint goal. goal_key: morning_meditation|morning_diet|evening_routine_prev|strength|reading|cardio|afternoon_meditation|afternoon_diet. For strength: use action:'add_set' to increment by 1 set of 10, or completed_sets (0-5) for absolute value." },
+          "POST/PATCH goal_sprint": { body: "{ date, goal_key, completed?, completed_sets?, action?, notes? }", description: "Log or update a sprint goal." },
+          "POST big_three": { body: "{ type: 'project'|'phase'|'task', title, description?, project_id?, phase_id?, position? }", description: "Create a project, phase, or task" },
+          "PATCH big_three": { body: "{ type: 'project'|'phase'|'task', id, title?, description?, completed?, position? }", description: "Update a project, phase, or task" },
+          "DELETE big_three": { body: "{ type: 'project'|'phase'|'task', id }", description: "Delete a project, phase, or task (cascades)" },
         },
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }

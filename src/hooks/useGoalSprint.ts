@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { GOAL_SPRINT, formatDateStr, isSprintActive, GoalKey } from '@/data/goalSprint';
+import { GOAL_SPRINT, GOALS_PER_DAY, STRENGTH_MAX_SETS, formatDateStr, isSprintActive, GoalKey } from '@/data/goalSprint';
 
 export function useGoalSprint(date: Date) {
   const { user } = useAuth();
@@ -39,6 +39,11 @@ export function useGoalSprint(date: Date) {
     enabled: !!user?.id,
   });
 
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['goal-sprint-logs', dateStr] });
+    queryClient.invalidateQueries({ queryKey: ['goal-sprint-logs-all'] });
+  };
+
   const toggleGoal = useMutation({
     mutationFn: async ({ goalKey, completed }: { goalKey: GoalKey; completed: boolean }) => {
       if (!user?.id) throw new Error('Not authenticated');
@@ -63,19 +68,48 @@ export function useGoalSprint(date: Date) {
         if (error) throw error;
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['goal-sprint-logs', dateStr] });
-      queryClient.invalidateQueries({ queryKey: ['goal-sprint-logs-all'] });
+    onSuccess: invalidate,
+  });
+
+  const updateSets = useMutation({
+    mutationFn: async ({ sets }: { sets: number }) => {
+      if (!user?.id) throw new Error('Not authenticated');
+      const clampedSets = Math.max(0, Math.min(sets, STRENGTH_MAX_SETS));
+      const completed = clampedSets >= STRENGTH_MAX_SETS;
+      
+      const existing = logs.find((l: any) => l.goal_key === 'strength');
+      
+      if (existing) {
+        const { error } = await supabase
+          .from('goal_sprint_logs' as any)
+          .update({ completed, completed_sets: clampedSets, updated_at: new Date().toISOString() } as any)
+          .eq('id', existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('goal_sprint_logs' as any)
+          .insert({
+            user_id: user.id,
+            sprint_date: dateStr,
+            goal_key: 'strength',
+            completed,
+            completed_sets: clampedSets,
+          } as any);
+        if (error) throw error;
+      }
     },
+    onSuccess: invalidate,
   });
 
   const completedKeys = new Set(
     logs.filter((l: any) => l.completed).map((l: any) => l.goal_key)
   );
 
+  const strengthLog = logs.find((l: any) => l.goal_key === 'strength');
+  const strengthSets: number = strengthLog?.completed_sets ?? 0;
+
   // Compute sprint-wide stats
-  const totalGoalsPerDay = 6; // 5 daily + 1 strength
-  const totalPossible = GOAL_SPRINT.totalDays * totalGoalsPerDay;
+  const totalPossible = GOAL_SPRINT.totalDays * GOALS_PER_DAY;
   const totalCompleted = allLogs.filter((l: any) => l.completed).length;
 
   return {
@@ -83,7 +117,9 @@ export function useGoalSprint(date: Date) {
     allLogs,
     isLoading,
     toggleGoal,
+    updateSets,
     completedKeys,
+    strengthSets,
     stats: {
       totalPossible,
       totalCompleted,

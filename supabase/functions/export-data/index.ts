@@ -407,12 +407,12 @@ const RESOURCE_HANDLERS: Record<string, (supabase: any, userId: string, from: st
     const SPRINT_START = '2026-03-12';
     const SPRINT_END = '2026-03-26';
     const TOTAL_DAYS = 14;
-    const GOALS_PER_DAY = 6;
-    const GOAL_KEYS = ['diet', 'cardio', 'reading', 'morning_routine', 'nighttime_routine', 'strength'];
+    const GOALS_PER_DAY = 8;
+    const GOAL_KEYS = ['morning_meditation', 'morning_diet', 'evening_routine_prev', 'strength', 'reading', 'cardio', 'afternoon_meditation', 'afternoon_diet'];
 
     const { data, error } = await supabase
       .from("goal_sprint_logs")
-      .select("sprint_date, goal_key, completed, notes, created_at, updated_at")
+      .select("sprint_date, goal_key, completed, completed_sets, notes, created_at, updated_at")
       .eq("user_id", userId)
       .gte("sprint_date", SPRINT_START)
       .lte("sprint_date", SPRINT_END)
@@ -421,6 +421,7 @@ const RESOURCE_HANDLERS: Record<string, (supabase: any, userId: string, from: st
 
     const rows = (data || []).map((r: any) => ({
       date: r.sprint_date, goal_key: r.goal_key, completed: r.completed,
+      completed_sets: r.completed_sets ?? null,
       notes: r.notes || "", created_at: r.created_at, updated_at: r.updated_at,
     }));
 
@@ -443,7 +444,7 @@ const RESOURCE_HANDLERS: Record<string, (supabase: any, userId: string, from: st
     const weekEnd = currentWeek === 1 ? '2026-03-18' : SPRINT_END;
     const weekLogs = rows.filter((r: any) => r.date >= weekStart && r.date <= weekEnd);
     const weekCompleted = weekLogs.filter((r: any) => r.completed).length;
-    const weekDays = currentWeek === 1 ? 7 : 7;
+    const weekDays = 7;
     const weekPossible = weekDays * GOALS_PER_DAY;
 
     // Per-day breakdown
@@ -455,7 +456,7 @@ const RESOURCE_HANDLERS: Record<string, (supabase: any, userId: string, from: st
     }
 
     return {
-      columns: ["date", "goal_key", "completed", "notes", "created_at", "updated_at"],
+      columns: ["date", "goal_key", "completed", "completed_sets", "notes", "created_at", "updated_at"],
       rows,
       summary: {
         sprint: { completed: totalCompleted, possible: totalPossible, percentage: totalPossible > 0 ? Math.round((totalCompleted / totalPossible) * 100) : 0 },
@@ -556,18 +557,26 @@ serve(async (req) => {
 
       // === goal_sprint POST/PATCH ===
       if (resource === "goal_sprint") {
-        const { date, goal_key, completed, notes } = body;
+        const { date, goal_key, completed, completed_sets, notes } = body;
         if (!date || !goal_key) {
           return new Response(JSON.stringify({ error: "date and goal_key are required" }), {
             status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
 
-        const validKeys = ['diet', 'cardio', 'reading', 'morning_routine', 'nighttime_routine', 'strength'];
+        const validKeys = ['morning_meditation', 'morning_diet', 'evening_routine_prev', 'strength', 'reading', 'cardio', 'afternoon_meditation', 'afternoon_diet'];
         if (!validKeys.includes(goal_key)) {
           return new Response(JSON.stringify({ error: `goal_key must be one of: ${validKeys.join(', ')}` }), {
             status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
+        }
+
+        // For strength, handle completed_sets
+        let effectiveCompleted = completed;
+        let effectiveSets = completed_sets;
+        if (goal_key === 'strength' && typeof completed_sets === 'number') {
+          effectiveSets = Math.max(0, Math.min(completed_sets, 5));
+          effectiveCompleted = effectiveSets >= 5;
         }
 
         // Upsert
@@ -581,18 +590,21 @@ serve(async (req) => {
 
         if (existing) {
           const updates: Record<string, any> = { updated_at: new Date().toISOString() };
-          if (typeof completed === "boolean") updates.completed = completed;
+          if (typeof effectiveCompleted === "boolean") updates.completed = effectiveCompleted;
+          if (typeof effectiveSets === "number") updates.completed_sets = effectiveSets;
           if (notes !== undefined) updates.notes = notes;
           const { error } = await supabase.from("goal_sprint_logs").update(updates).eq("id", existing.id);
           if (error) throw error;
         } else {
-          const { error } = await supabase.from("goal_sprint_logs").insert({
+          const insertData: Record<string, any> = {
             user_id: userId,
             sprint_date: date,
             goal_key,
-            completed: completed ?? false,
+            completed: effectiveCompleted ?? false,
             notes: notes || null,
-          });
+          };
+          if (typeof effectiveSets === "number") insertData.completed_sets = effectiveSets;
+          const { error } = await supabase.from("goal_sprint_logs").insert(insertData);
           if (error) throw error;
         }
 
@@ -701,7 +713,7 @@ serve(async (req) => {
         write_endpoints: {
           "POST tasks": { body: "{ title, category?, pillar?, due_date? }", description: "Create a new task" },
           "PATCH tasks": { body: "{ id, completed?, title?, category?, pillar?, due_date? }", description: "Update or complete a task" },
-          "POST/PATCH goal_sprint": { body: "{ date, goal_key, completed, notes? }", description: "Log or update a sprint goal. goal_key: diet|cardio|reading|morning_routine|nighttime_routine|strength" },
+          "POST/PATCH goal_sprint": { body: "{ date, goal_key, completed?, completed_sets?, notes? }", description: "Log or update a sprint goal. goal_key: morning_meditation|morning_diet|evening_routine_prev|strength|reading|cardio|afternoon_meditation|afternoon_diet. For strength, use completed_sets (0-5) instead of completed." },
         },
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }

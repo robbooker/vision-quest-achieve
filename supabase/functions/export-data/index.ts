@@ -556,7 +556,7 @@ serve(async (req) => {
     const resource = url.searchParams.get("resource");
 
     // === WRITE OPERATIONS (POST/PATCH) for tasks and goal_sprint ===
-    if ((req.method === "POST" || req.method === "PATCH") && (resource === "tasks" || resource === "goal_sprint")) {
+    if ((req.method === "POST" || req.method === "PATCH" || req.method === "DELETE") && (resource === "tasks" || resource === "goal_sprint" || resource === "big_three")) {
       const { userId, error: authError } = await resolveUserId(req);
       if (authError || !userId) {
         return new Response(JSON.stringify({ error: authError || "Unauthorized" }), {

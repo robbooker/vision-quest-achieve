@@ -722,7 +722,68 @@ serve(async (req) => {
         return new Response(JSON.stringify({ success: true, task: data }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+      // === big_three POST ===
+      if (resource === "big_three" && req.method === "POST") {
+        const { type, project_id, phase_id, title, description, position, target_date } = body;
+        if (!type || !title) {
+          return new Response(JSON.stringify({ error: "type and title are required" }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        let data, error;
+        if (type === "project") {
+          ({ data, error } = await supabase.from("big_three_projects").insert({
+            user_id: userId, title, description: description || null, position: position ?? 1, target_date: target_date || null,
+          }).select().single());
+        } else if (type === "phase") {
+          if (!project_id) return new Response(JSON.stringify({ error: "project_id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          ({ data, error } = await supabase.from("big_three_phases").insert({
+            user_id: userId, project_id, title, description: description || null, position: position ?? 0,
+          }).select().single());
+        } else if (type === "task") {
+          if (!phase_id) return new Response(JSON.stringify({ error: "phase_id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          ({ data, error } = await supabase.from("big_three_tasks").insert({
+            user_id: userId, phase_id, title, description: description || null, position: position ?? 0,
+          }).select().single());
+        } else {
+          return new Response(JSON.stringify({ error: "type must be project, phase, or task" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        if (error) throw error;
+        return new Response(JSON.stringify({ success: true, type, data }), { status: 201, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
+
+      // === big_three PATCH ===
+      if (resource === "big_three" && req.method === "PATCH") {
+        const { type, id, ...updates } = body;
+        if (!type || !id) return new Response(JSON.stringify({ error: "type and id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        const table = type === "project" ? "big_three_projects" : type === "phase" ? "big_three_phases" : type === "task" ? "big_three_tasks" : null;
+        if (!table) return new Response(JSON.stringify({ error: "type must be project, phase, or task" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        
+        const cleanUpdates: Record<string, any> = {};
+        for (const [k, v] of Object.entries(updates)) {
+          if (["title", "description", "completed", "position", "target_date"].includes(k)) cleanUpdates[k] = v;
+        }
+        if (typeof cleanUpdates.completed === "boolean" && type === "task") {
+          cleanUpdates.completed_at = cleanUpdates.completed ? new Date().toISOString() : null;
+        }
+        
+        const { data, error } = await supabase.from(table).update(cleanUpdates).eq("id", id).eq("user_id", userId).select().single();
+        if (error) throw error;
+        return new Response(JSON.stringify({ success: true, type, data }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      // === big_three DELETE ===
+      if (resource === "big_three" && req.method === "DELETE") {
+        const { type, id } = body;
+        if (!type || !id) return new Response(JSON.stringify({ error: "type and id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        const table = type === "project" ? "big_three_projects" : type === "phase" ? "big_three_phases" : type === "task" ? "big_three_tasks" : null;
+        if (!table) return new Response(JSON.stringify({ error: "type must be project, phase, or task" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        const { error } = await supabase.from(table).delete().eq("id", id).eq("user_id", userId);
+        if (error) throw error;
+        return new Response(JSON.stringify({ success: true, deleted: { type, id } }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+    }
     }
 
     // === Reject non-GET for other resources ===

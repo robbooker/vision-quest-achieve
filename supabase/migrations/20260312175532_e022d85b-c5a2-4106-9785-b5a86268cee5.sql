@@ -1,0 +1,1 @@
+ALTER TABLE public.goal_sprint_logs ADD COLUMN completed_sets integer DEFAULT NULL;

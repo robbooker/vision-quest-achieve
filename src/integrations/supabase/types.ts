@@ -1409,6 +1409,7 @@ export type Database = {
       goal_sprint_logs: {
         Row: {
           completed: boolean
+          completed_sets: number | null
           created_at: string
           goal_key: string
           id: string
@@ -1419,6 +1420,7 @@ export type Database = {
         }
         Insert: {
           completed?: boolean
+          completed_sets?: number | null
           created_at?: string
           goal_key: string
           id?: string
@@ -1429,6 +1431,7 @@ export type Database = {
         }
         Update: {
           completed?: boolean
+          completed_sets?: number | null
           created_at?: string
           goal_key?: string
           id?: string

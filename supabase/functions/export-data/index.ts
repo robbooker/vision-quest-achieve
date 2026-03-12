@@ -697,10 +697,11 @@ serve(async (req) => {
     if (!resource) {
       return new Response(JSON.stringify({
         available_resources: AVAILABLE_RESOURCES,
-        usage: "GET ?resource=<name> to read data. POST ?resource=tasks to create. PATCH ?resource=tasks to update/complete.",
+        usage: "GET ?resource=<name> to read data. POST/PATCH ?resource=tasks or ?resource=goal_sprint to write.",
         write_endpoints: {
           "POST tasks": { body: "{ title, category?, pillar?, due_date? }", description: "Create a new task" },
           "PATCH tasks": { body: "{ id, completed?, title?, category?, pillar?, due_date? }", description: "Update or complete a task" },
+          "POST/PATCH goal_sprint": { body: "{ date, goal_key, completed, notes? }", description: "Log or update a sprint goal. goal_key: diet|cardio|reading|morning_routine|nighttime_routine|strength" },
         },
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }

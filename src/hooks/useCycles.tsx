@@ -45,6 +45,7 @@ export function useCycles() {
       
       const startDate = startOfDay(new Date(input.start_date));
       const endDate = addWeeks(startDate, 6);
+      const endDateStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
       
       // Always set to 'active' so users can immediately start planning
       const { data, error } = await supabase
@@ -52,7 +53,7 @@ export function useCycles() {
         .insert({
           name: input.name,
           start_date: input.start_date,
-          end_date: endDate.toISOString().split('T')[0],
+          end_date: endDateStr,
           user_id: user!.id,
           status: 'active',
         })

@@ -27,7 +27,7 @@ import { EditCalendarEventDialog } from '@/components/dashboard/EditCalendarEven
 import { useCalendarConnection, useCalendarEvents } from '@/hooks/useCalendar';
 import { useCalendarEventPillars } from '@/hooks/useCalendarEventPillars';
 import { supabase } from '@/integrations/supabase/client';
-import { format, startOfDay, endOfDay } from 'date-fns';
+import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { 
   Repeat,

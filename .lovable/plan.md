@@ -1,47 +1,88 @@
 
+Revised plan — incorporating your two critical points:
 
-# Fix Timezone Issues on Today Page
+1) template `default_tasks` instantiation with per-area assignment in Step 3  
+2) soft-deprecation of Daily Steps (hide UI, preserve data/code)
 
-## Problem
-Multiple places use `date.toISOString().split('T')[0]` to get "today's" date string. `toISOString()` converts to UTC, so at 10:20 PM Central (UTC-6), it returns tomorrow's date. This affects:
+## What changes in the plan
 
-1. **`formatDateStr()` in `src/data/goalSprint.ts`** — used by GoalSprintWidget to determine current sprint day and query logs
-2. **`startOfDay().toISOString()` in Today.tsx** — used for calendar event queries  
-3. **Date display headers** — these use `format(new Date(), ...)` which is local-time-aware (already correct)
-4. **Practice completion localStorage keys** — uses `format()` (already correct)
+### A) Session 2 must include task instantiation logic (not flat copy)
 
-## Root Cause
-`Date.toISOString()` always outputs UTC. At 10:20 PM CST (UTC-6), `new Date().toISOString()` returns `2026-03-13T04:20:00Z` — March 13, not March 12.
+We will treat template `default_tasks` as **draft task blueprints** in wizard state, then instantiate real `sprint_tasks` only on launch.
 
-## Fix
+Implementation design for wizard flow:
 
-### 1. `src/data/goalSprint.ts` — Fix `formatDateStr()`
-Replace the UTC-based implementation:
-```ts
-// BEFORE (broken)
-export function formatDateStr(date: Date): string {
-  return date.toISOString().split('T')[0];
-}
+- **Step 1**: pick template
+- **Step 2**: sprint metadata + Areas of Focus (1–3)
+- **Step 3 (updated)**: task review grid includes:
+  - title/description edits
+  - week/day range/order edits
+  - **required Area-of-Focus assignment per task** (dropdown from Step 2 areas)
+  - add/delete/reorder tasks
+- **Step 4**: launch summary + commit
 
-// AFTER (local time)
-export function formatDateStr(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-```
+Launch write order (single atomic operation):
 
-This single fix corrects `isSprintActive()`, `getSprintDayNumber()`, and all GoalSprintWidget date comparisons since they all use `formatDateStr`.
+1. create `sprints` row  
+2. create `sprint_areas_of_focus` rows  
+3. resolve wizard area selections to created area IDs  
+4. insert `sprint_tasks` rows with:
+   - `sprint_id`
+   - `area_of_focus_id` (assigned in Step 3)
+   - `week`, `day_range`, `sort_order`, etc.
+5. set sprint `status='active'`
 
-### 2. `src/pages/Today.tsx` — Fix calendar event query window
-Replace `startOfDay(selectedDate).toISOString()` / `endOfDay(selectedDate).toISOString()` with timezone-safe local midnight calculations that don't shift the day.
+To keep this safe/atomic, Session 2 will include a backend creation action (RPC or backend function) so we don’t risk partial inserts if any step fails.
 
-### 3. `src/hooks/useCycles.tsx` — Fix `end_date` calculation
-The `createCycle` mutation uses `endDate.toISOString().split('T')[0]` — fix to use local date formatting.
+Optional schema hardening we’ll include in Session 2:
+- `sprint_tasks.area_of_focus_id` should be required for templated sprint tasks (enforced by launch validation; DB constraint optional if needed).
+- Add `template_task_order` (or similar) on `sprint_tasks` for stable replay/reporting of original sequence.
 
-### Files Changed
-- `src/data/goalSprint.ts` — fix `formatDateStr`
-- `src/pages/Today.tsx` — fix calendar query date range
-- `src/hooks/useCycles.tsx` — fix end_date formatting
+### B) Daily Steps handling = soft-deprecate (hide, preserve)
+
+We will **not delete**:
+- existing Daily Steps data (`goal_tactics`, `tactic_logs`, etc.)
+- existing components/hooks (`HabitItem`, `useDailyTactics`, `useTacticLogs`)
+- existing cycle/goal system
+
+We will **only stop rendering** Daily Steps in Today page under the new rules:
+
+- If user has routine items configured (morning/evening): show routines, hide Daily Steps block.
+- If cycle window is over (no active cycle after week 8 behavior): Daily Steps remains hidden (already mostly true due to current `!activeCycle` branch; we’ll ensure routines still show).
+- If user has no routines yet and still in legacy cycle flow: keep fallback behavior configurable (default: show routine onboarding CTA, not Daily Steps card).
+
+This keeps full backward compatibility and historical data intact while moving users to routines-first UX.
+
+## Concrete updates to phased implementation
+
+### Phase 1 (Database + Routines) — adjusted
+- Add routines tables + RLS.
+- Integrate Morning/Evening routines in Today page.
+- Add conditional rendering gate for legacy Daily Steps:
+  - hidden when routines configured
+  - hidden when cycle is no longer active window
+- Keep old Daily Steps code/data untouched (soft-deprecated).
+
+### Phase 2 (Sprint Core + Wizard) — adjusted
+- Build Step 3 task editor with **per-task Area assignment**.
+- Add launch pipeline that instantiates `default_tasks` into `sprint_tasks` with mapped `area_of_focus_id`.
+- Use atomic backend write path for sprint+areas+tasks creation.
+- Validate all tasks have area assignment before enabling “Start Sprint”.
+
+### Phase 3/4 (Kanban + Today Sprint Tracker)
+- Kanban consumes already area-tagged tasks (no retro-tagging needed).
+- Today “Next Up” logic becomes straightforward: fetch highest-priority non-done task per area.
+
+## Edge cases explicitly covered
+- User edits/removes template tasks in Step 3 before launch → only edited list is instantiated.
+- User adds custom tasks in Step 3 → must also assign an Area.
+- User has legacy data but adopts routines → Daily Steps hidden, data preserved.
+- Archived sprints remain viewable; this is independent of Daily Steps deprecation.
+
+## Technical details (implementation-critical)
+- `default_tasks` remains JSON blueprint source only.
+- Wizard keeps an internal `draftTasks` array with `selectedAreaDraftId`.
+- On launch, map `selectedAreaDraftId` → persisted `sprint_areas_of_focus.id`.
+- Inserts set `user_id` explicitly for all sprint/routine records to satisfy RLS.
+- No destructive migration against legacy cycle/tactic tables/components.
 

@@ -27,7 +27,7 @@ import { EditCalendarEventDialog } from '@/components/dashboard/EditCalendarEven
 import { useCalendarConnection, useCalendarEvents } from '@/hooks/useCalendar';
 import { useCalendarEventPillars } from '@/hooks/useCalendarEventPillars';
 import { supabase } from '@/integrations/supabase/client';
-import { format, startOfDay, endOfDay } from 'date-fns';
+import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { 
   Repeat,
@@ -87,9 +87,10 @@ export default function Today() {
   tomorrow.setDate(tomorrow.getDate() + 1);
   const selectedDate = showTomorrow ? tomorrow : today;
   
+  const calendarDateStr = format(selectedDate, 'yyyy-MM-dd');
   const { events: calendarEvents, isLoading: eventsLoading, refetch: refetchEvents } = useCalendarEvents(
-    startOfDay(selectedDate).toISOString(),
-    endOfDay(selectedDate).toISOString()
+    `${calendarDateStr}T00:00:00`,
+    `${calendarDateStr}T23:59:59`
   );
   
   const { getPillarForEvent, setPillar } = useCalendarEventPillars();

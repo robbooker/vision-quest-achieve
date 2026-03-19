@@ -12,7 +12,7 @@ interface MobileCommandBarProps {
 }
 
 export function MobileCommandBar({ onAddTask, currentCategory = 'personal', onCategoryChange }: MobileCommandBarProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<TaskCategory>(currentCategory);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -23,10 +23,10 @@ export function MobileCommandBar({ onAddTask, currentCategory = 'personal', onCa
   }, [currentCategory]);
 
   useEffect(() => {
-    if (isExpanded && inputRef.current) {
-      inputRef.current.focus();
+    if (isOpen && inputRef.current) {
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [isExpanded]);
+  }, [isOpen]);
 
   const handleSubmit = async () => {
     if (!title.trim()) return;
@@ -36,14 +36,13 @@ export function MobileCommandBar({ onAddTask, currentCategory = 'personal', onCa
       setTitle('');
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 300);
-      // Keep expanded for rapid entry
     } catch (error) {
       // Error handled by parent
     }
   };
 
   const handleClose = () => {
-    setIsExpanded(false);
+    setIsOpen(false);
     setTitle('');
   };
 
@@ -52,120 +51,120 @@ export function MobileCommandBar({ onAddTask, currentCategory = 'personal', onCa
     onCategoryChange?.(newCategory);
   };
 
+  if (!isOpen) {
+    return (
+      <button
+        onClick={() => setIsOpen(true)}
+        className="fixed bottom-6 right-4 z-[1000] h-12 w-12 rounded-full bg-accent text-accent-foreground shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+        aria-label="Add task"
+      >
+        <Plus className="h-6 w-6" />
+      </button>
+    );
+  }
+
   return (
     <>
-      {/* Overlay to dim background */}
+      {/* Overlay */}
       <div 
-        className={cn(
-          "command-bar-overlay",
-          isExpanded && "active"
-        )}
+        className="command-bar-overlay active"
         onClick={handleClose}
       />
       
-      {/* Command Bar */}
+      {/* Expanded input panel */}
       <div 
         className={cn(
-          "mobile-command-bar",
-          isExpanded && "expanded",
+          "mobile-command-bar expanded",
           showSuccess && "success"
         )}
       >
-        {/* Category toggle when expanded */}
-        {isExpanded && (
-          <div className="flex items-center justify-between px-3 pt-3 pb-1 border-b border-[hsl(0_0%_20%)]">
-            <div className="flex gap-1">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className={cn(
-                  "h-8 px-2 font-mono text-xs",
-                  category === 'personal' 
-                    ? "bg-[hsl(32_95%_54%)] text-black hover:bg-[hsl(32_95%_54%)]" 
-                    : "text-[hsl(32_95%_54%/0.6)] hover:text-[hsl(32_95%_54%)] hover:bg-transparent"
-                )}
-                onClick={() => handleCategoryChange('personal')}
-              >
-                <User className="h-3 w-3 mr-1" />
-                P
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className={cn(
-                  "h-8 px-2 font-mono text-xs",
-                  category === 'business' 
-                    ? "bg-[hsl(32_95%_54%)] text-black hover:bg-[hsl(32_95%_54%)]" 
-                    : "text-[hsl(32_95%_54%/0.6)] hover:text-[hsl(32_95%_54%)] hover:bg-transparent"
-                )}
-                onClick={() => handleCategoryChange('business')}
-              >
-                <Briefcase className="h-3 w-3 mr-1" />
-                B
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className={cn(
-                  "h-8 px-2 font-mono text-xs",
-                  category === 'shared' 
-                    ? "bg-[hsl(32_95%_54%)] text-black hover:bg-[hsl(32_95%_54%)]" 
-                    : "text-[hsl(32_95%_54%/0.6)] hover:text-[hsl(32_95%_54%)] hover:bg-transparent"
-                )}
-                onClick={() => handleCategoryChange('shared')}
-              >
-                <Share2 className="h-3 w-3 mr-1" />
-                S
-              </Button>
-            </div>
+        {/* Category toggle */}
+        <div className="flex items-center justify-between px-3 pt-3 pb-1 border-b border-[hsl(0_0%_20%)]">
+          <div className="flex gap-1">
             <Button
               type="button"
               variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-[hsl(32_95%_54%/0.6)] hover:text-[hsl(32_95%_54%)] hover:bg-transparent"
-              onClick={handleClose}
+              size="sm"
+              className={cn(
+                "h-8 px-2 font-mono text-xs",
+                category === 'personal' 
+                  ? "bg-accent text-accent-foreground hover:bg-accent" 
+                  : "text-accent/60 hover:text-accent hover:bg-transparent"
+              )}
+              onClick={() => handleCategoryChange('personal')}
             >
-              <X className="h-4 w-4" />
+              <User className="h-3 w-3 mr-1" />
+              P
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className={cn(
+                "h-8 px-2 font-mono text-xs",
+                category === 'business' 
+                  ? "bg-accent text-accent-foreground hover:bg-accent" 
+                  : "text-accent/60 hover:text-accent hover:bg-transparent"
+              )}
+              onClick={() => handleCategoryChange('business')}
+            >
+              <Briefcase className="h-3 w-3 mr-1" />
+              B
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className={cn(
+                "h-8 px-2 font-mono text-xs",
+                category === 'shared' 
+                  ? "bg-accent text-accent-foreground hover:bg-accent" 
+                  : "text-accent/60 hover:text-accent hover:bg-transparent"
+              )}
+              onClick={() => handleCategoryChange('shared')}
+            >
+              <Share2 className="h-3 w-3 mr-1" />
+              S
             </Button>
           </div>
-        )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-accent/60 hover:text-accent hover:bg-transparent"
+            onClick={handleClose}
+            aria-label="Close add task"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
 
         {/* Input row */}
         <div className="flex items-center gap-2 p-2">
-          <span className="text-[hsl(32_95%_54%)] font-mono text-sm pl-2 shrink-0">
-            {isExpanded ? '>' : 'TASK>'}
-          </span>
+          <span className="text-accent font-mono text-sm pl-2 shrink-0">{'>'}</span>
           <input
             ref={inputRef}
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            onFocus={() => !isExpanded && setIsExpanded(true)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleSubmit();
               if (e.key === 'Escape') handleClose();
             }}
-            placeholder={isExpanded ? "Enter task..." : "Tap to add task..."}
+            placeholder="Enter task..."
             className="mobile-command-input flex-1 min-w-0"
           />
-          {isExpanded && (
-            <Button
-              type="button"
-              size="icon"
-              onClick={handleSubmit}
-              disabled={!title.trim()}
-              className="h-10 w-10 shrink-0 bg-[hsl(165_91%_63%)] hover:bg-[hsl(165_91%_70%)] text-black"
-            >
-              <Plus className="h-5 w-5" />
-            </Button>
-          )}
+          <Button
+            type="button"
+            size="icon"
+            onClick={handleSubmit}
+            disabled={!title.trim()}
+            className="h-10 w-10 shrink-0 bg-[hsl(165_91%_63%)] hover:bg-[hsl(165_91%_70%)] text-black"
+          >
+            <Plus className="h-5 w-5" />
+          </Button>
         </div>
       </div>
     </>
   );
 }
-
-

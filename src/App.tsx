@@ -105,6 +105,7 @@ const App = () => (
             <ToastProvider>
             <TooltipProvider>
               <TextSizeInitializer />
+              <CursorTrail />
               <Toaster />
               <Sonner />
               <NotificationListener />

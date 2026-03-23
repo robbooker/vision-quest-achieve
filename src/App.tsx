@@ -22,6 +22,7 @@ import { SiteTourProvider } from "@/hooks/useSiteTour";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
+import { CursorTrail } from "@/components/CursorTrail";
 import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import Settings from "./pages/Settings";
@@ -105,6 +106,7 @@ const App = () => (
             <ToastProvider>
             <TooltipProvider>
               <TextSizeInitializer />
+              <CursorTrail />
               <Toaster />
               <Sonner />
               <NotificationListener />

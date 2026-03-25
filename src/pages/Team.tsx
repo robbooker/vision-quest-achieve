@@ -16,7 +16,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 const TEAM_MEMBERS = [
   { value: "rob", label: "Rob", initials: "R", avatarColor: "bg-indigo-500", cardBg: "bg-sky-50 dark:bg-sky-950/30 border-sky-200/60 dark:border-sky-800/40" },
   { value: "liz", label: "Liz", initials: "L", avatarColor: "bg-rose-500", cardBg: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200/60 dark:border-emerald-800/40" },
-  { value: "buddy", label: "Buddy", initials: "B", avatarColor: "bg-emerald-500", cardBg: "bg-white dark:bg-background border-navy-600 dark:border-navy-400 border-2" },
+  { value: "buddy", label: "Buddy", initials: "B", avatarColor: "bg-emerald-500", cardBg: "bg-white dark:bg-background border-2 border-blue-900 dark:border-blue-400" },
 ];
 
 const MEMBER_COLUMN_HEADER: Record<string, { label: string; emoji: string; borderColor: string }> = {

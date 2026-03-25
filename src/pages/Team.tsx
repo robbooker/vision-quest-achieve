@@ -305,6 +305,7 @@ export default function Team() {
               {sortedTasks.map((task) => {
                 const isDone = task.status === "done";
                 const isCompleting = completingIds.has(task.id);
+                const isDusting = dustingIds.has(task.id);
                 const priorityCfg = PRIORITY_CONFIG[task.priority as keyof typeof PRIORITY_CONFIG] || PRIORITY_CONFIG.normal;
 
                 return (
@@ -312,12 +313,27 @@ export default function Team() {
                     key={task.id}
                     layout
                     initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: isCompleting ? 0.5 : 1, y: 0, scale: isCompleting ? 0.98 : 1 }}
-                    exit={{ opacity: 0, y: -8 }}
+                    animate={isDusting 
+                      ? { 
+                          opacity: 0, 
+                          scale: 0.7,
+                          filter: "blur(8px) saturate(0)",
+                          y: -20,
+                          transition: { duration: 0.8, ease: [0.4, 0, 0.2, 1] }
+                        } 
+                      : { 
+                          opacity: isCompleting ? 0.5 : 1, 
+                          y: 0, 
+                          scale: isCompleting ? 0.98 : 1,
+                          filter: "blur(0px) saturate(1)",
+                        }
+                    }
+                    exit={{ opacity: 0, scale: 0.5, filter: "blur(12px)", transition: { duration: 0.4 } }}
                     transition={{ duration: 0.25 }}
                     className={cn(
-                      "rounded-xl border bg-card p-4 shadow-sm transition-all",
-                      isDone && "opacity-60"
+                      "rounded-xl border bg-card p-4 shadow-sm transition-all relative group",
+                      isDone && "opacity-60",
+                      isDusting && "pointer-events-none"
                     )}
                   >
                     <div className="flex gap-3 items-start">
@@ -357,6 +373,15 @@ export default function Team() {
                           Added by {TEAM_MEMBERS.find((m) => m.value === task.created_by)?.label || task.created_by || "unknown"}
                         </p>
                       </div>
+
+                      {/* Inline delete button */}
+                      <button
+                        onClick={() => handleInlineDelete(task.id)}
+                        className="shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                        title="Delete task"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </motion.div>
                 );

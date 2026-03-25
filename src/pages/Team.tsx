@@ -287,7 +287,8 @@ export default function Team() {
             </Button>
           </div>
         </SheetContent>
-      </Sheet>
+        </Sheet>
+      </div>
     </DashboardLayout>
   );
 }

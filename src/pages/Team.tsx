@@ -355,19 +355,24 @@ export default function Team() {
   );
 
   return (
-    <DashboardLayout>
+    <div className="min-h-screen bg-background">
       <Helmet>
         <title>Command Center | Scout</title>
       </Helmet>
 
+      {/* Compact top bar */}
+      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
+        <div className={cn("mx-auto flex items-center gap-3 px-4 h-12", isMobile ? "max-w-md" : "max-w-5xl")}>
+          <Link to="/dashboard" className="shrink-0">
+            <img src={gpLogo} alt="GP" className="w-8 h-8" />
+          </Link>
+          <h1 className="text-sm font-semibold tracking-tight text-foreground">Command Center</h1>
+        </div>
+      </header>
+
       <EmojiBurstOverlay bursts={bursts} />
 
-      <div className={cn("mx-auto px-4 pb-24 pt-6", isMobile ? "max-w-md" : "max-w-5xl")}>
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Command Center</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Scout HQ · Active Tasks</p>
-        </div>
+      <div className={cn("mx-auto px-4 pb-24 pt-4", isMobile ? "max-w-md" : "max-w-5xl")}>
 
         {/* Filter bar */}
         <div className="flex gap-2 mb-6">

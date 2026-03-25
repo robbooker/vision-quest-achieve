@@ -1,13 +1,12 @@
-import { useState } from "react";
+import { useState, useCallback, useRef } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useTeamTasks } from "@/hooks/useTeamTasks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Plus, CheckCircle2, Inbox, Circle, Check } from "lucide-react";
+import { Plus, Inbox, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { Helmet } from "react-helmet-async";
@@ -24,7 +23,112 @@ const PRIORITY_CONFIG = {
   low: { label: "Low", className: "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" },
 };
 
+const CELEBRATION_EMOJI = ["🎉", "🍌", "🍦", "🐸", "🎊", "⭐", "🔥", "🥳", "🏆", "💪", "🌈", "🦄", "🍕", "🎯", "✨", "🚀"];
+
 type FilterStatus = "all" | "open" | "done";
+
+interface EmojiBurst {
+  id: number;
+  emoji: string;
+  x: number;
+  y: number;
+  angle: number;
+  distance: number;
+  delay: number;
+}
+
+function useEmojiBurst() {
+  const [bursts, setBursts] = useState<EmojiBurst[]>([]);
+  const idRef = useRef(0);
+
+  const trigger = useCallback((originX: number, originY: number) => {
+    const count = 10 + Math.floor(Math.random() * 6);
+    const newBursts: EmojiBurst[] = [];
+    for (let i = 0; i < count; i++) {
+      newBursts.push({
+        id: idRef.current++,
+        emoji: CELEBRATION_EMOJI[Math.floor(Math.random() * CELEBRATION_EMOJI.length)],
+        x: originX,
+        y: originY,
+        angle: (Math.random() * 360) * (Math.PI / 180),
+        distance: 60 + Math.random() * 120,
+        delay: Math.random() * 0.15,
+      });
+    }
+    setBursts((prev) => [...prev, ...newBursts]);
+    setTimeout(() => {
+      setBursts((prev) => prev.filter((b) => !newBursts.includes(b)));
+    }, 1200);
+  }, []);
+
+  return { bursts, trigger };
+}
+
+function EmojiBurstOverlay({ bursts }: { bursts: EmojiBurst[] }) {
+  return (
+    <div className="fixed inset-0 pointer-events-none z-[99999]">
+      <AnimatePresence>
+        {bursts.map((b) => (
+          <motion.span
+            key={b.id}
+            initial={{ 
+              x: b.x, 
+              y: b.y, 
+              opacity: 1, 
+              scale: 0.3,
+              rotate: 0 
+            }}
+            animate={{
+              x: b.x + Math.cos(b.angle) * b.distance,
+              y: b.y + Math.sin(b.angle) * b.distance - 40,
+              opacity: 0,
+              scale: 0.8 + Math.random() * 0.6,
+              rotate: (Math.random() - 0.5) * 180,
+            }}
+            exit={{ opacity: 0 }}
+            transition={{ 
+              duration: 0.7 + Math.random() * 0.4, 
+              delay: b.delay,
+              ease: [0.25, 0.46, 0.45, 0.94] 
+            }}
+            className="absolute text-2xl select-none"
+            style={{ left: 0, top: 0 }}
+          >
+            {b.emoji}
+          </motion.span>
+        ))}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function FatCheckbox({ checked, onToggle, completing }: { checked: boolean; onToggle: (e: React.MouseEvent) => void; completing: boolean }) {
+  return (
+    <button
+      onClick={onToggle}
+      className={cn(
+        "relative shrink-0 w-9 h-9 rounded-xl border-[2.5px] flex items-center justify-center transition-all duration-200 active:scale-90",
+        checked
+          ? "bg-emerald-500 border-emerald-500 shadow-md shadow-emerald-500/30"
+          : "border-muted-foreground/30 hover:border-primary hover:bg-primary/5 hover:scale-110",
+        completing && "animate-bounce"
+      )}
+    >
+      <AnimatePresence mode="wait">
+        {checked && (
+          <motion.div
+            initial={{ scale: 0, rotate: -45 }}
+            animate={{ scale: 1, rotate: 0 }}
+            exit={{ scale: 0, rotate: 45 }}
+            transition={{ type: "spring", stiffness: 500, damping: 25 }}
+          >
+            <Check className="w-5 h-5 text-white stroke-[3]" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </button>
+  );
+}
 
 function AvatarPill({ member }: { member: string | null }) {
   const found = TEAM_MEMBERS.find((m) => m.value === member);
@@ -51,6 +155,7 @@ export default function Team() {
   const [filter, setFilter] = useState<FilterStatus>("all");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set());
+  const { bursts, trigger: triggerBurst } = useEmojiBurst();
 
   // Form state
   const [newTitle, setNewTitle] = useState("");
@@ -64,16 +169,20 @@ export default function Team() {
     return t.status === filter;
   });
 
-  // Sort: open first, then done
   const sortedTasks = [...filteredTasks].sort((a, b) => {
     if (a.status === "open" && b.status === "done") return -1;
     if (a.status === "done" && b.status === "open") return 1;
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
 
-  const handleComplete = async (id: string) => {
+  const handleComplete = async (id: string, e: React.MouseEvent) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const originX = rect.left + rect.width / 2;
+    const originY = rect.top + rect.height / 2;
+    
+    triggerBurst(originX, originY);
     setCompletingIds((prev) => new Set(prev).add(id));
-    await completeTask(id, "rob"); // Default completer from UI is Rob
+    await completeTask(id, "rob");
     setTimeout(() => setCompletingIds((prev) => { const n = new Set(prev); n.delete(id); return n; }), 600);
   };
 
@@ -103,6 +212,8 @@ export default function Team() {
       <Helmet>
         <title>Command Center | Scout</title>
       </Helmet>
+
+      <EmojiBurstOverlay bursts={bursts} />
 
       <div className="max-w-md mx-auto px-4 pb-24 pt-6">
         {/* Header */}
@@ -166,21 +277,15 @@ export default function Team() {
                       isDone && "opacity-60"
                     )}
                   >
-                    <div className="flex gap-3">
-                      {/* Checkbox */}
-                      <button
-                        onClick={() => isDone ? reopenTask(task.id) : handleComplete(task.id)}
-                        className="mt-0.5 shrink-0"
-                      >
-                        {isDone ? (
-                          <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                        ) : (
-                          <Circle className="w-5 h-5 text-muted-foreground/40 hover:text-primary transition-colors" />
-                        )}
-                      </button>
+                    <div className="flex gap-3 items-start">
+                      {/* Fat Checkbox */}
+                      <FatCheckbox
+                        checked={isDone}
+                        completing={isCompleting}
+                        onToggle={(e) => isDone ? reopenTask(task.id) : handleComplete(task.id, e)}
+                      />
 
                       <div className="flex-1 min-w-0">
-                        {/* Title */}
                         <p className={cn(
                           "text-[15px] font-medium leading-snug",
                           isDone && "line-through text-muted-foreground"
@@ -188,12 +293,10 @@ export default function Team() {
                           {task.title}
                         </p>
 
-                        {/* Description */}
                         {task.description && (
                           <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{task.description}</p>
                         )}
 
-                        {/* Meta row */}
                         <div className="flex items-center gap-2 mt-2 flex-wrap">
                           <span className={cn("inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider", priorityCfg.className)}>
                             {priorityCfg.label}
@@ -207,7 +310,6 @@ export default function Team() {
                           )}
                         </div>
 
-                        {/* Footer */}
                         <p className="text-[10px] text-muted-foreground/60 mt-1.5">
                           Added by {TEAM_MEMBERS.find((m) => m.value === task.created_by)?.label || task.created_by || "unknown"}
                         </p>
@@ -221,7 +323,7 @@ export default function Team() {
         )}
       </div>
 
-      {/* FAB - outside scroll container */}
+      {/* FAB */}
       <div className="fixed bottom-6 right-6 z-[9999]">
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
           <SheetTrigger asChild>

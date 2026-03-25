@@ -34,7 +34,7 @@ const PRIORITY_CONFIG = {
 
 const CELEBRATION_EMOJI = ["🎉", "🍌", "🍦", "🐸", "🎊", "⭐", "🔥", "🥳", "🏆", "💪", "🌈", "🦄", "🍕", "🎯", "✨", "🚀"];
 
-type FilterStatus = "all" | "open" | "done";
+type FilterStatus = "all" | "open" | "done" | "archive";
 
 interface EmojiBurst {
   id: number;

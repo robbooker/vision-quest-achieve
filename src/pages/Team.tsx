@@ -424,6 +424,70 @@ export default function Team() {
         </SheetContent>
         </Sheet>
       </div>
+      {/* Edit Task Dialog */}
+      <Dialog open={!!editingTask} onOpenChange={(open) => !open && setEditingTask(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Edit Task</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <Input
+              placeholder="Task title"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              className="text-base"
+            />
+            <Textarea
+              placeholder="Details (optional)"
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+              rows={2}
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Priority</label>
+                <Select value={editPriority} onValueChange={setEditPriority}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="high">🔴 High</SelectItem>
+                    <SelectItem value="normal">⚪ Normal</SelectItem>
+                    <SelectItem value="low">🟢 Low</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Assign to</label>
+                <Select value={editAssignedTo} onValueChange={setEditAssignedTo}>
+                  <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                    <SelectItem value="rob">Rob</SelectItem>
+                    <SelectItem value="liz">Liz</SelectItem>
+                    <SelectItem value="buddy">Buddy</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="flex gap-2 sm:gap-0 mt-4">
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleDelete}
+              className="mr-auto"
+            >
+              <Trash2 className="w-4 h-4 mr-1" />
+              Delete
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setEditingTask(null)}>
+              Cancel
+            </Button>
+            <Button size="sm" onClick={handleEditSave} disabled={!editTitle.trim()} className="bg-indigo-500 hover:bg-indigo-600 text-white">
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

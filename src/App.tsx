@@ -69,6 +69,7 @@ import MorningBriefingBlog from "./pages/MorningBriefingBlog";
 
 import Sprints from "./pages/Sprints";
 import MorningBriefingLab from "./pages/MorningBriefingLab";
+import Team from "./pages/Team";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

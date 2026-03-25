@@ -212,6 +212,31 @@ export default function Team() {
     }
   };
 
+  const openEditDialog = (task: TeamTask) => {
+    setEditingTask(task);
+    setEditTitle(task.title);
+    setEditDescription(task.description || "");
+    setEditPriority(task.priority);
+    setEditAssignedTo(task.assigned_to || "");
+  };
+
+  const handleEditSave = async () => {
+    if (!editingTask || !editTitle.trim()) return;
+    const success = await updateTask(editingTask.id, {
+      title: editTitle.trim(),
+      description: editDescription.trim() || null,
+      priority: editPriority,
+      assigned_to: editAssignedTo || null,
+    });
+    if (success) setEditingTask(null);
+  };
+
+  const handleDelete = async () => {
+    if (!editingTask) return;
+    const success = await deleteTask(editingTask.id);
+    if (success) setEditingTask(null);
+  };
+
   const openCount = tasks.filter((t) => t.status === "open").length;
   const doneCount = tasks.filter((t) => t.status === "done").length;
 

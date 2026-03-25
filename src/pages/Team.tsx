@@ -156,6 +156,7 @@ export default function Team() {
   const [filter, setFilter] = useState<FilterStatus>("all");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set());
+  const [dustingIds, setDustingIds] = useState<Set<string>>(new Set());
   const { bursts, trigger: triggerBurst } = useEmojiBurst();
 
   // Edit state

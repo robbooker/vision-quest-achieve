@@ -71,6 +71,9 @@ export default function Today() {
   const { goals } = useGoals(activeCycle?.id);
   const { toast } = useToast();
   
+  // Admin check
+  const { isAdmin } = useUserRole();
+
   // Reset preference
   const { isResetActive } = useResetPreference();
 

@@ -221,13 +221,14 @@ export default function Team() {
         )}
       </div>
 
-      {/* FAB */}
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetTrigger asChild>
-          <button className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-indigo-500 hover:bg-indigo-600 text-white shadow-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95">
-            <Plus className="w-6 h-6" />
-          </button>
-        </SheetTrigger>
+      {/* FAB - outside scroll container */}
+      <div className="fixed bottom-6 right-6 z-[9999]">
+        <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+          <SheetTrigger asChild>
+            <button className="w-14 h-14 rounded-full bg-indigo-500 hover:bg-indigo-600 text-white shadow-lg shadow-indigo-500/30 flex items-center justify-center transition-all hover:scale-105 active:scale-95">
+              <Plus className="w-6 h-6" />
+            </button>
+          </SheetTrigger>
         <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh]">
           <SheetHeader>
             <SheetTitle className="text-left">New Task</SheetTitle>
@@ -286,7 +287,8 @@ export default function Team() {
             </Button>
           </div>
         </SheetContent>
-      </Sheet>
+        </Sheet>
+      </div>
     </DashboardLayout>
   );
 }

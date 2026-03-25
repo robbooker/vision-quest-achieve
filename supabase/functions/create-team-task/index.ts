@@ -72,6 +72,8 @@ Deno.serve(async (req) => {
     });
   }
 
+  console.log("Task created:", data.id);
+
   // Fire Slack notification async — don't block the response
   const slackToken = Deno.env.get("SLACK_BOT_TOKEN");
   if (slackToken) {
@@ -80,6 +82,7 @@ Deno.serve(async (req) => {
     if (data.assigned_to === "buddy") {
       slackText += " Hey Buddy, this one's yours.";
     }
+    console.log("Sending Slack notification...");
     fetch("https://slack.com/api/chat.postMessage", {
       method: "POST",
       headers: {
@@ -87,7 +90,11 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ channel: "C0AHVSGP7TR", text: slackText }),
-    }).catch((err) => console.error("Slack notification failed:", err));
+    }).then((slackRes) => {
+      console.log("Slack response status:", slackRes.status);
+    }).catch((err) => {
+      console.error("Slack error:", err.message);
+    });
   }
 
   return new Response(JSON.stringify(data), {

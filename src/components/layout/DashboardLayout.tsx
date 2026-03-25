@@ -14,7 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LogOut, Settings, User, LayoutDashboard, CheckSquare, BarChart3, Star, Shield, RotateCcw, BookOpen, Target, Library, MessageSquarePlus, Plane, CalendarDays, TrendingUp, Hexagon, FileText, Sparkles, Sunrise, Rocket } from 'lucide-react';
+import { LogOut, Settings, User, LayoutDashboard, CheckSquare, BarChart3, Star, Shield, RotateCcw, BookOpen, Target, Library, MessageSquarePlus, Plane, CalendarDays, TrendingUp, Hexagon, FileText, Sparkles, Sunrise, Rocket, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Footer } from '@/components/layout/Footer';
 import gpLogo from '@/assets/gp-logo.png';
@@ -35,6 +35,7 @@ const navItems = [
 ];
 
 const dropdownNavItems = [
+  { href: '/team', label: 'Team', icon: Users },
   { href: '/sprints', label: 'Sprints', icon: Rocket },
   { href: '/morning-briefing', label: 'Morning Briefing', icon: Sunrise },
   { href: '/notes', label: 'Notes', icon: FileText },

@@ -69,6 +69,7 @@ import MorningBriefingBlog from "./pages/MorningBriefingBlog";
 
 import Sprints from "./pages/Sprints";
 import MorningBriefingLab from "./pages/MorningBriefingLab";
+import Team from "./pages/Team";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -155,6 +156,7 @@ const App = () => (
                     <Route path="/notes" element={<ProtectedRoute><Notes /></ProtectedRoute>} />
                     <Route path="/lists" element={<ProtectedRoute><Notes /></ProtectedRoute>} />
                     <Route path="/sprints" element={<ProtectedRoute><Sprints /></ProtectedRoute>} />
+                    <Route path="/team" element={<ProtectedRoute><Team /></ProtectedRoute>} />
                     <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
                     <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
                     <Route path="/admin/broadcasts" element={<AdminRoute><AdminBroadcasts /></AdminRoute>} />

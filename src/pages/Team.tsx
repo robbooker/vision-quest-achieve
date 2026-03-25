@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { useTeamTasks } from "@/hooks/useTeamTasks";
+import { useTeamTasks, TeamTask } from "@/hooks/useTeamTasks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";

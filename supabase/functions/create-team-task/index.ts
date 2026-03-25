@@ -77,11 +77,30 @@ Deno.serve(async (req) => {
   // Fire Slack notification async — don't block the response
   const slackToken = Deno.env.get("SLACK_BOT_TOKEN");
   if (slackToken) {
-    const assignee = data.assigned_to || "unassigned";
-    let slackText = `🗂️ New task on the board: *${data.title}* — assigned to ${assignee}, priority: ${data.priority}. Added by ${data.created_by || "unknown"}. <@U0AEJPYLJ85>`;
+    // Slack member ID mapping
+    const SLACK_MEMBERS: Record<string, { display: string; mention: string }> = {
+      rob: { display: "Rob", mention: "<@U0AEJPYLJ85>" },
+      liz: { display: "Liz", mention: "<@D0AENB5TFPC>" },
+      buddy: { display: "Buddy", mention: "@Buddy" },
+    };
+
+    const assigneeKey = data.assigned_to || "";
+    const assigneeInfo = SLACK_MEMBERS[assigneeKey];
+    const assigneeDisplay = assigneeInfo?.display || "unassigned";
+    const assigneeMention = assigneeInfo?.mention || "";
+
+    const creatorKey = data.created_by || "";
+    const creatorInfo = SLACK_MEMBERS[creatorKey];
+    const creatorDisplay = creatorInfo?.display || data.created_by || "unknown";
+
+    let slackText = `🗂️ New task on the board: *${data.title}* — assigned to ${assigneeDisplay}, priority: ${data.priority}. Added by ${creatorDisplay}.`;
+    if (assigneeMention) {
+      slackText += ` ${assigneeMention}`;
+    }
     if (data.assigned_to === "buddy") {
       slackText += " Hey Buddy, this one's yours.";
     }
+
     console.log("Sending Slack notification...");
     fetch("https://slack.com/api/chat.postMessage", {
       method: "POST",

@@ -102,5 +102,36 @@ export function useTeamTasks() {
     }
   };
 
-  return { tasks, loading, addTask, completeTask, reopenTask };
+  const updateTask = async (id: string, updates: {
+    title?: string;
+    description?: string | null;
+    priority?: string;
+    assigned_to?: string | null;
+  }) => {
+    const { error } = await supabase
+      .from("team_tasks")
+      .update(updates as any)
+      .eq("id", id);
+
+    if (error) {
+      toast({ title: "Failed to update task", description: error.message, variant: "destructive" });
+      return false;
+    }
+    return true;
+  };
+
+  const deleteTask = async (id: string) => {
+    const { error } = await supabase
+      .from("team_tasks")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      toast({ title: "Failed to delete task", description: error.message, variant: "destructive" });
+      return false;
+    }
+    return true;
+  };
+
+  return { tasks, loading, addTask, completeTask, reopenTask, updateTask, deleteTask };
 }

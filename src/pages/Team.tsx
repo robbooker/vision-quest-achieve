@@ -245,14 +245,25 @@ export default function Team() {
   const [newAssignedTo, setNewAssignedTo] = useState<string>("");
   const [newCreatedBy, setNewCreatedBy] = useState("rob");
 
+  // Fetch archive when switching to archive tab
+  const [archiveLoaded, setArchiveLoaded] = useState(false);
+  const handleFilterChange = (f: FilterStatus) => {
+    setFilter(f);
+    if (f === "archive" && !archiveLoaded) {
+      fetchArchivedTasks();
+      setArchiveLoaded(true);
+    }
+  };
+
   const filteredTasks = useMemo(() => {
+    if (filter === "archive") return archivedTasks;
     return tasks.filter((t) => {
       if (filter === "all") return true;
       return t.status === filter;
     });
-  }, [tasks, filter]);
+  }, [tasks, archivedTasks, filter]);
 
-  // For mobile: single sorted list
+  // For mobile: single sorted list — open first, then done
   const sortedTasks = useMemo(() => {
     return [...filteredTasks].sort((a, b) => {
       if (a.status === "open" && b.status === "done") return -1;
@@ -261,15 +272,21 @@ export default function Team() {
     });
   }, [filteredTasks]);
 
-  // For desktop: grouped by assigned_to
+  // For desktop: grouped by assigned_to, with completed sorted to bottom within each column
   const columnTasks = useMemo(() => {
     const columns: Record<string, TeamTask[]> = { rob: [], liz: [], buddy: [] };
     filteredTasks.forEach((t) => {
-      const key = t.assigned_to && columns[t.assigned_to] ? t.assigned_to : "rob"; // unassigned goes to Rob's column
+      const key = t.assigned_to && columns[t.assigned_to] ? t.assigned_to : "rob";
       columns[key].push(t);
     });
-    // Sort each column by position
-    Object.values(columns).forEach((col) => col.sort((a, b) => a.position - b.position));
+    // Sort each column: open tasks by position first, then done tasks by position
+    Object.keys(columns).forEach((key) => {
+      columns[key].sort((a, b) => {
+        if (a.status === "open" && b.status === "done") return -1;
+        if (a.status === "done" && b.status === "open") return 1;
+        return a.position - b.position;
+      });
+    });
     return columns;
   }, [filteredTasks]);
 

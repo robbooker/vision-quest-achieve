@@ -59,6 +59,8 @@ import { SprintTrackerWidget } from '@/components/dashboard/SprintTrackerWidget'
 import { GoalSprintWidget } from '@/components/dashboard/GoalSprintWidget';
 import { isSprintActive } from '@/data/goalSprint';
 import { BigThreeWidget } from '@/components/dashboard/BigThreeWidget';
+import { useUserRole } from '@/hooks/useUserRole';
+import { Link } from 'react-router-dom';
 
 export default function Today() {
   const navigate = useNavigate();
@@ -69,6 +71,9 @@ export default function Today() {
   const { goals } = useGoals(activeCycle?.id);
   const { toast } = useToast();
   
+  // Admin check
+  const { isAdmin } = useUserRole();
+
   // Reset preference
   const { isResetActive } = useResetPreference();
 
@@ -332,6 +337,21 @@ export default function Today() {
             </DropdownMenu>
           </div>
         </div>
+
+        {/* Command Center link - admin only */}
+        {isAdmin && (
+          <Link to="/team" className="block">
+            <div className="rounded-xl border bg-card p-3 flex items-center gap-3 hover:bg-accent/50 transition-colors">
+              <div className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center">
+                <Target className="w-4 h-4 text-indigo-500" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">Command Center</p>
+                <p className="text-[11px] text-muted-foreground">Team task board</p>
+              </div>
+            </div>
+          </Link>
+        )}
 
         {/* Compact Reset Card - when reset is active */}
         {isResetActive && <CompactResetCard />}

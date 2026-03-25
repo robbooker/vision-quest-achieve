@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Inbox, Check, Trash2, GripVertical } from "lucide-react";
+import { Plus, Inbox, Check, Trash2, GripVertical, Archive } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence, Reorder } from "framer-motion";
 import { Helmet } from "react-helmet-async";
@@ -34,7 +34,7 @@ const PRIORITY_CONFIG = {
 
 const CELEBRATION_EMOJI = ["🎉", "🍌", "🍦", "🐸", "🎊", "⭐", "🔥", "🥳", "🏆", "💪", "🌈", "🦄", "🍕", "🎯", "✨", "🚀"];
 
-type FilterStatus = "all" | "open" | "done";
+type FilterStatus = "all" | "open" | "done" | "archive";
 
 interface EmojiBurst {
   id: number;
@@ -223,7 +223,7 @@ function TaskCard({
 }
 
 export default function Team() {
-  const { tasks, loading, addTask, completeTask, reopenTask, updateTask, deleteTask, reorderTasks } = useTeamTasks();
+  const { tasks, archivedTasks, loading, addTask, completeTask, reopenTask, updateTask, deleteTask, reorderTasks, fetchArchivedTasks } = useTeamTasks();
   const [filter, setFilter] = useState<FilterStatus>("all");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set());
@@ -245,14 +245,25 @@ export default function Team() {
   const [newAssignedTo, setNewAssignedTo] = useState<string>("");
   const [newCreatedBy, setNewCreatedBy] = useState("rob");
 
+  // Fetch archive when switching to archive tab
+  const [archiveLoaded, setArchiveLoaded] = useState(false);
+  const handleFilterChange = (f: FilterStatus) => {
+    setFilter(f);
+    if (f === "archive" && !archiveLoaded) {
+      fetchArchivedTasks();
+      setArchiveLoaded(true);
+    }
+  };
+
   const filteredTasks = useMemo(() => {
+    if (filter === "archive") return archivedTasks;
     return tasks.filter((t) => {
       if (filter === "all") return true;
       return t.status === filter;
     });
-  }, [tasks, filter]);
+  }, [tasks, archivedTasks, filter]);
 
-  // For mobile: single sorted list
+  // For mobile: single sorted list — open first, then done
   const sortedTasks = useMemo(() => {
     return [...filteredTasks].sort((a, b) => {
       if (a.status === "open" && b.status === "done") return -1;
@@ -261,15 +272,21 @@ export default function Team() {
     });
   }, [filteredTasks]);
 
-  // For desktop: grouped by assigned_to
+  // For desktop: grouped by assigned_to, with completed sorted to bottom within each column
   const columnTasks = useMemo(() => {
     const columns: Record<string, TeamTask[]> = { rob: [], liz: [], buddy: [] };
     filteredTasks.forEach((t) => {
-      const key = t.assigned_to && columns[t.assigned_to] ? t.assigned_to : "rob"; // unassigned goes to Rob's column
+      const key = t.assigned_to && columns[t.assigned_to] ? t.assigned_to : "rob";
       columns[key].push(t);
     });
-    // Sort each column by position
-    Object.values(columns).forEach((col) => col.sort((a, b) => a.position - b.position));
+    // Sort each column: open tasks by position first, then done tasks by position
+    Object.keys(columns).forEach((key) => {
+      columns[key].sort((a, b) => {
+        if (a.status === "open" && b.status === "done") return -1;
+        if (a.status === "done" && b.status === "open") return 1;
+        return a.position - b.position;
+      });
+    });
     return columns;
   }, [filteredTasks]);
 
@@ -380,18 +397,21 @@ export default function Team() {
             { key: "all" as FilterStatus, label: "All", count: tasks.length },
             { key: "open" as FilterStatus, label: "Open", count: openCount },
             { key: "done" as FilterStatus, label: "Done", count: doneCount },
+            { key: "archive" as FilterStatus, label: "Archive", count: null, icon: true },
           ]).map((f) => (
             <button
               key={f.key}
-              onClick={() => setFilter(f.key)}
+              onClick={() => handleFilterChange(f.key)}
               className={cn(
-                "px-3.5 py-1.5 rounded-full text-xs font-medium transition-all",
+                "px-3.5 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1",
                 filter === f.key
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
               )}
             >
-              {f.label} <span className="ml-1 opacity-70">{f.count}</span>
+              {f.icon && <Archive className="w-3 h-3" />}
+              {f.label}
+              {f.count !== null && <span className="ml-1 opacity-70">{f.count}</span>}
             </button>
           ))}
         </div>

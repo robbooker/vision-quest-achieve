@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { motion, AnimatePresence, Reorder } from "framer-motion";
 import { Helmet } from "react-helmet-async";
 import { useIsMobile } from "@/hooks/use-mobile";
+import gpLogo from "@/assets/gp-logo.png";
 
 const TEAM_MEMBERS = [
   { value: "rob", label: "Rob", initials: "R", avatarColor: "bg-indigo-500", cardBg: "bg-sky-50 dark:bg-sky-950/30 border-sky-200/60 dark:border-sky-800/40" },

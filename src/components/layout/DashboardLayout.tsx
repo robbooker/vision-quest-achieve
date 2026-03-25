@@ -35,6 +35,7 @@ const navItems = [
 ];
 
 const dropdownNavItems = [
+  { href: '/team', label: 'Team', icon: Users },
   { href: '/sprints', label: 'Sprints', icon: Rocket },
   { href: '/morning-briefing', label: 'Morning Briefing', icon: Sunrise },
   { href: '/notes', label: 'Notes', icon: FileText },

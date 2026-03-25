@@ -12,6 +12,7 @@ export interface TeamTask {
   assigned_to: string | null;
   completed_by: string | null;
   completed_at: string | null;
+  position: number;
   created_at: string;
   updated_at: string;
 }
@@ -25,6 +26,7 @@ export function useTeamTasks() {
     const { data, error } = await supabase
       .from("team_tasks")
       .select("*")
+      .order("position", { ascending: true })
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -131,6 +133,7 @@ export function useTeamTasks() {
     description?: string | null;
     priority?: string;
     assigned_to?: string | null;
+    position?: number;
   }) => {
     const { error } = await supabase
       .from("team_tasks")
@@ -142,6 +145,27 @@ export function useTeamTasks() {
       return false;
     }
     return true;
+  };
+
+  const reorderTasks = async (reorderedTasks: { id: string; position: number }[]) => {
+    // Optimistic update
+    setTasks((prev) => {
+      const map = new Map(reorderedTasks.map((t) => [t.id, t.position]));
+      return prev
+        .map((t) => (map.has(t.id) ? { ...t, position: map.get(t.id)! } : t))
+        .sort((a, b) => a.position - b.position);
+    });
+
+    // Persist all position updates
+    const promises = reorderedTasks.map(({ id, position }) =>
+      supabase.from("team_tasks").update({ position } as any).eq("id", id)
+    );
+    const results = await Promise.all(promises);
+    const failed = results.find((r) => r.error);
+    if (failed?.error) {
+      toast({ title: "Failed to reorder", description: failed.error.message, variant: "destructive" });
+      fetchTasks(); // rollback
+    }
   };
 
   const deleteTask = async (id: string) => {
@@ -157,5 +181,5 @@ export function useTeamTasks() {
     return true;
   };
 
-  return { tasks, loading, addTask, completeTask, reopenTask, updateTask, deleteTask };
+  return { tasks, loading, addTask, completeTask, reopenTask, updateTask, deleteTask, reorderTasks };
 }

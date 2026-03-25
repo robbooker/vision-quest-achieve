@@ -318,7 +318,7 @@ export default function Team() {
                         onToggle={(e) => isDone ? reopenTask(task.id) : handleComplete(task.id, e)}
                       />
 
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => openEditDialog(task)}>
                         <p className={cn(
                           "text-[15px] font-medium leading-snug",
                           isDone && "line-through text-muted-foreground"

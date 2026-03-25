@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Inbox, Check, Trash2, GripVertical } from "lucide-react";
+import { Plus, Inbox, Check, Trash2, GripVertical, Archive } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence, Reorder } from "framer-motion";
 import { Helmet } from "react-helmet-async";

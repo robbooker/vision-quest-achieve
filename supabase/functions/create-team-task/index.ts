@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
     const SLACK_MEMBERS: Record<string, { display: string; mention: string }> = {
       rob: { display: "Rob", mention: "<@U0AEJPYLJ85>" },
       liz: { display: "Liz", mention: "<@U0AERUZQLG4>" },
-      buddy: { display: "Buddy", mention: "@Buddy" },
+      buddy: { display: "Buddy", mention: "<@U0AE6QUGDAT>" },
     };
 
     const assigneeKey = data.assigned_to || "";

@@ -238,6 +238,15 @@ export default function Team() {
     if (success) setEditingTask(null);
   };
 
+  const handleInlineDelete = async (id: string) => {
+    setDustingIds((prev) => new Set(prev).add(id));
+    // Wait for the dust animation, then actually delete
+    setTimeout(async () => {
+      await deleteTask(id);
+      setDustingIds((prev) => { const n = new Set(prev); n.delete(id); return n; });
+    }, 800);
+  };
+
   const openCount = tasks.filter((t) => t.status === "open").length;
   const doneCount = tasks.filter((t) => t.status === "done").length;
 

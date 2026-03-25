@@ -152,11 +152,18 @@ function AvatarPill({ member }: { member: string | null }) {
 }
 
 export default function Team() {
-  const { tasks, loading, addTask, completeTask, reopenTask } = useTeamTasks();
+  const { tasks, loading, addTask, completeTask, reopenTask, updateTask, deleteTask } = useTeamTasks();
   const [filter, setFilter] = useState<FilterStatus>("all");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set());
   const { bursts, trigger: triggerBurst } = useEmojiBurst();
+
+  // Edit state
+  const [editingTask, setEditingTask] = useState<TeamTask | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editPriority, setEditPriority] = useState("normal");
+  const [editAssignedTo, setEditAssignedTo] = useState<string>("");
 
   // Form state
   const [newTitle, setNewTitle] = useState("");

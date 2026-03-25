@@ -338,6 +338,21 @@ export default function Today() {
           </div>
         </div>
 
+        {/* Command Center link - admin only */}
+        {isAdmin && (
+          <Link to="/team" className="block">
+            <div className="rounded-xl border bg-card p-3 flex items-center gap-3 hover:bg-accent/50 transition-colors">
+              <div className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center">
+                <Target className="w-4 h-4 text-indigo-500" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">Command Center</p>
+                <p className="text-[11px] text-muted-foreground">Team task board</p>
+              </div>
+            </div>
+          </Link>
+        )}
+
         {/* Compact Reset Card - when reset is active */}
         {isResetActive && <CompactResetCard />}
 

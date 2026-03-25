@@ -397,18 +397,21 @@ export default function Team() {
             { key: "all" as FilterStatus, label: "All", count: tasks.length },
             { key: "open" as FilterStatus, label: "Open", count: openCount },
             { key: "done" as FilterStatus, label: "Done", count: doneCount },
+            { key: "archive" as FilterStatus, label: "Archive", count: null, icon: true },
           ]).map((f) => (
             <button
               key={f.key}
-              onClick={() => setFilter(f.key)}
+              onClick={() => handleFilterChange(f.key)}
               className={cn(
-                "px-3.5 py-1.5 rounded-full text-xs font-medium transition-all",
+                "px-3.5 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1",
                 filter === f.key
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
               )}
             >
-              {f.label} <span className="ml-1 opacity-70">{f.count}</span>
+              {f.icon && <Archive className="w-3 h-3" />}
+              {f.label}
+              {f.count !== null && <span className="ml-1 opacity-70">{f.count}</span>}
             </button>
           ))}
         </div>

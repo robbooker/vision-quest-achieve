@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
     // Slack member ID mapping
     const SLACK_MEMBERS: Record<string, { display: string; mention: string }> = {
       rob: { display: "Rob", mention: "<@U0AEJPYLJ85>" },
-      liz: { display: "Liz", mention: "<@D0AENB5TFPC>" },
+      liz: { display: "Liz", mention: "<@U0AERUZQLG4>" },
       buddy: { display: "Buddy", mention: "@Buddy" },
     };
 

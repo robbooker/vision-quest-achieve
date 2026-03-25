@@ -57,19 +57,43 @@ export function useTeamTasks() {
     created_by: string;
     assigned_to: string | null;
   }) => {
-    const { error } = await supabase.from("team_tasks").insert({
-      title: task.title,
-      description: task.description || null,
-      priority: task.priority,
-      created_by: task.created_by,
-      assigned_to: task.assigned_to,
-    } as any);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) {
+        toast({ title: "Not authenticated", variant: "destructive" });
+        return false;
+      }
 
-    if (error) {
-      toast({ title: "Failed to add task", description: error.message, variant: "destructive" });
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-team-task`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+            "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({
+            title: task.title,
+            description: task.description || null,
+            priority: task.priority,
+            created_by: task.created_by,
+            assigned_to: task.assigned_to,
+          }),
+        }
+      );
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Unknown error" }));
+        toast({ title: "Failed to add task", description: err.error, variant: "destructive" });
+        return false;
+      }
+      return true;
+    } catch (e: any) {
+      toast({ title: "Failed to add task", description: e.message, variant: "destructive" });
       return false;
     }
-    return true;
   };
 
   const completeTask = async (id: string, completedBy: string) => {

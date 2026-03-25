@@ -10,9 +10,29 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Auth: accept either x-api-key (Buddy/external) OR a valid Supabase JWT (web UI)
+  let authenticated = false;
+
   const apiKey = req.headers.get("x-api-key");
   const expectedKey = Deno.env.get("GROOVY_AUTH_TOKEN");
-  if (!apiKey || apiKey !== expectedKey) {
+  if (apiKey && apiKey === expectedKey) {
+    authenticated = true;
+  }
+
+  if (!authenticated) {
+    const authHeader = req.headers.get("authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      const token = authHeader.slice(7);
+      const supabaseAuth = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!
+      );
+      const { data: { user } } = await supabaseAuth.auth.getUser(token);
+      if (user) authenticated = true;
+    }
+  }
+
+  if (!authenticated) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -22,7 +22,7 @@ const TEAM_MEMBERS = [
 const MEMBER_COLUMN_HEADER: Record<string, { label: string; emoji: string; borderColor: string }> = {
   rob: { label: "Rob", emoji: "💙", borderColor: "border-sky-300 dark:border-sky-700" },
   liz: { label: "Liz", emoji: "💚", borderColor: "border-emerald-300 dark:border-emerald-700" },
-  buddy: { label: "Buddy", emoji: "🧡", borderColor: "border-orange-300 dark:border-orange-700" },
+  buddy: { label: "Buddy", emoji: "🧡", borderColor: "border-navy-600 dark:border-navy-400" },
 };
 
 const PRIORITY_CONFIG = {

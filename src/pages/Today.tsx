@@ -59,6 +59,8 @@ import { SprintTrackerWidget } from '@/components/dashboard/SprintTrackerWidget'
 import { GoalSprintWidget } from '@/components/dashboard/GoalSprintWidget';
 import { isSprintActive } from '@/data/goalSprint';
 import { BigThreeWidget } from '@/components/dashboard/BigThreeWidget';
+import { useUserRole } from '@/hooks/useUserRole';
+import { Link } from 'react-router-dom';
 
 export default function Today() {
   const navigate = useNavigate();

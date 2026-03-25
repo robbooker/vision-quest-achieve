@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useMemo } from "react";
-import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { Link } from "react-router-dom";
 import { useTeamTasks, TeamTask } from "@/hooks/useTeamTasks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

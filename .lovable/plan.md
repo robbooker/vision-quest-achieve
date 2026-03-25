@@ -1,88 +1,57 @@
 
-Revised plan — incorporating your two critical points:
 
-1) template `default_tasks` instantiation with per-area assignment in Step 3  
-2) soft-deprecation of Daily Steps (hide UI, preserve data/code)
+# Team Tasks — Command Center
 
-## What changes in the plan
+## Overview
+Create a shared task board for Rob, Liz, and Buddy at `/team`. Includes a new database table, three API edge functions for Buddy, and a polished React page with real-time updates.
 
-### A) Session 2 must include task instantiation logic (not flat copy)
+## Database
 
-We will treat template `default_tasks` as **draft task blueprints** in wizard state, then instantiate real `sprint_tasks` only on launch.
+New `team_tasks` table with columns: id, title, description, status (open/done), priority (high/normal/low), created_by, assigned_to, completed_by, completed_at, created_at, updated_at. No RLS — this is a team-internal table accessible to authenticated users and via edge functions. An `updated_at` trigger will keep timestamps fresh. Enable Supabase Realtime on the table.
 
-Implementation design for wizard flow:
+A new secret `GROOVY_AUTH_TOKEN` will be needed for the edge function API key auth.
 
-- **Step 1**: pick template
-- **Step 2**: sprint metadata + Areas of Focus (1–3)
-- **Step 3 (updated)**: task review grid includes:
-  - title/description edits
-  - week/day range/order edits
-  - **required Area-of-Focus assignment per task** (dropdown from Step 2 areas)
-  - add/delete/reorder tasks
-- **Step 4**: launch summary + commit
+## Edge Functions
 
-Launch write order (single atomic operation):
+Three functions, each validating `x-api-key` header against `GROOVY_AUTH_TOKEN` secret:
 
-1. create `sprints` row  
-2. create `sprint_areas_of_focus` rows  
-3. resolve wizard area selections to created area IDs  
-4. insert `sprint_tasks` rows with:
-   - `sprint_id`
-   - `area_of_focus_id` (assigned in Step 3)
-   - `week`, `day_range`, `sort_order`, etc.
-5. set sprint `status='active'`
+1. **`get-team-tasks`** — Returns all tasks, supports `?status=open|done` filter. Uses service role client.
+2. **`create-team-task`** — Accepts JSON body `{ title, description, priority, created_by, assigned_to }`, inserts row, returns it.
+3. **`update-team-task`** — Accepts JSON body `{ id, status, completed_by }`. If status becomes `done`, sets `completed_at = now()` and `completed_by`.
 
-To keep this safe/atomic, Session 2 will include a backend creation action (RPC or backend function) so we don’t risk partial inserts if any step fails.
+## React Page (`src/pages/Team.tsx`)
 
-Optional schema hardening we’ll include in Session 2:
-- `sprint_tasks.area_of_focus_id` should be required for templated sprint tasks (enforced by launch validation; DB constraint optional if needed).
-- Add `template_task_order` (or similar) on `sprint_tasks` for stable replay/reporting of original sequence.
+Premium mobile-first design (max-w-md centered). Components:
 
-### B) Daily Steps handling = soft-deprecate (hide, preserve)
+- **Header**: "Command Center" bold heading + "Scout HQ · Active Tasks" subtitle
+- **Filter bar**: Pill toggles for All / Open / Done
+- **Task list**: Cards with generous padding, soft shadows, 12px radius
+  - Circular checkbox on left (animated scale+fade on complete)
+  - Title (16px medium), optional muted description
+  - Priority pill badge (amber/slate/green)
+  - Assigned-to avatar circle with initials: R (indigo), L (rose), B (emerald)
+  - "Added by..." muted footer text
+  - Done tasks: strikethrough title, green check badge with completer name
+- **Empty state**: Icon + "All clear. Nothing on the board."
+- **FAB**: Bottom-right floating indigo button → opens bottom sheet with title, description, priority, assigned_to, created_by fields
+- **Real-time**: Supabase channel subscription on `team_tasks` table for instant updates
 
-We will **not delete**:
-- existing Daily Steps data (`goal_tactics`, `tactic_logs`, etc.)
-- existing components/hooks (`HabitItem`, `useDailyTactics`, `useTacticLogs`)
-- existing cycle/goal system
+## Navigation
 
-We will **only stop rendering** Daily Steps in Today page under the new rules:
+Add `{ href: '/team', label: 'Team', icon: Users }` to `dropdownNavItems` in `DashboardLayout.tsx`.
 
-- If user has routine items configured (morning/evening): show routines, hide Daily Steps block.
-- If cycle window is over (no active cycle after week 8 behavior): Daily Steps remains hidden (already mostly true due to current `!activeCycle` branch; we’ll ensure routines still show).
-- If user has no routines yet and still in legacy cycle flow: keep fallback behavior configurable (default: show routine onboarding CTA, not Daily Steps card).
+## Route
 
-This keeps full backward compatibility and historical data intact while moving users to routines-first UX.
+Add `<Route path="/team" element={<ProtectedRoute><Team /></ProtectedRoute>} />` in `App.tsx`.
 
-## Concrete updates to phased implementation
-
-### Phase 1 (Database + Routines) — adjusted
-- Add routines tables + RLS.
-- Integrate Morning/Evening routines in Today page.
-- Add conditional rendering gate for legacy Daily Steps:
-  - hidden when routines configured
-  - hidden when cycle is no longer active window
-- Keep old Daily Steps code/data untouched (soft-deprecated).
-
-### Phase 2 (Sprint Core + Wizard) — adjusted
-- Build Step 3 task editor with **per-task Area assignment**.
-- Add launch pipeline that instantiates `default_tasks` into `sprint_tasks` with mapped `area_of_focus_id`.
-- Use atomic backend write path for sprint+areas+tasks creation.
-- Validate all tasks have area assignment before enabling “Start Sprint”.
-
-### Phase 3/4 (Kanban + Today Sprint Tracker)
-- Kanban consumes already area-tagged tasks (no retro-tagging needed).
-- Today “Next Up” logic becomes straightforward: fetch highest-priority non-done task per area.
-
-## Edge cases explicitly covered
-- User edits/removes template tasks in Step 3 before launch → only edited list is instantiated.
-- User adds custom tasks in Step 3 → must also assign an Area.
-- User has legacy data but adopts routines → Daily Steps hidden, data preserved.
-- Archived sprints remain viewable; this is independent of Daily Steps deprecation.
-
-## Technical details (implementation-critical)
-- `default_tasks` remains JSON blueprint source only.
-- Wizard keeps an internal `draftTasks` array with `selectedAreaDraftId`.
-- On launch, map `selectedAreaDraftId` → persisted `sprint_areas_of_focus.id`.
-- Inserts set `user_id` explicitly for all sprint/routine records to satisfy RLS.
-- No destructive migration against legacy cycle/tactic tables/components.
+## Files Changed
+- **Migration**: Create `team_tasks` table + `updated_at` trigger + realtime
+- **Secret**: Request `GROOVY_AUTH_TOKEN` from user
+- `supabase/functions/get-team-tasks/index.ts` — new
+- `supabase/functions/create-team-task/index.ts` — new
+- `supabase/functions/update-team-task/index.ts` — new
+- `src/pages/Team.tsx` — new (page component with all UI)
+- `src/hooks/useTeamTasks.ts` — new (data fetching + realtime + mutations)
+- `src/App.tsx` — add route + import
+- `src/components/layout/DashboardLayout.tsx` — add nav link
 

@@ -223,7 +223,7 @@ function TaskCard({
 }
 
 export default function Team() {
-  const { tasks, loading, addTask, completeTask, reopenTask, updateTask, deleteTask, reorderTasks } = useTeamTasks();
+  const { tasks, archivedTasks, loading, addTask, completeTask, reopenTask, updateTask, deleteTask, reorderTasks, fetchArchivedTasks } = useTeamTasks();
   const [filter, setFilter] = useState<FilterStatus>("all");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set());

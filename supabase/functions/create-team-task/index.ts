@@ -52,6 +52,24 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Fire Slack notification async — don't block the response
+  const slackToken = Deno.env.get("SLACK_BOT_TOKEN");
+  if (slackToken) {
+    const assignee = data.assigned_to || "unassigned";
+    let slackText = `🗂️ New task on the board: *${data.title}* — assigned to ${assignee}, priority: ${data.priority}. Added by ${data.created_by || "unknown"}. <@U0AEJPYLJ85>`;
+    if (data.assigned_to === "buddy") {
+      slackText += " Hey Buddy, this one's yours.";
+    }
+    fetch("https://slack.com/api/chat.postMessage", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${slackToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ channel: "C0AHVSGP7TR", text: slackText }),
+    }).catch((err) => console.error("Slack notification failed:", err));
+  }
+
   return new Response(JSON.stringify(data), {
     status: 201,
     headers: { ...corsHeaders, "Content-Type": "application/json" },

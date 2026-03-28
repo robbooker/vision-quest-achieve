@@ -237,7 +237,7 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
                   className="relative group"
                 >
                   <button
-                    onClick={() => setLightboxImage(photo.photo_url)}
+                    onClick={() => { const idx = lightboxImages.findIndex(li => li.url === photo.photo_url); setLightboxIndex(idx >= 0 ? idx : 0); setLightboxImage(photo.photo_url); }}
                     className="aspect-[4/3] w-full rounded-lg overflow-hidden hover:ring-2 hover:ring-primary transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary group"
                   >
                     <img

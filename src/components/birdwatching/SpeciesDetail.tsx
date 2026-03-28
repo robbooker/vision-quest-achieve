@@ -213,8 +213,8 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
         </Card>
       </div>
 
-      {/* Photos Grid - Skip first photo since it's the hero */}
-      {speciesPhotos.length > 1 && (
+      {/* Photos Grid - Show all other photos with set-as-main option */}
+      {otherPhotos.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
@@ -225,18 +225,38 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              {speciesPhotos.slice(1).map((photo) => (
-                <button
+              {otherPhotos.map((photo) => (
+                <div
                   key={photo.id}
-                  onClick={() => setLightboxImage(photo.photo_url)}
-                  className="aspect-[4/3] rounded-lg overflow-hidden hover:ring-2 hover:ring-primary transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary group"
+                  className="relative group"
                 >
-                  <img
-                    src={photo.photo_url}
-                    alt={species}
-                    className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
-                  />
-                </button>
+                  <button
+                    onClick={() => setLightboxImage(photo.photo_url)}
+                    className="aspect-[4/3] w-full rounded-lg overflow-hidden hover:ring-2 hover:ring-primary transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary group"
+                  >
+                    <img
+                      src={photo.photo_url}
+                      alt={species}
+                      className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                    />
+                  </button>
+                  {/* Set as main button - visible on hover */}
+                  {speciesPhotos.length > 1 && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-7 text-xs gap-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMainPhoto.mutate({ photoId: photo.id, speciesName: species });
+                      }}
+                      disabled={setMainPhoto.isPending}
+                    >
+                      <Star className="h-3 w-3" />
+                      Set as main
+                    </Button>
+                  )}
+                </div>
               ))}
             </div>
           </CardContent>

@@ -26,6 +26,7 @@ export interface BirdSightingPhoto {
   sighting_id: string;
   user_id: string;
   photo_url: string;
+  is_main: boolean;
   created_at: string;
 }
 

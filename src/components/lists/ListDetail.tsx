@@ -262,9 +262,60 @@ export function ListDetail({ list, onBack, onDelete, onUpdateTitle }: ListDetail
   };
 
   const handleNewNoteKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    // Ctrl/Cmd+Enter to submit
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       handleAddNote();
+      return;
+    }
+    // Plain Enter: auto-continue bullet/numbered lists
+    if (e.key === "Enter" && !e.shiftKey) {
+      const textarea = e.currentTarget;
+      const { selectionStart } = textarea;
+      const lines = newNote.substring(0, selectionStart).split("\n");
+      const currentLine = lines[lines.length - 1];
+
+      // Match bullet (- or *) or numbered list (1. 2. etc.)
+      const bulletMatch = currentLine.match(/^(\s*[-*]\s)/);
+      const numberMatch = currentLine.match(/^(\s*)(\d+)(\.)\s/);
+
+      if (bulletMatch || numberMatch) {
+        // If line is just the prefix with no content, clear it instead
+        const isEmptyBullet = bulletMatch && currentLine.trim() === currentLine.trim().charAt(0);
+        const isEmptyNumber = numberMatch && currentLine.match(/^\s*\d+\.\s*$/);
+
+        if (isEmptyBullet || isEmptyNumber) {
+          // Remove the empty prefix line
+          e.preventDefault();
+          const before = newNote.substring(0, selectionStart - currentLine.length);
+          const after = newNote.substring(selectionStart);
+          setNewNote(before + after);
+          return;
+        }
+
+        e.preventDefault();
+        let prefix = "";
+        if (bulletMatch) {
+          prefix = bulletMatch[1];
+        } else if (numberMatch) {
+          const indent = numberMatch[1];
+          const nextNum = parseInt(numberMatch[2]) + 1;
+          prefix = `${indent}${nextNum}${numberMatch[3]} `;
+        }
+        const before = newNote.substring(0, selectionStart);
+        const after = newNote.substring(selectionStart);
+        const updated = before + "\n" + prefix + after;
+        setNewNote(updated);
+        // Set cursor position after React re-render
+        requestAnimationFrame(() => {
+          if (newNoteRef.current) {
+            const pos = selectionStart + 1 + prefix.length;
+            newNoteRef.current.selectionStart = pos;
+            newNoteRef.current.selectionEnd = pos;
+          }
+        });
+      }
+      // Otherwise, default Enter (new line) is fine
     }
   };
 

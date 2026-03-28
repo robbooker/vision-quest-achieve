@@ -405,7 +405,6 @@ export function ListDetail({ list, onBack, onDelete, onUpdateTitle }: ListDetail
               onBlur={() => {
                 newNoteBlurTimer.current = setTimeout(() => {
                   setNewNoteFocused(false);
-                  if (newNote.trim()) handleAddNote();
                 }, 200);
               }}
               placeholder={items.length === 0 ? "Start writing..." : "Add more..."}

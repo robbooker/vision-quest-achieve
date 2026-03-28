@@ -107,6 +107,11 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
   const heroPhoto = mainPhoto || speciesPhotos[0];
   const otherPhotos = speciesPhotos.filter(p => p.id !== heroPhoto?.id);
 
+  // Build lightbox images array: hero first, then others
+  const lightboxImages = heroPhoto 
+    ? [{ url: heroPhoto.photo_url, alt: `${species} - main` }, ...otherPhotos.map(p => ({ url: p.photo_url, alt: species }))]
+    : [];
+
   // Get unique locations
   const locations = [...new Set(speciesSightings.filter(s => s.location_name).map(s => s.location_name))];
 

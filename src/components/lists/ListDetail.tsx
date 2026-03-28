@@ -417,7 +417,7 @@ export function ListDetail({ list, onBack, onDelete, onUpdateTitle }: ListDetail
             />
             <div className="flex items-center gap-2 mt-2">
               <p className="text-xs text-muted-foreground">
-                Press Enter to add • Shift+Enter for new line
+                Enter for new line • ⌘/Ctrl+Enter to save
               </p>
               <TooltipProvider>
                 <Tooltip>

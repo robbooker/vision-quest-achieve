@@ -88,6 +88,7 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
     existingNotes?.personal_notes || ''
   );
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
   const [editingSighting, setEditingSighting] = useState<BirdSighting | null>(null);
 
@@ -105,6 +106,11 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
   const mainPhoto = speciesPhotos.find(p => p.is_main);
   const heroPhoto = mainPhoto || speciesPhotos[0];
   const otherPhotos = speciesPhotos.filter(p => p.id !== heroPhoto?.id);
+
+  // Build lightbox images array: hero first, then others
+  const lightboxImages = heroPhoto 
+    ? [{ url: heroPhoto.photo_url, alt: `${species} - main` }, ...otherPhotos.map(p => ({ url: p.photo_url, alt: species }))]
+    : [];
 
   // Get unique locations
   const locations = [...new Set(speciesSightings.filter(s => s.location_name).map(s => s.location_name))];
@@ -152,7 +158,7 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
       {heroPhoto && (
         <div 
           className="relative aspect-[16/9] md:aspect-[21/9] rounded-xl overflow-hidden cursor-pointer group"
-          onClick={() => setLightboxImage(heroPhoto.photo_url)}
+          onClick={() => { setLightboxIndex(0); setLightboxImage(heroPhoto.photo_url); }}
         >
           <img
             src={heroPhoto.photo_url}
@@ -231,7 +237,7 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
                   className="relative group"
                 >
                   <button
-                    onClick={() => setLightboxImage(photo.photo_url)}
+                    onClick={() => { const idx = lightboxImages.findIndex(li => li.url === photo.photo_url); setLightboxIndex(idx >= 0 ? idx : 0); setLightboxImage(photo.photo_url); }}
                     className="aspect-[4/3] w-full rounded-lg overflow-hidden hover:ring-2 hover:ring-primary transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary group"
                   >
                     <img
@@ -595,7 +601,10 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
       <ImageLightbox 
         imageUrl={lightboxImage} 
         alt={species} 
-        onClose={() => setLightboxImage(null)} 
+        onClose={() => setLightboxImage(null)}
+        images={lightboxImages}
+        currentIndex={lightboxIndex}
+        onNavigate={(idx) => { setLightboxIndex(idx); setLightboxImage(lightboxImages[idx]?.url ?? null); }}
       />
     </div>
   );

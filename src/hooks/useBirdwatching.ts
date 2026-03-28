@@ -437,6 +437,46 @@ export function useBirdwatching() {
     return allPhotos.filter(p => p.sighting_id === sightingId);
   };
 
+  // Set main photo for a species (unset others for same species, set this one)
+  const setMainPhoto = useMutation({
+    mutationFn: async ({ photoId, speciesName }: { photoId: string; speciesName: string }) => {
+      if (!user) throw new Error('Not authenticated');
+      
+      // Get all sighting IDs for this species
+      const speciesSightingIds = sightings
+        .filter(s => s.species_name.toLowerCase() === speciesName.toLowerCase())
+        .map(s => s.id);
+      
+      // Get all photo IDs for this species
+      const speciesPhotoIds = allPhotos
+        .filter(p => speciesSightingIds.includes(p.sighting_id))
+        .map(p => p.id);
+      
+      // Unset all main photos for this species
+      if (speciesPhotoIds.length > 0) {
+        const { error: unsetError } = await supabase
+          .from('bird_sighting_photos')
+          .update({ is_main: false } as any)
+          .in('id', speciesPhotoIds);
+        if (unsetError) throw unsetError;
+      }
+      
+      // Set the selected photo as main
+      const { error } = await supabase
+        .from('bird_sighting_photos')
+        .update({ is_main: true } as any)
+        .eq('id', photoId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bird-sighting-photos'] });
+      toast({ title: 'Main photo updated' });
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to set main photo', variant: 'destructive' });
+    },
+  });
+
   // Get notes for a specific species
   const getNotesForSpecies = (speciesName: string) => {
     return speciesNotes.find(n => n.species_name.toLowerCase() === speciesName.toLowerCase());

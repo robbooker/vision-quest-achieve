@@ -148,20 +148,21 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
         </Button>
       </div>
 
-      {/* Hero Photo - Most Recent */}
-      {speciesPhotos.length > 0 && (
+      {/* Hero Photo - Main or Most Recent */}
+      {heroPhoto && (
         <div 
           className="relative aspect-[16/9] md:aspect-[21/9] rounded-xl overflow-hidden cursor-pointer group"
-          onClick={() => setLightboxImage(speciesPhotos[0].photo_url)}
+          onClick={() => setLightboxImage(heroPhoto.photo_url)}
         >
           <img
-            src={speciesPhotos[0].photo_url}
-            alt={`${species} - most recent photo`}
+            src={heroPhoto.photo_url}
+            alt={`${species} - ${mainPhoto ? 'main photo' : 'most recent photo'}`}
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-          <div className="absolute bottom-3 left-3 text-white/90 text-sm">
-            <span className="font-medium">Most recent photo</span>
+          <div className="absolute bottom-3 left-3 text-white/90 text-sm flex items-center gap-2">
+            {mainPhoto && <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />}
+            <span className="font-medium">{mainPhoto ? 'Main photo' : 'Most recent photo'}</span>
             {lastSighting && (
               <span className="ml-2 text-white/70">
                 • {format(new Date(lastSighting.sighting_date), 'MMM d, yyyy')}

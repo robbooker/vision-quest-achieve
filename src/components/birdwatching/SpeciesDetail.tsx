@@ -33,7 +33,8 @@ import {
   Trash2,
   Check,
   Pencil,
-  ChevronDown
+  ChevronDown,
+  Star
 } from 'lucide-react';
 import { useBirdwatching, BirdSighting } from '@/hooks/useBirdwatching';
 import { useAIBirdResearch } from '@/hooks/useAIBirdResearch';

@@ -88,6 +88,7 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
     existingNotes?.personal_notes || ''
   );
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
   const [editingSighting, setEditingSighting] = useState<BirdSighting | null>(null);
 

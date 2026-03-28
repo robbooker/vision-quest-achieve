@@ -101,6 +101,11 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
   // Get all photos for this species
   const speciesPhotos = speciesSightings.flatMap(s => getPhotosForSighting(s.id));
 
+  // Determine hero photo: main photo first, then fallback to most recent
+  const mainPhoto = speciesPhotos.find(p => p.is_main);
+  const heroPhoto = mainPhoto || speciesPhotos[0];
+  const otherPhotos = speciesPhotos.filter(p => p.id !== heroPhoto?.id);
+
   // Get unique locations
   const locations = [...new Set(speciesSightings.filter(s => s.location_name).map(s => s.location_name))];
 

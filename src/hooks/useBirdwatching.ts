@@ -512,6 +512,7 @@ export function useBirdwatching() {
     uploadPhoto,
     saveSpeciesNotes,
     saveAIResearch,
+    setMainPhoto,
     getPhotosForSighting,
     getNotesForSpecies,
     getSightingsByDate,

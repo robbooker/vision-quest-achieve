@@ -56,6 +56,7 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
     saveSpeciesNotes,
     saveAIResearch,
     deleteSighting,
+    setMainPhoto,
     allPhotos 
   } = useBirdwatching();
   

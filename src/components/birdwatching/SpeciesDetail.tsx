@@ -158,7 +158,7 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
       {heroPhoto && (
         <div 
           className="relative aspect-[16/9] md:aspect-[21/9] rounded-xl overflow-hidden cursor-pointer group"
-          onClick={() => setLightboxImage(heroPhoto.photo_url)}
+          onClick={() => { setLightboxIndex(0); setLightboxImage(heroPhoto.photo_url); }}
         >
           <img
             src={heroPhoto.photo_url}

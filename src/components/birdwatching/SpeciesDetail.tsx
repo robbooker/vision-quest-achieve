@@ -601,7 +601,10 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
       <ImageLightbox 
         imageUrl={lightboxImage} 
         alt={species} 
-        onClose={() => setLightboxImage(null)} 
+        onClose={() => setLightboxImage(null)}
+        images={lightboxImages}
+        currentIndex={lightboxIndex}
+        onNavigate={(idx) => { setLightboxIndex(idx); setLightboxImage(lightboxImages[idx]?.url ?? null); }}
       />
     </div>
   );

@@ -1,0 +1,1 @@
+ALTER TABLE public.bird_sighting_photos ADD COLUMN is_main boolean NOT NULL DEFAULT false;

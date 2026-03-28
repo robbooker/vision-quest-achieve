@@ -33,7 +33,8 @@ import {
   Trash2,
   Check,
   Pencil,
-  ChevronDown
+  ChevronDown,
+  Star
 } from 'lucide-react';
 import { useBirdwatching, BirdSighting } from '@/hooks/useBirdwatching';
 import { useAIBirdResearch } from '@/hooks/useAIBirdResearch';
@@ -55,6 +56,7 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
     saveSpeciesNotes,
     saveAIResearch,
     deleteSighting,
+    setMainPhoto,
     allPhotos 
   } = useBirdwatching();
   
@@ -99,6 +101,11 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
   // Get all photos for this species
   const speciesPhotos = speciesSightings.flatMap(s => getPhotosForSighting(s.id));
 
+  // Determine hero photo: main photo first, then fallback to most recent
+  const mainPhoto = speciesPhotos.find(p => p.is_main);
+  const heroPhoto = mainPhoto || speciesPhotos[0];
+  const otherPhotos = speciesPhotos.filter(p => p.id !== heroPhoto?.id);
+
   // Get unique locations
   const locations = [...new Set(speciesSightings.filter(s => s.location_name).map(s => s.location_name))];
 
@@ -141,20 +148,21 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
         </Button>
       </div>
 
-      {/* Hero Photo - Most Recent */}
-      {speciesPhotos.length > 0 && (
+      {/* Hero Photo - Main or Most Recent */}
+      {heroPhoto && (
         <div 
           className="relative aspect-[16/9] md:aspect-[21/9] rounded-xl overflow-hidden cursor-pointer group"
-          onClick={() => setLightboxImage(speciesPhotos[0].photo_url)}
+          onClick={() => setLightboxImage(heroPhoto.photo_url)}
         >
           <img
-            src={speciesPhotos[0].photo_url}
-            alt={`${species} - most recent photo`}
+            src={heroPhoto.photo_url}
+            alt={`${species} - ${mainPhoto ? 'main photo' : 'most recent photo'}`}
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-          <div className="absolute bottom-3 left-3 text-white/90 text-sm">
-            <span className="font-medium">Most recent photo</span>
+          <div className="absolute bottom-3 left-3 text-white/90 text-sm flex items-center gap-2">
+            {mainPhoto && <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />}
+            <span className="font-medium">{mainPhoto ? 'Main photo' : 'Most recent photo'}</span>
             {lastSighting && (
               <span className="ml-2 text-white/70">
                 • {format(new Date(lastSighting.sighting_date), 'MMM d, yyyy')}
@@ -205,8 +213,8 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
         </Card>
       </div>
 
-      {/* Photos Grid - Skip first photo since it's the hero */}
-      {speciesPhotos.length > 1 && (
+      {/* Photos Grid - Show all other photos with set-as-main option */}
+      {otherPhotos.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
@@ -217,18 +225,38 @@ export function SpeciesDetail({ species, onBack }: SpeciesDetailProps) {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              {speciesPhotos.slice(1).map((photo) => (
-                <button
+              {otherPhotos.map((photo) => (
+                <div
                   key={photo.id}
-                  onClick={() => setLightboxImage(photo.photo_url)}
-                  className="aspect-[4/3] rounded-lg overflow-hidden hover:ring-2 hover:ring-primary transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary group"
+                  className="relative group"
                 >
-                  <img
-                    src={photo.photo_url}
-                    alt={species}
-                    className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
-                  />
-                </button>
+                  <button
+                    onClick={() => setLightboxImage(photo.photo_url)}
+                    className="aspect-[4/3] w-full rounded-lg overflow-hidden hover:ring-2 hover:ring-primary transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary group"
+                  >
+                    <img
+                      src={photo.photo_url}
+                      alt={species}
+                      className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                    />
+                  </button>
+                  {/* Set as main button - visible on hover */}
+                  {speciesPhotos.length > 1 && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-7 text-xs gap-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMainPhoto.mutate({ photoId: photo.id, speciesName: species });
+                      }}
+                      disabled={setMainPhoto.isPending}
+                    >
+                      <Star className="h-3 w-3" />
+                      Set as main
+                    </Button>
+                  )}
+                </div>
               ))}
             </div>
           </CardContent>

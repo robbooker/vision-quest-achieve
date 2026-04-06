@@ -113,8 +113,7 @@ const App = () => (
               <Sonner />
               <NotificationListener />
               <BrowserRouter>
-                <AnnouncementBar />
-                <div className="pt-10">
+                <div>
                   <Routes>
                     <Route path="/" element={<Auth />} />
                     <Route path="/pricing" element={<Pricing />} />

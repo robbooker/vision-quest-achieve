@@ -42,6 +42,7 @@ import WoopBlog from "./pages/WoopBlog";
 import ResetBlog from "./pages/ResetBlog";
 import Reset from "./pages/Reset";
 import Journal from "./pages/Journal";
+import Tasks from "./pages/Tasks";
 import Focus from "./pages/Focus";
 import Secret from "./pages/Secret";
 import Books from "./pages/Books";

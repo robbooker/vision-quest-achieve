@@ -31,7 +31,7 @@ const navItems = [
   { href: '/today', label: 'Today', icon: CheckSquare, tourId: 'today' },
   { href: '/focus', label: 'Focus', icon: Target, tourId: 'focus' },
   { href: '/primed', label: 'P.R.I.M.E.D.', icon: Hexagon, tourId: 'primed' },
-  { href: '/journal', label: 'Journal', icon: BookOpen, tourId: 'journal' },
+  { href: '/tasks', label: 'Tasks', icon: CheckSquare, tourId: 'tasks' },
 ];
 
 const dropdownNavItems = [

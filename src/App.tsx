@@ -21,7 +21,7 @@ import { Retro1971Provider } from "@/hooks/useRetro1971";
 import { SiteTourProvider } from "@/hooks/useSiteTour";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
-import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
+
 import { CursorTrail } from "@/components/CursorTrail";
 import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
@@ -113,8 +113,7 @@ const App = () => (
               <Sonner />
               <NotificationListener />
               <BrowserRouter>
-                <AnnouncementBar />
-                <div className="pt-10">
+                <div>
                   <Routes>
                     <Route path="/" element={<Auth />} />
                     <Route path="/pricing" element={<Pricing />} />

@@ -142,6 +142,7 @@ const App = () => (
                     <Route path="/focus" element={<ProtectedRoute><Focus /></ProtectedRoute>} />
                     <Route path="/reset" element={<ProtectedRoute><Reset /></ProtectedRoute>} />
                     <Route path="/journal" element={<ProtectedRoute><Journal /></ProtectedRoute>} />
+                    <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
                     <Route path="/books" element={<ProtectedRoute><Books /></ProtectedRoute>} />
                     <Route path="/trips" element={<ProtectedRoute><Trips /></ProtectedRoute>} />
                     <Route path="/affirmations" element={<ProtectedRoute><Affirmations /></ProtectedRoute>} />

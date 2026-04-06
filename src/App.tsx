@@ -42,6 +42,7 @@ import WoopBlog from "./pages/WoopBlog";
 import ResetBlog from "./pages/ResetBlog";
 import Reset from "./pages/Reset";
 import Journal from "./pages/Journal";
+import Tasks from "./pages/Tasks";
 import Focus from "./pages/Focus";
 import Secret from "./pages/Secret";
 import Books from "./pages/Books";
@@ -141,6 +142,7 @@ const App = () => (
                     <Route path="/focus" element={<ProtectedRoute><Focus /></ProtectedRoute>} />
                     <Route path="/reset" element={<ProtectedRoute><Reset /></ProtectedRoute>} />
                     <Route path="/journal" element={<ProtectedRoute><Journal /></ProtectedRoute>} />
+                    <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
                     <Route path="/books" element={<ProtectedRoute><Books /></ProtectedRoute>} />
                     <Route path="/trips" element={<ProtectedRoute><Trips /></ProtectedRoute>} />
                     <Route path="/affirmations" element={<ProtectedRoute><Affirmations /></ProtectedRoute>} />

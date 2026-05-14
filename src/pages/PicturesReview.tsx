@@ -20,12 +20,13 @@ type Filter = 'all' | 'undecided' | 'keep' | 'discard';
 
 const REVIEWER_NAMES: Record<ReviewerSlug, string> = {
   'user-1': 'Brittney',
-  'user-2': 'User 2',
+  'user-2': 'Valeria',
+  'user-3': 'N',
 };
 
 export default function PicturesReview() {
   const { userSlug } = useParams<{ userSlug: string }>();
-  const slug = (userSlug === 'user-1' || userSlug === 'user-2' ? userSlug : null) as ReviewerSlug | null;
+  const slug = (userSlug === 'user-1' || userSlug === 'user-2' || userSlug === 'user-3' ? userSlug : null) as ReviewerSlug | null;
 
   const { data: photos = [], isLoading } = useGraduationPhotos();
   const { data: decisions = [] } = useGraduationDecisions();
@@ -38,7 +39,9 @@ export default function PicturesReview() {
   const myPhotos = useMemo(() => {
     if (!slug) return [];
     return photos.filter((p) =>
-      slug === 'user-1' ? p.assigned_to_user_1 : p.assigned_to_user_2
+      slug === 'user-1' ? p.assigned_to_user_1 :
+      slug === 'user-2' ? p.assigned_to_user_2 :
+      p.assigned_to_user_3
     );
   }, [photos, slug]);
 

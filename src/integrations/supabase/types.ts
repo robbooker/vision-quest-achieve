@@ -1750,6 +1750,7 @@ export type Database = {
         Row: {
           assigned_to_user_1: boolean
           assigned_to_user_2: boolean
+          assigned_to_user_3: boolean
           created_at: string
           id: string
           storage_path: string
@@ -1758,6 +1759,7 @@ export type Database = {
         Insert: {
           assigned_to_user_1?: boolean
           assigned_to_user_2?: boolean
+          assigned_to_user_3?: boolean
           created_at?: string
           id?: string
           storage_path: string
@@ -1766,6 +1768,7 @@ export type Database = {
         Update: {
           assigned_to_user_1?: boolean
           assigned_to_user_2?: boolean
+          assigned_to_user_3?: boolean
           created_at?: string
           id?: string
           storage_path?: string

@@ -71,6 +71,9 @@ import MorningBriefingBlog from "./pages/MorningBriefingBlog";
 import Sprints from "./pages/Sprints";
 import MorningBriefingLab from "./pages/MorningBriefingLab";
 import Team from "./pages/Team";
+import Pictures from "./pages/Pictures";
+import PicturesReview from "./pages/PicturesReview";
+import PicturesAdmin from "./pages/PicturesAdmin";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -167,6 +170,9 @@ const App = () => (
                     <Route path="/privacy" element={<PrivacyPolicy />} />
                     <Route path="/terms" element={<TermsOfService />} />
                     <Route path="/secret" element={<Secret />} />
+                    <Route path="/pictures" element={<Pictures />} />
+                    <Route path="/pictures/admin" element={<AdminRoute><PicturesAdmin /></AdminRoute>} />
+                    <Route path="/pictures/:userSlug" element={<PicturesReview />} />
                     {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                     <Route path="*" element={<NotFound />} />
                   </Routes>

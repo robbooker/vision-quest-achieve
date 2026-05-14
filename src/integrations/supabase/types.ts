@@ -1714,6 +1714,65 @@ export type Database = {
           },
         ]
       }
+      graduation_photo_decisions: {
+        Row: {
+          decided_at: string
+          decision: string
+          id: string
+          photo_id: string
+          reviewer_slug: string
+        }
+        Insert: {
+          decided_at?: string
+          decision: string
+          id?: string
+          photo_id: string
+          reviewer_slug: string
+        }
+        Update: {
+          decided_at?: string
+          decision?: string
+          id?: string
+          photo_id?: string
+          reviewer_slug?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graduation_photo_decisions_photo_id_fkey"
+            columns: ["photo_id"]
+            isOneToOne: false
+            referencedRelation: "graduation_photos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      graduation_photos: {
+        Row: {
+          assigned_to_user_1: boolean
+          assigned_to_user_2: boolean
+          created_at: string
+          id: string
+          storage_path: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          assigned_to_user_1?: boolean
+          assigned_to_user_2?: boolean
+          created_at?: string
+          id?: string
+          storage_path: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          assigned_to_user_1?: boolean
+          assigned_to_user_2?: boolean
+          created_at?: string
+          id?: string
+          storage_path?: string
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
       hard_question_answers: {
         Row: {
           answer: string | null

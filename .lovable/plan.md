@@ -1,57 +1,54 @@
+# /pictures — Graduation Photo Review
 
+A simple photo review app at `/pictures` so Brittney (User 1) and User 2 can each go through their assigned graduation photos and mark **Keep** or **Discard**, and download the ones they want. You (admin) upload, assign, review results, and clean up.
 
-# Team Tasks — Command Center
+## User Flows
 
-## Overview
-Create a shared task board for Rob, Liz, and Buddy at `/team`. Includes a new database table, three API edge functions for Buddy, and a polished React page with real-time updates.
+### Public landing (`/pictures`)
+- Dropdown: **User 1 — Brittney** / **User 2** + Go button.
+- Routes to `/pictures/user-1` or `/pictures/user-2`. No login.
 
-## Database
+### Reviewer view (`/pictures/:userSlug`)
+- Grid gallery of all photos assigned to that user (a photo can be assigned to one or both users; decisions are tracked per user).
+- Click photo → fullscreen lightbox with **Keep ✓ / Discard ✗**, prev/next arrows, keyboard nav (←/→, K, D), and a **Download** button (downloads the original file).
+- Status badges per photo (Keep / Discard / Undecided) and a progress bar ("42 of 120 reviewed").
+- Filter tabs: All • Undecided • Keep • Discard.
+- "Download all my Keeps as ZIP" button at the top — bundles selected photos client-side via JSZip.
 
-New `team_tasks` table with columns: id, title, description, status (open/done), priority (high/normal/low), created_by, assigned_to, completed_by, completed_at, created_at, updated_at. No RLS — this is a team-internal table accessible to authenticated users and via edge functions. An `updated_at` trigger will keep timestamps fresh. Enable Supabase Realtime on the table.
+### Admin view (`/pictures/admin`)
+- Gated by existing admin role (`has_role(uid, 'admin')`).
+- **Upload panel:** drag-and-drop multi-file upload with checkboxes to assign each batch to User 1, User 2, or Both.
+- **Library:** thumbnail grid, per-photo controls — reassign users, delete, and see each user's decision badges.
+- **Summary:** counts per user (Keep / Discard / Undecided), plus "Download keep list" CSV and "Download all Keeps for User X as ZIP".
+- Bulk actions: select multiple → delete or reassign.
 
-A new secret `GROOVY_AUTH_TOKEN` will be needed for the edge function API key auth.
+## Technical Section
 
-## Edge Functions
+### Storage
+- New public bucket: `graduation-photos`.
+- Public read; admin-only write/delete via storage RLS using `has_role`.
 
-Three functions, each validating `x-api-key` header against `GROOVY_AUTH_TOKEN` secret:
+### Database (one migration)
+- `graduation_photos`: `id`, `storage_path`, `uploaded_by`, `assigned_to_user_1` bool, `assigned_to_user_2` bool, `created_at`.
+- `graduation_photo_decisions`: `id`, `photo_id` FK, `reviewer_slug` ('user-1' | 'user-2'), `decision` ('keep' | 'discard'), `decided_at`. Unique (photo_id, reviewer_slug).
 
-1. **`get-team-tasks`** — Returns all tasks, supports `?status=open|done` filter. Uses service role client.
-2. **`create-team-task`** — Accepts JSON body `{ title, description, priority, created_by, assigned_to }`, inserts row, returns it.
-3. **`update-team-task`** — Accepts JSON body `{ id, status, completed_by }`. If status becomes `done`, sets `completed_at = now()` and `completed_by`.
+### RLS
+- `graduation_photos`: SELECT public; INSERT/UPDATE/DELETE admin only.
+- `graduation_photo_decisions`: SELECT + INSERT + UPDATE public (no auth on reviewer side); DELETE admin only.
 
-## React Page (`src/pages/Team.tsx`)
+### Routes (in `src/App.tsx`)
+- `/pictures` (public)
+- `/pictures/:userSlug` (public)
+- `/pictures/admin` (AdminRoute)
 
-Premium mobile-first design (max-w-md centered). Components:
+### Files
+- `src/pages/Pictures.tsx`, `src/pages/PicturesReview.tsx`, `src/pages/PicturesAdmin.tsx`
+- `src/hooks/useGraduationPhotos.ts`
+- Migration for tables + RLS + bucket
+- Adds `jszip` + `file-saver` for ZIP downloads
 
-- **Header**: "Command Center" bold heading + "Scout HQ · Active Tasks" subtitle
-- **Filter bar**: Pill toggles for All / Open / Done
-- **Task list**: Cards with generous padding, soft shadows, 12px radius
-  - Circular checkbox on left (animated scale+fade on complete)
-  - Title (16px medium), optional muted description
-  - Priority pill badge (amber/slate/green)
-  - Assigned-to avatar circle with initials: R (indigo), L (rose), B (emerald)
-  - "Added by..." muted footer text
-  - Done tasks: strikethrough title, green check badge with completer name
-- **Empty state**: Icon + "All clear. Nothing on the board."
-- **FAB**: Bottom-right floating indigo button → opens bottom sheet with title, description, priority, assigned_to, created_by fields
-- **Real-time**: Supabase channel subscription on `team_tasks` table for instant updates
-
-## Navigation
-
-Add `{ href: '/team', label: 'Team', icon: Users }` to `dropdownNavItems` in `DashboardLayout.tsx`.
-
-## Route
-
-Add `<Route path="/team" element={<ProtectedRoute><Team /></ProtectedRoute>} />` in `App.tsx`.
-
-## Files Changed
-- **Migration**: Create `team_tasks` table + `updated_at` trigger + realtime
-- **Secret**: Request `GROOVY_AUTH_TOKEN` from user
-- `supabase/functions/get-team-tasks/index.ts` — new
-- `supabase/functions/create-team-task/index.ts` — new
-- `supabase/functions/update-team-task/index.ts` — new
-- `src/pages/Team.tsx` — new (page component with all UI)
-- `src/hooks/useTeamTasks.ts` — new (data fetching + realtime + mutations)
-- `src/App.tsx` — add route + import
-- `src/components/layout/DashboardLayout.tsx` — add nav link
-
+## Extras
+- Keyboard shortcuts in lightbox
+- Per-photo download (single file) and bulk ZIP download of all Keeps
+- CSV export of keep list for admin
+- Decision timestamps so you can see review activity

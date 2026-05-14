@@ -22,7 +22,8 @@ import { saveAs } from 'file-saver';
 
 const REVIEWER_NAMES: Record<ReviewerSlug, string> = {
   'user-1': 'Brittney',
-  'user-2': 'User 2',
+  'user-2': 'Valeria',
+  'user-3': 'N',
 };
 
 export default function PicturesAdmin() {
@@ -35,10 +36,11 @@ export default function PicturesAdmin() {
 
   const [assignU1, setAssignU1] = useState(true);
   const [assignU2, setAssignU2] = useState(true);
+  const [assignU3, setAssignU3] = useState(true);
   const [zipping, setZipping] = useState<ReviewerSlug | null>(null);
 
   const decisionLookup = useMemo(() => {
-    const m = new Map<string, { 'user-1'?: 'keep' | 'discard'; 'user-2'?: 'keep' | 'discard' }>();
+    const m = new Map<string, Partial<Record<ReviewerSlug, 'keep' | 'discard'>>>();
     for (const d of decisions) {
       const cur = m.get(d.photo_id) || {};
       cur[d.reviewer_slug as ReviewerSlug] = d.decision as 'keep' | 'discard';
@@ -49,7 +51,9 @@ export default function PicturesAdmin() {
 
   const summary = (slug: ReviewerSlug) => {
     const assigned = photos.filter((p) =>
-      slug === 'user-1' ? p.assigned_to_user_1 : p.assigned_to_user_2
+      slug === 'user-1' ? p.assigned_to_user_1 :
+      slug === 'user-2' ? p.assigned_to_user_2 :
+      p.assigned_to_user_3
     );
     let keep = 0, discard = 0;
     for (const p of assigned) {
@@ -62,7 +66,7 @@ export default function PicturesAdmin() {
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
-    if (!assignU1 && !assignU2) {
+    if (!assignU1 && !assignU2 && !assignU3) {
       toast.error('Pick at least one user to assign');
       return;
     }
@@ -71,6 +75,7 @@ export default function PicturesAdmin() {
         files: Array.from(files),
         assignUser1: assignU1,
         assignUser2: assignU2,
+        assignUser3: assignU3,
       });
       toast.success(`Uploaded ${files.length} photo(s)`);
       if (fileInput.current) fileInput.current.value = '';
@@ -82,7 +87,7 @@ export default function PicturesAdmin() {
   const exportCsv = (slug: ReviewerSlug) => {
     const rows = [['filename', 'decision']];
     for (const p of photos) {
-      const assigned = slug === 'user-1' ? p.assigned_to_user_1 : p.assigned_to_user_2;
+      const assigned = slug === 'user-1' ? p.assigned_to_user_1 : slug === 'user-2' ? p.assigned_to_user_2 : p.assigned_to_user_3;
       if (!assigned) continue;
       const d = decisionLookup.get(p.id)?.[slug] || 'undecided';
       rows.push([p.storage_path, d]);
@@ -93,7 +98,7 @@ export default function PicturesAdmin() {
 
   const downloadKeepsZip = async (slug: ReviewerSlug) => {
     const keeps = photos.filter((p) => {
-      const assigned = slug === 'user-1' ? p.assigned_to_user_1 : p.assigned_to_user_2;
+      const assigned = slug === 'user-1' ? p.assigned_to_user_1 : slug === 'user-2' ? p.assigned_to_user_2 : p.assigned_to_user_3;
       return assigned && decisionLookup.get(p.id)?.[slug] === 'keep';
     });
     if (keeps.length === 0) {
@@ -117,11 +122,12 @@ export default function PicturesAdmin() {
     }
   };
 
-  const toggleAssign = (p: GraduationPhoto, which: 'user-1' | 'user-2') => {
+  const toggleAssign = (p: GraduationPhoto, which: ReviewerSlug) => {
     updateAssign.mutate({
       id: p.id,
       assigned_to_user_1: which === 'user-1' ? !p.assigned_to_user_1 : p.assigned_to_user_1,
       assigned_to_user_2: which === 'user-2' ? !p.assigned_to_user_2 : p.assigned_to_user_2,
+      assigned_to_user_3: which === 'user-3' ? !p.assigned_to_user_3 : p.assigned_to_user_3,
     });
   };
 
@@ -151,6 +157,10 @@ export default function PicturesAdmin() {
               <Checkbox checked={assignU2} onCheckedChange={(v) => setAssignU2(!!v)} />
               Assign to {REVIEWER_NAMES['user-2']}
             </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <Checkbox checked={assignU3} onCheckedChange={(v) => setAssignU3(!!v)} />
+              Assign to {REVIEWER_NAMES['user-3']}
+            </label>
           </div>
           <input
             ref={fileInput}
@@ -167,8 +177,8 @@ export default function PicturesAdmin() {
         </Card>
 
         {/* Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {(['user-1', 'user-2'] as ReviewerSlug[]).map((slug) => {
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {(['user-1', 'user-2', 'user-3'] as ReviewerSlug[]).map((slug) => {
             const s = summary(slug);
             return (
               <Card key={slug} className="p-5 space-y-3">
@@ -224,6 +234,12 @@ export default function PicturesAdmin() {
                           className={`px-1.5 py-0.5 rounded border ${p.assigned_to_user_2 ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted'}`}
                         >
                           U2 {d['user-2'] === 'keep' ? '✓' : d['user-2'] === 'discard' ? '✗' : ''}
+                        </button>
+                        <button
+                          onClick={() => toggleAssign(p, 'user-3')}
+                          className={`px-1.5 py-0.5 rounded border ${p.assigned_to_user_3 ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted'}`}
+                        >
+                          U3 {d['user-3'] === 'keep' ? '✓' : d['user-3'] === 'discard' ? '✗' : ''}
                         </button>
                         <Button
                           size="icon"

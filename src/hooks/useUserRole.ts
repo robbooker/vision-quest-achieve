@@ -3,21 +3,34 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
 export function useUserRole() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isActive = true;
+
     async function checkAdminRole() {
-      if (!user) {
-        setIsAdmin(false);
-        setLoading(false);
+      if (authLoading) {
+        setLoading(true);
         return;
       }
+
+      if (!user) {
+        if (isActive) {
+          setIsAdmin(false);
+          setLoading(false);
+        }
+        return;
+      }
+
+      setLoading(true);
 
       try {
         const { data, error } = await supabase
           .rpc('has_role', { _user_id: user.id, _role: 'admin' });
+
+        if (!isActive) return;
 
         if (error) {
           console.error('Error checking admin role:', error);
@@ -27,14 +40,18 @@ export function useUserRole() {
         }
       } catch (err) {
         console.error('Error checking admin role:', err);
-        setIsAdmin(false);
+        if (isActive) setIsAdmin(false);
       } finally {
-        setLoading(false);
+        if (isActive) setLoading(false);
       }
     }
 
     checkAdminRole();
-  }, [user]);
+
+    return () => {
+      isActive = false;
+    };
+  }, [user, authLoading]);
 
   return { isAdmin, loading };
 }

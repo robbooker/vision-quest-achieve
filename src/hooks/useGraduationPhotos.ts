@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
-export type ReviewerSlug = 'user-1' | 'user-2';
+export type ReviewerSlug = 'user-1' | 'user-2' | 'user-3';
 export type Decision = 'keep' | 'discard';
 
 export interface GraduationPhoto {
@@ -10,6 +10,7 @@ export interface GraduationPhoto {
   uploaded_by: string | null;
   assigned_to_user_1: boolean;
   assigned_to_user_2: boolean;
+  assigned_to_user_3: boolean;
   created_at: string;
 }
 
@@ -83,10 +84,12 @@ export function useUploadPhotos() {
       files,
       assignUser1,
       assignUser2,
+      assignUser3,
     }: {
       files: File[];
       assignUser1: boolean;
       assignUser2: boolean;
+      assignUser3: boolean;
     }) => {
       const { data: userData } = await supabase.auth.getUser();
       const userId = userData.user?.id ?? null;
@@ -102,6 +105,7 @@ export function useUploadPhotos() {
           uploaded_by: userId,
           assigned_to_user_1: assignUser1,
           assigned_to_user_2: assignUser2,
+          assigned_to_user_3: assignUser3,
         });
         if (insErr) throw insErr;
       }
@@ -117,14 +121,16 @@ export function useUpdatePhotoAssignment() {
       id,
       assigned_to_user_1,
       assigned_to_user_2,
+      assigned_to_user_3,
     }: {
       id: string;
       assigned_to_user_1: boolean;
       assigned_to_user_2: boolean;
+      assigned_to_user_3: boolean;
     }) => {
       const { error } = await supabase
         .from('graduation_photos')
-        .update({ assigned_to_user_1, assigned_to_user_2 })
+        .update({ assigned_to_user_1, assigned_to_user_2, assigned_to_user_3 })
         .eq('id', id);
       if (error) throw error;
     },

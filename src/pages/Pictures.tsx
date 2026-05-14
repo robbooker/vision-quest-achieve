@@ -33,7 +33,8 @@ export default function Pictures() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="user-1">User 1 — Brittney</SelectItem>
-              <SelectItem value="user-2">User 2</SelectItem>
+              <SelectItem value="user-2">User 2 — Valeria</SelectItem>
+              <SelectItem value="user-3">User 3 — N</SelectItem>
             </SelectContent>
           </Select>
           <Button

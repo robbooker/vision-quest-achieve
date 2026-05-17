@@ -34,6 +34,17 @@ export function OuraSettings() {
   const [tokenInput, setTokenInput] = useState('');
   const [showToken, setShowToken] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [showSavedToken, setShowSavedToken] = useState(false);
+
+  const handleCopyToken = async () => {
+    if (!ouraProfile?.oura_access_token) return;
+    try {
+      await navigator.clipboard.writeText(ouraProfile.oura_access_token);
+      toast.success('Oura token copied to clipboard');
+    } catch {
+      toast.error('Failed to copy token');
+    }
+  };
 
   const handleConnect = async () => {
     if (!tokenInput.trim()) return;

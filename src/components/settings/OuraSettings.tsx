@@ -127,6 +127,38 @@ export function OuraSettings() {
             )}
           </div>
 
+          {isOuraConnected && ouraProfile?.oura_access_token && (
+            <div className="space-y-2 p-4 rounded-lg bg-muted/50">
+              <Label htmlFor="oura-saved-token">Your Personal Access Token</Label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    id="oura-saved-token"
+                    type={showSavedToken ? 'text' : 'password'}
+                    value={ouraProfile.oura_access_token}
+                    readOnly
+                    className="pr-10 font-mono text-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowSavedToken(!showSavedToken)}
+                    aria-label={showSavedToken ? 'Hide token' : 'Show token'}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showSavedToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <Button variant="outline" onClick={handleCopyToken} aria-label="Copy Oura token">
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copy
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Use this token to access the Oura API from other tools.
+              </p>
+            </div>
+          )}
+
           {!isOuraConnected && (
             <div className="space-y-3 p-4 rounded-lg bg-muted/50">
               <div className="space-y-2">

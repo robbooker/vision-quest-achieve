@@ -14,9 +14,11 @@ import {
   X,
   Moon,
   Eye,
-  EyeOff
+  EyeOff,
+  Copy,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 
 export function OuraSettings() {
   const {
@@ -32,6 +34,17 @@ export function OuraSettings() {
   const [tokenInput, setTokenInput] = useState('');
   const [showToken, setShowToken] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [showSavedToken, setShowSavedToken] = useState(false);
+
+  const handleCopyToken = async () => {
+    if (!ouraProfile?.oura_access_token) return;
+    try {
+      await navigator.clipboard.writeText(ouraProfile.oura_access_token);
+      toast.success('Oura token copied to clipboard');
+    } catch {
+      toast.error('Failed to copy token');
+    }
+  };
 
   const handleConnect = async () => {
     if (!tokenInput.trim()) return;
@@ -113,6 +126,38 @@ export function OuraSettings() {
               </div>
             )}
           </div>
+
+          {isOuraConnected && ouraProfile?.oura_access_token && (
+            <div className="space-y-2 p-4 rounded-lg bg-muted/50">
+              <Label htmlFor="oura-saved-token">Your Personal Access Token</Label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    id="oura-saved-token"
+                    type={showSavedToken ? 'text' : 'password'}
+                    value={ouraProfile.oura_access_token}
+                    readOnly
+                    className="pr-10 font-mono text-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowSavedToken(!showSavedToken)}
+                    aria-label={showSavedToken ? 'Hide token' : 'Show token'}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showSavedToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <Button variant="outline" onClick={handleCopyToken} aria-label="Copy Oura token">
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copy
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Use this token to access the Oura API from other tools.
+              </p>
+            </div>
+          )}
 
           {!isOuraConnected && (
             <div className="space-y-3 p-4 rounded-lg bg-muted/50">

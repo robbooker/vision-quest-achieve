@@ -34,7 +34,7 @@ export default function Dashboard() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-5xl mx-auto space-y-8">
+      <div className="max-w-7xl mx-auto space-y-8">
         {/* Quick links to other previously-on-dashboard features */}
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline" size="sm">
@@ -57,65 +57,69 @@ export default function Dashboard() {
           </Button>
         </div>
 
-        {/* Big 10 section */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-foreground">The Big 10</h2>
-              <p className="text-sm text-muted-foreground">Your top opportunities and challenges.</p>
+        {/* Two-column layout: Big 10 on the left, Daily Tasks on the right */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+          {/* Big 10 section */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-foreground">The Big 10</h2>
+                <p className="text-sm text-muted-foreground">Your top opportunities and challenges.</p>
+              </div>
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/big-ten">
+                  Open <ArrowRight className="ml-1 h-4 w-4" />
+                </Link>
+              </Button>
             </div>
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/big-ten">
-                Open <ArrowRight className="ml-1 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
 
-          {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-[180px] w-full" />
-              ))}
-            </div>
-          ) : activeProjects.length === 0 ? (
-            <BigTenEmptyState onAddProject={handleCreateProject} />
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {activeProjects.map((project) => (
-                <BigTenCard
-                  key={project.id}
-                  project={project}
-                  position={project.position}
-                  onCreateProject={() => handleCreateProject(project.category || 'opportunity')}
-                  onUpdateProject={(id, title, target_date, completed, category, pillar) =>
-                    updateProject.mutate({ id, title, target_date, completed, category, pillar })
-                  }
-                  onDeleteProject={(id) => deleteProject.mutate(id)}
-                  onCreateTask={(project_id, title, position) => createTask.mutate({ project_id, title, position })}
-                  onUpdateTask={(id, title, completed) => updateTask.mutate({ id, title, completed })}
-                  onDeleteTask={(id) => deleteTask.mutate(id)}
-                />
-              ))}
-            </div>
-          )}
-        </section>
+            {isLoading ? (
+              <div className="grid grid-cols-1 gap-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-[180px] w-full" />
+                ))}
+              </div>
+            ) : activeProjects.length === 0 ? (
+              <BigTenEmptyState onAddProject={handleCreateProject} />
+            ) : (
+              <div className="grid grid-cols-1 gap-4">
+                {activeProjects.map((project) => (
+                  <BigTenCard
+                    key={project.id}
+                    project={project}
+                    position={project.position}
+                    onCreateProject={() => handleCreateProject(project.category || 'opportunity')}
+                    onUpdateProject={(id, title, target_date, completed, category, pillar) =>
+                      updateProject.mutate({ id, title, target_date, completed, category, pillar })
+                    }
+                    onDeleteProject={(id) => deleteProject.mutate(id)}
+                    onCreateTask={(project_id, title, position) => createTask.mutate({ project_id, title, position })}
+                    onUpdateTask={(id, title, completed) => updateTask.mutate({ id, title, completed })}
+                    onDeleteTask={(id) => deleteTask.mutate(id)}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
 
-        {/* Daily Tasks section */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-foreground">Daily Tasks</h2>
-              <p className="text-sm text-muted-foreground">Quick wins for today.</p>
+          {/* Daily Tasks section */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-foreground">Daily Tasks</h2>
+                <p className="text-sm text-muted-foreground">Quick wins for today.</p>
+              </div>
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/tasks">
+                  Open <ArrowRight className="ml-1 h-4 w-4" />
+                </Link>
+              </Button>
             </div>
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/tasks">
-                Open <ArrowRight className="ml-1 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-          <QuickTaskList />
-        </section>
+            <QuickTaskList />
+          </section>
+        </div>
       </div>
     </DashboardLayout>
   );
 }
+
